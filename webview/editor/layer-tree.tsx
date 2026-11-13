@@ -1,20 +1,23 @@
-import { useEffect, useRef, useState, type MouseEvent, type PointerEvent as ReactPointerEvent } from "react";
-import { ChevronDown, ChevronRight, Eye, EyeOff, LockKeyhole, UnlockKeyhole, Type, ImageIcon, RectangleHorizontal, Box, MousePointerClick, X } from "lucide-react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type MouseEvent, type PointerEvent as ReactPointerEvent } from "react";
+import { ChevronDown, ChevronRight, Eye, EyeOff, LockKeyhole, UnlockKeyhole, Box, X } from "lucide-react";
 import type { GameFlowNode, GameFlowPage } from "../../shared/model";
 import { inheritedFlag, moveNode, type InsertType, type LayerDrop } from "../../shared/editor-ops";
 import { Button } from "../components/ui/button";
 import { cn } from "../lib/utils";
 import { LayerMenu, type LayerMenuTarget } from "./layer-menu";
+import { COMPONENT_TOOLS } from "./component-tools";
+import { canHaveChildren, pageRootType } from "../../shared/ui-components";
 
 export function NodeIcon({ type }: { type: string }) {
-  const Icon = type === "text" ? Type : type === "image" ? ImageIcon : type === "button" ? MousePointerClick : type === "container" ? Box : RectangleHorizontal;
+  const Icon = COMPONENT_TOOLS.find((item) => item.type === type)?.icon ?? Box;
   return <Icon size={14} />;
 }
 
 interface TreeDrag { id: string; pointerId: number; x: number; y: number; active: boolean; drop: LayerDrop | null }
 
-export function LayerTree({ page, selectedId, onSelect, onPatch, onBack, onAdd, onDelete, onMove }: {
+export function LayerTree({ page, selectedId, onSelect, onPatch, onBack, onAdd, onDelete, onMove, panelRef, panelStyle }: {
   page: GameFlowPage; selectedId: string | null; onSelect: (id: string | null) => void;
+  panelRef?: (element: HTMLElement | null) => void; panelStyle?: CSSProperties;
   onPatch: (id: string, patch: Partial<GameFlowNode>) => void; onBack: () => void;
   onAdd: (type: InsertType, parentId?: string, afterId?: string) => void;
   onDelete: (id: string) => void; onMove: (id: string, drop: LayerDrop) => void;
@@ -23,7 +26,8 @@ export function LayerTree({ page, selectedId, onSelect, onPatch, onBack, onAdd, 
   const [menu, setMenu] = useState<LayerMenuTarget | null>(null);
   const [dragging, setDragging] = useState<string | null>(null);
   const [drop, setDrop] = useState<LayerDrop | null>(null);
-  const panel = useRef<HTMLElement>(null);
+  const panel = useRef<HTMLElement | null>(null);
+  const attachPanel = useCallback((element: HTMLElement | null) => { panel.current = element; panelRef?.(element); }, [panelRef]);
   const drag = useRef<TreeDrag | null>(null);
   const suppressClick = useRef(false);
   const returnFocus = useRef<HTMLElement | null>(null);
@@ -58,7 +62,7 @@ export function LayerTree({ page, selectedId, onSelect, onPatch, onBack, onAdd, 
     if (!node) return null;
     const bounds = row.getBoundingClientRect();
     const fraction = (event.clientY - bounds.top) / bounds.height;
-    const container = ["container", "rectangle"].includes(node.type);
+    const container = canHaveChildren(node);
     return { targetId: node.id, position: container && fraction > 0.25 && fraction < 0.75 ? "inside" : fraction < 0.5 ? "before" : "after" };
   };
   const pointerMove = (event: ReactPointerEvent<HTMLElement>) => {
@@ -111,12 +115,12 @@ export function LayerTree({ page, selectedId, onSelect, onPatch, onBack, onAdd, 
       {hasChildren && !collapsed.has(node.id) ? <div role="group">{branch(node.id, depth + 1)}</div> : null}
     </div>;
   });
-  return <aside ref={panel} tabIndex={-1} className={cn("layer-panel floating-panel", dragging && "layer-dragging")} aria-label="控件层级树"
+  return <aside ref={attachPanel} style={panelStyle} tabIndex={-1} className={cn("layer-panel floating-panel", dragging && "layer-dragging")} aria-label="控件层级树"
     onPointerDownCapture={() => { if (!drag.current?.active) suppressClick.current = false; }}
     onPointerDown={(event) => event.stopPropagation()} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={cancelDrag} onLostPointerCapture={cancelDrag}
     onClickCapture={(event) => { if (suppressClick.current) { event.preventDefault(); event.stopPropagation(); suppressClick.current = false; } }}>
     <div className="floating-heading"><strong>图层</strong><span>{page.nodes.length}</span><Button variant="ghost" size="icon" aria-label="返回总览" onClick={onBack}><X size={14} /></Button></div>
-    <button data-layer-root className={cn("tree-root", !selectedId && "is-selected", dropClass())} aria-haspopup="menu" onContextMenu={(event) => openMenu(event, null)} onClick={() => onSelect(null)}><Box size={15} /><strong>{page.name}</strong><small>页面</small></button>
+    <button data-layer-root className={cn("tree-root", !selectedId && "is-selected", dropClass())} aria-haspopup="menu" onContextMenu={(event) => openMenu(event, null)} onClick={() => onSelect(null)}><Box size={15} /><strong>{page.name}</strong><small>{pageRootType(page)}</small></button>
     <div role="tree" aria-label={page.name} data-layer-root className="layer-tree" onContextMenu={(event) => openMenu(event, null)}>{branch(undefined, 0)}{page.nodes.length === 0 ? <p className="empty-layers">右键添加节点<br />或用底部工具条点击放置</p> : null}
       <div className={cn("tree-root-drop", drop && !drop.targetId && "layer-drop-inside")} data-layer-root>{dragging ? "移到页面根节点" : ""}</div>
     </div>

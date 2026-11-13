@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { Input } from "../components/ui/input";
 
-export function Field({ label, value, onCommit, type = "text", min, max, disabled = false, validate }: {
+export function Field({ label, ariaLabel, value, onCommit, type = "text", min, max, disabled = false, validate }: {
   label: string; value: string | number; onCommit: (value: string) => void;
+  ariaLabel?: string;
   type?: string; min?: number; max?: number; disabled?: boolean; validate?: (value: string) => boolean;
 }) {
   const [draft, setDraft] = useState(String(value));
@@ -15,7 +16,7 @@ export function Field({ label, value, onCommit, type = "text", min, max, disable
     setDraft(next);
     if (next !== String(value)) onCommit(next);
   };
-  return <label className="property-field"><span>{label}</span><Input aria-label={label} type={type} value={draft} min={min} max={max} disabled={disabled}
+  return <label className="property-field" title={ariaLabel}><span>{label}</span><Input aria-label={ariaLabel ?? label} type={type} value={draft} min={min} max={max} disabled={disabled}
     onChange={(event) => setDraft(event.target.value)} onBlur={commit}
     onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); if (event.key === "Escape") { setDraft(String(value)); event.stopPropagation(); } }} /></label>;
 }

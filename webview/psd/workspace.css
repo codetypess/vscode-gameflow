@@ -11,7 +11,7 @@
 .psd-commandbar strong { font-size: 12px; }
 .psd-filename { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; color: var(--muted-foreground); font-size: 12px; }
 .psd-hint { margin: 0; color: var(--muted-foreground); font-size: 11px; line-height: 1.7; }
-.psd-slice-canvas { position: relative; flex: 1; min-height: 0; overflow: hidden; touch-action: none; user-select: none; background-image: radial-gradient(circle, var(--canvas-grid) .7px, transparent .9px); background-size: 24px 24px; }
+.psd-slice-canvas { position: relative; flex: 1; min-height: 0; overflow: hidden; touch-action: none; user-select: none; }
 .psd-slice-canvas.is-dragging { cursor: grabbing; }
 .psd-slice-canvas > .psd-page-preview { position: absolute; }
 .psd-slice-canvas .psd-composite { pointer-events: none; }

@@ -1,10 +1,11 @@
-import type { Frame, GameFlowDocument, GameFlowNode, GameFlowPage, NodeStyle } from "./model";
+import type { Frame, GameFlowDocument, GameFlowNode, GameFlowPage, NodeStyle, NodeType } from "./model";
+import { canHaveChildren, COMPONENTS } from "./ui-components";
+import { resolvePageLayout } from "./ui-layout";
+import { CONSTRAINTS } from "./ui-config";
 
-export type InsertType = "container" | "rectangle" | "text" | "button" | "image";
+export type InsertType = NodeType;
 export type Handle = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w";
-export const NODE_LABELS: Record<string, string> = {
-  container: "容器", rectangle: "矩形", text: "文字", button: "按钮", image: "图片", list: "列表", input: "输入框"
-};
+export const NODE_LABELS: Record<string, string> = Object.fromEntries(Object.entries(COMPONENTS).map(([key, value]) => [key, value.label]));
 
 export function orderedNodes(page: GameFlowPage): GameFlowNode[] {
   const result: GameFlowNode[] = [];
@@ -34,16 +35,7 @@ export function descendants(page: GameFlowPage, id: string): Set<string> {
 }
 
 export function absoluteFrame(page: GameFlowPage, node: GameFlowNode): Frame {
-  let { x, y } = node.frame;
-  const visited = new Set([node.id]);
-  let parent = page.nodes.find((item) => item.id === node.parentId);
-  while (parent && !visited.has(parent.id)) {
-    visited.add(parent.id);
-    x += parent.frame.x;
-    y += parent.frame.y;
-    parent = page.nodes.find((item) => item.id === parent?.parentId);
-  }
-  return { ...node.frame, x, y };
+  return resolvePageLayout(page).nodes.get(node.id)?.absolute ?? node.frame;
 }
 
 export function inheritedFlag(page: GameFlowPage, node: GameFlowNode, key: "hidden" | "locked"): boolean {
@@ -60,16 +52,17 @@ export function inheritedFlag(page: GameFlowPage, node: GameFlowNode, key: "hidd
 
 export function reparentNode(page: GameFlowPage, id: string, parentId?: string): GameFlowPage {
   const node = page.nodes.find((item) => item.id === id);
-  if (!node || (parentId && descendants(page, id).has(parentId))) return page;
+  if (!node || node.parentId === parentId || inheritedFlag(page, node, "locked") || (parentId && descendants(page, id).has(parentId))) return page;
   const parent = page.nodes.find((item) => item.id === parentId);
-  if (parentId && (!parent || !["container", "rectangle"].includes(parent.type))) return page;
+  if (parentId && (!parent || !canHaveChildren(parent) || inheritedFlag(page, parent, "locked"))) return page;
   const absolute = absoluteFrame(page, node);
   const origin = parent ? absoluteFrame(page, parent) : { x: 0, y: 0 };
   return {
     ...page,
     nodes: page.nodes.map((item) => {
       if (item.id !== id) return item;
-      const next = { ...item, frame: { ...item.frame, x: absolute.x - origin.x, y: absolute.y - origin.y } };
+      const next = { ...item, frame: { ...absolute, width: Math.max(1, absolute.width), height: Math.max(1, absolute.height), x: absolute.x - origin.x + (parent?.layout?.scrollX ?? 0), y: absolute.y - origin.y + (parent?.layout?.scrollY ?? 0) } };
+      if (item.layout) next.layout = { ...item.layout, ...Object.fromEntries(CONSTRAINTS.map((key) => [key, null])), widthMode: "explicit", heightMode: "explicit" };
       if (parentId) next.parentId = parentId;
       else delete next.parentId;
       return next;
@@ -91,7 +84,7 @@ export interface LayerDrop {
 export function insertNode(page: GameFlowPage, node: GameFlowNode, parentId?: string, afterId?: string): GameFlowPage {
   if (page.nodes.some((item) => item.id === node.id)) return page;
   const parent = page.nodes.find((item) => item.id === parentId);
-  if (parentId && (!parent || !["container", "rectangle"].includes(parent.type) || inheritedFlag(page, parent, "locked"))) return page;
+  if (parentId && (!parent || !canHaveChildren(parent) || inheritedFlag(page, parent, "locked"))) return page;
   const next = { ...node, frame: { ...node.frame } };
   if (parentId) next.parentId = parentId; else delete next.parentId;
   const anchor = page.nodes.find((item) => item.id === afterId);
@@ -112,7 +105,7 @@ export function moveNode(page: GameFlowPage, id: string, drop: LayerDrop): GameF
   if (!target && drop.position !== "inside") return page;
   const parentId = drop.position === "inside" ? target?.id : target?.parentId;
   const parent = page.nodes.find((item) => item.id === parentId);
-  if (parentId && (!parent || !["container", "rectangle"].includes(parent.type) || inheritedFlag(page, parent, "locked"))) return page;
+  if (parentId && (!parent || !canHaveChildren(parent) || inheritedFlag(page, parent, "locked"))) return page;
   const reparented = node.parentId === parentId ? page : reparentNode(page, id, parentId);
   const ordered = orderedNodes(reparented);
   const subtree = ordered.filter((item) => moving.has(item.id));
@@ -137,7 +130,7 @@ export function duplicateNode(page: GameFlowPage, id: string, makeId: () => stri
   const ids = descendants(page, id);
   const mapping = new Map([...ids].map((key) => [key, makeId()]));
   const copies = page.nodes.filter((node) => ids.has(node.id)).map((node) => ({
-    ...node,
+    ...structuredClone(node),
     id: mapping.get(node.id)!,
     name: node.id === id ? `${node.name} 副本` : node.name,
     frame: { ...node.frame, x: node.frame.x + (node.id === id ? 16 : 0), y: node.frame.y + (node.id === id ? 16 : 0) },
@@ -152,7 +145,7 @@ export function duplicatePage(page: GameFlowPage, makeId: () => string): GameFlo
   return {
     ...page, id: makeId(), name: `${page.name} 副本`,
     frame: { ...page.frame, x: page.frame.x + page.frame.width + 80 },
-    nodes: page.nodes.map((node) => ({ ...node, id: mapping.get(node.id)!, frame: { ...node.frame },
+    nodes: page.nodes.map((node) => ({ ...structuredClone(node), id: mapping.get(node.id)!, frame: { ...node.frame },
       ...(node.parentId ? { parentId: mapping.get(node.parentId)! } : {}),
       ...(node.style ? { style: { ...node.style } } : {}) }))
   };
@@ -187,8 +180,26 @@ export function defaultStyle(type: string): Required<NodeStyle> {
 }
 
 export function makeNode(type: InsertType, id: string, x: number, y: number): GameFlowNode {
-  const width = type === "container" ? 220 : type === "button" ? 108 : 140;
-  const height = type === "text" ? 32 : type === "button" ? 40 : type === "container" ? 120 : 90;
+  const box = ["container", "hbox", "vbox", "grid", "panel", "list"].includes(type);
+  const width = box ? 240 : type === "button" ? 108 : type === "progress" || type === "slider" ? 200 : 140;
+  const height = box ? 160 : ["text", "checkbox", "radio", "progress", "slider"].includes(type) ? 32 : ["button", "input", "combo"].includes(type) ? 40 : 90;
   return { id, type, name: NODE_LABELS[type], frame: { x: Math.round(x - width / 2), y: Math.round(y - height / 2), width, height },
-    style: defaultStyle(type), ...(type === "text" ? { text: "文本内容" } : type === "button" ? { text: "按钮" } : {}) };
+    style: { ...defaultStyle(type), ...(["checkbox", "radio", "slider"].includes(type) ? { fill: "transparent", borderWidth: 0 } : {}) },
+    ...(type === "text" ? { text: "文本内容" } : ["button", "checkbox", "radio"].includes(type) ? { text: NODE_LABELS[type] } : {}),
+    ...(box ? { layout: { gap: 8, gapX: 8, gapY: 8, wrapCount: type === "list" ? 3 : 2, paddingLeft: 12, paddingRight: 12, paddingTop: 12, paddingBottom: 12, clipContent: type === "panel" || type === "list" } } : {}),
+    ...(type === "input" ? { widget: { placeholder: "请输入内容" } } : {}),
+    ...(["progress", "slider"].includes(type) ? { widget: { min: 0, max: 100, value: 60 } } : {}),
+    ...(type === "combo" ? { widget: { options: ["选项一", "选项二", "选项三"], selectedIndex: 0 } } : {}) };
+}
+
+/** Buttons use a real label child; lists start with editable static cells. */
+export function makeComponent(type: InsertType, id: string, x: number, y: number, makeId: () => string): GameFlowNode[] {
+  const root = makeNode(type, id, x, y), nodes = [root];
+  if (type === "button") {
+    delete root.text;
+    nodes.push({ ...makeNode("text", makeId(), 0, 0), parentId: id, name: "按钮文字", text: "按钮", frame: { x: 0, y: 0, width: 108, height: 32 },
+      layout: { left: 0, right: 0, centerY: 0 }, style: { ...defaultStyle("text"), fontSize: 14, color: "#ffffff", textAlign: "center" } });
+  }
+  if (type === "list") for (let i = 0; i < 6; i++) nodes.push({ ...makeNode("rectangle", makeId(), 0, 0), parentId: id, name: `列表项 ${i + 1}`, frame: { x: 0, y: 0, width: 64, height: 60 } });
+  return nodes;
 }

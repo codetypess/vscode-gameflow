@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent, type R
 import { Focus, Minus, Plus } from "lucide-react";
 import type { PsdAsset, PsdLayer } from "../../shared/psd-meta";
 import { Button } from "../components/ui/button";
+import { CanvasDots } from "../components/canvas-dots";
 import { fitPsdCamera, placePsdPanels, zoomPsdCamera, type CanvasSize, type PsdCamera } from "./canvas-layout";
 import { isCanvasDrag, pickPsdLayer, psdPoint } from "./layer-hit-test";
 import { createPixelHitCache } from "./pixel-hit-cache";
@@ -102,6 +103,7 @@ export function PsdSliceCanvas({ asset, selected, onSelect, active, tree, proper
   return <div ref={stage} className={`psd-slice-canvas ${dragging ? "is-dragging" : ""}`} role="region" aria-label="PSD 画布"
     onPointerDown={begin} onPointerMove={move} onPointerUp={e => finish(e)} onPointerCancel={e => finish(e, "cancel")} onLostPointerCapture={e => finish(e, "lost")}
     onContextMenu={e => { if (!isPanel(e.target)) e.preventDefault(); }}>
+    <CanvasDots camera={camera} />
     <div className="psd-page-preview" style={{ left: camera.x, top: camera.y, width: asset.width * camera.zoom, height: asset.height * camera.zoom, visibility: view.ready ? "visible" : "hidden" }}>
       <div className="psd-page-caption"><span>{asset.name}</span><small>{asset.width} × {asset.height}</small></div>
       <div className="psd-preview-world checkerboard" style={{ width: asset.width, height: asset.height, transform: `scale(${camera.zoom})` }}>

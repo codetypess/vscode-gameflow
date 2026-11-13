@@ -1,9 +1,14 @@
 import { allocateElementId, reserveDocumentElementIds } from "./element-id";
+import { canHaveChildren, COMPONENT_TYPES, PAGE_ROOT_TYPES } from "./ui-components";
+import { validateUIConfig } from "./ui-config";
+import type { NodeLayout, WidgetProps } from "./ui-config";
+export type { NodeLayout, WidgetProps } from "./ui-config";
 
-export const GAMEFLOW_SCHEMA_VERSION = 1 as const;
+export const GAMEFLOW_SCHEMA_VERSION = 2 as const;
 
 export type RequirementStatus = "confirmed" | "inferred" | "question";
 export type PageKind = "screen" | "modal";
+export type PageRootType = "UIStack" | "UITop" | "UIScene" | "UIBox";
 export type NodeType =
   | "container"
   | "rectangle"
@@ -11,7 +16,7 @@ export type NodeType =
   | "button"
   | "image"
   | "list"
-  | "input";
+  | "input" | "hbox" | "vbox" | "grid" | "panel" | "checkbox" | "radio" | "progress" | "slider" | "combo";
 
 export interface Frame {
   x: number;
@@ -38,6 +43,8 @@ export interface GameFlowNode {
   imageData?: string;
   hidden?: boolean;
   locked?: boolean;
+  layout?: NodeLayout;
+  widget?: WidgetProps;
 }
 
 export interface NodeStyle {
@@ -56,6 +63,7 @@ export interface GameFlowPage {
   id: string;
   name: string;
   kind: PageKind;
+  rootType?: PageRootType;
   frame: Frame;
   nodes: GameFlowNode[];
   background?: string;
@@ -81,7 +89,7 @@ export interface GameFlowInteraction {
 }
 
 export interface GameFlowDocument {
-  schemaVersion: typeof GAMEFLOW_SCHEMA_VERSION;
+  schemaVersion: 1 | typeof GAMEFLOW_SCHEMA_VERSION;
   documentId: string;
   title: string;
   requirements: GameFlowRequirement[];
@@ -99,15 +107,7 @@ const REQUIREMENT_STATUSES: readonly RequirementStatus[] = [
   "question"
 ];
 const PAGE_KINDS: readonly PageKind[] = ["screen", "modal"];
-const NODE_TYPES: readonly NodeType[] = [
-  "container",
-  "rectangle",
-  "text",
-  "button",
-  "image",
-  "list",
-  "input"
-];
+const NODE_TYPES: readonly NodeType[] = COMPONENT_TYPES;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -228,7 +228,8 @@ function validateNode(
       }
     }
   }
-  return idValid && nameValid && typeValid && frameValid && optionalValid;
+  const configValid = validateUIConfig(value, path, errors);
+  return idValid && nameValid && typeValid && frameValid && optionalValid && configValid;
 }
 
 function validatePage(
@@ -246,6 +247,8 @@ function validatePage(
   if (!kindValid) {
     errors.push(`${path}.kind must be screen or modal`);
   }
+  const rootTypeValid = value.rootType === undefined || PAGE_ROOT_TYPES.includes(value.rootType as PageRootType);
+  if (!rootTypeValid) errors.push(`${path}.rootType must be UIStack, UITop, UIScene, or UIBox`);
   const frameValid = validateFrame(value.frame, `${path}.frame`, errors);
   const backgroundValid = value.background === undefined || isColor(value.background);
   if (!backgroundValid) errors.push(`${path}.background must be a hex color or transparent`);
@@ -259,7 +262,7 @@ function validatePage(
       nodesValid = validateNode(node, `${path}.nodes[${index}]`, errors) && nodesValid;
     });
   }
-  return idValid && nameValid && kindValid && frameValid && nodesValid && backgroundValid;
+  return idValid && nameValid && kindValid && rootTypeValid && frameValid && nodesValid && backgroundValid;
 }
 
 function validateInteraction(
@@ -293,14 +296,32 @@ function validateUniqueIds(
   });
 }
 
+function validateElementIds(pages: readonly GameFlowPage[], errors: string[]): void {
+  const firstPathById = new Map<string, string>();
+  const check = (id: string, path: string): void => {
+    const firstPath = firstPathById.get(id);
+    if (firstPath !== undefined) {
+      errors.push(`${path} duplicates element ID ${id} first used at ${firstPath}`);
+    } else {
+      firstPathById.set(id, path);
+    }
+  };
+  pages.forEach((page, pageIndex) => {
+    check(page.id, `pages[${pageIndex}].id`);
+    page.nodes.forEach((node, nodeIndex) => {
+      check(node.id, `pages[${pageIndex}].nodes[${nodeIndex}].id`);
+    });
+  });
+}
+
 export function validateGameFlowDocument(value: unknown): ValidationResult {
   const errors: string[] = [];
   if (!isRecord(value)) {
     return { ok: false, errors: ["document must be an object"] };
   }
 
-  if (value.schemaVersion !== GAMEFLOW_SCHEMA_VERSION) {
-    errors.push(`schemaVersion must be ${GAMEFLOW_SCHEMA_VERSION}`);
+  if (value.schemaVersion !== 1 && value.schemaVersion !== GAMEFLOW_SCHEMA_VERSION) {
+    errors.push(`schemaVersion must be 1 or ${GAMEFLOW_SCHEMA_VERSION}`);
   }
   validateString(value.documentId, "documentId", errors);
   validateString(value.title, "title", errors);
@@ -347,7 +368,7 @@ export function validateGameFlowDocument(value: unknown): ValidationResult {
     const pages = value.pages as GameFlowPage[];
     const interactions = value.interactions as GameFlowInteraction[];
     validateUniqueIds(requirements, "requirements", errors);
-    validateUniqueIds(pages, "pages", errors);
+    validateElementIds(pages, errors);
     validateUniqueIds(interactions, "interactions", errors);
 
     const pageIds = new Set(pages.map((page) => page.id));
@@ -360,9 +381,14 @@ export function validateGameFlowDocument(value: unknown): ValidationResult {
       }
     }
     for (const page of pages) {
-      validateUniqueIds(page.nodes, `page ${page.id}.nodes`, errors);
+      if (value.schemaVersion === 1 && page.rootType !== undefined) {
+        errors.push(`page ${page.id} rootType requires schemaVersion 2`);
+      }
       const nodeIds = new Set(page.nodes.map((node) => node.id));
       for (const node of page.nodes) {
+        if (value.schemaVersion === 1 && (node.layout || node.widget || !["container", "rectangle", "text", "button", "image", "list", "input"].includes(node.type))) {
+          errors.push(`node ${node.id} UI configuration requires schemaVersion 2`);
+        }
         if (node.parentId !== undefined && !nodeIds.has(node.parentId)) {
           errors.push(`node ${node.id} references missing parent ${node.parentId}`);
         }
@@ -378,8 +404,8 @@ export function validateGameFlowDocument(value: unknown): ValidationResult {
           }
           visited.add(ancestor);
           const parent = page.nodes.find((item) => item.id === ancestor)!;
-          if (parent.type !== "container" && parent.type !== "rectangle") {
-            errors.push(`node ${node.id} parent must be a container or rectangle`);
+          if (!canHaveChildren(parent)) {
+            errors.push(`node ${node.id} parent must support children`);
             break;
           }
           ancestor = parent.parentId;

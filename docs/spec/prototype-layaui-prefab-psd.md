@@ -29,7 +29,7 @@ GameFlow 的方向是让策划和 Agent 编辑同一份结构化游戏 UI 原型
 
 ## 4. Current Behavior and Evidence
 
-当前 `shared/model.ts` 为 schema v1：页面、扁平节点数组、`parentId`、固定 `frame`、简单样式与内嵌图片。节点已有 `id`；页面世界坐标与节点父局部坐标已经区分。当前 DOM 预览没有约束布局、资源表、组件定义、状态变体、PSD 或 Prefab 支持。
+调查时 `shared/model.ts` 为 schema v1：页面、扁平节点数组、`parentId`、固定 `frame`、简单样式与内嵌图片。后续原型布局已由 [prototype-ui-layout.md](prototype-ui-layout.md) 落实为 schema v2 的 layout/widget 和 16 种节点，实际基线见 [11-prototype-ui-layout.md](11-prototype-ui-layout.md)。本草案中的完整资源表、组件定义、状态变体、PSD 关联及 Prefab 管线仍属后续工作。
 
 | 已核实的目标能力 | 对设计的影响 |
 | --- | --- |
@@ -113,7 +113,7 @@ Prefab 使用布局意图和解析后的资源引用；PSD 使用指定尺寸下
 
 ### 6.3 文档模型演进
 
-建议以 schema v2 引入下列结构；正式字段及迁移由后续工作项落实。布局升级提供明确迁移预览，成功后仍保留已有 ID。
+下列结构为完整管线的目标模型，不能视为当前 schema v2 的字段契约。原型布局工作项已用最小的 layout/widget 扩展提供 v2，首次有效编辑在同一可撤销事务升级、保留 ID；资源表/绑定等结构须在后续版本另定迁移方式。
 
 | 结构 | 保存的信息 |
 | --- | --- |

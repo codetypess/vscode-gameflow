@@ -56,3 +56,7 @@ Scope: 当前原型中新建、复制的页面与控件采用 Laya 默认长度�
 - `npm test`：25 项共享测试通过，覆盖新画布、短 ID 冲突/耗尽、复制引用和旧 ID 保存加载。沙箱内 esbuild 子进程启动返回 EPERM，获准在沙箱外执行后通过。
 - `npm run build`：宿主/Webview 类型检查与生产构建通过。
 - 检查所有页面/节点创建和复制入口均使用共享分配器；本次未追加真实 Extension Host 交互验收。
+
+## Follow-up: Document-wide Validation
+
+[document-element-id-uniqueness.md](document-element-id-uniqueness.md) 补齐了加载校验按页面分组导致的漏洞：所有页面根和控件在整份文档内共用唯一空间，v1/v2 的解析、序列化及编辑消息拒绝重复 ID，错误给出两处位置，不自动改号。新增长 ID 兼容、受控碰撞连续复制、恢复复制前状态后不复用会话 ID 及样例往返覆盖；共 77 项测试及构建通过。

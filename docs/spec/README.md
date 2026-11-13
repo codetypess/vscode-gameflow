@@ -29,6 +29,7 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 | --- | --- |
 | [01-product-workspace.md](01-product-workspace.md) | Planning workspace, infinite canvas, page groups and editing scope |
 | [10-extension-architecture.md](10-extension-architecture.md) | Extension host, Webview, shared contracts, document authority and evolution boundary |
+| [11-prototype-ui-layout.md](11-prototype-ui-layout.md) | Prototype UI components, shared layout geometry, edit semantics and v1/v2 persistence |
 
 ## Active Work Items
 
@@ -37,11 +38,21 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 
 The completed [workspace-modes-psd-slicing.md](workspace-modes-psd-slicing.md) records three compact icon modes, real PSD import, slice/nine-grid configuration, same-name sidecars, metadata-only PSD copies and manual selection preview trees. Build, 35 shared tests, browser interactions and independent PSD output parsing passed. Extension Host/Photoshop validation and full merge/export delivery remain separate follow-ups.
 
+The completed [prototype-ui-layout.md](prototype-ui-layout.md) adds 16 prototype components, shared LayaUI constraint/container layout, flow reorder and constraint-aware editing, plus v2 persistence preserving existing v1 identities. Build, 64 tests and browser editing checks passed; engine rendering, runtime binding and Prefab export remain follow-ups.
+
+The completed [prototype-following-panels.md](prototype-following-panels.md) anchors prototype layer/properties panels to page edges using the shared PSD placement algorithm. It follows pan/zoom, clamps within the viewport and clears measured bottom controls. Build, 66 tests and browser pan/zoom, collapse, mode-switch, overview and narrow-window checks passed.
+
+The completed [page-root-types.md](page-root-types.md) adds UIStack/UITop/UIScene page roots, standalone UIBox boards, editable root identity and component class labels. [prototype-panel-top-alignment.md](prototype-panel-top-alignment.md) updates prototype panels to equal 280px widths with content-top alignment and a 400px available-height threshold. [prototype-layout-controls.md](prototype-layout-controls.md) adds checkbox constraint diagrams, read-only size sources, compact Padding and alignment icon groups. Build, 72 tests and browser creation, save/reload, layout editing and responsive checks passed.
+
 The completed [psd-following-panels.md](psd-following-panels.md) adds wheel zoom and drag pan to the slice canvas, with equally wide layer/properties panels following the PSD while remaining inside the viewport. Build, 38 shared tests and browser interaction/resize checks passed.
 
 The completed [psd-canvas-selection.md](psd-canvas-selection.md) adds direct canvas picking with transparent-pixel pass-through, synchronized tree/properties and separate click/drag gestures. Build, 41 shared tests and real PSD browser selection checks passed.
 
 The completed [stable-node-ids.md](stable-node-ids.md) records Laya-style 8-character IDs for newly created pages and controls, collision checks and preservation of existing identities; its lasting rules are incorporated in the baseline specs.
+
+The completed [document-element-id-uniqueness.md](document-element-id-uniqueness.md) closes cross-page and page/node collision gaps with document-wide identity validation for v1/v2, actionable conflict locations and rejection at parsing, serialization and edit-message boundaries. All 77 tests and the production build passed, including controlled copy collisions, retained session reservations and both checked-in samples.
+
+The completed [compact-insert-menu.md](compact-insert-menu.md) shows all insert choices in two compact columns at common desktop sizes, with scrolling only when space is limited. [cyclic-canvas-grid.md](cyclic-canvas-grid.md) shares a world-anchored, density-cycling dot grid between prototype and PSD slice canvases. Build, 79 tests and browser menu/zoom/pan checks passed.
 
 The completed [psd-metadata-sample.md](psd-metadata-sample.md) records a standalone layered PSD fixture, an offline inspector and two art-return checks: ordinary edits preserve metadata, duplication repeats IDs, and the tested layer merge loses metadata. The Draft PSD design now treats merged layers as new objects and manages identity from metadata only; production integration and broader compatibility remain unimplemented.
 

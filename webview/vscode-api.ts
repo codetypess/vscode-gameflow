@@ -1,13 +1,15 @@
 import { createDefaultGameFlowDocument, parseGameFlowDocument, serializeGameFlowDocument } from "../shared/model";
 import type { GameFlowDocument } from "../shared/model";
 import { isWebviewToHostMessage, type HostToWebviewMessage, type WebviewToHostMessage } from "../shared/protocol";
+import componentSample from "../sample/ui-components.gameflow.json";
 
 export const isBrowserPreview = typeof acquireVsCodeApi !== "function";
 const api = isBrowserPreview ? createBrowserPreviewApi() : acquireVsCodeApi();
 
 function createBrowserPreviewApi(): VsCodeApi {
-  const storageKey = "gameflow.prototype.v1";
-  let document = createDefaultGameFlowDocument("gameflow-browser-preview");
+  const sample = new URLSearchParams(location.search).get("sample") === "ui-components";
+  const storageKey = sample ? "gameflow.prototype.ui-components.v2" : "gameflow.prototype.v1";
+  let document = sample ? parseGameFlowDocument(JSON.stringify(componentSample)) : createDefaultGameFlowDocument("gameflow-browser-preview");
   try {
     const saved = localStorage.getItem(storageKey);
     if (saved) document = parseGameFlowDocument(saved);

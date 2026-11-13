@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import {
   GameFlowValidationError,
   createDefaultGameFlowDocument,
@@ -13,6 +14,7 @@ import type { WebviewToHostMessage } from "../shared/protocol";
 import { DocumentSession } from "../webview/document-session";
 import { allocateElementId, reserveDocumentElementIds } from "../shared/element-id";
 import { psdTests } from "./psd-suite";
+import { uiLayoutTests } from "./ui-layout-suite";
 
 type TestCase = { name: string; run: () => void | Promise<void> };
 const tests: TestCase[] = [];
@@ -62,6 +64,61 @@ test("short ID allocation reserves all pages and each new ID, with bounded colli
   let attempts = 0;
   assert.throws(() => allocateElementId(reserved, () => { attempts++; return "bbbbbbbb"; }), /128 attempts/);
   assert.equal(attempts, 128);
+});
+
+function identityDocument(): GameFlowDocument {
+  return {
+    schemaVersion: 2, documentId: "identity-check", title: "Identity check", requirements: [], interactions: [],
+    pages: ["first", "second"].map(name => ({
+      id: `page-${name}`, name: "同名页面", kind: "screen", frame: { x: 0, y: 0, width: 300, height: 200 },
+      nodes: [{ id: `node-${name}`, name: "同名控件", type: "text", frame: { x: 10, y: 20, width: 50, height: 30 } }]
+    }))
+  };
+}
+
+test("page and node IDs share one document-wide identity space in v1 and v2", () => {
+  const cases: { name: string; change: (d: GameFlowDocument) => void; paths: string[] }[] = [
+    { name: "cross-page node", change: d => { d.pages[1].nodes[0].id = d.pages[0].nodes[0].id; }, paths: ["pages[0].nodes[0].id", "pages[1].nodes[0].id"] },
+    { name: "node and its root", change: d => { d.pages[0].nodes[0].id = d.pages[0].id; }, paths: ["pages[0].id", "pages[0].nodes[0].id"] },
+    { name: "node and later root", change: d => { d.pages[1].id = d.pages[0].nodes[0].id; }, paths: ["pages[0].nodes[0].id", "pages[1].id"] },
+    { name: "root and later node", change: d => { d.pages[1].nodes[0].id = d.pages[0].id; }, paths: ["pages[0].id", "pages[1].nodes[0].id"] },
+    { name: "duplicate roots", change: d => { d.pages[1].id = d.pages[0].id; }, paths: ["pages[0].id", "pages[1].id"] },
+    { name: "duplicate siblings", change: d => { d.pages[0].nodes.push(structuredClone(d.pages[0].nodes[0])); }, paths: ["pages[0].nodes[0].id", "pages[0].nodes[1].id"] }
+  ];
+  for (const schemaVersion of [1, 2] as const) for (const scenario of cases) {
+    const doc = { ...identityDocument(), schemaVersion };
+    scenario.change(doc);
+    const before = JSON.stringify(doc), result = validateGameFlowDocument(doc);
+    assert.equal(result.ok, false, `${scenario.name} must be rejected in v${schemaVersion}`);
+    if (!result.ok) assert.ok(result.errors.some(error => scenario.paths.every(path => error.includes(path))), `${scenario.name} must identify both conflicting paths`);
+    assert.equal(JSON.stringify(doc), before, "validation must not silently renumber identities");
+  }
+});
+
+test("ambiguous element identities cannot cross parsing, serialization or edit-message boundaries", () => {
+  const doc = identityDocument(); doc.pages[1].nodes[0].id = doc.pages[0].nodes[0].id;
+  const source = JSON.stringify(doc);
+  assert.throws(() => parseGameFlowDocument(source), GameFlowValidationError);
+  assert.throws(() => serializeGameFlowDocument(doc), GameFlowValidationError);
+  assert.equal(isWebviewToHostMessage({ type: "replaceDocument", baseVersion: 1, document: doc }), false);
+  assert.equal(JSON.stringify(doc), source);
+});
+
+test("unique legacy IDs and duplicate display names round-trip without identity normalization", () => {
+  for (const schemaVersion of [1, 2] as const) {
+    const doc = { ...identityDocument(), schemaVersion };
+    doc.pages[0].nodes[0].id = "a56b983a-34ae-4d75-abbd-99af17b39204";
+    const restored = parseGameFlowDocument(serializeGameFlowDocument(doc));
+    assert.deepEqual(restored, doc);
+    assert.ok(isWebviewToHostMessage({ type: "replaceDocument", baseVersion: 1, document: restored }));
+  }
+});
+
+test("checked-in samples retain valid unique element identities", () => {
+  for (const name of ["backpack", "ui-components"]) {
+    const source = readFileSync(`sample/${name}.gameflow.json`, "utf8");
+    assert.deepEqual(parseGameFlowDocument(serializeGameFlowDocument(parseGameFlowDocument(source))), JSON.parse(source));
+  }
 });
 
 test("invalid JSON and invalid schema are rejected", () => {
@@ -162,6 +219,46 @@ test("copies get new short IDs while existing identities survive editing and ser
   const restored = parseGameFlowDocument(serializeGameFlowDocument(document));
   assert.deepEqual(restored.pages.at(-1)!.nodes.map((node) => node.id), originalIds);
   assert.equal(restored.pages.at(-1)!.nodes[2].parentId, "d");
+});
+
+test("consecutive subtree and page copies skip collisions and retain reservations after undo", () => {
+  const document = identityDocument();
+  const source = document.pages[0];
+  source.id = "page0001";
+  source.nodes = [
+    makeNode("container", "node0001", 0, 0),
+    { ...makeNode("text", "node0002", 0, 0), parentId: "node0001" }
+  ];
+  document.pages[1].id = "page0002";
+  document.pages[1].nodes[0].id = "node0003";
+  const original = structuredClone(document);
+  const reserved = new Set<string>();
+  reserveDocumentElementIds(document, reserved);
+  const candidates = [
+    "page0002", "node0003", "aaaaaaaa", "aaaaaaaa", "bbbbbbbb",
+    "bbbbbbbb", "cccccccc", "dddddddd", "eeeeeeee",
+    "aaaaaaaa", "eeeeeeee", "ffffffff", "gggggggg"
+  ];
+  const makeId = () => allocateElementId(reserved, () => candidates.shift()!);
+  const subtreeCopy = duplicateNode(source, "node0001", makeId);
+  const pageCopy = duplicatePage(source, makeId);
+  document.pages[0] = subtreeCopy.page;
+  document.pages.push(pageCopy);
+  assert.equal(validateGameFlowDocument(document).ok, true);
+  assert.equal(subtreeCopy.id, "aaaaaaaa");
+  assert.equal(subtreeCopy.page.nodes.at(-1)!.parentId, subtreeCopy.id);
+  assert.equal(pageCopy.nodes[1].parentId, pageCopy.nodes[0].id);
+  assert.deepEqual(source, original.pages[0]);
+
+  // Restoring the pre-copy document does not clear the editor session's reservations.
+  const restored = structuredClone(original);
+  reserveDocumentElementIds(restored, reserved);
+  const afterUndo = duplicateNode(restored.pages[0], "node0001", makeId);
+  restored.pages[0] = afterUndo.page;
+  assert.equal(afterUndo.id, "ffffffff");
+  assert.equal(afterUndo.page.nodes.at(-1)!.parentId, afterUndo.id);
+  assert.equal(validateGameFlowDocument(restored).ok, true);
+  assert.equal(candidates.length, 0);
 });
 
 test("nested coordinates and inherited flags follow ancestors, independently of page position", () => {
@@ -394,6 +491,7 @@ test("invalid source blocks editing and a rejected transaction reloads host auth
 });
 
 tests.push(...psdTests);
+tests.push(...uiLayoutTests);
 export const testsCompleted = (async () => {
   let failed = 0;
   for (const item of tests) {

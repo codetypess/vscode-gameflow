@@ -1,4 +1,5 @@
 import type { GameFlowDocument } from "../shared/model";
+import { GAMEFLOW_SCHEMA_VERSION } from "../shared/model";
 import type { HostToWebviewMessage, WebviewToHostMessage } from "../shared/protocol";
 
 type Transform = (document: GameFlowDocument) => GameFlowDocument;
@@ -79,8 +80,9 @@ export class DocumentSession {
   edit(transform: Transform) {
     if (!this.state.document || this.refreshing) return;
     if (this.action) { this.deferred.push(transform); return; }
-    const next = transform(this.state.document);
-    if (same(next, this.state.document)) return;
+    const candidate = transform(this.state.document);
+    if (same(candidate, this.state.document)) return;
+    const next = { ...candidate, schemaVersion: GAMEFLOW_SCHEMA_VERSION };
     this.publish({ document: next, dirty: true });
     if (this.inFlight) this.queued = next; else this.send(next);
   }

@@ -1,15 +1,14 @@
 import { useRef } from "react";
-import { Box, ImageIcon, MousePointerClick, RectangleHorizontal, Trash2, Type } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import type { GameFlowPage } from "../../shared/model";
 import { inheritedFlag, NODE_LABELS, type InsertType } from "../../shared/editor-ops";
 import { Popover, PopoverAnchor, PopoverContent } from "../components/ui/popover";
 import { Separator } from "../components/ui/separator";
+import { COMPONENT_TOOLS } from "./component-tools";
+import { canHaveChildren, COMPONENTS } from "../../shared/ui-components";
 
 export interface LayerMenuTarget { x: number; y: number; id: string | null }
-const TYPES = [
-  { type: "container", icon: Box }, { type: "rectangle", icon: RectangleHorizontal },
-  { type: "text", icon: Type }, { type: "button", icon: MousePointerClick }, { type: "image", icon: ImageIcon }
-] as const;
+const TYPES = COMPONENT_TOOLS;
 
 export function LayerMenu({ page, target, onClose, onAdd, onDelete, onRestoreFocus }: {
   page: GameFlowPage; target: LayerMenuTarget | null; onClose: () => void;
@@ -18,7 +17,7 @@ export function LayerMenu({ page, target, onClose, onAdd, onDelete, onRestoreFoc
 }) {
   const content = useRef<HTMLDivElement>(null);
   const node = page.nodes.find((item) => item.id === target?.id);
-  const container = node && ["container", "rectangle"].includes(node.type);
+  const container = node && canHaveChildren(node);
   const parentId = container ? node.id : node?.parentId;
   const parent = page.nodes.find((item) => item.id === parentId);
   const addDisabled = !!(parent && inheritedFlag(page, parent, "locked"));
@@ -39,7 +38,7 @@ export function LayerMenu({ page, target, onClose, onAdd, onDelete, onRestoreFoc
         items[index]?.focus();
       }}>
       <div className="menu-heading">{container ? "添加子节点" : node ? "添加同级节点" : "添加节点"}<span>{parent?.name ?? page.name}</span></div>
-      {TYPES.map(({ type, icon: Icon }) => <button key={type} role="menuitem" disabled={addDisabled} onClick={() => { onAdd(type, parentId, !container ? node?.id : undefined); onClose(); }}><Icon size={14} /><span>{NODE_LABELS[type]}</span></button>)}
+      {TYPES.map(({ type, icon: Icon }) => <button key={type} role="menuitem" disabled={addDisabled} onClick={() => { onAdd(type, parentId, !container ? node?.id : undefined); onClose(); }}><Icon size={14} /><span>{NODE_LABELS[type]} <small className="menu-class">({COMPONENTS[type].laya})</small></span></button>)}
       {node ? <><Separator /><button role="menuitem" className="delete-menu-item" disabled={deleteDisabled} onClick={() => { onDelete(node.id); onClose(); }}><Trash2 size={14} /><span>删除{page.nodes.some((item) => item.parentId === node.id) ? "节点及子节点" : "节点"}</span><kbd>Delete</kbd></button></> : null}
       {addDisabled || (node && deleteDisabled) ? <div className="menu-hint">已锁定，请先在图层树中解锁</div> : null}
     </PopoverContent>

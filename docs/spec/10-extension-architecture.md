@@ -17,8 +17,12 @@ Status: Baseline for the initial extension scaffold
 - Webview changes are candidate documents; the host validates them before applying a `WorkspaceEdit`.
 - Parsing or validation failure must not overwrite source content.
 - Document format is versioned. Stable IDs, world coordinates and page-local node coordinates are persisted independently.
+- Optional v2 `page.rootType` identifies UIStack, UITop, UIScene or a standalone UIBox component board. Missing values are interpreted as UIStack without normalizing saved content. Root type is independent of `kind` (screen/modal); v1 rejects explicit rootType, and the existing first-edit upgrade preserves IDs and supports undo.
 - View-only state such as camera position and active tool is not required in the initial persisted document.
-- New page/control identities use the shared allocator's 8-character Laya-style format (`[a-z][a-z0-9]{7}`). The editor reserves IDs across the current document and allocations seen during its session, including IDs later removed by delete/undo. Copies receive new IDs and remapped internal references; edits, parsing and serialization preserve existing IDs. The format is a creation policy, not a new validation restriction on saved v1 documents. IDs are scoped to a document/page, not globally unique resource UUIDs.
+- Prototype and PSD slice canvases share `CanvasDots` and `webview/lib/canvas-grid.ts`. Dot spacing cycles between 24px inclusive and 48px exclusive at power-of-two zoom levels, with constant screen-space dot size and bounded background offsets anchored at world zero. Grid geometry is decorative and never changes authored coordinates, snapping or saved data.
+- Prototype and PSD panels share `webview/lib/canvas-panels.ts` for screen-space anchoring and viewport limits. The prototype observes viewport, panel and bottom-control bounds; its panels follow the current page, independently of node selection. Panel geometry never enters document transactions or undo history.
+- Prototype panels opt into `minFollowHeight: 400`: top follows the page while available height shrinks, then stops to retain 400px (bounded by the viewport). Both widths are 280px before responsive shrinking. PSD omits the option and retains its existing measured-height placement.
+- New page/control identities use the shared allocator's 8-character Laya-style format (`[a-z][a-z0-9]{7}`). The editor reserves IDs across the current document and allocations seen during its session, including IDs later removed by delete/undo. Copies receive new IDs and remapped internal references; edits, parsing and serialization preserve existing IDs. The format is a creation policy, not a new validation restriction on saved v1/v2 documents. All page and node IDs share one document-wide namespace: shared validation rejects duplicates and reports both JSON paths without renumbering, protecting parsing, serialization and edit messages. Cross-document identity includes documentId plus element ID; pageId can locate the owning page. Short IDs are not globally unique resource UUIDs.
 
 ## Protocol Rules
 
@@ -40,5 +44,7 @@ Status: Baseline for the initial extension scaffold
 - Canonical nine-grid settings are `metadata.slicing.nineGrid`. The original sample's legacy `metadata.slice` is read only when `slicing` is absent; legacy and other unknown fields remain preserved, and new consumers must prefer `slicing`.
 
 ## Future Document Evolution
+
+原型 UI 文档已演进至 schemaVersion 2：新增类型化 layout/widget 字段，兼容读取 v1，首次有效编辑由 DocumentSession 在原事务升级，不改写已有 ID。布局解算、编辑意图与字段验证分别由 shared/ui-layout.ts、ui-edit.ts、ui-config.ts 负责；DOM 只呈现解算几何。计算结果不是第二份文档权威。详细规则见 [11-prototype-ui-layout.md](11-prototype-ui-layout.md)。
 
 The initial `CustomTextEditorProvider` and full-document edit are intentionally small. A future host session, fine-grained reducer or multi-view synchronization requires a new work-item spec when at least one is needed: concurrent Agent edits, multiple authoritative Webviews, independent history, external-change conflict resolution, or demonstrated whole-document performance problems. The v1 node model allows optional presentation fields (`style`, `imageData`, `hidden`, `locked`) and page background while keeping the TextDocument authoritative; the Webview does not accept remote image URLs or arbitrary commands.

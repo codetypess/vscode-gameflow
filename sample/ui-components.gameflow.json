@@ -1,0 +1,1434 @@
+{
+  "schemaVersion": 2,
+  "documentId": "gameflow-ui-components-sample",
+  "title": "LayaUI 组件与布局示例",
+  "requirements": [],
+  "pages": [
+    {
+      "id": "u0000001",
+      "name": "背包 · 自适应布局",
+      "kind": "screen",
+      "frame": {
+        "x": 0,
+        "y": 0,
+        "width": 900,
+        "height": 660
+      },
+      "background": "#f5f7fb",
+      "nodes": [
+        {
+          "id": "u0000002",
+          "type": "hbox",
+          "name": "标题横排",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 100,
+            "height": 48
+          },
+          "layout": {
+            "left": 24,
+            "right": 24,
+            "top": 20,
+            "gap": 16,
+            "valign": "middle"
+          },
+          "style": {
+            "fill": "transparent",
+            "borderWidth": 0
+          }
+        },
+        {
+          "id": "u0000003",
+          "type": "text",
+          "name": "冒险者的背包",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 300,
+            "height": 38
+          },
+          "text": "冒险者的背包",
+          "style": {
+            "fontSize": 28,
+            "fontWeight": 600,
+            "fill": "transparent",
+            "borderWidth": 0,
+            "color": "#263244"
+          },
+          "parentId": "u0000002"
+        },
+        {
+          "id": "u0000004",
+          "type": "input",
+          "name": "搜索道具",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 240,
+            "height": 36
+          },
+          "parentId": "u0000002",
+          "widget": {
+            "placeholder": "搜索名称…"
+          },
+          "style": {
+            "fill": "#ffffff",
+            "radius": 4
+          }
+        },
+        {
+          "id": "u0000005",
+          "type": "container",
+          "name": "内容区",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 100,
+            "height": 40
+          },
+          "layout": {
+            "left": 24,
+            "right": 24,
+            "top": 88,
+            "bottom": 88
+          },
+          "style": {
+            "fill": "transparent",
+            "borderWidth": 0
+          }
+        },
+        {
+          "id": "u0000006",
+          "type": "vbox",
+          "name": "分类竖排",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 152,
+            "height": 40
+          },
+          "parentId": "u0000005",
+          "layout": {
+            "left": 0,
+            "top": 0,
+            "bottom": 0,
+            "gap": 12,
+            "paddingLeft": 12,
+            "paddingRight": 12,
+            "paddingTop": 12,
+            "paddingBottom": 12
+          },
+          "style": {
+            "fill": "#e9edf5",
+            "radius": 6,
+            "borderWidth": 0
+          }
+        },
+        {
+          "id": "u0000007",
+          "type": "button",
+          "name": "全部道具",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 128,
+            "height": 42
+          },
+          "style": {
+            "fill": "#3b82f6",
+            "borderWidth": 0,
+            "radius": 5
+          },
+          "parentId": "u0000006"
+        },
+        {
+          "id": "u0000008",
+          "type": "text",
+          "name": "全部道具文字",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 100,
+            "height": 24
+          },
+          "text": "全部道具",
+          "style": {
+            "fontSize": 14,
+            "color": "#ffffff",
+            "textAlign": "center",
+            "fill": "transparent",
+            "borderWidth": 0
+          },
+          "parentId": "u0000007",
+          "layout": {
+            "left": 0,
+            "right": 0,
+            "centerY": 0
+          }
+        },
+        {
+          "id": "u0000009",
+          "type": "button",
+          "name": "武器装备",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 128,
+            "height": 42
+          },
+          "style": {
+            "fill": "#3b82f6",
+            "borderWidth": 0,
+            "radius": 5
+          },
+          "parentId": "u0000006"
+        },
+        {
+          "id": "u000000a",
+          "type": "text",
+          "name": "武器装备文字",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 100,
+            "height": 24
+          },
+          "text": "武器装备",
+          "style": {
+            "fontSize": 14,
+            "color": "#ffffff",
+            "textAlign": "center",
+            "fill": "transparent",
+            "borderWidth": 0
+          },
+          "parentId": "u0000009",
+          "layout": {
+            "left": 0,
+            "right": 0,
+            "centerY": 0
+          }
+        },
+        {
+          "id": "u000000b",
+          "type": "button",
+          "name": "消耗品",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 128,
+            "height": 42
+          },
+          "style": {
+            "fill": "#3b82f6",
+            "borderWidth": 0,
+            "radius": 5
+          },
+          "parentId": "u0000006"
+        },
+        {
+          "id": "u000000c",
+          "type": "text",
+          "name": "消耗品文字",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 100,
+            "height": 24
+          },
+          "text": "消耗品",
+          "style": {
+            "fontSize": 14,
+            "color": "#ffffff",
+            "textAlign": "center",
+            "fill": "transparent",
+            "borderWidth": 0
+          },
+          "parentId": "u000000b",
+          "layout": {
+            "left": 0,
+            "right": 0,
+            "centerY": 0
+          }
+        },
+        {
+          "id": "u000000d",
+          "type": "button",
+          "name": "任务道具",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 128,
+            "height": 42
+          },
+          "style": {
+            "fill": "#3b82f6",
+            "borderWidth": 0,
+            "radius": 5
+          },
+          "parentId": "u0000006"
+        },
+        {
+          "id": "u000000e",
+          "type": "text",
+          "name": "任务道具文字",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 100,
+            "height": 24
+          },
+          "text": "任务道具",
+          "style": {
+            "fontSize": 14,
+            "color": "#ffffff",
+            "textAlign": "center",
+            "fill": "transparent",
+            "borderWidth": 0
+          },
+          "parentId": "u000000d",
+          "layout": {
+            "left": 0,
+            "right": 0,
+            "centerY": 0
+          }
+        },
+        {
+          "id": "u000000f",
+          "type": "list",
+          "name": "道具网格",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 100,
+            "height": 40
+          },
+          "parentId": "u0000005",
+          "layout": {
+            "left": 176,
+            "right": 0,
+            "top": 0,
+            "bottom": 0,
+            "wrapCount": 4,
+            "gapX": 12,
+            "gapY": 12,
+            "paddingLeft": 16,
+            "paddingRight": 16,
+            "paddingTop": 16,
+            "paddingBottom": 16,
+            "clipContent": true
+          },
+          "style": {
+            "fill": "#ffffff",
+            "borderWidth": 1,
+            "borderColor": "#dde3ed",
+            "radius": 6
+          }
+        },
+        {
+          "id": "u000000g",
+          "type": "panel",
+          "name": "道具 1",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 148,
+            "height": 130
+          },
+          "parentId": "u000000f",
+          "style": {
+            "fill": "#e8eefc",
+            "borderWidth": 1,
+            "borderColor": "#d5ddea",
+            "radius": 4
+          }
+        },
+        {
+          "id": "u000000h",
+          "type": "image",
+          "name": "道具图标 1",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 60,
+            "height": 60
+          },
+          "parentId": "u000000g",
+          "layout": {
+            "centerX": 0,
+            "top": 12
+          },
+          "style": {
+            "fill": "transparent",
+            "borderWidth": 0
+          }
+        },
+        {
+          "id": "u000000i",
+          "type": "text",
+          "name": "道具名称 1",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 100,
+            "height": 24
+          },
+          "text": "铁剑",
+          "style": {
+            "fontSize": 14,
+            "textAlign": "center",
+            "fill": "transparent",
+            "borderWidth": 0,
+            "color": "#263244"
+          },
+          "parentId": "u000000g",
+          "layout": {
+            "left": 8,
+            "right": 8,
+            "bottom": 12
+          }
+        },
+        {
+          "id": "u000000j",
+          "type": "panel",
+          "name": "道具 2",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 148,
+            "height": 130
+          },
+          "parentId": "u000000f",
+          "style": {
+            "fill": "#e8eefc",
+            "borderWidth": 1,
+            "borderColor": "#d5ddea",
+            "radius": 4
+          }
+        },
+        {
+          "id": "u000000k",
+          "type": "image",
+          "name": "道具图标 2",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 60,
+            "height": 60
+          },
+          "parentId": "u000000j",
+          "layout": {
+            "centerX": 0,
+            "top": 12
+          },
+          "style": {
+            "fill": "transparent",
+            "borderWidth": 0
+          }
+        },
+        {
+          "id": "u000000l",
+          "type": "text",
+          "name": "道具名称 2",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 100,
+            "height": 24
+          },
+          "text": "护盾",
+          "style": {
+            "fontSize": 14,
+            "textAlign": "center",
+            "fill": "transparent",
+            "borderWidth": 0,
+            "color": "#263244"
+          },
+          "parentId": "u000000j",
+          "layout": {
+            "left": 8,
+            "right": 8,
+            "bottom": 12
+          }
+        },
+        {
+          "id": "u000000m",
+          "type": "panel",
+          "name": "道具 3",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 148,
+            "height": 130
+          },
+          "parentId": "u000000f",
+          "style": {
+            "fill": "#e8eefc",
+            "borderWidth": 1,
+            "borderColor": "#d5ddea",
+            "radius": 4
+          }
+        },
+        {
+          "id": "u000000n",
+          "type": "image",
+          "name": "道具图标 3",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 60,
+            "height": 60
+          },
+          "parentId": "u000000m",
+          "layout": {
+            "centerX": 0,
+            "top": 12
+          },
+          "style": {
+            "fill": "transparent",
+            "borderWidth": 0
+          }
+        },
+        {
+          "id": "u000000o",
+          "type": "text",
+          "name": "道具名称 3",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 100,
+            "height": 24
+          },
+          "text": "药水",
+          "style": {
+            "fontSize": 14,
+            "textAlign": "center",
+            "fill": "transparent",
+            "borderWidth": 0,
+            "color": "#263244"
+          },
+          "parentId": "u000000m",
+          "layout": {
+            "left": 8,
+            "right": 8,
+            "bottom": 12
+          }
+        },
+        {
+          "id": "u000000p",
+          "type": "panel",
+          "name": "道具 4",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 148,
+            "height": 130
+          },
+          "parentId": "u000000f",
+          "style": {
+            "fill": "#e8eefc",
+            "borderWidth": 1,
+            "borderColor": "#d5ddea",
+            "radius": 4
+          }
+        },
+        {
+          "id": "u000000q",
+          "type": "image",
+          "name": "道具图标 4",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 60,
+            "height": 60
+          },
+          "parentId": "u000000p",
+          "layout": {
+            "centerX": 0,
+            "top": 12
+          },
+          "style": {
+            "fill": "transparent",
+            "borderWidth": 0
+          }
+        },
+        {
+          "id": "u000000r",
+          "type": "text",
+          "name": "道具名称 4",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 100,
+            "height": 24
+          },
+          "text": "水晶",
+          "style": {
+            "fontSize": 14,
+            "textAlign": "center",
+            "fill": "transparent",
+            "borderWidth": 0,
+            "color": "#263244"
+          },
+          "parentId": "u000000p",
+          "layout": {
+            "left": 8,
+            "right": 8,
+            "bottom": 12
+          }
+        },
+        {
+          "id": "u000000s",
+          "type": "panel",
+          "name": "道具 5",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 148,
+            "height": 130
+          },
+          "parentId": "u000000f",
+          "style": {
+            "fill": "#f1f5f9",
+            "borderWidth": 1,
+            "borderColor": "#d5ddea",
+            "radius": 4
+          }
+        },
+        {
+          "id": "u000000t",
+          "type": "image",
+          "name": "道具图标 5",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 60,
+            "height": 60
+          },
+          "parentId": "u000000s",
+          "layout": {
+            "centerX": 0,
+            "top": 12
+          },
+          "style": {
+            "fill": "transparent",
+            "borderWidth": 0
+          }
+        },
+        {
+          "id": "u000000u",
+          "type": "text",
+          "name": "道具名称 5",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 100,
+            "height": 24
+          },
+          "text": "铁剑",
+          "style": {
+            "fontSize": 14,
+            "textAlign": "center",
+            "fill": "transparent",
+            "borderWidth": 0,
+            "color": "#263244"
+          },
+          "parentId": "u000000s",
+          "layout": {
+            "left": 8,
+            "right": 8,
+            "bottom": 12
+          }
+        },
+        {
+          "id": "u000000v",
+          "type": "panel",
+          "name": "道具 6",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 148,
+            "height": 130
+          },
+          "parentId": "u000000f",
+          "style": {
+            "fill": "#f1f5f9",
+            "borderWidth": 1,
+            "borderColor": "#d5ddea",
+            "radius": 4
+          }
+        },
+        {
+          "id": "u000000w",
+          "type": "image",
+          "name": "道具图标 6",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 60,
+            "height": 60
+          },
+          "parentId": "u000000v",
+          "layout": {
+            "centerX": 0,
+            "top": 12
+          },
+          "style": {
+            "fill": "transparent",
+            "borderWidth": 0
+          }
+        },
+        {
+          "id": "u000000x",
+          "type": "text",
+          "name": "道具名称 6",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 100,
+            "height": 24
+          },
+          "text": "护盾",
+          "style": {
+            "fontSize": 14,
+            "textAlign": "center",
+            "fill": "transparent",
+            "borderWidth": 0,
+            "color": "#263244"
+          },
+          "parentId": "u000000v",
+          "layout": {
+            "left": 8,
+            "right": 8,
+            "bottom": 12
+          }
+        },
+        {
+          "id": "u000000y",
+          "type": "panel",
+          "name": "道具 7",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 148,
+            "height": 130
+          },
+          "parentId": "u000000f",
+          "style": {
+            "fill": "#f1f5f9",
+            "borderWidth": 1,
+            "borderColor": "#d5ddea",
+            "radius": 4
+          }
+        },
+        {
+          "id": "u000000z",
+          "type": "image",
+          "name": "道具图标 7",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 60,
+            "height": 60
+          },
+          "parentId": "u000000y",
+          "layout": {
+            "centerX": 0,
+            "top": 12
+          },
+          "style": {
+            "fill": "transparent",
+            "borderWidth": 0
+          }
+        },
+        {
+          "id": "u0000010",
+          "type": "text",
+          "name": "道具名称 7",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 100,
+            "height": 24
+          },
+          "text": "药水",
+          "style": {
+            "fontSize": 14,
+            "textAlign": "center",
+            "fill": "transparent",
+            "borderWidth": 0,
+            "color": "#263244"
+          },
+          "parentId": "u000000y",
+          "layout": {
+            "left": 8,
+            "right": 8,
+            "bottom": 12
+          }
+        },
+        {
+          "id": "u0000011",
+          "type": "panel",
+          "name": "道具 8",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 148,
+            "height": 130
+          },
+          "parentId": "u000000f",
+          "style": {
+            "fill": "#f1f5f9",
+            "borderWidth": 1,
+            "borderColor": "#d5ddea",
+            "radius": 4
+          }
+        },
+        {
+          "id": "u0000012",
+          "type": "image",
+          "name": "道具图标 8",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 60,
+            "height": 60
+          },
+          "parentId": "u0000011",
+          "layout": {
+            "centerX": 0,
+            "top": 12
+          },
+          "style": {
+            "fill": "transparent",
+            "borderWidth": 0
+          }
+        },
+        {
+          "id": "u0000013",
+          "type": "text",
+          "name": "道具名称 8",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 100,
+            "height": 24
+          },
+          "text": "水晶",
+          "style": {
+            "fontSize": 14,
+            "textAlign": "center",
+            "fill": "transparent",
+            "borderWidth": 0,
+            "color": "#263244"
+          },
+          "parentId": "u0000011",
+          "layout": {
+            "left": 8,
+            "right": 8,
+            "bottom": 12
+          }
+        },
+        {
+          "id": "u0000014",
+          "type": "panel",
+          "name": "道具 9",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 148,
+            "height": 130
+          },
+          "parentId": "u000000f",
+          "style": {
+            "fill": "#f1f5f9",
+            "borderWidth": 1,
+            "borderColor": "#d5ddea",
+            "radius": 4
+          }
+        },
+        {
+          "id": "u0000015",
+          "type": "image",
+          "name": "道具图标 9",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 60,
+            "height": 60
+          },
+          "parentId": "u0000014",
+          "layout": {
+            "centerX": 0,
+            "top": 12
+          },
+          "style": {
+            "fill": "transparent",
+            "borderWidth": 0
+          }
+        },
+        {
+          "id": "u0000016",
+          "type": "text",
+          "name": "道具名称 9",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 100,
+            "height": 24
+          },
+          "text": "铁剑",
+          "style": {
+            "fontSize": 14,
+            "textAlign": "center",
+            "fill": "transparent",
+            "borderWidth": 0,
+            "color": "#263244"
+          },
+          "parentId": "u0000014",
+          "layout": {
+            "left": 8,
+            "right": 8,
+            "bottom": 12
+          }
+        },
+        {
+          "id": "u0000017",
+          "type": "panel",
+          "name": "道具 10",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 148,
+            "height": 130
+          },
+          "parentId": "u000000f",
+          "style": {
+            "fill": "#f1f5f9",
+            "borderWidth": 1,
+            "borderColor": "#d5ddea",
+            "radius": 4
+          }
+        },
+        {
+          "id": "u0000018",
+          "type": "image",
+          "name": "道具图标 10",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 60,
+            "height": 60
+          },
+          "parentId": "u0000017",
+          "layout": {
+            "centerX": 0,
+            "top": 12
+          },
+          "style": {
+            "fill": "transparent",
+            "borderWidth": 0
+          }
+        },
+        {
+          "id": "u0000019",
+          "type": "text",
+          "name": "道具名称 10",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 100,
+            "height": 24
+          },
+          "text": "护盾",
+          "style": {
+            "fontSize": 14,
+            "textAlign": "center",
+            "fill": "transparent",
+            "borderWidth": 0,
+            "color": "#263244"
+          },
+          "parentId": "u0000017",
+          "layout": {
+            "left": 8,
+            "right": 8,
+            "bottom": 12
+          }
+        },
+        {
+          "id": "u000001a",
+          "type": "panel",
+          "name": "道具 11",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 148,
+            "height": 130
+          },
+          "parentId": "u000000f",
+          "style": {
+            "fill": "#f1f5f9",
+            "borderWidth": 1,
+            "borderColor": "#d5ddea",
+            "radius": 4
+          }
+        },
+        {
+          "id": "u000001b",
+          "type": "image",
+          "name": "道具图标 11",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 60,
+            "height": 60
+          },
+          "parentId": "u000001a",
+          "layout": {
+            "centerX": 0,
+            "top": 12
+          },
+          "style": {
+            "fill": "transparent",
+            "borderWidth": 0
+          }
+        },
+        {
+          "id": "u000001c",
+          "type": "text",
+          "name": "道具名称 11",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 100,
+            "height": 24
+          },
+          "text": "药水",
+          "style": {
+            "fontSize": 14,
+            "textAlign": "center",
+            "fill": "transparent",
+            "borderWidth": 0,
+            "color": "#263244"
+          },
+          "parentId": "u000001a",
+          "layout": {
+            "left": 8,
+            "right": 8,
+            "bottom": 12
+          }
+        },
+        {
+          "id": "u000001d",
+          "type": "panel",
+          "name": "道具 12",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 148,
+            "height": 130
+          },
+          "parentId": "u000000f",
+          "style": {
+            "fill": "#f1f5f9",
+            "borderWidth": 1,
+            "borderColor": "#d5ddea",
+            "radius": 4
+          }
+        },
+        {
+          "id": "u000001e",
+          "type": "image",
+          "name": "道具图标 12",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 60,
+            "height": 60
+          },
+          "parentId": "u000001d",
+          "layout": {
+            "centerX": 0,
+            "top": 12
+          },
+          "style": {
+            "fill": "transparent",
+            "borderWidth": 0
+          }
+        },
+        {
+          "id": "u000001f",
+          "type": "text",
+          "name": "道具名称 12",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 100,
+            "height": 24
+          },
+          "text": "水晶",
+          "style": {
+            "fontSize": 14,
+            "textAlign": "center",
+            "fill": "transparent",
+            "borderWidth": 0,
+            "color": "#263244"
+          },
+          "parentId": "u000001d",
+          "layout": {
+            "left": 8,
+            "right": 8,
+            "bottom": 12
+          }
+        },
+        {
+          "id": "u000001g",
+          "type": "hbox",
+          "name": "底栏两端分布",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 100,
+            "height": 42
+          },
+          "layout": {
+            "left": 24,
+            "right": 24,
+            "bottom": 22,
+            "align": "justify",
+            "valign": "middle"
+          },
+          "style": {
+            "fill": "transparent",
+            "borderWidth": 0
+          }
+        },
+        {
+          "id": "u000001h",
+          "type": "text",
+          "name": "容量：12 / 80",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 200,
+            "height": 26
+          },
+          "text": "容量：12 / 80",
+          "style": {
+            "fontSize": 16,
+            "color": "#263244",
+            "fill": "transparent",
+            "borderWidth": 0
+          },
+          "parentId": "u000001g"
+        },
+        {
+          "id": "u000001i",
+          "type": "button",
+          "name": "整理背包",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 128,
+            "height": 42
+          },
+          "style": {
+            "fill": "#3b82f6",
+            "borderWidth": 0,
+            "radius": 5
+          },
+          "parentId": "u000001g"
+        },
+        {
+          "id": "u000001j",
+          "type": "text",
+          "name": "整理背包文字",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 100,
+            "height": 24
+          },
+          "text": "整理背包",
+          "style": {
+            "fontSize": 14,
+            "color": "#ffffff",
+            "textAlign": "center",
+            "fill": "transparent",
+            "borderWidth": 0
+          },
+          "parentId": "u000001i",
+          "layout": {
+            "left": 0,
+            "right": 0,
+            "centerY": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "u000001k",
+      "name": "游戏控件 · 状态预览",
+      "kind": "screen",
+      "frame": {
+        "x": 1000,
+        "y": 0,
+        "width": 420,
+        "height": 660
+      },
+      "background": "#f5f7fb",
+      "nodes": [
+        {
+          "id": "u000001l",
+          "type": "text",
+          "name": "游戏设置",
+          "frame": {
+            "x": 28,
+            "y": 24,
+            "width": 360,
+            "height": 38
+          },
+          "text": "游戏设置",
+          "style": {
+            "fontSize": 26,
+            "fontWeight": 600,
+            "color": "#263244",
+            "fill": "transparent",
+            "borderWidth": 0
+          }
+        },
+        {
+          "id": "u000001m",
+          "type": "vbox",
+          "name": "设置竖排",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 100,
+            "height": 40
+          },
+          "layout": {
+            "left": 28,
+            "right": 28,
+            "top": 88,
+            "bottom": 28,
+            "gap": 18
+          },
+          "style": {
+            "fill": "transparent",
+            "borderWidth": 0
+          }
+        },
+        {
+          "id": "u000001n",
+          "type": "text",
+          "name": "角色名称",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 300,
+            "height": 24
+          },
+          "text": "角色名称",
+          "style": {
+            "fontSize": 16,
+            "color": "#263244",
+            "fill": "transparent",
+            "borderWidth": 0
+          },
+          "parentId": "u000001m"
+        },
+        {
+          "id": "u000001o",
+          "type": "input",
+          "name": "名称输入",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 364,
+            "height": 40
+          },
+          "parentId": "u000001m",
+          "text": "冒险者",
+          "widget": {
+            "placeholder": "输入角色名称",
+            "maxChars": 16
+          },
+          "style": {
+            "fill": "#ffffff",
+            "radius": 4
+          }
+        },
+        {
+          "id": "u000001p",
+          "type": "checkbox",
+          "name": "开启游戏音效",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 364,
+            "height": 32
+          },
+          "parentId": "u000001m",
+          "text": "开启游戏音效",
+          "widget": {
+            "selected": true
+          },
+          "style": {
+            "fill": "transparent",
+            "borderWidth": 0
+          }
+        },
+        {
+          "id": "u000001q",
+          "type": "radio",
+          "name": "高画质",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 364,
+            "height": 32
+          },
+          "parentId": "u000001m",
+          "text": "高画质",
+          "widget": {
+            "selected": true
+          },
+          "style": {
+            "fill": "transparent",
+            "borderWidth": 0
+          }
+        },
+        {
+          "id": "u000001r",
+          "type": "combo",
+          "name": "语言选择",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 364,
+            "height": 40
+          },
+          "parentId": "u000001m",
+          "widget": {
+            "options": [
+              "简体中文",
+              "English",
+              "日本語"
+            ],
+            "selectedIndex": 0
+          },
+          "style": {
+            "fill": "#ffffff",
+            "radius": 4
+          }
+        },
+        {
+          "id": "u000001s",
+          "type": "text",
+          "name": "背景音乐音量",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 300,
+            "height": 24
+          },
+          "text": "背景音乐音量",
+          "style": {
+            "fontSize": 16,
+            "color": "#263244",
+            "fill": "transparent",
+            "borderWidth": 0
+          },
+          "parentId": "u000001m"
+        },
+        {
+          "id": "u000001t",
+          "type": "slider",
+          "name": "音乐音量",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 364,
+            "height": 32
+          },
+          "parentId": "u000001m",
+          "widget": {
+            "min": 0,
+            "max": 100,
+            "value": 65
+          },
+          "style": {
+            "fill": "transparent",
+            "borderWidth": 0
+          }
+        },
+        {
+          "id": "u000001u",
+          "type": "progress",
+          "name": "下载进度",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 364,
+            "height": 28
+          },
+          "parentId": "u000001m",
+          "widget": {
+            "min": 0,
+            "max": 100,
+            "value": 72
+          },
+          "style": {
+            "fill": "#e2e8f0",
+            "radius": 4,
+            "borderWidth": 0
+          }
+        },
+        {
+          "id": "u000001v",
+          "type": "button",
+          "name": "保存设置",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 364,
+            "height": 42
+          },
+          "style": {
+            "fill": "#3b82f6",
+            "borderWidth": 0,
+            "radius": 5
+          },
+          "parentId": "u000001m"
+        },
+        {
+          "id": "u000001w",
+          "type": "text",
+          "name": "保存设置文字",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 100,
+            "height": 24
+          },
+          "text": "保存设置",
+          "style": {
+            "fontSize": 14,
+            "color": "#ffffff",
+            "textAlign": "center",
+            "fill": "transparent",
+            "borderWidth": 0
+          },
+          "parentId": "u000001v",
+          "layout": {
+            "left": 0,
+            "right": 0,
+            "centerY": 0
+          }
+        }
+      ]
+    }
+  ],
+  "interactions": []
+}
