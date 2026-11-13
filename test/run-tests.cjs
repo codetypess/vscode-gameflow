@@ -15,7 +15,7 @@ async function main() {
       format: "cjs",
       target: "node20"
     });
-    require(outputFile);
+    await require(outputFile).testsCompleted;
   } finally {
     fs.rmSync(temporaryDirectory, { recursive: true, force: true });
   }

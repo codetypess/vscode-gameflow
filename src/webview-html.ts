@@ -34,7 +34,8 @@ export function configureGameFlowWebview(
     `style-src ${webview.cspSource} 'unsafe-inline'`,
     `font-src ${webview.cspSource}`,
     `script-src 'nonce-${nonce}'`,
-    "connect-src 'none'"
+    "connect-src 'none'",
+    "worker-src blob:"
   ].join("; ");
 
   html = html

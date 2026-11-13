@@ -1,3 +1,5 @@
+import { allocateElementId, reserveDocumentElementIds } from "./element-id";
+
 export const GAMEFLOW_SCHEMA_VERSION = 1 as const;
 
 export type RequirementStatus = "confirmed" | "inferred" | "question";
@@ -426,7 +428,7 @@ export function serializeGameFlowDocument(document: GameFlowDocument): string {
 export function createDefaultGameFlowDocument(
   documentId = "gameflow-backpack"
 ): GameFlowDocument {
-  return {
+  const document: GameFlowDocument = {
     schemaVersion: GAMEFLOW_SCHEMA_VERSION,
     documentId,
     title: "背包系统 UI 规划",
@@ -544,5 +546,22 @@ export function createDefaultGameFlowDocument(
         trigger: "点击道具格"
       }
     ]
+  };
+  const reserved = new Set<string>();
+  reserveDocumentElementIds(document, reserved);
+  const pageIds = new Map(document.pages.map((page) => [page.id, allocateElementId(reserved)]));
+  return {
+    ...document,
+    pages: document.pages.map((page) => {
+      const nodeIds = new Map(page.nodes.map((node) => [node.id, allocateElementId(reserved)]));
+      return {
+        ...page,
+        id: pageIds.get(page.id)!,
+        nodes: page.nodes.map((node) => ({ ...node, id: nodeIds.get(node.id)!,
+          ...(node.parentId ? { parentId: nodeIds.get(node.parentId)! } : {}) }))
+      };
+    }),
+    interactions: document.interactions.map((interaction) => ({ ...interaction,
+      fromPageId: pageIds.get(interaction.fromPageId)!, toPageId: pageIds.get(interaction.toPageId)! }))
   };
 }

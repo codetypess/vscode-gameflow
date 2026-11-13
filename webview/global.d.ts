@@ -5,3 +5,5 @@ interface VsCodeApi<State = unknown> {
 }
 
 declare function acquireVsCodeApi<State = unknown>(): VsCodeApi<State>;
+
+declare module "*?worker&inline" { const WorkerConstructor: new () => Worker; export default WorkerConstructor; }

@@ -11,7 +11,7 @@ The complete workflow is defined in [../spec-driven-development.md](../spec-driv
 
 ## Current Baseline
 
-The repository now includes a runnable VS Code extension scaffold and a low-fidelity game UI prototype editor. The baseline records the document authority, host/Webview boundary, infinite canvas, page-only layer tree and VS Code-themed floating properties; Agent integration and automatic planning-document analysis remain future work.
+The repository now includes a runnable VS Code extension scaffold, a low-fidelity game UI prototype editor, PSD slice/nine-grid configuration and manual PSD selection previews. The baseline records document authority, the host/Webview boundary, canvas and layer editing, PSD metadata-only output and VS Code-themed controls; Agent integration, automatic planning-document analysis, complete PSD merging and Laya image export remain future work.
 
 When the first non-trivial work item establishes a lasting rule, create the smallest relevant numbered baseline spec and add it to the baseline map below. Suggested numbers are conventions, not requirements:
 
@@ -31,6 +31,19 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 | [10-extension-architecture.md](10-extension-architecture.md) | Extension host, Webview, shared contracts, document authority and evolution boundary |
 
 ## Active Work Items
+
+- [prototype-layaui-prefab-psd.md](prototype-layaui-prefab-psd.md) — Draft：原型布局与 LayaUI 对齐、新建/增量更新已有 Prefab、字段管理与冲突协调、PSD 导出/关联对照及美术回流；未替代当前实现基线。
+- [psd-three-way-merge.md](psd-three-way-merge.md) — Draft：左侧两份 PSD 的图层树/预览、右侧合并结果；共同基础版本、逐节点采用、PSD 依赖和结果输出。
+
+The completed [workspace-modes-psd-slicing.md](workspace-modes-psd-slicing.md) records three compact icon modes, real PSD import, slice/nine-grid configuration, same-name sidecars, metadata-only PSD copies and manual selection preview trees. Build, 35 shared tests, browser interactions and independent PSD output parsing passed. Extension Host/Photoshop validation and full merge/export delivery remain separate follow-ups.
+
+The completed [psd-following-panels.md](psd-following-panels.md) adds wheel zoom and drag pan to the slice canvas, with equally wide layer/properties panels following the PSD while remaining inside the viewport. Build, 38 shared tests and browser interaction/resize checks passed.
+
+The completed [psd-canvas-selection.md](psd-canvas-selection.md) adds direct canvas picking with transparent-pixel pass-through, synchronized tree/properties and separate click/drag gestures. Build, 41 shared tests and real PSD browser selection checks passed.
+
+The completed [stable-node-ids.md](stable-node-ids.md) records Laya-style 8-character IDs for newly created pages and controls, collision checks and preservation of existing identities; its lasting rules are incorporated in the baseline specs.
+
+The completed [psd-metadata-sample.md](psd-metadata-sample.md) records a standalone layered PSD fixture, an offline inspector and two art-return checks: ordinary edits preserve metadata, duplication repeats IDs, and the tested layer merge loses metadata. The Draft PSD design now treats merged layers as new objects and manages identity from metadata only; production integration and broader compatibility remain unimplemented.
 
 The completed [layer-tree-context-drag.md](layer-tree-context-drag.md) records context creation/deletion and subtree drag sorting/reparenting in the page layer tree; its lasting rules are incorporated in the product baseline.
 

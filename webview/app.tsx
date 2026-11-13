@@ -1,6 +1,7 @@
-import { ArrowLeft, Box, Check, ChevronDown, Focus, Hand, ImageIcon, Layers3, LayoutPanelTop, Minus, MousePointer2, MousePointerClick, PanelRight, Plus, RectangleHorizontal, Redo2, Save, Type, Undo2 } from "lucide-react";
+import { ArrowLeft, Box, Check, ChevronDown, Focus, GitMerge, Hand, ImageIcon, Layers3, LayoutPanelTop, Minus, MousePointer2, MousePointerClick, PanelRight, Plus, RectangleHorizontal, Redo2, Save, Scissors, Type, Undo2 } from "lucide-react";
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import type { Frame, GameFlowNode, GameFlowPage } from "../shared/model";
+import { allocateElementId, reserveDocumentElementIds } from "../shared/element-id";
 import { absoluteFrame, descendants, duplicateNode, duplicatePage, inheritedFlag, insertNode, makeNode, moveNode, NODE_LABELS, removeNode, removePage, resizeFrame, type Handle, type InsertType, type LayerDrop } from "../shared/editor-ops";
 import { Button } from "./components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "./components/ui/popover";
@@ -12,6 +13,7 @@ import { NodeView, orderedNodes } from "./editor/node-view";
 import { useDocument } from "./use-document";
 import { isBrowserPreview } from "./vscode-api";
 import { cn } from "./lib/utils";
+import { PsdWorkspace, type WorkspaceMode } from "./psd/workspace";
 
 type Tool = "select" | "hand" | InsertType;
 type Camera = { x: number; y: number; zoom: number };
@@ -21,7 +23,6 @@ const TOOLS = [
   { type: "container", icon: Box, key: "F" }, { type: "rectangle", icon: RectangleHorizontal, key: "R" },
   { type: "text", icon: Type, key: "T" }, { type: "button", icon: MousePointerClick, key: "B" }, { type: "image", icon: ImageIcon, key: "I" }
 ] as const;
-const uid = () => crypto.randomUUID();
 const clampZoom = (value: number) => Math.max(0.1, Math.min(3, value));
 const isField = (target: EventTarget | null) => target instanceof Element && !!target.closest("input, textarea, select, [contenteditable=true]");
 
@@ -30,11 +31,13 @@ function IconTool({ label, active, disabled, onClick, children }: { label: strin
 }
 
 export function App() {
+  const [mode, setMode] = useState<WorkspaceMode>("prototype");
   const { document: canvasDocument, resourceName, dirty, pending, error, edit, read, history, save } = useDocument();
   const viewport = useRef<HTMLDivElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const importTarget = useRef<{ pageId: string; nodeId: string } | null>(null);
   const initialized = useRef(false);
+  const allocatedIds = useRef(new Set<string>());
   const gesture = useRef<Gesture | null>(null);
   const overviewCamera = useRef<Camera>({ x: 80, y: 80, zoom: 0.6 });
   const [camera, setCamera] = useState<Camera>(overviewCamera.current);
@@ -51,6 +54,11 @@ export function App() {
   const selectedNode = editingId ? page?.nodes.find((item) => item.id === selectedNodeId) ?? null : null;
   const updatePage = (id: string, transform: (page: GameFlowPage) => GameFlowPage) => edit((document) => ({ ...document, pages: document.pages.map((item) => item.id === id ? transform(item) : item) }));
   const patchNode = (id: string, patch: Partial<GameFlowNode>) => { if (page) updatePage(page.id, (item) => ({ ...item, nodes: item.nodes.map((node) => node.id === id ? { ...node, ...patch } : node) })); };
+  const newIds = () => {
+    const current = read();
+    if (current) reserveDocumentElementIds(current, allocatedIds.current);
+    return () => allocateElementId(allocatedIds.current);
+  };
 
   const fit = (pages: GameFlowPage[], internal: boolean) => {
     const bounds = viewport.current?.getBoundingClientRect();
@@ -71,6 +79,7 @@ export function App() {
   };
   const back = () => { gesture.current = null; setPreview(null); setEditingId(null); setSelectedNodeId(null); setTool("select"); setCamera(overviewCamera.current); };
   useEffect(() => {
+    if (canvasDocument) reserveDocumentElementIds(canvasDocument, allocatedIds.current);
     if (canvasDocument && !initialized.current && viewport.current) { initialized.current = true; fit(canvasDocument.pages, false); }
     if (editingId && canvasDocument && !canvasDocument.pages.some((item) => item.id === editingId)) back();
   }, [canvasDocument, editingId]);
@@ -94,7 +103,8 @@ export function App() {
   const addPage = () => {
     if (!canvasDocument) return;
     if (editingId) back();
-    const id = uid();
+    const makeId = newIds();
+    const id = makeId();
     const x = canvasDocument.pages.length ? Math.max(...canvasDocument.pages.map((item) => item.frame.x + item.frame.width)) + 80 : 0;
     const next: GameFlowPage = { id, name: `页面 ${canvasDocument.pages.length + 1}`, kind: "screen", frame: { x, y: 0, width: 390, height: 844 }, nodes: [] };
     edit((document) => ({ ...document, pages: [...document.pages, next] }));
@@ -102,13 +112,15 @@ export function App() {
   };
   const placeNode = (type: InsertType, x: number, y: number) => {
     if (!editingId || !page) return;
-    const node = makeNode(type, uid(), x, y);
+    const makeId = newIds();
+    const node = makeNode(type, makeId(), x, y);
     updatePage(page.id, (item) => ({ ...item, nodes: [...item.nodes, node] }));
     setSelectedNodeId(node.id); setInspectorOpen(true); setTool("select");
   };
   const addLayer = (type: InsertType, parentId?: string, afterId?: string) => {
     if (!editingId) return;
-    const id = uid();
+    const makeId = newIds();
+    const id = makeId();
     updatePage(editingId, (item) => {
       const parent = item.nodes.find((node) => node.id === parentId);
       const bounds = parent?.frame ?? item.frame;
@@ -132,8 +144,9 @@ export function App() {
   const moveLayer = (id: string, target: LayerDrop) => { if (editingId) updatePage(editingId, (item) => moveNode(item, id, target)); };
   const duplicate = () => {
     if (!page || (selectedNode && inheritedFlag(page, selectedNode, "locked"))) return;
-    if (selectedNode) { const result = duplicateNode(page, selectedNode.id, uid); updatePage(page.id, () => result.page); setSelectedNodeId(result.id); }
-    else { const next = duplicatePage(page, uid); edit((document) => ({ ...document, pages: [...document.pages, next] })); if (editingId) back(); setSelectedPageId(next.id); fit([...(canvasDocument?.pages ?? []), next], false); }
+    const makeId = newIds();
+    if (selectedNode) { const result = duplicateNode(page, selectedNode.id, makeId); updatePage(page.id, () => result.page); setSelectedNodeId(result.id); }
+    else { const next = duplicatePage(page, makeId); edit((document) => ({ ...document, pages: [...document.pages, next] })); if (editingId) back(); setSelectedPageId(next.id); fit([...(canvasDocument?.pages ?? []), next], false); }
   };
   const remove = () => {
     if (!page || (selectedNode && inheritedFlag(page, selectedNode, "locked"))) return;
@@ -141,6 +154,7 @@ export function App() {
     else { edit((document) => removePage(document, page.id)); if (editingId) back(); setSelectedPageId(null); }
   };
   useEffect(() => {
+    if (mode !== "prototype") return;
     const keydown = (event: KeyboardEvent) => {
       if ((event.target as Element).closest("[role=menu]")) return;
       const command = event.ctrlKey || event.metaKey, key = event.key.toLowerCase();
@@ -229,15 +243,16 @@ export function App() {
   const selectedFrame = editingId && renderPage && renderedNode && !inheritedFlag(renderPage, renderedNode, "hidden") ? absoluteFrame(renderPage, renderedNode) : null;
   const unlocked = renderPage && renderedNode && !inheritedFlag(renderPage, renderedNode, "locked");
   const zoomAtCenter = (factor: number) => { const rect = viewport.current?.getBoundingClientRect(); if (!rect) return; setCamera((previous) => { const zoom = clampZoom(previous.zoom * factor), x = rect.width / 2, y = rect.height / 2; return { x: x - (x - previous.x) / previous.zoom * zoom, y: y - (y - previous.y) / previous.zoom * zoom, zoom }; }); };
+  const switchMode = (next: WorkspaceMode) => { gesture.current = null; setPreview(null); setSpaceHand(false); setInsertOpen(false); setMode(next); };
 
   return <TooltipProvider delayDuration={300}><main className="app-shell">
     <header className="topbar"><span className="brand-mark"><Layers3 size={18} /></span><strong>GameFlow</strong><Separator orientation="vertical" className="topbar-separator" />
-      {editingId && page ? <><Button size="sm" variant="ghost" onClick={back}><ArrowLeft size={14} />总览</Button><span className="breadcrumb">/</span></> : null}
-      <span className="document-title">{editingId ? page?.name : canvasDocument?.title ?? "正在打开画布"}</span>
-      <span className="sync-status" title={resourceName}>{pending ? "同步中…" : dirty ? "未保存" : <><Check size={12} />{isBrowserPreview ? "已存于浏览器" : "已保存"}</>}</span>
-      <IconTool label="保存 (Ctrl+S)" disabled={pending || !canvasDocument} onClick={save}><Save size={15} /></IconTool>
+      {mode === "prototype" && editingId && page ? <><Button size="sm" variant="ghost" onClick={back}><ArrowLeft size={14} />总览</Button><span className="breadcrumb">/</span></> : null}
+      <span className="document-title">{mode === "prototype" ? editingId ? page?.name : canvasDocument?.title ?? "正在打开画布" : "美术工作区"}</span>
+      <nav className="mode-switcher" aria-label="工作模式">{([{ id: "prototype", label: "原型", icon: LayoutPanelTop }, { id: "merge", label: "PSD 合并", icon: GitMerge }, { id: "slice", label: "PSD 切图", icon: Scissors }] as const).map(({ icon: Icon, ...item }) => <Tooltip key={item.id}><TooltipTrigger asChild><Button size="icon" variant="ghost" aria-label={item.label} aria-pressed={mode === item.id} className={mode === item.id ? "mode-active" : ""} onClick={() => switchMode(item.id)}><Icon size={16} aria-hidden="true" /></Button></TooltipTrigger><TooltipContent side="bottom">{item.label}</TooltipContent></Tooltip>)}</nav>
+      {mode === "prototype" ? <><span className="sync-status" title={resourceName}>{pending ? "同步中…" : dirty ? "未保存" : <><Check size={12} />{isBrowserPreview ? "已存于浏览器" : "已保存"}</>}</span><IconTool label="保存 (Ctrl+S)" disabled={pending || !canvasDocument} onClick={save}><Save size={15} /></IconTool></> : <span className="sync-status">PSD 与原型独立保存</span>}
     </header>
-    <div ref={viewport} className={cn("canvas-viewport", (tool === "hand" || spaceHand) && "hand-tool", preview?.kind === "pan" && "is-panning", (preview?.kind === "node" || preview?.kind === "page") && "is-moving")} aria-label={editingId ? "页面编辑画布" : "页面总览画布"}
+    <div ref={viewport} hidden={mode !== "prototype"} className={cn("canvas-viewport", (tool === "hand" || spaceHand) && "hand-tool", preview?.kind === "pan" && "is-panning", (preview?.kind === "node" || preview?.kind === "page") && "is-moving")} aria-label={editingId ? "页面编辑画布" : "页面总览画布"}
       onPointerDown={startGesture} onPointerMove={moveGesture} onPointerUp={(event) => finishGesture(event)} onPointerCancel={(event) => finishGesture(event, true)}
       onDoubleClick={(event) => {
         if (tool === "hand" || spaceHand || (event.target as Element).closest(".floating-panel")) return;
@@ -281,5 +296,7 @@ export function App() {
       {notice || (canvasDocument && error) ? <div className="editor-notice" role="status">{notice || error}</div> : null}
       <input ref={fileInput} className="hidden" type="file" accept="image/png,image/jpeg,image/webp,image/gif" aria-label="导入控件图片" onChange={(event) => { void importImage(event.target.files?.[0]); event.target.value = ""; }} />
     </div>
+    <PsdWorkspace mode="merge" active={mode === "merge"} />
+    <PsdWorkspace mode="slice" active={mode === "slice"} />
   </main></TooltipProvider>;
 }

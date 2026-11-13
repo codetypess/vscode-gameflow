@@ -1,0 +1,12 @@
+{
+  "parser": "psd-tools@1.10.9",
+  "width": 960,
+  "height": 640,
+  "groups": 5,
+  "textLayers": 5,
+  "taggedRecords": 15,
+  "embeddedMetadataMatches": true,
+  "savedCompositeMatches": true,
+  "recomposedPixelMaxDifference": 1,
+  "photoshopRoundTrip": "not tested; to be tested by art team"
+}

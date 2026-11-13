@@ -41,6 +41,7 @@ export class DocumentSession {
   private reset() { this.inFlight = null; this.queued = null; this.action = null; this.actions = []; this.deferred = []; }
 
   receive(message: HostToWebviewMessage) {
+    if (message.type === "psdOutputResult") return;
     if (message.type === "documentError") {
       this.reset(); this.refreshing = true;
       this.publish({ document: null, pending: false, error: [message.message, ...message.details].join("\n") });

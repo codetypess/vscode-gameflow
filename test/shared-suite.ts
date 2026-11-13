@@ -11,8 +11,10 @@ import { absoluteFrame, duplicateNode, duplicatePage, inheritedFlag, insertNode,
 import type { GameFlowDocument, GameFlowPage } from "../shared/model";
 import type { WebviewToHostMessage } from "../shared/protocol";
 import { DocumentSession } from "../webview/document-session";
+import { allocateElementId, reserveDocumentElementIds } from "../shared/element-id";
+import { psdTests } from "./psd-suite";
 
-type TestCase = { name: string; run: () => void };
+type TestCase = { name: string; run: () => void | Promise<void> };
 const tests: TestCase[] = [];
 
 function test(name: string, run: () => void): void {
@@ -35,6 +37,31 @@ test("serialization round-trips a valid document", () => {
   const source = serializeGameFlowDocument(document);
   assert.ok(source.endsWith("\n"));
   assert.deepEqual(parseGameFlowDocument(source), document);
+});
+
+test("new documents use unique Laya-style page and node IDs with intact references", () => {
+  const document = createDefaultGameFlowDocument();
+  const ids = document.pages.flatMap((page) => [page.id, ...page.nodes.map((node) => node.id)]);
+  assert.ok(ids.every((id) => /^[a-z][a-z0-9]{7}$/.test(id)));
+  assert.equal(new Set(ids).size, ids.length);
+  assert.equal(validateGameFlowDocument(document).ok, true);
+  assert.equal(document.pages[1].nodes[1].parentId, document.pages[1].nodes[0].id);
+  assert.equal(document.interactions[0].fromPageId, document.pages[0].id);
+  assert.equal(document.interactions[0].toPageId, document.pages[1].id);
+});
+
+test("short ID allocation reserves all pages and each new ID, with bounded collision retries", () => {
+  const document = createDefaultGameFlowDocument();
+  const reserved = new Set<string>();
+  reserveDocumentElementIds(document, reserved);
+  const candidates = [document.pages[2].id, document.pages[0].nodes[0].id, "aaaaaaaa", "bbbbbbbb"];
+  // Reserve a known value as well, independently of random document IDs.
+  reserved.add("aaaaaaaa"); reserved.delete("bbbbbbbb");
+  assert.equal(allocateElementId(reserved, () => candidates.shift()!), "bbbbbbbb");
+  assert.ok(reserved.has("bbbbbbbb"));
+  let attempts = 0;
+  assert.throws(() => allocateElementId(reserved, () => { attempts++; return "bbbbbbbb"; }), /128 attempts/);
+  assert.equal(attempts, 128);
 });
 
 test("invalid JSON and invalid schema are rejected", () => {
@@ -110,6 +137,32 @@ function nestedPage(): GameFlowPage {
     { ...makeNode("rectangle", "d", 0, 0), frame: { x: 380, y: 100, width: 180, height: 180 } }
   ] };
 }
+
+test("copies get new short IDs while existing identities survive editing and serialization", () => {
+  const document = createDefaultGameFlowDocument();
+  const source = nestedPage();
+  source.nodes[2].id = "a56b983a-34ae-4d75-abbd-99af17b39204";
+  const originalIds = source.nodes.map((node) => node.id);
+  document.pages.push(source);
+  const reserved = new Set<string>();
+  reserveDocumentElementIds(document, reserved);
+  const makeId = () => allocateElementId(reserved);
+  const copied = duplicateNode(source, "b", makeId);
+  const pageCopy = duplicatePage(source, makeId);
+  const newNodes = copied.page.nodes.slice(source.nodes.length);
+  const generatedIds = [...newNodes.map((node) => node.id), pageCopy.id, ...pageCopy.nodes.map((node) => node.id)];
+  assert.ok(generatedIds.every((id) => /^[a-z][a-z0-9]{7}$/.test(id)));
+  assert.equal(new Set(generatedIds).size, generatedIds.length);
+  assert.ok(generatedIds.every((id) => !originalIds.includes(id)));
+  assert.equal(newNodes[1].parentId, newNodes[0].id);
+  assert.equal(pageCopy.nodes[2].parentId, pageCopy.nodes[1].id);
+  const moved = reparentNode(source, source.nodes[2].id, "d");
+  moved.nodes[2] = { ...moved.nodes[2], name: "改名后的文字", text: "新的文字" };
+  document.pages[document.pages.length - 1] = moved;
+  const restored = parseGameFlowDocument(serializeGameFlowDocument(document));
+  assert.deepEqual(restored.pages.at(-1)!.nodes.map((node) => node.id), originalIds);
+  assert.equal(restored.pages.at(-1)!.nodes[2].parentId, "d");
+});
 
 test("nested coordinates and inherited flags follow ancestors, independently of page position", () => {
   const page = nestedPage();
@@ -340,20 +393,23 @@ test("invalid source blocks editing and a rejected transaction reloads host auth
   assert.equal((session.state.document as GameFlowDocument | null)?.title, "external"); assert.equal(session.state.pending, false);
 });
 
-let failed = 0;
-for (const item of tests) {
-  try {
-    item.run();
-    console.log(`PASS ${item.name}`);
-  } catch (error) {
-    failed += 1;
-    console.error(`FAIL ${item.name}`);
-    console.error(error);
+tests.push(...psdTests);
+export const testsCompleted = (async () => {
+  let failed = 0;
+  for (const item of tests) {
+    try {
+      await item.run();
+      console.log(`PASS ${item.name}`);
+    } catch (error) {
+      failed += 1;
+      console.error(`FAIL ${item.name}`);
+      console.error(error);
+    }
   }
-}
 
-if (failed > 0) {
-  process.exitCode = 1;
-} else {
-  console.log(`\n${tests.length} shared tests passed.`);
-}
+  if (failed > 0) {
+    process.exitCode = 1;
+  } else {
+    console.log(`\n${tests.length} shared tests passed.`);
+  }
+})();

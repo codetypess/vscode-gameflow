@@ -10,6 +10,7 @@ import {
   isWebviewToHostMessage
 } from "../shared/protocol";
 import { configureGameFlowWebview } from "./webview-html";
+import { parsePsdBinary } from "../shared/psd-binary";
 
 export const GAMEFLOW_EDITOR_VIEW_TYPE = "gameflow.canvasEditor";
 
@@ -81,6 +82,25 @@ export class GameFlowEditorProvider
           return;
         }
 
+        if (rawMessage.type === "psdOutput") {
+          try {
+            const bytes = Buffer.from(rawMessage.base64, "base64");
+            if (rawMessage.kind === "psd") parsePsdBinary(bytes);
+            else {
+              if (bytes.length > 1024 * 1024) throw new Error("配置文件超过 1 MB。");
+              const value = JSON.parse(bytes.toString("utf8"));
+              if (value?.schema !== "gameflow.psd-meta" || value.version !== 1 || !Array.isArray(value.layers)) throw new Error("无效的 PSD 配置。");
+            }
+            const target = await vscode.window.showSaveDialog({ defaultUri: vscode.Uri.joinPath(document.uri, "..", rawMessage.name), filters: rawMessage.kind === "psd" ? { Photoshop: ["psd"] } : { "GameFlow metadata": ["json"] }, saveLabel: "保存" });
+            if (target) {
+              if (rawMessage.kind === "psd" ? !target.path.toLowerCase().endsWith(".psd") : !target.path.toLowerCase().endsWith(".meta.json")) throw new Error("请使用对应的 .psd 或 .meta.json 后缀。");
+              if (vscode.workspace.textDocuments.some(d => d.uri.toString() === target.toString() && d.isDirty)) throw new Error("目标文件有未保存修改，请先保存或另选路径。");
+              await vscode.workspace.fs.writeFile(target, bytes);
+            }
+            await webviewPanel.webview.postMessage({ type: "psdOutputResult", requestId: rawMessage.requestId, saved: !!target } satisfies HostToWebviewMessage);
+          } catch (error) { await webviewPanel.webview.postMessage({ type: "psdOutputResult", requestId: rawMessage.requestId, saved: false, error: error instanceof Error ? error.message : String(error) } satisfies HostToWebviewMessage); }
+          return;
+        }
         if (rawMessage.type === "ready") {
           await sendSnapshot("init");
           return;

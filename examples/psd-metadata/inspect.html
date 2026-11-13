@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>GameFlow · PSD 元数据检查</title>
+  <style>
+    :root { color-scheme: dark light; font-family: "Segoe UI", "Microsoft YaHei", sans-serif; font-size: 13px; background: light-dark(#f3f3f3,#1e1e1e); color: light-dark(#222,#ccc); }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 28px; }
+    main { max-width: 1200px; margin: auto; }
+    header { display:flex; justify-content:space-between; align-items:center; gap:20px; }
+    h1 { font-size: 20px; font-weight: 600; margin: 0 0 9px; }
+    p { line-height: 1.7; margin: 8px 0; }
+    .muted { color: light-dark(#616161,#a0a0a0); }
+    .file { display:inline-flex; padding: 9px 16px; background:#0078d4; color:#fff; border-radius:3px; cursor:pointer; white-space:nowrap; }
+    .file:focus-within { outline: 2px solid #75beff; outline-offset: 3px; }
+    input[type=file] { position:absolute; width:1px; height:1px; opacity:0; }
+    #status { padding: 13px 16px; margin:22px 0 14px; background:light-dark(#fff,#252526); border-left:3px solid #0078d4; }
+    #notice { color:light-dark(#9a5600,#d7ba7d); white-space:pre-wrap; }
+    .layout { display:grid; grid-template-columns:minmax(0,1fr) 340px; gap:16px; margin-top:14px; }
+    .table-wrap { overflow:auto; background:light-dark(#fff,#252526); border:1px solid light-dark(#ddd,#3c3c3c); }
+    table { width:100%; border-collapse:collapse; white-space:nowrap; }
+    th,td { text-align:left; padding:10px 12px; border-bottom:1px solid light-dark(#e5e5e5,#333); }
+    th { font-weight:500; font-size:12px; color:light-dark(#555,#aaa); }
+    tr[data-layer] { cursor:pointer; }
+    tr[data-layer]:hover { background:light-dark(#f0f0f0,#2a2d2e); }
+    tr.selected { background:light-dark(#dcecff,#04395e); }
+    td:nth-child(2) { font-family:Consolas,monospace; }
+    .good { color:light-dark(#147143,#89d185); }
+    .warn { color:light-dark(#9a5600,#d7ba7d); }
+    .bad { color:light-dark(#b42318,#f48771); }
+    aside { background:light-dark(#fff,#252526); border:1px solid light-dark(#ddd,#3c3c3c); padding:16px; align-self:start; }
+    h2 { font-size:14px; margin:0 0 10px; }
+    pre { white-space:pre-wrap; overflow-wrap:anywhere; font-family:Consolas,monospace; font-size:12px; line-height:1.7; margin:0; }
+    button { border:1px solid light-dark(#aaa,#555); background:transparent; color:inherit; border-radius:3px; padding:7px 12px; cursor:pointer; margin-top:14px; }
+    footer { margin-top:20px; font-size:12px; }
+    @media(max-width:900px) { body { padding:18px; } .layout { grid-template-columns:1fr; } header { align-items:flex-start; flex-direction:column; } }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <div><h1>PSD 图层元数据检查</h1><p class="muted">检查 GameFlow 示例经 Photoshop 保存后，图层 ID 与附加属性是否保留。</p></div>
+    <label class="file">选择 PSD 文件<input id="file" type="file" accept=".psd" aria-label="选择 PSD 文件"></label>
+  </header>
+  <p>先在 Photoshop 中编辑并另存副本，再选择保存后的 PSD。检查在本机完成，不上传文件。</p>
+  <div id="status" role="status">等待选择 PSD。下方显示原始示例的对照数据。</div>
+  <p id="notice" role="alert"></p>
+  <div class="layout">
+    <div class="table-wrap"><table>
+      <thead><tr><th>图层 / 分组</th><th>GameFlow ID</th><th>检查结果</th></tr></thead>
+      <tbody id="layers"></tbody>
+    </table></div>
+    <aside><h2 id="selection">图层附加属性</h2><pre id="details">选择左侧图层查看。</pre><button id="export" disabled>保存检查报告</button></aside>
+  </div>
+  <footer class="muted">默认对照随包附带的原始示例。缺少 ID 可能是删除了图层或元数据丢失；复制得到相同 ID 表示身份需要重新分配。仅支持标准 PSD v1，最大 128 MB。</footer>
+</main>
+<script src="metadata-reader.js"></script>
+<script src="baseline-data.js"></script>
+<script>
+  'use strict';
+  const baseline = window.GAMEFLOW_BASELINE;
+  const baselineById = new Map(baseline.layers.map(l => [l.metadata.layerId, l]));
+  const $ = id => document.getElementById(id);
+  let current = baseline, report = null, currentFilename = '', request = 0;
+  function select(layer, row) {
+    document.querySelectorAll('tr.selected').forEach(r => r.classList.remove('selected'));
+    row.classList.add('selected');
+    $('selection').textContent = layer.name;
+    $('details').textContent = JSON.stringify({
+      path: layer.path, nativePhotoshopLayerId: layer.nativeId, bounds: layer.bounds,
+      metadata: layer.metadata || '此图层没有 GameFlow 元数据',
+    }, null, 2);
+  }
+  function render(document, actual) {
+    const summary = GameFlowPsd.summarize(document, baseline);
+    const rows = document.layers.map(layer => {
+      const id = layer.metadata?.layerId, original = baselineById.get(id);
+      let status = '属性保留', tone = 'good';
+      if (!actual) { status = '原始对照'; tone = ''; }
+      else if (!id) { status = '无元数据 / 新图层'; tone = 'warn'; }
+      else if (summary.duplicateIds.includes(id)) { status = '重复 ID（复制）'; tone = 'bad'; }
+      else if (!original) { status = '新增 ID'; tone = 'warn'; }
+      else if (JSON.stringify(layer.metadata) !== JSON.stringify(original.metadata)) { status = '附加属性已变化'; tone = 'warn'; }
+      else if (layer.path !== original.path || JSON.stringify(layer.bounds) !== JSON.stringify(original.bounds)) status = '已编辑，属性保留';
+      const row = document.createElement('tr'); row.dataset.layer = ''; row.tabIndex = 0;
+      const name = document.createElement('td'); name.style.paddingLeft = (12 + 18 * layer.depth) + 'px';
+      name.textContent = (layer.divider ? '▾ ' : '· ') + layer.name;
+      const identity = document.createElement('td'); identity.textContent = id || '—';
+      const state = document.createElement('td'); state.textContent = status; state.className = tone;
+      row.append(name, identity, state);
+      row.addEventListener('click', () => select(layer, row));
+      row.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); select(layer, row); } });
+      return row;
+    });
+    $('layers').replaceChildren(...rows);
+    if (actual) {
+      $('status').textContent = `${currentFilename} · ${document.width} × ${document.height} · ${summary.total} 个图层/分组 · ${summary.tagged} 个带元数据 · ${summary.duplicateIds.length} 个重复 ID`;
+      const notices = [];
+      if (summary.missingIds.length) notices.push('原始 ID 未找到（可能已删除图层或丢失元数据）：' + summary.missingIds.join('、'));
+      if (summary.duplicateIds.length) notices.push('复制后的图层保留了相同 ID，请保留文件供开发检查：' + summary.duplicateIds.join('、'));
+      $('notice').textContent = notices.join('\n');
+      report = { filename: currentFilename, checkedAt: new Date().toISOString(), summary, document };
+      $('export').disabled = false;
+    }
+    if (rows.length) select(document.layers[0], rows[0]);
+    else { $('selection').textContent = '没有图层'; $('details').textContent = '此文件没有可读取的图层树。'; }
+  }
+  $('file').addEventListener('change', async event => {
+    const file = event.target.files[0], token = ++request;
+    if (!file) return;
+    report = null; $('export').disabled = true; $('notice').textContent = '';
+    try {
+      if (file.size > 128 * 1024 * 1024) throw new Error('请使用小于 128 MB 的标准 PSD 文件');
+      $('status').textContent = '正在读取 ' + file.name;
+      const data = await file.arrayBuffer();
+      if (token !== request) return;
+      current = GameFlowPsd.readMetadata(data); currentFilename = file.name;
+      render(current, true);
+    } catch (error) {
+      if (token !== request) return;
+      $('status').textContent = '读取失败'; $('notice').textContent = error.message;
+      $('layers').replaceChildren(); $('details').textContent = '请重新选择保存完整的标准 PSD。';
+    }
+  });
+  $('export').addEventListener('click', () => {
+    if (!report) return;
+    const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json;charset=utf-8' });
+    const url = URL.createObjectURL(blob), link = document.createElement('a');
+    link.href = url; link.download = currentFilename.replace(/\.psd$/i, '') + '-metadata-report.json';
+    link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+  });
+  render(baseline, false);
+</script>
+</body>
+</html>
