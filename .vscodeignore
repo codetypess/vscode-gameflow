@@ -1,0 +1,16 @@
+.agents/**
+.vscode/**
+docs/**
+sample/**
+src/**
+shared/**
+test/**
+webview/**
+.gitignore
+esbuild.js
+tsconfig.json
+tsconfig.webview.json
+vite.config.ts
+*.tsbuildinfo
+node_modules/**
+!node_modules/.package-lock.json

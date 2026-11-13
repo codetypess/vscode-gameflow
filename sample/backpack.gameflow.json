@@ -1,0 +1,119 @@
+{
+  "schemaVersion": 1,
+  "documentId": "gameflow-backpack-sample",
+  "title": "背包系统 UI 规划",
+  "requirements": [
+    {
+      "id": "requirement-browse-items",
+      "text": "玩家可以在背包中查看道具，并打开道具详情。",
+      "status": "confirmed",
+      "source": "策划需求"
+    },
+    {
+      "id": "requirement-item-filter",
+      "text": "背包支持按道具类型筛选。",
+      "status": "inferred",
+      "source": "AI 分析"
+    },
+    {
+      "id": "requirement-capacity",
+      "text": "背包容量不足时是否需要扩容入口？",
+      "status": "question",
+      "source": "待策划确认"
+    }
+  ],
+  "pages": [
+    {
+      "id": "page-main-menu",
+      "name": "主菜单",
+      "kind": "screen",
+      "frame": { "x": 80, "y": 120, "width": 320, "height": 180 },
+      "nodes": [
+        {
+          "id": "node-main-title",
+          "name": "游戏标题",
+          "type": "text",
+          "text": "冒险物语",
+          "frame": { "x": 28, "y": 24, "width": 180, "height": 32 }
+        },
+        {
+          "id": "node-backpack-button",
+          "name": "背包按钮",
+          "type": "button",
+          "text": "背包",
+          "frame": { "x": 24, "y": 112, "width": 92, "height": 40 }
+        }
+      ]
+    },
+    {
+      "id": "page-backpack",
+      "name": "背包",
+      "kind": "screen",
+      "frame": { "x": 500, "y": 80, "width": 360, "height": 240 },
+      "nodes": [
+        {
+          "id": "node-backpack-header",
+          "name": "页头",
+          "type": "container",
+          "frame": { "x": 20, "y": 18, "width": 320, "height": 44 }
+        },
+        {
+          "id": "node-backpack-title",
+          "name": "标题",
+          "type": "text",
+          "parentId": "node-backpack-header",
+          "text": "背包",
+          "frame": { "x": 16, "y": 8, "width": 80, "height": 28 }
+        },
+        {
+          "id": "node-item-list",
+          "name": "道具列表",
+          "type": "list",
+          "frame": { "x": 20, "y": 78, "width": 320, "height": 138 }
+        }
+      ]
+    },
+    {
+      "id": "page-item-detail",
+      "name": "道具详情",
+      "kind": "modal",
+      "frame": { "x": 960, "y": 130, "width": 280, "height": 190 },
+      "nodes": [
+        {
+          "id": "node-item-image",
+          "name": "道具图标",
+          "type": "image",
+          "frame": { "x": 20, "y": 24, "width": 72, "height": 72 }
+        },
+        {
+          "id": "node-item-name",
+          "name": "道具名称",
+          "type": "text",
+          "text": "生命药水",
+          "frame": { "x": 108, "y": 26, "width": 140, "height": 28 }
+        },
+        {
+          "id": "node-use-button",
+          "name": "使用按钮",
+          "type": "button",
+          "text": "使用",
+          "frame": { "x": 168, "y": 132, "width": 80, "height": 36 }
+        }
+      ]
+    }
+  ],
+  "interactions": [
+    {
+      "id": "interaction-open-backpack",
+      "fromPageId": "page-main-menu",
+      "toPageId": "page-backpack",
+      "trigger": "点击背包按钮"
+    },
+    {
+      "id": "interaction-open-item-detail",
+      "fromPageId": "page-backpack",
+      "toPageId": "page-item-detail",
+      "trigger": "点击道具格"
+    }
+  ]
+}

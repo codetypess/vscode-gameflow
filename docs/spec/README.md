@@ -11,7 +11,7 @@ The complete workflow is defined in [../spec-driven-development.md](../spec-driv
 
 ## Current Baseline
 
-No numbered baseline specs have been established yet. This repository is still at the documentation/bootstrap stage, so product scope and architecture must be derived from confirmed requirements rather than copied from another project.
+The repository now includes a runnable VS Code extension scaffold and a low-fidelity game UI prototype editor. The baseline records the document authority, host/Webview boundary, infinite canvas, page-only layer tree and VS Code-themed floating properties; Agent integration and automatic planning-document analysis remain future work.
 
 When the first non-trivial work item establishes a lasting rule, create the smallest relevant numbered baseline spec and add it to the baseline map below. Suggested numbers are conventions, not requirements:
 
@@ -25,11 +25,16 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 
 ## Baseline Map
 
-There are currently no baseline specs registered.
+| Spec | Subject |
+| --- | --- |
+| [01-product-workspace.md](01-product-workspace.md) | Planning workspace, infinite canvas, page groups and editing scope |
+| [10-extension-architecture.md](10-extension-architecture.md) | Extension host, Webview, shared contracts, document authority and evolution boundary |
 
 ## Active Work Items
 
-There are currently no active work-item specs.
+The completed [layer-tree-context-drag.md](layer-tree-context-drag.md) records context creation/deletion and subtree drag sorting/reparenting in the page layer tree; its lasting rules are incorporated in the product baseline.
+
+The completed [simplified-prototype-editor.md](simplified-prototype-editor.md), [extension-scaffold.md](extension-scaffold.md), [canvas-insert-toolbar.md](canvas-insert-toolbar.md), [canvas-navigation-inputs.md](canvas-navigation-inputs.md), [infinite-canvas-prototype.md](infinite-canvas-prototype.md) and [canvas-bottom-toolbar.md](canvas-bottom-toolbar.md) record implementation and prototype checks; their lasting rules are incorporated in the numbered baseline specs.
 
 Add active work items as direct children of this directory using lowercase kebab-case names, for example:
 

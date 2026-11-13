@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gameflow.local/schemas/gameflow.schema.json",
+  "title": "GameFlow Document",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "documentId", "title", "requirements", "pages", "interactions"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "documentId": { "type": "string", "minLength": 1 },
+    "title": { "type": "string", "minLength": 1 },
+    "requirements": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "text", "status", "source"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "text": { "type": "string", "minLength": 1 },
+          "status": { "enum": ["confirmed", "inferred", "question"] },
+          "source": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "pages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "name", "kind", "frame", "nodes"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "name": { "type": "string", "minLength": 1 },
+          "kind": { "enum": ["screen", "modal"] },
+          "background": { "$ref": "#/$defs/color" },
+          "frame": { "$ref": "#/$defs/frame" },
+          "nodes": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/node" }
+          }
+        }
+      }
+    },
+    "interactions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "fromPageId", "toPageId", "trigger"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "fromPageId": { "type": "string", "minLength": 1 },
+          "toPageId": { "type": "string", "minLength": 1 },
+          "trigger": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "color": { "type": "string", "pattern": "^(#[0-9a-fA-F]{6}|transparent)$" },
+    "style": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "fill": { "$ref": "#/$defs/color" },
+        "color": { "$ref": "#/$defs/color" },
+        "borderColor": { "$ref": "#/$defs/color" },
+        "borderWidth": { "type": "number", "minimum": 0 },
+        "radius": { "type": "number", "minimum": 0 },
+        "fontSize": { "type": "number", "minimum": 1 },
+        "fontWeight": { "type": "number", "minimum": 0 },
+        "opacity": { "type": "number", "minimum": 0, "maximum": 1 },
+        "textAlign": { "enum": ["left", "center", "right"] }
+      }
+    },
+    "frame": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y", "width", "height"],
+      "properties": {
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "width": { "type": "number", "exclusiveMinimum": 0 },
+        "height": { "type": "number", "exclusiveMinimum": 0 }
+      }
+    },
+    "node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "type", "frame"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "type": { "enum": ["container", "rectangle", "text", "button", "image", "list", "input"] },
+        "parentId": { "type": "string", "minLength": 1 },
+        "text": { "type": "string" },
+        "style": { "$ref": "#/$defs/style" },
+        "hidden": { "type": "boolean" },
+        "locked": { "type": "boolean" },
+        "imageData": { "type": "string", "maxLength": 7000000, "pattern": "^data:image/(png|jpeg|webp|gif);base64,[a-zA-Z0-9+/]+=*$" },
+        "frame": { "$ref": "#/$defs/frame" }
+      }
+    }
+  }
+}

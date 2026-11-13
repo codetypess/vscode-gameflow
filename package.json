@@ -1,0 +1,90 @@
+{
+  "name": "vscode-gameflow",
+  "displayName": "GameFlow",
+  "description": "在 VS Code 中分析策划需求并组织游戏 UI 页面画布。",
+  "version": "0.1.0",
+  "publisher": "codetypes",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.19",
+    "vscode": "^1.105.0"
+  },
+  "categories": [
+    "Visualization",
+    "Other"
+  ],
+  "keywords": [
+    "game-design",
+    "ui-flow",
+    "planning",
+    "canvas"
+  ],
+  "activationEvents": [
+    "onCustomEditor:gameflow.canvasEditor",
+    "onCommand:gameflow.createCanvas"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "gameflow.createCanvas",
+        "title": "新建策划画布",
+        "category": "GameFlow",
+        "icon": "$(new-file)"
+      }
+    ],
+    "customEditors": [
+      {
+        "viewType": "gameflow.canvasEditor",
+        "displayName": "GameFlow 策划画布",
+        "selector": [
+          {
+            "filenamePattern": "*.gameflow.json"
+          }
+        ],
+        "priority": "default"
+      }
+    ],
+    "jsonValidation": [
+      {
+        "fileMatch": "*.gameflow.json",
+        "url": "./schemas/gameflow.schema.json"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run build",
+    "check": "tsc --noEmit && tsc --project tsconfig.webview.json --noEmit",
+    "test": "node test/run-tests.cjs",
+    "build": "npm run check && node esbuild.js && vite build",
+    "build:dev": "node esbuild.js --dev && vite build --mode development",
+    "dev:webview": "vite --host 127.0.0.1",
+    "watch:ext": "node esbuild.js --watch",
+    "watch:webview": "vite build --watch --mode development"
+  },
+  "dependencies": {
+    "@radix-ui/react-popover": "^1.1.6",
+    "@radix-ui/react-separator": "^1.1.1",
+    "@radix-ui/react-slot": "^1.1.1",
+    "@radix-ui/react-tooltip": "^1.1.6",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.468.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tailwind-merge": "^2.5.5"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.10",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@types/vscode": "^1.105.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "esbuild": "^0.28.2",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.5"
+  }
+}

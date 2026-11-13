@@ -1,1 +1,6 @@
 docs/raw
+node_modules/
+dist/
+*.vsix
+*.tgz
+*.tsbuildinfo
