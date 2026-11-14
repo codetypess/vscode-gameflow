@@ -5,6 +5,7 @@ import { defaultStyle, descendants, inheritedFlag, NODE_LABELS, reparentNode } f
 import { Button } from "../components/ui/button";
 import { Separator } from "../components/ui/separator";
 import { Field, ColorField } from "./fields";
+import { VariableField } from "./variable-field";
 import { LayoutProperties, WidgetProperties } from "./ui-properties";
 import { canHaveChildren, COMPONENTS, flowType, PAGE_ROOTS, PAGE_ROOT_TYPES, pageRootType } from "../../shared/ui-components";
 import { resolvePageLayout, constraintsFor, managedAxis } from "../../shared/ui-layout";
@@ -22,6 +23,7 @@ export function Inspector({ page, node, onNode, onPage, onClose, onEnter, onImpo
   const geometry = resolvePageLayout(page);
   const frame = node ? geometry.nodes.get(node.id)!.local : page.frame;
   const parent = page.nodes.find((n) => n.id === node?.parentId);
+  const identityLabel = node ? `${NODE_LABELS[node.type]}(${COMPONENTS[node.type].laya})` : `${page.kind === "modal" ? "弹窗" : "页面"}(${pageRootType(page)})`;
   const appearance = { ...defaultStyle(node?.type ?? "rectangle"), ...node?.style };
   const setFrame = (key: keyof Frame, value: string) => {
     const next = { ...frame, [key]: Number(value) };
@@ -35,15 +37,15 @@ export function Inspector({ page, node, onNode, onPage, onClose, onEnter, onImpo
       <Button variant="ghost" size="icon" aria-label="关闭属性面板" onClick={onClose}><X size={14} /></Button>
     </div>
     {!collapsed ? <div className="inspector-content" key={node?.id ?? page.id}>
-      <div className="selection-kind">{node ? NODE_LABELS[node.type] : page.kind === "modal" ? "弹窗" : "页面"}<span>{node ? "控件" : `${page.nodes.length} 个控件`}</span></div>
-      <div className="component-identity"><span>{node ? COMPONENTS[node.type].laya : pageRootType(page)}</span><code title="稳定节点 ID">{node?.id ?? page.id}</code></div>
+      <div className="component-identity"><span title={identityLabel}>{identityLabel}</span><code title="稳定节点 ID">{node?.id ?? page.id}</code></div>
       {geometry.issues.length ? <div className="layout-diagnostics" role="status"><strong>布局需要调整</strong>{geometry.issues.slice(0, 4).map((issue, i) => <p key={i}>{issue.message}</p>)}<p>暂用原始位置/尺寸显示，可继续修改。</p></div> : null}
-      <Field label={node ? "控件名称" : "页面名称"} value={node?.name ?? page.name} disabled={locked} validate={(name) => !!name.trim()} onCommit={(name) => {
+      <Field label={node ? "名称" : "页面名称"} value={node?.name ?? page.name} disabled={locked} validate={(name) => !!name.trim()} onCommit={(name) => {
         if (!name.trim()) return;
         if (node) onNode(node.id, { name: name.trim() }); else onPage((item) => ({ ...item, name: name.trim() }));
       }} />
+      {node ? <VariableField page={page} node={node} disabled={locked} onCommit={(variableName) => onNode(node.id, { variableName })} /> : null}
       <div className="property-section-title">位置与尺寸</div>
-      <div className="property-grid">{(["x", "y", "width", "height"] as const).map((key) => <Field key={key} label={key === "width" ? "W" : key === "height" ? "H" : key.toUpperCase()} type="number" value={Math.round(frame[key] * 10) / 10} min={key === "width" || key === "height" ? 8 : undefined} disabled={locked || (!!node && (key === "x" || key === "y") && (managedAxis(parent, key) || (flowType(parent) !== "free" && !constraintsFor(key).some((k) => node.layout?.[k] != null))))} onCommit={(value) => setFrame(key, value)} />)}</div>
+      <div className="property-grid">{(["x", "y", "width", "height"] as const).map((key) => <Field key={key} label={key === "width" ? "W" : key === "height" ? "H" : key.toUpperCase()} type="number" integer value={frame[key]} min={key === "width" || key === "height" ? 8 : undefined} disabled={locked || (!!node && (key === "x" || key === "y") && (managedAxis(parent, key) || (flowType(parent) !== "free" && node.layout?.crossAxisMode !== "explicit" && !constraintsFor(key).some((k) => node.layout?.[k] != null))))} onCommit={(value) => setFrame(key, value)} />)}</div>
       {node ? <>
         <label className="property-field"><span>父容器</span><select aria-label="父容器" disabled={locked} value={node.parentId ?? ""} onChange={(event) => onPage((item) => reparentNode(item, node.id, event.target.value || undefined))}>
           <option value="">页面根节点</option>{page.nodes.filter((item) => canHaveChildren(item) && !inheritedFlag(page, item, "locked") && !descendants(page, node.id).has(item.id)).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}

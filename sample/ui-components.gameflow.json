@@ -1,11 +1,12 @@
 {
   "schemaVersion": 2,
+  "elementIdScheme": "nanoid-8",
   "documentId": "gameflow-ui-components-sample",
   "title": "LayaUI 组件与布局示例",
   "requirements": [],
   "pages": [
     {
-      "id": "u0000001",
+      "id": "fpq0q8nz",
       "name": "背包 · 自适应布局",
       "kind": "screen",
       "frame": {
@@ -17,7 +18,7 @@
       "background": "#f5f7fb",
       "nodes": [
         {
-          "id": "u0000002",
+          "id": "wn2rlyjd",
           "type": "hbox",
           "name": "标题横排",
           "frame": {
@@ -39,7 +40,7 @@
           }
         },
         {
-          "id": "u0000003",
+          "id": "7u8qvha7",
           "type": "text",
           "name": "冒险者的背包",
           "frame": {
@@ -56,10 +57,10 @@
             "borderWidth": 0,
             "color": "#263244"
           },
-          "parentId": "u0000002"
+          "parentId": "wn2rlyjd"
         },
         {
-          "id": "u0000004",
+          "id": "nq9gwrb4",
           "type": "input",
           "name": "搜索道具",
           "frame": {
@@ -68,7 +69,7 @@
             "width": 240,
             "height": 36
           },
-          "parentId": "u0000002",
+          "parentId": "wn2rlyjd",
           "widget": {
             "placeholder": "搜索名称…"
           },
@@ -78,7 +79,7 @@
           }
         },
         {
-          "id": "u0000005",
+          "id": "nnonvbjk",
           "type": "container",
           "name": "内容区",
           "frame": {
@@ -99,7 +100,7 @@
           }
         },
         {
-          "id": "u0000006",
+          "id": "zxboo5ir",
           "type": "vbox",
           "name": "分类竖排",
           "frame": {
@@ -108,7 +109,7 @@
             "width": 152,
             "height": 40
           },
-          "parentId": "u0000005",
+          "parentId": "nnonvbjk",
           "layout": {
             "left": 0,
             "top": 0,
@@ -126,7 +127,7 @@
           }
         },
         {
-          "id": "u0000007",
+          "id": "mj98h2uc",
           "type": "button",
           "name": "全部道具",
           "frame": {
@@ -140,10 +141,10 @@
             "borderWidth": 0,
             "radius": 5
           },
-          "parentId": "u0000006"
+          "parentId": "zxboo5ir"
         },
         {
-          "id": "u0000008",
+          "id": "qzbfjsf6",
           "type": "text",
           "name": "全部道具文字",
           "frame": {
@@ -160,7 +161,7 @@
             "fill": "transparent",
             "borderWidth": 0
           },
-          "parentId": "u0000007",
+          "parentId": "mj98h2uc",
           "layout": {
             "left": 0,
             "right": 0,
@@ -168,7 +169,7 @@
           }
         },
         {
-          "id": "u0000009",
+          "id": "g33m8xzg",
           "type": "button",
           "name": "武器装备",
           "frame": {
@@ -182,10 +183,10 @@
             "borderWidth": 0,
             "radius": 5
           },
-          "parentId": "u0000006"
+          "parentId": "zxboo5ir"
         },
         {
-          "id": "u000000a",
+          "id": "v9d6fqw4",
           "type": "text",
           "name": "武器装备文字",
           "frame": {
@@ -202,7 +203,7 @@
             "fill": "transparent",
             "borderWidth": 0
           },
-          "parentId": "u0000009",
+          "parentId": "g33m8xzg",
           "layout": {
             "left": 0,
             "right": 0,
@@ -210,7 +211,7 @@
           }
         },
         {
-          "id": "u000000b",
+          "id": "8ddfnc1v",
           "type": "button",
           "name": "消耗品",
           "frame": {
@@ -224,10 +225,10 @@
             "borderWidth": 0,
             "radius": 5
           },
-          "parentId": "u0000006"
+          "parentId": "zxboo5ir"
         },
         {
-          "id": "u000000c",
+          "id": "4gu7wlls",
           "type": "text",
           "name": "消耗品文字",
           "frame": {
@@ -244,7 +245,7 @@
             "fill": "transparent",
             "borderWidth": 0
           },
-          "parentId": "u000000b",
+          "parentId": "8ddfnc1v",
           "layout": {
             "left": 0,
             "right": 0,
@@ -252,7 +253,7 @@
           }
         },
         {
-          "id": "u000000d",
+          "id": "i5pyulll",
           "type": "button",
           "name": "任务道具",
           "frame": {
@@ -266,10 +267,10 @@
             "borderWidth": 0,
             "radius": 5
           },
-          "parentId": "u0000006"
+          "parentId": "zxboo5ir"
         },
         {
-          "id": "u000000e",
+          "id": "0db1tqsk",
           "type": "text",
           "name": "任务道具文字",
           "frame": {
@@ -286,7 +287,7 @@
             "fill": "transparent",
             "borderWidth": 0
           },
-          "parentId": "u000000d",
+          "parentId": "i5pyulll",
           "layout": {
             "left": 0,
             "right": 0,
@@ -294,7 +295,7 @@
           }
         },
         {
-          "id": "u000000f",
+          "id": "7c0coa36",
           "type": "list",
           "name": "道具网格",
           "frame": {
@@ -303,7 +304,7 @@
             "width": 100,
             "height": 40
           },
-          "parentId": "u0000005",
+          "parentId": "nnonvbjk",
           "layout": {
             "left": 176,
             "right": 0,
@@ -326,7 +327,7 @@
           }
         },
         {
-          "id": "u000000g",
+          "id": "bdi3ggts",
           "type": "panel",
           "name": "道具 1",
           "frame": {
@@ -335,7 +336,7 @@
             "width": 148,
             "height": 130
           },
-          "parentId": "u000000f",
+          "parentId": "7c0coa36",
           "style": {
             "fill": "#e8eefc",
             "borderWidth": 1,
@@ -344,7 +345,7 @@
           }
         },
         {
-          "id": "u000000h",
+          "id": "jovb4xe4",
           "type": "image",
           "name": "道具图标 1",
           "frame": {
@@ -353,7 +354,7 @@
             "width": 60,
             "height": 60
           },
-          "parentId": "u000000g",
+          "parentId": "bdi3ggts",
           "layout": {
             "centerX": 0,
             "top": 12
@@ -364,7 +365,7 @@
           }
         },
         {
-          "id": "u000000i",
+          "id": "otondn2t",
           "type": "text",
           "name": "道具名称 1",
           "frame": {
@@ -381,7 +382,7 @@
             "borderWidth": 0,
             "color": "#263244"
           },
-          "parentId": "u000000g",
+          "parentId": "bdi3ggts",
           "layout": {
             "left": 8,
             "right": 8,
@@ -389,7 +390,7 @@
           }
         },
         {
-          "id": "u000000j",
+          "id": "qouy3bfo",
           "type": "panel",
           "name": "道具 2",
           "frame": {
@@ -398,7 +399,7 @@
             "width": 148,
             "height": 130
           },
-          "parentId": "u000000f",
+          "parentId": "7c0coa36",
           "style": {
             "fill": "#e8eefc",
             "borderWidth": 1,
@@ -407,7 +408,7 @@
           }
         },
         {
-          "id": "u000000k",
+          "id": "riowsykm",
           "type": "image",
           "name": "道具图标 2",
           "frame": {
@@ -416,7 +417,7 @@
             "width": 60,
             "height": 60
           },
-          "parentId": "u000000j",
+          "parentId": "qouy3bfo",
           "layout": {
             "centerX": 0,
             "top": 12
@@ -427,7 +428,7 @@
           }
         },
         {
-          "id": "u000000l",
+          "id": "7ggh8hhi",
           "type": "text",
           "name": "道具名称 2",
           "frame": {
@@ -444,7 +445,7 @@
             "borderWidth": 0,
             "color": "#263244"
           },
-          "parentId": "u000000j",
+          "parentId": "qouy3bfo",
           "layout": {
             "left": 8,
             "right": 8,
@@ -452,7 +453,7 @@
           }
         },
         {
-          "id": "u000000m",
+          "id": "dqvpkt78",
           "type": "panel",
           "name": "道具 3",
           "frame": {
@@ -461,7 +462,7 @@
             "width": 148,
             "height": 130
           },
-          "parentId": "u000000f",
+          "parentId": "7c0coa36",
           "style": {
             "fill": "#e8eefc",
             "borderWidth": 1,
@@ -470,7 +471,7 @@
           }
         },
         {
-          "id": "u000000n",
+          "id": "98jtw50v",
           "type": "image",
           "name": "道具图标 3",
           "frame": {
@@ -479,7 +480,7 @@
             "width": 60,
             "height": 60
           },
-          "parentId": "u000000m",
+          "parentId": "dqvpkt78",
           "layout": {
             "centerX": 0,
             "top": 12
@@ -490,7 +491,7 @@
           }
         },
         {
-          "id": "u000000o",
+          "id": "s2zywxc9",
           "type": "text",
           "name": "道具名称 3",
           "frame": {
@@ -507,7 +508,7 @@
             "borderWidth": 0,
             "color": "#263244"
           },
-          "parentId": "u000000m",
+          "parentId": "dqvpkt78",
           "layout": {
             "left": 8,
             "right": 8,
@@ -515,7 +516,7 @@
           }
         },
         {
-          "id": "u000000p",
+          "id": "7x85ff4o",
           "type": "panel",
           "name": "道具 4",
           "frame": {
@@ -524,7 +525,7 @@
             "width": 148,
             "height": 130
           },
-          "parentId": "u000000f",
+          "parentId": "7c0coa36",
           "style": {
             "fill": "#e8eefc",
             "borderWidth": 1,
@@ -533,7 +534,7 @@
           }
         },
         {
-          "id": "u000000q",
+          "id": "gdduwaqa",
           "type": "image",
           "name": "道具图标 4",
           "frame": {
@@ -542,7 +543,7 @@
             "width": 60,
             "height": 60
           },
-          "parentId": "u000000p",
+          "parentId": "7x85ff4o",
           "layout": {
             "centerX": 0,
             "top": 12
@@ -553,7 +554,7 @@
           }
         },
         {
-          "id": "u000000r",
+          "id": "mbgwz889",
           "type": "text",
           "name": "道具名称 4",
           "frame": {
@@ -570,7 +571,7 @@
             "borderWidth": 0,
             "color": "#263244"
           },
-          "parentId": "u000000p",
+          "parentId": "7x85ff4o",
           "layout": {
             "left": 8,
             "right": 8,
@@ -578,7 +579,7 @@
           }
         },
         {
-          "id": "u000000s",
+          "id": "n4rcc11g",
           "type": "panel",
           "name": "道具 5",
           "frame": {
@@ -587,7 +588,7 @@
             "width": 148,
             "height": 130
           },
-          "parentId": "u000000f",
+          "parentId": "7c0coa36",
           "style": {
             "fill": "#f1f5f9",
             "borderWidth": 1,
@@ -596,7 +597,7 @@
           }
         },
         {
-          "id": "u000000t",
+          "id": "su7q6wdm",
           "type": "image",
           "name": "道具图标 5",
           "frame": {
@@ -605,7 +606,7 @@
             "width": 60,
             "height": 60
           },
-          "parentId": "u000000s",
+          "parentId": "n4rcc11g",
           "layout": {
             "centerX": 0,
             "top": 12
@@ -616,7 +617,7 @@
           }
         },
         {
-          "id": "u000000u",
+          "id": "f9enyhph",
           "type": "text",
           "name": "道具名称 5",
           "frame": {
@@ -633,7 +634,7 @@
             "borderWidth": 0,
             "color": "#263244"
           },
-          "parentId": "u000000s",
+          "parentId": "n4rcc11g",
           "layout": {
             "left": 8,
             "right": 8,
@@ -641,7 +642,7 @@
           }
         },
         {
-          "id": "u000000v",
+          "id": "dpebaefe",
           "type": "panel",
           "name": "道具 6",
           "frame": {
@@ -650,7 +651,7 @@
             "width": 148,
             "height": 130
           },
-          "parentId": "u000000f",
+          "parentId": "7c0coa36",
           "style": {
             "fill": "#f1f5f9",
             "borderWidth": 1,
@@ -659,7 +660,7 @@
           }
         },
         {
-          "id": "u000000w",
+          "id": "n9t9zdsx",
           "type": "image",
           "name": "道具图标 6",
           "frame": {
@@ -668,7 +669,7 @@
             "width": 60,
             "height": 60
           },
-          "parentId": "u000000v",
+          "parentId": "dpebaefe",
           "layout": {
             "centerX": 0,
             "top": 12
@@ -679,7 +680,7 @@
           }
         },
         {
-          "id": "u000000x",
+          "id": "xjtvyse3",
           "type": "text",
           "name": "道具名称 6",
           "frame": {
@@ -696,7 +697,7 @@
             "borderWidth": 0,
             "color": "#263244"
           },
-          "parentId": "u000000v",
+          "parentId": "dpebaefe",
           "layout": {
             "left": 8,
             "right": 8,
@@ -704,7 +705,7 @@
           }
         },
         {
-          "id": "u000000y",
+          "id": "wgmqqyfs",
           "type": "panel",
           "name": "道具 7",
           "frame": {
@@ -713,7 +714,7 @@
             "width": 148,
             "height": 130
           },
-          "parentId": "u000000f",
+          "parentId": "7c0coa36",
           "style": {
             "fill": "#f1f5f9",
             "borderWidth": 1,
@@ -722,7 +723,7 @@
           }
         },
         {
-          "id": "u000000z",
+          "id": "8o7ryzpe",
           "type": "image",
           "name": "道具图标 7",
           "frame": {
@@ -731,7 +732,7 @@
             "width": 60,
             "height": 60
           },
-          "parentId": "u000000y",
+          "parentId": "wgmqqyfs",
           "layout": {
             "centerX": 0,
             "top": 12
@@ -742,7 +743,7 @@
           }
         },
         {
-          "id": "u0000010",
+          "id": "98votrmg",
           "type": "text",
           "name": "道具名称 7",
           "frame": {
@@ -759,7 +760,7 @@
             "borderWidth": 0,
             "color": "#263244"
           },
-          "parentId": "u000000y",
+          "parentId": "wgmqqyfs",
           "layout": {
             "left": 8,
             "right": 8,
@@ -767,7 +768,7 @@
           }
         },
         {
-          "id": "u0000011",
+          "id": "d48zzy6g",
           "type": "panel",
           "name": "道具 8",
           "frame": {
@@ -776,7 +777,7 @@
             "width": 148,
             "height": 130
           },
-          "parentId": "u000000f",
+          "parentId": "7c0coa36",
           "style": {
             "fill": "#f1f5f9",
             "borderWidth": 1,
@@ -785,7 +786,7 @@
           }
         },
         {
-          "id": "u0000012",
+          "id": "phkmm0it",
           "type": "image",
           "name": "道具图标 8",
           "frame": {
@@ -794,7 +795,7 @@
             "width": 60,
             "height": 60
           },
-          "parentId": "u0000011",
+          "parentId": "d48zzy6g",
           "layout": {
             "centerX": 0,
             "top": 12
@@ -805,7 +806,7 @@
           }
         },
         {
-          "id": "u0000013",
+          "id": "spr50tag",
           "type": "text",
           "name": "道具名称 8",
           "frame": {
@@ -822,7 +823,7 @@
             "borderWidth": 0,
             "color": "#263244"
           },
-          "parentId": "u0000011",
+          "parentId": "d48zzy6g",
           "layout": {
             "left": 8,
             "right": 8,
@@ -830,7 +831,7 @@
           }
         },
         {
-          "id": "u0000014",
+          "id": "mqhn4181",
           "type": "panel",
           "name": "道具 9",
           "frame": {
@@ -839,7 +840,7 @@
             "width": 148,
             "height": 130
           },
-          "parentId": "u000000f",
+          "parentId": "7c0coa36",
           "style": {
             "fill": "#f1f5f9",
             "borderWidth": 1,
@@ -848,7 +849,7 @@
           }
         },
         {
-          "id": "u0000015",
+          "id": "vaj0x7oh",
           "type": "image",
           "name": "道具图标 9",
           "frame": {
@@ -857,7 +858,7 @@
             "width": 60,
             "height": 60
           },
-          "parentId": "u0000014",
+          "parentId": "mqhn4181",
           "layout": {
             "centerX": 0,
             "top": 12
@@ -868,7 +869,7 @@
           }
         },
         {
-          "id": "u0000016",
+          "id": "ykir7ne8",
           "type": "text",
           "name": "道具名称 9",
           "frame": {
@@ -885,7 +886,7 @@
             "borderWidth": 0,
             "color": "#263244"
           },
-          "parentId": "u0000014",
+          "parentId": "mqhn4181",
           "layout": {
             "left": 8,
             "right": 8,
@@ -893,7 +894,7 @@
           }
         },
         {
-          "id": "u0000017",
+          "id": "qcb45y77",
           "type": "panel",
           "name": "道具 10",
           "frame": {
@@ -902,7 +903,7 @@
             "width": 148,
             "height": 130
           },
-          "parentId": "u000000f",
+          "parentId": "7c0coa36",
           "style": {
             "fill": "#f1f5f9",
             "borderWidth": 1,
@@ -911,7 +912,7 @@
           }
         },
         {
-          "id": "u0000018",
+          "id": "mddakt2g",
           "type": "image",
           "name": "道具图标 10",
           "frame": {
@@ -920,7 +921,7 @@
             "width": 60,
             "height": 60
           },
-          "parentId": "u0000017",
+          "parentId": "qcb45y77",
           "layout": {
             "centerX": 0,
             "top": 12
@@ -931,7 +932,7 @@
           }
         },
         {
-          "id": "u0000019",
+          "id": "j3pmw2ke",
           "type": "text",
           "name": "道具名称 10",
           "frame": {
@@ -948,7 +949,7 @@
             "borderWidth": 0,
             "color": "#263244"
           },
-          "parentId": "u0000017",
+          "parentId": "qcb45y77",
           "layout": {
             "left": 8,
             "right": 8,
@@ -956,7 +957,7 @@
           }
         },
         {
-          "id": "u000001a",
+          "id": "e334x9zu",
           "type": "panel",
           "name": "道具 11",
           "frame": {
@@ -965,7 +966,7 @@
             "width": 148,
             "height": 130
           },
-          "parentId": "u000000f",
+          "parentId": "7c0coa36",
           "style": {
             "fill": "#f1f5f9",
             "borderWidth": 1,
@@ -974,7 +975,7 @@
           }
         },
         {
-          "id": "u000001b",
+          "id": "jgst330c",
           "type": "image",
           "name": "道具图标 11",
           "frame": {
@@ -983,7 +984,7 @@
             "width": 60,
             "height": 60
           },
-          "parentId": "u000001a",
+          "parentId": "e334x9zu",
           "layout": {
             "centerX": 0,
             "top": 12
@@ -994,7 +995,7 @@
           }
         },
         {
-          "id": "u000001c",
+          "id": "4icc7eji",
           "type": "text",
           "name": "道具名称 11",
           "frame": {
@@ -1011,7 +1012,7 @@
             "borderWidth": 0,
             "color": "#263244"
           },
-          "parentId": "u000001a",
+          "parentId": "e334x9zu",
           "layout": {
             "left": 8,
             "right": 8,
@@ -1019,7 +1020,7 @@
           }
         },
         {
-          "id": "u000001d",
+          "id": "lggtjbys",
           "type": "panel",
           "name": "道具 12",
           "frame": {
@@ -1028,7 +1029,7 @@
             "width": 148,
             "height": 130
           },
-          "parentId": "u000000f",
+          "parentId": "7c0coa36",
           "style": {
             "fill": "#f1f5f9",
             "borderWidth": 1,
@@ -1037,7 +1038,7 @@
           }
         },
         {
-          "id": "u000001e",
+          "id": "905aiilt",
           "type": "image",
           "name": "道具图标 12",
           "frame": {
@@ -1046,7 +1047,7 @@
             "width": 60,
             "height": 60
           },
-          "parentId": "u000001d",
+          "parentId": "lggtjbys",
           "layout": {
             "centerX": 0,
             "top": 12
@@ -1057,7 +1058,7 @@
           }
         },
         {
-          "id": "u000001f",
+          "id": "ouqmy7g1",
           "type": "text",
           "name": "道具名称 12",
           "frame": {
@@ -1074,7 +1075,7 @@
             "borderWidth": 0,
             "color": "#263244"
           },
-          "parentId": "u000001d",
+          "parentId": "lggtjbys",
           "layout": {
             "left": 8,
             "right": 8,
@@ -1082,7 +1083,7 @@
           }
         },
         {
-          "id": "u000001g",
+          "id": "w48z79h7",
           "type": "hbox",
           "name": "底栏两端分布",
           "frame": {
@@ -1104,7 +1105,7 @@
           }
         },
         {
-          "id": "u000001h",
+          "id": "r61j9pn8",
           "type": "text",
           "name": "容量：12 / 80",
           "frame": {
@@ -1120,10 +1121,10 @@
             "fill": "transparent",
             "borderWidth": 0
           },
-          "parentId": "u000001g"
+          "parentId": "w48z79h7"
         },
         {
-          "id": "u000001i",
+          "id": "8sx04c8x",
           "type": "button",
           "name": "整理背包",
           "frame": {
@@ -1137,10 +1138,10 @@
             "borderWidth": 0,
             "radius": 5
           },
-          "parentId": "u000001g"
+          "parentId": "w48z79h7"
         },
         {
-          "id": "u000001j",
+          "id": "q3e6gdnc",
           "type": "text",
           "name": "整理背包文字",
           "frame": {
@@ -1157,7 +1158,7 @@
             "fill": "transparent",
             "borderWidth": 0
           },
-          "parentId": "u000001i",
+          "parentId": "8sx04c8x",
           "layout": {
             "left": 0,
             "right": 0,
@@ -1167,7 +1168,7 @@
       ]
     },
     {
-      "id": "u000001k",
+      "id": "0o5tgv20",
       "name": "游戏控件 · 状态预览",
       "kind": "screen",
       "frame": {
@@ -1179,7 +1180,7 @@
       "background": "#f5f7fb",
       "nodes": [
         {
-          "id": "u000001l",
+          "id": "byyjx8e6",
           "type": "text",
           "name": "游戏设置",
           "frame": {
@@ -1198,7 +1199,7 @@
           }
         },
         {
-          "id": "u000001m",
+          "id": "iekcopdv",
           "type": "vbox",
           "name": "设置竖排",
           "frame": {
@@ -1220,7 +1221,7 @@
           }
         },
         {
-          "id": "u000001n",
+          "id": "v8rdtoub",
           "type": "text",
           "name": "角色名称",
           "frame": {
@@ -1236,10 +1237,10 @@
             "fill": "transparent",
             "borderWidth": 0
           },
-          "parentId": "u000001m"
+          "parentId": "iekcopdv"
         },
         {
-          "id": "u000001o",
+          "id": "r28msfm7",
           "type": "input",
           "name": "名称输入",
           "frame": {
@@ -1248,7 +1249,7 @@
             "width": 364,
             "height": 40
           },
-          "parentId": "u000001m",
+          "parentId": "iekcopdv",
           "text": "冒险者",
           "widget": {
             "placeholder": "输入角色名称",
@@ -1260,7 +1261,7 @@
           }
         },
         {
-          "id": "u000001p",
+          "id": "ssmjvfc5",
           "type": "checkbox",
           "name": "开启游戏音效",
           "frame": {
@@ -1269,7 +1270,7 @@
             "width": 364,
             "height": 32
           },
-          "parentId": "u000001m",
+          "parentId": "iekcopdv",
           "text": "开启游戏音效",
           "widget": {
             "selected": true
@@ -1280,7 +1281,7 @@
           }
         },
         {
-          "id": "u000001q",
+          "id": "bi2mob4u",
           "type": "radio",
           "name": "高画质",
           "frame": {
@@ -1289,7 +1290,7 @@
             "width": 364,
             "height": 32
           },
-          "parentId": "u000001m",
+          "parentId": "iekcopdv",
           "text": "高画质",
           "widget": {
             "selected": true
@@ -1300,7 +1301,7 @@
           }
         },
         {
-          "id": "u000001r",
+          "id": "t3i8zpkz",
           "type": "combo",
           "name": "语言选择",
           "frame": {
@@ -1309,7 +1310,7 @@
             "width": 364,
             "height": 40
           },
-          "parentId": "u000001m",
+          "parentId": "iekcopdv",
           "widget": {
             "options": [
               "简体中文",
@@ -1324,7 +1325,7 @@
           }
         },
         {
-          "id": "u000001s",
+          "id": "ff4n8okm",
           "type": "text",
           "name": "背景音乐音量",
           "frame": {
@@ -1340,10 +1341,10 @@
             "fill": "transparent",
             "borderWidth": 0
           },
-          "parentId": "u000001m"
+          "parentId": "iekcopdv"
         },
         {
-          "id": "u000001t",
+          "id": "9g7fent8",
           "type": "slider",
           "name": "音乐音量",
           "frame": {
@@ -1352,7 +1353,7 @@
             "width": 364,
             "height": 32
           },
-          "parentId": "u000001m",
+          "parentId": "iekcopdv",
           "widget": {
             "min": 0,
             "max": 100,
@@ -1364,7 +1365,7 @@
           }
         },
         {
-          "id": "u000001u",
+          "id": "xco7808t",
           "type": "progress",
           "name": "下载进度",
           "frame": {
@@ -1373,7 +1374,7 @@
             "width": 364,
             "height": 28
           },
-          "parentId": "u000001m",
+          "parentId": "iekcopdv",
           "widget": {
             "min": 0,
             "max": 100,
@@ -1386,7 +1387,7 @@
           }
         },
         {
-          "id": "u000001v",
+          "id": "4ts7mgmf",
           "type": "button",
           "name": "保存设置",
           "frame": {
@@ -1400,10 +1401,10 @@
             "borderWidth": 0,
             "radius": 5
           },
-          "parentId": "u000001m"
+          "parentId": "iekcopdv"
         },
         {
-          "id": "u000001w",
+          "id": "jpi9qzhl",
           "type": "text",
           "name": "保存设置文字",
           "frame": {
@@ -1420,7 +1421,7 @@
             "fill": "transparent",
             "borderWidth": 0
           },
-          "parentId": "u000001v",
+          "parentId": "4ts7mgmf",
           "layout": {
             "left": 0,
             "right": 0,

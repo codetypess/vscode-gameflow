@@ -1,8 +1,10 @@
 # Laya 风格的稳定节点 ID
 
-Status: Done
+Status: Superseded
 Date: 2026-11-13
 Scope: 当前原型中新建、复制的页面与控件采用 Laya 默认长度的短 ID，保持已有对象身份。
+
+生成规则及旧文档处理已由 [nanoid-element-ids.md](nanoid-element-ids.md) 取代：使用 Nano ID 生成 8 位小写字母/数字，首位可为数字；用户授权已有原型 ID 一次性迁移。以下保留最初实现记录。
 
 ## 1. Context
 

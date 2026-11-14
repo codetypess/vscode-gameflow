@@ -1,27 +1,18 @@
+import { customAlphabet } from "nanoid";
 import type { GameFlowDocument } from "./model";
 
-const LETTERS = "abcdefghijklmnopqrstuvwxyz";
-const CHARACTERS = `${LETTERS}0123456789`;
-const SHORT_ID = /^[a-z][a-z0-9]{7}$/;
-
-/** Matches Laya's default genShortId format; resource UUIDs use a separate identity. */
-function randomShortId(): string {
-  const values = crypto.getRandomValues(new Uint32Array(8));
-  let id = LETTERS[values[0] % LETTERS.length];
-  for (let index = 1; index < values.length; index++) {
-    id += CHARACTERS[values[index] % CHARACTERS.length];
-  }
-  return id;
-}
+export const ELEMENT_ID_SCHEME = "nanoid-8" as const;
+const ELEMENT_ID = /^[a-z0-9]{8}$/;
+const createElementId = customAlphabet("abcdefghijklmnopqrstuvwxyz0123456789", 8);
 
 /** Reserve immediately so a batch of copied nodes cannot reuse an ID. */
 export function allocateElementId(
   reserved: Set<string>,
-  candidate: () => string = randomShortId
+  candidate: () => string = createElementId
 ): string {
   for (let attempt = 0; attempt < 128; attempt++) {
     const id = candidate();
-    if (!SHORT_ID.test(id)) throw new Error("Element ID generator must produce an 8-character Laya-style ID");
+    if (!ELEMENT_ID.test(id)) throw new Error("Element ID generator must produce an 8-character lowercase alphanumeric Nano ID");
     if (reserved.has(id)) continue;
     reserved.add(id);
     return id;

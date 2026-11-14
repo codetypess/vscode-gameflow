@@ -116,7 +116,7 @@ export function resolvePageLayout(page: GameFlowPage): LayoutResult {
         const gap = align === "justify" ? gaps ? (p.size - total) / gaps : 0 : pl?.gap ?? 0;
         return p.start + (p.size - total - gap * gaps) * factor + lengths.slice(0, index).reduce((sum, v) => sum + v, 0) + index * gap;
       }
-      if (!has(n, axis)) return p.start + (p.size - length) * factor;
+      if (!has(n, axis)) return l?.crossAxisMode === "explicit" ? n.frame[axis] : p.start + (p.size - length) * factor;
     }
     if (has(n, axis) && parent && source(parent, axis) === "measured" && (l?.layoutUnit === "percent" || l?.[a.trailing] != null || l?.[a.center] != null)) fail(`${n.name}：相对约束需要父容器固定尺寸`);
     if (l?.[a.center] != null) return Math.round(p.start + (p.size - length) / 2 + offset(n, a.center, p.size));

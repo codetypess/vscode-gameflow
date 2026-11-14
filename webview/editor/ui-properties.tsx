@@ -1,7 +1,7 @@
 import type { GameFlowNode, GameFlowPage, NodeLayout, WidgetProps, NodeType } from "../../shared/model";
 import { canHaveChildren, COMPONENTS, flowType } from "../../shared/ui-components";
 import { AXES, managedAxis, resolvePageLayout } from "../../shared/ui-layout";
-import { changeContainerType } from "../../shared/ui-edit";
+import { changeContainerType, setNodeConstraint } from "../../shared/ui-edit";
 import { Field } from "./fields";
 import { ConstraintControl, ContainerAlignment, PaddingControl } from "./layout-controls";
 
@@ -35,22 +35,22 @@ export function LayoutProperties({ page, node, locked, onNode, onPage }: {
         }
         onNode(node.id, { layout: next });
       }} />
-      <ConstraintControl layout={layout} disabledX={locked || managedAxis(parent, "x")} disabledY={locked || managedAxis(parent, "y")} onChange={set} />
-      {flowType(parent) !== "free" ? <p className="property-hint">父容器自动排布：拖动调整顺序，交叉轴由对齐或约束控制。</p> : null}
+      <ConstraintControl layout={layout} disabledX={locked || managedAxis(parent, "x")} disabledY={locked || managedAxis(parent, "y")} onChange={set} onToggle={(key, enabled) => onPage((p) => setNodeConstraint(p, node.id, key, enabled))} />
+      {flowType(parent) !== "free" ? <p className="property-hint">父容器自动排布：拖动调整顺序；交叉轴可单独定位。</p> : null}
       {node.type === "text" && (layout.widthMode === "measured" || layout.heightMode === "measured") ? <p className="property-hint">文字内容尺寸为原型估算，实际以游戏字体为准。</p> : null}
     </details>
     {canHaveChildren(node) ? <details className="property-details" open={["container", "hbox", "vbox", "grid", "panel", "list"].includes(node.type)}><summary>容器布局</summary>
       {["container", "hbox", "vbox", "grid"].includes(node.type) ? <Select label="排布方式" value={node.type} disabled={locked || page.nodes.some((n) => n.parentId === node.id && n.locked)} options={[["container", "自由布局"], ["hbox", "横向排列"], ["vbox", "纵向排列"], ["grid", "网格排列"]]} onChange={(value) => onPage((p) => changeContainerType(p, node.id, value as NodeType))} /> : null}
       <PaddingControl layout={layout} disabled={locked} onChange={set} />
-      {flow === "hbox" || flow === "vbox" ? <Field label="间距" type="number" value={layout.gap ?? 0} disabled={locked || (flow === "hbox" ? layout.align === "justify" : layout.valign === "justify")} onCommit={(v) => set({ gap: Number(v) })} /> : null}
+      {flow === "hbox" || flow === "vbox" ? <Field label="间距" type="number" integer value={layout.gap ?? 0} disabled={locked || (flow === "hbox" ? layout.align === "justify" : layout.valign === "justify")} onCommit={(v) => set({ gap: Number(v) })} /> : null}
       {flow === "grid" ? <>
         <Select label="排列方向" value={layout.direction ?? "horizontal"} disabled={locked} options={[["horizontal", "横向优先"], ["vertical", "纵向优先"]]} onChange={(v) => set({ direction: v as "horizontal" | "vertical" })} />
-        <Field label={layout.direction === "vertical" ? "每列数量" : "每行数量"} type="number" min={1} max={1000} value={layout.wrapCount ?? (node.type === "list" ? 4 : 2)} disabled={locked} onCommit={(v) => set({ wrapCount: Math.round(Number(v)) })} />
-        <div className="property-grid"><Field label="水平间距" type="number" value={layout.gapX ?? 0} disabled={locked} onCommit={(v) => set({ gapX: Number(v) })} /><Field label="垂直间距" type="number" value={layout.gapY ?? 0} disabled={locked} onCommit={(v) => set({ gapY: Number(v) })} /></div>
+        <Field label={layout.direction === "vertical" ? "每列数量" : "每行数量"} type="number" integer min={1} max={1000} value={layout.wrapCount ?? (node.type === "list" ? 4 : 2)} disabled={locked} onCommit={(v) => set({ wrapCount: Math.round(Number(v)) })} />
+        <div className="property-grid"><Field label="水平间距" type="number" integer value={layout.gapX ?? 0} disabled={locked} onCommit={(v) => set({ gapX: Number(v) })} /><Field label="垂直间距" type="number" integer value={layout.gapY ?? 0} disabled={locked} onCommit={(v) => set({ gapY: Number(v) })} /></div>
       </> : null}
       {flow !== "free" ? <ContainerAlignment layout={layout} flow={flow} disabled={locked} onChange={set} /> : null}
       <Toggle label="裁剪超出内容" value={layout.clipContent ?? node.type === "panel"} disabled={locked} onChange={(v) => set({ clipContent: v })} />
-      {node.type === "panel" || node.type === "list" ? <div className="property-grid"><Field label="滚动 X" type="number" min={0} value={layout.scrollX ?? 0} disabled={locked} onCommit={(v) => set({ scrollX: Number(v) })} /><Field label="滚动 Y" type="number" min={0} value={layout.scrollY ?? 0} disabled={locked} onCommit={(v) => set({ scrollY: Number(v) })} /></div> : null}
+      {node.type === "panel" || node.type === "list" ? <div className="property-grid"><Field label="滚动 X" type="number" integer min={0} value={layout.scrollX ?? 0} disabled={locked} onCommit={(v) => set({ scrollX: Number(v) })} /><Field label="滚动 Y" type="number" integer min={0} value={layout.scrollY ?? 0} disabled={locked} onCommit={(v) => set({ scrollY: Number(v) })} /></div> : null}
       {node.type === "list" ? <p className="property-hint">静态列表项可在层级树中编辑、复制和排序。</p> : null}
     </details> : null}
   </>;

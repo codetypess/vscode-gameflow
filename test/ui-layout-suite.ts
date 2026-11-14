@@ -3,7 +3,8 @@ import type { GameFlowNode, GameFlowPage } from "../shared/model";
 import { createDefaultGameFlowDocument, parseGameFlowDocument, serializeGameFlowDocument, validateGameFlowDocument } from "../shared/model";
 import { absoluteFrame, duplicateNode, duplicatePage, makeComponent, reparentNode } from "../shared/editor-ops";
 import { resolvePageLayout } from "../shared/ui-layout";
-import { changeContainerType, editNodeFrame } from "../shared/ui-edit";
+import { canConvertNodeType, changeContainerType, convertNodeType, editNodeFrame, setNodeConstraint } from "../shared/ui-edit";
+import { copyNode, pasteNode } from "../shared/node-clipboard";
 import { COMPONENT_TYPES, PAGE_ROOT_TYPES, pageRootType } from "../shared/ui-components";
 import { isWebviewToHostMessage } from "../shared/protocol";
 import type { WebviewToHostMessage } from "../shared/protocol";
@@ -11,11 +12,113 @@ import { DocumentSession } from "../webview/document-session";
 import componentSample from "../sample/ui-components.gameflow.json";
 import { canvasPanelMetrics, placeCanvasPanels } from "../webview/lib/canvas-panels";
 import { canvasDotGrid } from "../webview/lib/canvas-grid";
+import { searchLayers } from "../webview/lib/layer-search";
 export const uiLayoutTests: { name: string; run: () => void }[] = [];
 const test = (name: string, run: () => void) => uiLayoutTests.push({ name, run });
 const node = (id: string, patch: Partial<GameFlowNode> = {}): GameFlowNode => ({ id, type: "rectangle", name: id, frame: { x: 10, y: 20, width: 50, height: 30 }, ...patch });
 const page = (...nodes: GameFlowNode[]): GameFlowPage => ({ id: "p", kind: "screen", name: "page", frame: { x: 80, y: 90, width: 400, height: 600 }, nodes });
 const local = (p: GameFlowPage, id: string) => resolvePageLayout(p).nodes.get(id)!.local;
+
+test("layer search matches names, optional variables, IDs and component aliases without case or surrounding whitespace", () => {
+  const source = page(node("ab12cd34", { type: "hbox", name: "标题横排" }), node("zz99yy88", { type: "text", name: "道具名称", variableName: "btnItem", parentId: "ab12cd34" }));
+  const before = structuredClone(source);
+  for (const query of ["标题", " AB12CD34 ", "横排容器", " hBoX ", "UIHBOX"]) {
+    assert.deepEqual([...searchLayers(source, query).matches], ["ab12cd34"]);
+  }
+  for (const query of ["名称", "UILabel", "btnItem", " BTNITEM ", "iTeM"]) {
+    assert.deepEqual([...searchLayers(source, query).matches], ["zz99yy88"]);
+  }
+  assert.deepEqual(source, before);
+});
+
+test("layer search retains ancestor paths for hidden locked matches without unrelated siblings or children", () => {
+  const source = page(node("hit", { type: "panel", name: "唯一匹配", variableName: "btnHiddenItem", parentId: "branch", hidden: true, locked: true }),
+    node("root", { type: "container" }), node("sibling", { parentId: "root" }),
+    node("branch", { type: "container", parentId: "root" }), node("child", { parentId: "hit" }));
+  for (const query of ["唯一匹配", " hIDDeN "]) {
+    const result = searchLayers(source, query);
+    assert.deepEqual([...result.matches], ["hit"]);
+    assert.deepEqual([...result.visible].sort(), ["branch", "hit", "root"]);
+    assert.equal(result.visible.has("sibling"), false); assert.equal(result.visible.has("child"), false);
+  }
+});
+
+test("empty layer searches restore all nodes and unmatched terms return an empty result", () => {
+  const source = page(node("root", { type: "container" }), node("child", { parentId: "root" }));
+  for (const query of ["", "   \t "]) {
+    const result = searchLayers(source, query);
+    assert.deepEqual([...result.matches], ["root", "child"]);
+    assert.deepEqual([...result.visible], ["root", "child"]);
+  }
+  const result = searchLayers(source, "不存在的图层");
+  assert.equal(result.matches.size, 0); assert.equal(result.visible.size, 0);
+  assert.equal(searchLayers(page(), "anything").visible.size, 0);
+});
+
+test("node clipboard snapshots resolved subtree geometry and isolates nested data", () => {
+  const source = page(node("parent", { type: "container", frame: { x: 0, y: 0, width: 300, height: 200 } }),
+    node("root", { type: "panel", parentId: "parent", locked: true, layout: { left: 10, right: 20 } }),
+    node("child", { type: "combo", parentId: "root", widget: { options: ["one", "two"] } }));
+  const snapshot = copyNode(source, "root")!;
+  assert.equal(snapshot.nodes[0].frame.width, local(source, "root").width);
+  source.nodes[1].layout!.left = 40;
+  source.nodes[2].widget!.options![0] = "changed";
+  assert.equal(snapshot.nodes[0].layout!.left, 10);
+  assert.deepEqual(snapshot.nodes[1].widget!.options, ["one", "two"]);
+  assert.equal(copyNode(source, "missing"), null);
+});
+
+test("paste remaps the full subtree across pages, orders siblings and clears root constraints", () => {
+  const source = page(node("box", { type: "panel", layout: { left: 0, top: 0 } }),
+    node("child", { type: "combo", parentId: "box", widget: { options: ["one", "two"] }, layout: { right: 0 } }));
+  const snapshot = copyNode(source, "box")!;
+  const target = page(node("dest", { type: "container" }), node("anchor", { parentId: "dest" }), node("last", { parentId: "dest" }));
+  let serial = 0;
+  const result = pasteNode(target, snapshot, () => `new${++serial}`, "dest", "anchor");
+  const root = result.page.nodes.find((n) => n.id === result.id)!;
+  assert.equal(root.parentId, "dest");
+  assert.equal(root.frame.x, snapshot.nodes[0].frame.x + 16);
+  assert.equal(root.frame.width, snapshot.nodes[0].frame.width);
+  assert.equal(root.layout!.left, null); assert.equal(root.layout!.widthMode, "explicit");
+  assert.deepEqual(result.page.nodes.filter((n) => n.parentId === "dest").map((n) => n.id), ["anchor", root.id, "last"]);
+  const child = result.page.nodes.find((n) => n.parentId === root.id)!;
+  assert.notEqual(child.id, "child"); assert.equal(child.layout!.right, 0);
+  child.widget!.options![0] = "edited";
+  assert.equal(snapshot.nodes[1].widget!.options![0], "one");
+  const again = pasteNode(target, snapshot, () => `new${++serial}`);
+  assert.notEqual(again.id, result.id);
+  assert.equal(again.page.nodes.find((n) => n.id === again.id)!.parentId, undefined);
+  assert.deepEqual(validateGameFlowDocument({ ...createDefaultGameFlowDocument(), pages: [result.page], interactions: [] }).ok, true);
+});
+
+test("paste rejects locked, leaf, missing or mismatched destinations before allocating IDs", () => {
+  const snapshot = copyNode(page(node("copy")), "copy")!;
+  const target = page(node("locked", { type: "container", locked: true }), node("nested", { type: "container", parentId: "locked" }), node("leaf", { type: "text" }), node("other"));
+  for (const [parentId, afterId] of [["locked"], ["nested"], ["leaf"], ["missing"], [undefined, "missing"], ["nested", "other"]]) {
+    const result = pasteNode(target, snapshot, () => { throw new Error("should not allocate"); }, parentId, afterId);
+    assert.equal(result.page, target); assert.equal(result.id, null);
+  }
+});
+
+test("node type conversion preserves identity and content, normalizes flow and protects children", () => {
+  const source = page(node("box", { type: "panel", text: "keep", style: { fill: "#112233" } }), node("child", { type: "text", parentId: "box", layout: { left: 0, right: 0 } }));
+  assert.equal(convertNodeType(source, "box", "text"), source);
+  const converted = convertNodeType(source, "box", "hbox");
+  assert.equal(converted.nodes[0].id, "box"); assert.equal(converted.nodes[0].name, "box");
+  assert.equal(converted.nodes[0].text, "keep"); assert.deepEqual(converted.nodes[0].style, source.nodes[0].style);
+  assert.equal(converted.nodes[1].id, "child"); assert.equal(converted.nodes[1].parentId, "box");
+  assert.equal(converted.nodes[1].layout!.left, null); assert.equal(converted.nodes[1].layout!.right, null);
+  assert.equal(canConvertNodeType(converted, "box", "hbox"), false);
+  for (const blocked of [page({ ...source.nodes[0], locked: true }), page(source.nodes[0], { ...source.nodes[1], locked: true })]) {
+    assert.equal(convertNodeType(blocked, "box", "grid"), blocked);
+  }
+  const leaf = page(node("label", { type: "text", parentId: undefined, text: "caption" }));
+  const slider = convertNodeType(leaf, "label", "slider");
+  assert.deepEqual(slider.nodes[0].widget, { min: 0, max: 100, value: 60 });
+  assert.equal(slider.nodes[0].text, "caption");
+  assert.deepEqual(local(slider, "label"), local(leaf, "label"));
+  assert.equal(validateGameFlowDocument({ ...createDefaultGameFlowDocument(), pages: [slider], interactions: [] }).ok, true);
+});
 
 test("canvas dots keep a bounded density and repeat when zoom doubles or halves", () => {
   for (let i = 0; i <= 500; i++) {
@@ -125,7 +228,7 @@ test("editing a legacy page root upgrades in one transaction and accepts undo an
   assert.deepEqual(session.state.document, changed);
 });
 
-test("prototype panels use equal widths and keep their top aligned when content height changes", () => {
+test("prototype panels keep their configured widths and top alignment when content height changes", () => {
   const viewport = { width: 1800, height: 1100 }, content = { x: 500, y: 150, width: 600 };
   const options = { leftWidth: 280, rightWidth: 280, footer: 76, minFollowHeight: 400 }, heights = { left: 280, right: 600 };
   const before = placeCanvasPanels(viewport, content, heights, options);
@@ -218,6 +321,86 @@ test("constraints honor parent padding, null, zero, center priority and stretche
   assert.deepEqual(local(p, "n"), { x: 35, y: 155, width: 240, height: 30 });
   assert.equal(geometry.nodes.get("n")!.widthSource, "stretch");
   assert.deepEqual(absoluteFrame(p, n), { x: 75, y: 215, width: 240, height: 30 });
+});
+test("constraint toggles preserve current bounds through all anchors and padded parents", () => {
+  const source = page(node("box", { type: "container", frame: { x: 20, y: 30, width: 301, height: 201 }, layout: { paddingLeft: 7, paddingRight: 11, paddingTop: 5, paddingBottom: 9 } }),
+    node("n", { parentId: "box", frame: { x: 29, y: 38, width: 61, height: 43 } }));
+  const snapshot = structuredClone(source), before = local(source, "n");
+  let current = source;
+  for (const enabled of [true, false]) for (const key of ["left", "right", "centerX", "top", "bottom", "centerY"] as const) {
+    current = setNodeConstraint(current, "n", key, enabled);
+    const after = local(current, "n");
+    for (const field of ["x", "y", "width", "height"] as const) assert.ok(Math.abs(after[field] - before[field]) < 1e-8, `${key}: ${field}`);
+    assert.equal(current.nodes[1].id, "n");
+  }
+  assert.deepEqual(source, snapshot);
+});
+test("percent anchor conversions retain geometry instead of rounding inverse offsets", () => {
+  let current = page(node("box", { type: "container", frame: { x: 0, y: 0, width: 503, height: 307 }, layout: { paddingLeft: 13, paddingRight: 17, paddingTop: 5, paddingBottom: 9 } }),
+    node("n", { parentId: "box", frame: { x: 37, y: 41, width: 81, height: 63 }, layout: { layoutUnit: "percent" } }));
+  const before = local(current, "n");
+  for (const enabled of [true, false]) for (const key of ["centerX", "right", "left", "centerY", "bottom", "top"] as const) {
+    current = setNodeConstraint(current, "n", key, enabled);
+    const after = local(current, "n");
+    for (const field of ["x", "y", "width", "height"] as const) assert.ok(Math.abs(after[field] - before[field]) < 1e-8, `${key}: ${field}`);
+  }
+});
+test("removing stretch freezes resolved size and removing the last anchor keeps the current frame", () => {
+  let current = page(node("n", { frame: { x: -99, y: -77, width: 20, height: 30 }, layout: { left: 10, right: 20, top: 12, bottom: 21, widthMode: "measured", heightMode: "measured" } }));
+  const before = local(current, "n");
+  for (const key of ["left", "right", "top", "bottom"] as const) current = setNodeConstraint(current, "n", key, false);
+  assert.deepEqual(local(current, "n"), before);
+  assert.deepEqual(current.nodes[0].frame, before);
+  assert.equal(current.nodes[0].layout!.widthMode, "explicit"); assert.equal(current.nodes[0].layout!.heightMode, "explicit");
+});
+test("constraint conversion respects inherited locks, managed axes and no-op toggles", () => {
+  const source = page(node("box", { type: "hbox" }), node("n", { parentId: "box", layout: { top: 12 } }), node("locked", { locked: true }));
+  assert.equal(setNodeConstraint(source, "n", "left", true), source);
+  assert.equal(setNodeConstraint(source, "n", "top", true), source);
+  assert.equal(setNodeConstraint(source, "locked", "top", true), source);
+  const inherited = { ...source, nodes: source.nodes.map(n => n.id === "box" ? { ...n, locked: true } : n) };
+  assert.equal(setNodeConstraint(inherited, "n", "bottom", true), inherited);
+});
+test("removing a final flow cross-axis anchor preserves its position instead of restoring parent alignment", () => {
+  for (const type of ["hbox", "vbox"] as const) {
+    const axis = type === "hbox" ? "y" : "x", anchor = type === "hbox" ? "top" : "left";
+    const source = page(node("box", { type, frame: { x: 0, y: 0, width: 300, height: 200 }, layout: { align: "right", valign: "bottom" } }),
+      node("n", { parentId: "box", layout: { [anchor]: 23 } }), node("sibling", { parentId: "box" }));
+    const before = local(source, "n"), siblingBefore = local(source, "sibling");
+    const cleared = setNodeConstraint(source, "n", anchor, false);
+    assert.deepEqual(local(cleared, "n"), before);
+    assert.deepEqual(local(cleared, "sibling"), siblingBefore);
+    const moved = editNodeFrame(cleared, "n", { ...before, [axis]: before[axis] + 7 }, "move");
+    assert.equal(local(moved, "n")[axis], before[axis] + 7);
+    const doc = { ...createDefaultGameFlowDocument(), schemaVersion: 2 as const, pages: [moved], interactions: [] };
+    assert.deepEqual(local(parseGameFlowDocument(serializeGameFlowDocument(doc)).pages[0], "n"), local(moved, "n"));
+    const enabled = setNodeConstraint(moved, "n", anchor, true);
+    assert.deepEqual(local(enabled, "n"), local(moved, "n"));
+    assert.equal(enabled.nodes[1].layout?.crossAxisMode, undefined);
+  }
+});
+test("manual flow cross-axis positioning resets at new parent boundaries and rejects invalid modes", () => {
+  const source = page(node("box", { type: "hbox" }), node("target", { type: "vbox" }),
+    node("n", { parentId: "box", layout: { crossAxisMode: "explicit" } }));
+  assert.equal(reparentNode(source, "n", "target").nodes[2].layout?.crossAxisMode, undefined);
+  assert.equal(changeContainerType(source, "box", "vbox").nodes[2].layout?.crossAxisMode, undefined);
+  const pasted = pasteNode(source, copyNode(source, "n")!, () => "copy", "target");
+  assert.equal(pasted.page.nodes.find(n => n.id === pasted.id)?.layout?.crossAxisMode, undefined);
+  const doc = { ...createDefaultGameFlowDocument(), schemaVersion: 2 as const, pages: [source], interactions: [] };
+  assert.equal(validateGameFlowDocument(doc).ok, true);
+  assert.equal(validateGameFlowDocument({ ...doc, pages: [page(node("n", { layout: { crossAxisMode: "bad" as "explicit" } }))] }).ok, false);
+});
+test("direct geometry edits round changed coordinates while inverse percent offsets preserve the target", () => {
+  const legacy = page(node("n", { frame: { x: 1.25, y: 2.75, width: 7.2, height: 8.1 } }));
+  const moved = editNodeFrame(legacy, "n", { ...local(legacy, "n"), x: 19.6 }, "move");
+  assert.deepEqual(moved.nodes[0].frame, { x: 20, y: 2.75, width: 7.2, height: 8.1 });
+  const resized = editNodeFrame(moved, "n", { ...local(moved, "n"), width: 12.6, height: 13.2 });
+  assert.equal(resized.nodes[0].frame.width, 13); assert.equal(resized.nodes[0].frame.height, 13);
+  const source = page(node("n", { layout: { left: 10, right: 10, centerY: 0, layoutUnit: "percent" } }));
+  source.frame.width = 401;
+  const initial = local(source, "n"), target = editNodeFrame(source, "n", { ...initial, x: initial.x + 1.7 }, "move");
+  assert.equal(local(target, "n").x, Math.round(initial.x + 1.7));
+  assert.ok(Math.abs(local(target, "n").width - initial.width) < 1e-8);
 });
 test("percent constraints use 10 for ten percent of parent content and respond to parent resize", () => {
   const box = node("box", { type: "container", frame: { x: 0, y: 0, width: 300, height: 200 }, layout: { paddingLeft: 20, paddingRight: 20 } });

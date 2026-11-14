@@ -1,5 +1,6 @@
 import type { GameFlowDocument } from "../shared/model";
 import { GAMEFLOW_SCHEMA_VERSION } from "../shared/model";
+import { migrateDocumentElementIds } from "../shared/document-id-migration";
 import type { HostToWebviewMessage, WebviewToHostMessage } from "../shared/protocol";
 
 type Transform = (document: GameFlowDocument) => GameFlowDocument;
@@ -23,6 +24,7 @@ export class DocumentSession {
   private actions: Action[] = [];
   private deferred: Transform[] = [];
   private refreshing = false;
+  private initialized = false;
   constructor(private post: (message: WebviewToHostMessage) => void, private changed: (state: DocumentState) => void) {}
 
   private publish(patch: Partial<DocumentState>) { this.state = { ...this.state, ...patch }; this.changed(this.state); }
@@ -74,6 +76,11 @@ export class DocumentSession {
     }
     this.inFlight = null; this.queued = null;
     this.publish({ document: message.document, dirty: message.dirty, error: null });
+    if (message.type === "init" && !this.initialized) {
+      this.initialized = true;
+      try { this.edit(migrateDocumentElementIds); }
+      catch (error) { this.publish({ error: error instanceof Error ? error.message : String(error) }); }
+    }
     this.nextAction();
   }
 

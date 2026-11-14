@@ -1,5 +1,6 @@
 {
   "schemaVersion": 1,
+  "elementIdScheme": "nanoid-8",
   "documentId": "gameflow-backpack-sample",
   "title": "背包系统 UI 规划",
   "requirements": [
@@ -24,20 +25,20 @@
   ],
   "pages": [
     {
-      "id": "page-main-menu",
+      "id": "9uumcnr6",
       "name": "主菜单",
       "kind": "screen",
       "frame": { "x": 80, "y": 120, "width": 320, "height": 180 },
       "nodes": [
         {
-          "id": "node-main-title",
+          "id": "d8inwfto",
           "name": "游戏标题",
           "type": "text",
           "text": "冒险物语",
           "frame": { "x": 28, "y": 24, "width": 180, "height": 32 }
         },
         {
-          "id": "node-backpack-button",
+          "id": "gaqfjd70",
           "name": "背包按钮",
           "type": "button",
           "text": "背包",
@@ -46,27 +47,27 @@
       ]
     },
     {
-      "id": "page-backpack",
+      "id": "ae13ookj",
       "name": "背包",
       "kind": "screen",
       "frame": { "x": 500, "y": 80, "width": 360, "height": 240 },
       "nodes": [
         {
-          "id": "node-backpack-header",
+          "id": "rnflaq91",
           "name": "页头",
           "type": "container",
           "frame": { "x": 20, "y": 18, "width": 320, "height": 44 }
         },
         {
-          "id": "node-backpack-title",
+          "id": "3r2c6z6c",
           "name": "标题",
           "type": "text",
-          "parentId": "node-backpack-header",
+          "parentId": "rnflaq91",
           "text": "背包",
           "frame": { "x": 16, "y": 8, "width": 80, "height": 28 }
         },
         {
-          "id": "node-item-list",
+          "id": "yby3ln3x",
           "name": "道具列表",
           "type": "list",
           "frame": { "x": 20, "y": 78, "width": 320, "height": 138 }
@@ -74,26 +75,26 @@
       ]
     },
     {
-      "id": "page-item-detail",
+      "id": "nwi18qrh",
       "name": "道具详情",
       "kind": "modal",
       "frame": { "x": 960, "y": 130, "width": 280, "height": 190 },
       "nodes": [
         {
-          "id": "node-item-image",
+          "id": "gcq2seo8",
           "name": "道具图标",
           "type": "image",
           "frame": { "x": 20, "y": 24, "width": 72, "height": 72 }
         },
         {
-          "id": "node-item-name",
+          "id": "92amf1i5",
           "name": "道具名称",
           "type": "text",
           "text": "生命药水",
           "frame": { "x": 108, "y": 26, "width": 140, "height": 28 }
         },
         {
-          "id": "node-use-button",
+          "id": "vd8543n9",
           "name": "使用按钮",
           "type": "button",
           "text": "使用",
@@ -105,14 +106,14 @@
   "interactions": [
     {
       "id": "interaction-open-backpack",
-      "fromPageId": "page-main-menu",
-      "toPageId": "page-backpack",
+      "fromPageId": "9uumcnr6",
+      "toPageId": "ae13ookj",
       "trigger": "点击背包按钮"
     },
     {
       "id": "interaction-open-item-detail",
-      "fromPageId": "page-backpack",
-      "toPageId": "page-item-detail",
+      "fromPageId": "ae13ookj",
+      "toPageId": "nwi18qrh",
       "trigger": "点击道具格"
     }
   ]

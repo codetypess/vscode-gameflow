@@ -5,6 +5,7 @@ export interface NodeLayout {
   top?: number | null; bottom?: number | null; centerY?: number | null;
   layoutUnit?: "absolute" | "percent";
   widthMode?: "explicit" | "measured"; heightMode?: "explicit" | "measured";
+  crossAxisMode?: "aligned" | "explicit";
   paddingLeft?: number; paddingRight?: number; paddingTop?: number; paddingBottom?: number;
   gap?: number; gapX?: number; gapY?: number;
   align?: "left" | "center" | "right" | "justify";
@@ -30,7 +31,7 @@ export function validateUIConfig(node: Record<string, unknown>, path: string, er
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) { errors.push(`${path}.${group} must be an object`); continue; }
     const values = raw as Record<string, unknown>;
     const enums: Record<string, string[]> = group === "layout" ? {
-      layoutUnit: ["absolute", "percent"], widthMode: ["explicit", "measured"], heightMode: ["explicit", "measured"],
+      layoutUnit: ["absolute", "percent"], widthMode: ["explicit", "measured"], heightMode: ["explicit", "measured"], crossAxisMode: ["aligned", "explicit"],
       align: ["left", "center", "right", "justify"], valign: ["top", "middle", "bottom", "justify"], direction: ["horizontal", "vertical"]
     } : { direction: ["horizontal", "vertical"], overflow: ["visible", "hidden"], valign: ["top", "middle", "bottom"], imageFit: ["contain", "cover", "fill"] };
     const booleans = group === "layout" ? ["clipContent"] : ["selected", "disabled", "password", "wordWrap"];

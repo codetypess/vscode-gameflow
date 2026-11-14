@@ -165,6 +165,9 @@ export const psdTests: { name: string; run: () => void | Promise<void> }[] = [
     assert.equal(identityProblems(repaired).length, 0);
     assert.equal(repaired.layers[1].metadata.layerId, original.layers[1].metadata.layerId);
     assert.notEqual(repaired.layers.at(-1)!.metadata.layerId, copy.metadata.layerId);
+    assert.match(repaired.layers.at(-1)!.metadata.layerId, /^[a-z0-9]{8}$/);
+    const patched = parsePsdBinary(patchPsdMetadata(sample(), new Map([[original.layers[1].key, repaired.layers.at(-1)!.metadata]])));
+    assert.deepEqual(patched.layers.find(layer => layer.key === original.layers[1].key)!.metadata, repaired.layers.at(-1)!.metadata);
     const restored = applySidecar(original, makeSidecar(repaired));
     assert.deepEqual(restored.layers.map(l => l.metadata.layerId), repaired.layers.map(l => l.metadata.layerId));
     assert.throws(() => applySidecar({ ...original, sourceHash: "changed" }, makeSidecar(repaired)), /重复 ID/);

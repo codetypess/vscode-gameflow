@@ -13,8 +13,10 @@ import type { GameFlowDocument, GameFlowPage } from "../shared/model";
 import type { WebviewToHostMessage } from "../shared/protocol";
 import { DocumentSession } from "../webview/document-session";
 import { allocateElementId, reserveDocumentElementIds } from "../shared/element-id";
+import { migrateDocumentElementIds } from "../shared/document-id-migration";
 import { psdTests } from "./psd-suite";
 import { uiLayoutTests } from "./ui-layout-suite";
+import { nodeVariableTests } from "./node-variable-suite";
 
 type TestCase = { name: string; run: () => void | Promise<void> };
 const tests: TestCase[] = [];
@@ -41,10 +43,11 @@ test("serialization round-trips a valid document", () => {
   assert.deepEqual(parseGameFlowDocument(source), document);
 });
 
-test("new documents use unique Laya-style page and node IDs with intact references", () => {
+test("new documents use unique Nano IDs for pages and nodes with intact references", () => {
   const document = createDefaultGameFlowDocument();
   const ids = document.pages.flatMap((page) => [page.id, ...page.nodes.map((node) => node.id)]);
-  assert.ok(ids.every((id) => /^[a-z][a-z0-9]{7}$/.test(id)));
+  assert.ok(ids.every((id) => /^[a-z0-9]{8}$/.test(id)));
+  assert.equal(document.elementIdScheme, "nanoid-8");
   assert.equal(new Set(ids).size, ids.length);
   assert.equal(validateGameFlowDocument(document).ok, true);
   assert.equal(document.pages[1].nodes[1].parentId, document.pages[1].nodes[0].id);
@@ -52,18 +55,23 @@ test("new documents use unique Laya-style page and node IDs with intact referenc
   assert.equal(document.interactions[0].toPageId, document.pages[1].id);
 });
 
-test("short ID allocation reserves all pages and each new ID, with bounded collision retries", () => {
+test("Nano ID allocation reserves all pages and each new ID, with bounded collision retries", () => {
   const document = createDefaultGameFlowDocument();
   const reserved = new Set<string>();
   reserveDocumentElementIds(document, reserved);
-  const candidates = [document.pages[2].id, document.pages[0].nodes[0].id, "aaaaaaaa", "bbbbbbbb"];
+  const occupied = "aaaaaaaa", available = "0123abcd";
+  const candidates = [document.pages[2].id, document.pages[0].nodes[0].id, occupied, available];
   // Reserve a known value as well, independently of random document IDs.
-  reserved.add("aaaaaaaa"); reserved.delete("bbbbbbbb");
-  assert.equal(allocateElementId(reserved, () => candidates.shift()!), "bbbbbbbb");
-  assert.ok(reserved.has("bbbbbbbb"));
+  reserved.add(occupied); reserved.delete(available);
+  assert.equal(allocateElementId(reserved, () => candidates.shift()!), available);
+  assert.ok(reserved.has(available));
   let attempts = 0;
-  assert.throws(() => allocateElementId(reserved, () => { attempts++; return "bbbbbbbb"; }), /128 attempts/);
+  assert.throws(() => allocateElementId(reserved, () => { attempts++; return available; }), /128 attempts/);
   assert.equal(attempts, 128);
+  for (const invalid of ["A0000003", "a".repeat(7), "a".repeat(9), "a_-aaaaa", "/".repeat(8)]) {
+    assert.throws(() => allocateElementId(reserved, () => invalid), /8-character lowercase alphanumeric Nano ID/);
+    assert.ok(!reserved.has(invalid));
+  }
 });
 
 function identityDocument(): GameFlowDocument {
@@ -117,7 +125,53 @@ test("unique legacy IDs and duplicate display names round-trip without identity 
 test("checked-in samples retain valid unique element identities", () => {
   for (const name of ["backpack", "ui-components"]) {
     const source = readFileSync(`sample/${name}.gameflow.json`, "utf8");
-    assert.deepEqual(parseGameFlowDocument(serializeGameFlowDocument(parseGameFlowDocument(source))), JSON.parse(source));
+    const document = parseGameFlowDocument(source);
+    assert.equal(document.elementIdScheme, "nanoid-8");
+    assert.ok(document.pages.flatMap(page => [page.id, ...page.nodes.map(node => node.id)]).every(id => /^[a-z0-9]{8}$/.test(id)));
+    assert.deepEqual(parseGameFlowDocument(serializeGameFlowDocument(document)), JSON.parse(source));
+  }
+});
+
+test("legacy prototype IDs migrate atomically with parent and navigation references in v1/v2", () => {
+  for (const schemaVersion of [1, 2] as const) {
+    const document = { ...identityDocument(), schemaVersion };
+    document.pages[0].id = "u0000001";
+    document.pages[0].nodes = [
+      { id: "u0000002", name: "容器", type: "container", frame: { x: 10, y: 20, width: 100, height: 100 } },
+      { id: "legacy-long-node-id", name: "文字", type: "text", frame: { x: 30, y: 40, width: 50, height: 20 }, parentId: "u0000002", text: "u0000002" }
+    ];
+    document.interactions = [{ id: "navigation", fromPageId: "u0000001", toPageId: document.pages[1].id, trigger: "click" }];
+    const original = structuredClone(document);
+    const ids = ["u0000001", "0aaaaaaa", "0aaaaaaa", "bbbbbbbb", "cccccccc", "dddddddd", "eeeeeeee"];
+    const migrated = migrateDocumentElementIds(document, () => ids.shift()!);
+    const expected: GameFlowDocument = { ...structuredClone(original), elementIdScheme: "nanoid-8" };
+    expected.pages[0].id = "0aaaaaaa";
+    expected.pages[0].nodes[0].id = "bbbbbbbb";
+    expected.pages[0].nodes[1].id = "cccccccc";
+    expected.pages[0].nodes[1].parentId = "bbbbbbbb";
+    expected.pages[1].id = "dddddddd";
+    expected.pages[1].nodes[0].id = "eeeeeeee";
+    expected.interactions[0].fromPageId = "0aaaaaaa";
+    expected.interactions[0].toPageId = "dddddddd";
+    assert.deepEqual(document, original, "migration must not mutate its input");
+    assert.deepEqual(migrated, expected, "only element IDs and modeled references change");
+    assert.deepEqual(parseGameFlowDocument(serializeGameFlowDocument(migrated)), expected);
+    assert.equal(isWebviewToHostMessage({ type: "replaceDocument", baseVersion: 1, document: migrated }), true);
+    assert.equal(migrateDocumentElementIds(migrated, () => { throw new Error("must not reallocate"); }), migrated);
+    assert.equal(ids.length, 0);
+  }
+});
+
+test("identity migration rejects ambiguous documents and unsupported schemes before allocation", () => {
+  const duplicate = identityDocument();
+  duplicate.pages[1].nodes[0].id = duplicate.pages[0].nodes[0].id;
+  for (const document of [duplicate, { ...identityDocument(), elementIdScheme: "future" } as unknown as GameFlowDocument]) {
+    const original = structuredClone(document);
+    let allocations = 0;
+    assert.throws(() => migrateDocumentElementIds(document, () => { allocations++; return "aaaaaaaa"; }), GameFlowValidationError);
+    assert.equal(allocations, 0);
+    assert.deepEqual(document, original);
+    assert.equal(isWebviewToHostMessage({ type: "replaceDocument", baseVersion: 1, document }), false);
   }
 });
 
@@ -195,7 +249,7 @@ function nestedPage(): GameFlowPage {
   ] };
 }
 
-test("copies get new short IDs while existing identities survive editing and serialization", () => {
+test("copies get new Nano IDs while existing identities survive editing and serialization", () => {
   const document = createDefaultGameFlowDocument();
   const source = nestedPage();
   source.nodes[2].id = "a56b983a-34ae-4d75-abbd-99af17b39204";
@@ -208,7 +262,7 @@ test("copies get new short IDs while existing identities survive editing and ser
   const pageCopy = duplicatePage(source, makeId);
   const newNodes = copied.page.nodes.slice(source.nodes.length);
   const generatedIds = [...newNodes.map((node) => node.id), pageCopy.id, ...pageCopy.nodes.map((node) => node.id)];
-  assert.ok(generatedIds.every((id) => /^[a-z][a-z0-9]{7}$/.test(id)));
+  assert.ok(generatedIds.every((id) => /^[a-z0-9]{8}$/.test(id)));
   assert.equal(new Set(generatedIds).size, generatedIds.length);
   assert.ok(generatedIds.every((id) => !originalIds.includes(id)));
   assert.equal(newNodes[1].parentId, newNodes[0].id);
@@ -429,6 +483,47 @@ function sessionFixture() {
   return { session, sent, document, snapshot };
 }
 
+test("editor initialization migrates legacy IDs once in a save-ordered, undoable transaction", () => {
+  const sent: WebviewToHostMessage[] = [];
+  const session = new DocumentSession(message => sent.push(message), () => {});
+  const document = { ...identityDocument(), schemaVersion: 1 as const };
+  session.receive({ type: "init", document, documentVersion: 1, resourceName: "legacy", dirty: false });
+  assert.equal(sent.length, 1);
+  const migration = sent[0];
+  assert.equal(migration.type, "replaceDocument");
+  if (migration.type !== "replaceDocument") throw new Error("expected identity migration transaction");
+  assert.equal(migration.baseVersion, 1);
+  assert.equal(migration.document.schemaVersion, 2);
+  assert.equal(validateGameFlowDocument(migration.document).ok, true);
+  assert.equal(session.state.dirty, true);
+  assert.equal(session.state.pending, true);
+  session.command("save");
+  assert.equal(sent.length, 1, "save must wait for migration acknowledgement");
+  session.receive({ type: "documentChanged", document: migration.document, documentVersion: 2, dirty: true });
+  assert.deepEqual(sent[1], { type: "save" });
+  session.receive({ type: "documentChanged", document: migration.document, documentVersion: 2, dirty: false });
+  session.receive({ type: "commandCompleted", action: "save" });
+  assert.equal(session.state.pending, false);
+  assert.equal(session.state.dirty, false);
+
+  session.command("undo");
+  session.receive({ type: "documentChanged", document, documentVersion: 3, dirty: true });
+  session.receive({ type: "commandCompleted", action: "undo" });
+  session.receive({ type: "init", document, documentVersion: 3, resourceName: "legacy", dirty: true });
+  assert.equal(sent.length, 3, "undo and repeated init must not automatically rekey again");
+  assert.deepEqual(session.state.document, document);
+  session.command("redo");
+  session.receive({ type: "documentChanged", document: migration.document, documentVersion: 4, dirty: false });
+  session.receive({ type: "commandCompleted", action: "redo" });
+  assert.deepEqual(session.state.document, migration.document);
+
+  const reloaded: WebviewToHostMessage[] = [];
+  const reopened = new DocumentSession(message => reloaded.push(message), () => {});
+  reopened.receive({ type: "init", document: migration.document, documentVersion: 1, resourceName: "saved", dirty: false });
+  assert.equal(reloaded.length, 0, "reopening migrated content must not create a new transaction");
+  assert.deepEqual(reopened.state.document, migration.document);
+});
+
 test("rapid edits wait for acknowledgement and preserve the newest candidate through duplicate snapshots", () => {
   const { session, sent, document, snapshot } = sessionFixture();
   session.edit((doc) => ({ ...doc, title: "A" }));
@@ -492,6 +587,7 @@ test("invalid source blocks editing and a rejected transaction reloads host auth
 
 tests.push(...psdTests);
 tests.push(...uiLayoutTests);
+tests.push(...nodeVariableTests);
 export const testsCompleted = (async () => {
   let failed = 0;
   for (const item of tests) {

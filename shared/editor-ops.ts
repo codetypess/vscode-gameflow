@@ -2,6 +2,7 @@ import type { Frame, GameFlowDocument, GameFlowNode, GameFlowPage, NodeStyle, No
 import { canHaveChildren, COMPONENTS } from "./ui-components";
 import { resolvePageLayout } from "./ui-layout";
 import { CONSTRAINTS } from "./ui-config";
+import { allocateVariableName } from "./node-variable";
 
 export type InsertType = NodeType;
 export type Handle = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w";
@@ -63,6 +64,7 @@ export function reparentNode(page: GameFlowPage, id: string, parentId?: string):
       if (item.id !== id) return item;
       const next = { ...item, frame: { ...absolute, width: Math.max(1, absolute.width), height: Math.max(1, absolute.height), x: absolute.x - origin.x + (parent?.layout?.scrollX ?? 0), y: absolute.y - origin.y + (parent?.layout?.scrollY ?? 0) } };
       if (item.layout) next.layout = { ...item.layout, ...Object.fromEntries(CONSTRAINTS.map((key) => [key, null])), widthMode: "explicit", heightMode: "explicit" };
+      if (next.layout) delete next.layout.crossAxisMode;
       if (parentId) next.parentId = parentId;
       else delete next.parentId;
       return next;
@@ -129,10 +131,12 @@ export function moveNode(page: GameFlowPage, id: string, drop: LayerDrop): GameF
 export function duplicateNode(page: GameFlowPage, id: string, makeId: () => string): { page: GameFlowPage; id: string } {
   const ids = descendants(page, id);
   const mapping = new Map([...ids].map((key) => [key, makeId()]));
+  const variableNames = new Set(page.nodes.flatMap((node) => node.variableName ? [node.variableName] : []));
   const copies = page.nodes.filter((node) => ids.has(node.id)).map((node) => ({
     ...structuredClone(node),
     id: mapping.get(node.id)!,
     name: node.id === id ? `${node.name} 副本` : node.name,
+    ...(node.variableName ? { variableName: allocateVariableName(node.variableName, variableNames) } : {}),
     frame: { ...node.frame, x: node.frame.x + (node.id === id ? 16 : 0), y: node.frame.y + (node.id === id ? 16 : 0) },
     ...(node.parentId ? { parentId: mapping.get(node.parentId) ?? node.parentId } : {}),
     ...(node.style ? { style: { ...node.style } } : {})
@@ -200,6 +204,6 @@ export function makeComponent(type: InsertType, id: string, x: number, y: number
     nodes.push({ ...makeNode("text", makeId(), 0, 0), parentId: id, name: "按钮文字", text: "按钮", frame: { x: 0, y: 0, width: 108, height: 32 },
       layout: { left: 0, right: 0, centerY: 0 }, style: { ...defaultStyle("text"), fontSize: 14, color: "#ffffff", textAlign: "center" } });
   }
-  if (type === "list") for (let i = 0; i < 6; i++) nodes.push({ ...makeNode("rectangle", makeId(), 0, 0), parentId: id, name: `列表项 ${i + 1}`, frame: { x: 0, y: 0, width: 64, height: 60 } });
+  if (type === "list") for (let i = 0; i < 6; i++) nodes.push({ ...makeNode("panel", makeId(), 0, 0), parentId: id, name: `列表项 ${i + 1}`, frame: { x: 0, y: 0, width: 64, height: 60 } });
   return nodes;
 }

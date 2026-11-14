@@ -2,7 +2,7 @@
 
 Status: Draft
 Date: 2026-11-13
-Scope: 基于 xq-client 实际 UI 库设计布局、控件、Prefab 导出、PSD 导出及关联预览。本文描述目标方案，尚未实现；短 ID 的独立实现见 [stable-node-ids.md](stable-node-ids.md)。
+Scope: 基于 xq-client 实际 UI 库设计布局、控件、Prefab 导出、PSD 导出及关联预览。本文描述目标方案，尚未实现；短 ID 的当前实现见 [nanoid-element-ids.md](nanoid-element-ids.md)。
 
 ## 1. Context
 
@@ -42,7 +42,7 @@ GameFlow 的方向是让策划和 Agent 编辑同一份结构化游戏 UI 原型
 | `UIList` 使用 `cellPrefab`，按条目尺寸、wrapCount、gapX/Y 布局和虚拟化 | 模板、示例数据和运行时实例必须区分 |
 | `.lh` 使用 `_$id`、`_$type`、`scriptPath`、`_$child`、`_$comp`；图片可用 `res://UUID` | 需要项目专用序列化和资源解析器 |
 | `class-alias.ts` 和保存 hook 支持稳定类名；`.ts.meta` 仍有脚本 UUID | 类别名、节点 ID、脚本 UUID、资源 UUID 各有用途 |
-| `engine/types/editor.d.ts` 的 `genShortId()` 默认 8 位，小写字母/数字，首位字母 | 新原型页面和控件 ID 对齐此格式；已存在的 ID 保持不变 |
+| `engine/types/editor.d.ts` 的 `genShortId()` 默认 8 位，小写字母/数字，首位字母 | 原型按用户新要求使用 8 位 Nano ID、小写字母/数字、首位可为数字；导出需校验目标格式并持久映射 |
 | `tools/src/res/sync-assets` 已有客户端/美术同步和 ComponentReflect 映射 | 接入现有流水线，明确每个目录和字段的写入方 |
 | `tools/src/res/ui-index` 扫描 resources 下以 UI 开头的 `.lh` 和 `.meta` | 页面资源命名、UUID 唯一性和索引生成需要纳入验收 |
 
@@ -102,9 +102,9 @@ Prefab 使用布局意图和解析后的资源引用；PSD 使用指定尺寸下
 
 ### 6.2 不可变节点 ID
 
-1. 新建页面和控件使用 8 位 `[a-z][a-z0-9]{7}` ID，生成后立即检查当前文档及本次分配记录，冲突则重新生成；达到上限明确报错。
+1. 新建页面和控件通过 Nano ID `customAlphabet` 使用 8 位 `[a-z0-9]{8}` ID，首位可为数字；生成后立即检查当前文档及本次分配记录，冲突则重新生成，达到上限明确报错。
 2. 改名、拖动、缩放、重排、换父级、换 skin、保存、重新打开均保留原 ID。删除再撤销恢复原 ID；复制节点/子树/页面为副本分配新 ID，并重映射内部引用。
-3. 已保存的长 ID 或旧示例 ID 不因格式调整而重写。8 位是新建策略，不能成为读取旧文档的拒绝条件。
+3. 用户已授权旧原型 ID 一次性迁移：未带 `elementIdScheme: "nanoid-8"` 的文档在首次编辑器初始化时统一重分配页面/控件 ID 并更新引用；保存标记后不重复。普通解析、序列化不改号；迁移可撤销。详见 [nanoid-element-ids.md](nanoid-element-ids.md)。外部已有 Prefab/PSD 不因本次原型迁移自动改号。
 4. ID 是作用域内的身份，不是跨项目全局唯一值。跨文档以 `documentId + pageId + nodeId` 定位；组件实例后续增加实例路径，不能把模板节点与所有实例混为一个对象。
 5. 新格式节点可以优先将原型 ID 写为 Laya `_$id`，前提是通过目标格式校验且在产物作用域内唯一。旧 ID、展开产生的辅助节点用持久映射分配目标 ID。`Prefab 资源 UUID + _$id + 实例路径` 是目标端定位依据。
 6. PSD 保留原生数字图层 ID，并在 GameFlow 元数据中保存独立的稳定图层 ID；持久清单记录 `原型节点 ID ↔ PSD 文档谱系 + GameFlow 图层 ID/组 ID + 状态`，允许一对多。图层名仅用于显示和搜索，不是主键。

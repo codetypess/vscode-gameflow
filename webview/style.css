@@ -88,8 +88,6 @@ button svg { flex-shrink: 0; }
 .layer-panel > .tree-root, .layer-panel > .layer-footer { flex-shrink: 0; }
 .inspector-content { display: flex; flex-direction: column; gap: 10px; padding: 12px; overflow-y: auto; scrollbar-width: thin; }
 .inspector-content [data-orientation=horizontal] { margin: 3px 0; background: var(--vscode-panel-border, #3b3b3b); }
-.selection-kind { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted-foreground); }
-.selection-kind span { font-size: 10px; }
 .property-section-title { font-size: 11px; font-weight: 600; margin-top: 2px; }
 .property-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
 .property-field { display: flex; align-items: center; gap: 7px; min-width: 0; font-size: 11px; }
@@ -97,6 +95,8 @@ button svg { flex-shrink: 0; }
 .property-grid .property-field > span { width: auto; min-width: 13px; }
 .property-field input, .property-field select { height: 27px; width: 100%; min-width: 0; padding: 3px 7px; background: var(--vscode-input-background, #313131); color: var(--vscode-input-foreground, #cccccc); border: 1px solid var(--vscode-input-border, transparent); border-radius: 2px; font-size: 12px; box-shadow: none; }
 .property-field input:focus-visible { outline: 1px solid var(--ring); outline-offset: -1px; box-shadow: none; }
+.property-field input[aria-invalid=true] { border-color: var(--vscode-inputValidation-errorBorder, #be1100); }
+.property-error { margin: 5px 0 0 67px; color: var(--vscode-errorForeground, #f48771); font-size: 10px; line-height: 1.5; }
 .property-field input:disabled, .property-field select:disabled { opacity: 0.5; }
 .size-source input[readonly] { color: var(--muted-foreground); cursor: default; font-size: 11px; padding: 3px 4px; }
 .property-field input[type=number] { appearance: textfield; -moz-appearance: textfield; }
@@ -111,6 +111,15 @@ button svg { flex-shrink: 0; }
 .alignment-buttons button { flex: 1; }
 .locked-message { display: flex; align-items: center; gap: 5px; color: var(--muted-foreground); font-size: 10px; }
 .layer-panel { position: absolute; z-index: 15; left: 16px; top: 16px; width: 280px; max-height: calc(100% - 126px); display: flex; flex-direction: column; }
+.layer-search { display: flex; align-items: center; gap: 6px; flex-shrink: 0; min-width: 0; height: 27px; margin: 7px 10px; padding: 0 6px; border: 1px solid var(--vscode-input-border, transparent); border-radius: 3px; background: var(--vscode-input-background, #313131); color: var(--muted-foreground); }
+.layer-search:focus-within { outline: 1px solid var(--ring); outline-offset: -1px; }
+.layer-search input { flex: 1; min-width: 0; height: 100%; padding: 0; border: 0; outline: none; background: transparent; color: var(--vscode-input-foreground, #cccccc); font: inherit; font-size: 11px; }
+.layer-search input::placeholder { color: var(--vscode-input-placeholderForeground, #999999); }
+.layer-search input::-webkit-search-cancel-button { -webkit-appearance: none; }
+.layer-search > svg { flex-shrink: 0; }
+.layer-search button { display: grid; place-items: center; flex-shrink: 0; width: 18px; height: 18px; border-radius: 2px; }
+.layer-search button:hover { background: var(--vscode-toolbar-hoverBackground, #ffffff12); color: var(--foreground); }
+.layer-search-match .layer-name > span { font-weight: 600; }
 .tree-root { display: flex; align-items: center; gap: 7px; width: 100%; padding: 9px 10px; font-size: 11px; }
 .tree-root strong { flex: 1; overflow: hidden; text-overflow: ellipsis; text-align: left; white-space: nowrap; font-weight: 500; }
 .tree-root small { font-size: 9px; color: var(--muted-foreground); }
@@ -120,7 +129,10 @@ button svg { flex-shrink: 0; }
 .layer-row:hover:not(.is-selected) { background: var(--vscode-list-hoverBackground, #2a2d2e); }
 .tree-chevron { width: 12px; flex-shrink: 0; }.tree-chevron:disabled { visibility: hidden; }
 .layer-name { display: flex; align-items: center; gap: 6px; min-width: 0; flex: 1; height: 100%; text-align: left; }
-.layer-name span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.layer-name > svg { flex-shrink: 0; }
+.layer-name span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.layer-variable { min-width: 0; max-width: 50%; margin-left: auto; padding: 0 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border: 1px solid var(--border); border-radius: 3px; background: #ffffff0a; color: inherit; opacity: 0.8; font-family: var(--vscode-editor-font-family, ui-monospace, SFMono-Regular, Menlo, monospace); font-size: 10px; line-height: 16px; }
+.layer-rename { flex: 1; min-width: 0; height: 22px; padding: 1px 4px; border: 1px solid var(--vscode-focusBorder, #007acc); background: var(--vscode-input-background, #3c3c3c); color: var(--foreground); outline: none; font: inherit; }
 .layer-draggable { cursor: grab; touch-action: none; }
 .layer-dragging, .layer-dragging * { cursor: grabbing !important; }
 .layer-drag-source .layer-name { opacity: 0.5; }
@@ -128,19 +140,22 @@ button svg { flex-shrink: 0; }
 .layer-drop-before::before { top: 0; }.layer-drop-after::after { bottom: 0; }
 .layer-drop-inside { background: var(--vscode-list-dropBackground, #383b3d) !important; outline: 1px solid var(--selection); outline-offset: -1px; }
 .tree-root-drop { min-height: 14px; margin: 3px 7px 0; font-size: 10px; text-align: center; color: var(--muted-foreground); line-height: 24px; }
-.layer-menu-anchor { position: fixed; width: 1px; height: 1px; pointer-events: none; }
-.layer-context-menu { width: 280px; max-width: calc(100vw - 12px); max-height: calc(100vh - 12px); overflow-y: auto; padding: 4px; border-radius: 4px; font-size: 12px; cursor: default; }
+.layer-menu-anchor { position: fixed; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.layer-context-menu { z-index: 50; width: 220px; max-width: calc(100vw - 12px); max-height: min(640px, calc(100vh - 12px), var(--radix-dropdown-menu-content-available-height, 640px)); overflow-y: auto; padding: 4px; border: 1px solid var(--border); border-radius: 4px; background: var(--popover); color: var(--popover-foreground); box-shadow: 0 3px 12px #0005; outline: none; font-size: 12px; cursor: default; }
+.layer-context-submenu { width: 280px; }
 .layer-context-menu .menu-heading { display: flex; flex-direction: column; gap: 3px; }
 .layer-context-menu .menu-heading span { max-width: 190px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; opacity: 0.8; }
-.layer-context-menu button { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 27px; padding: 4px 8px; text-align: left; border-radius: 2px; outline-offset: -1px; }
-.layer-context-menu button span { flex: 1; }
-.layer-context-menu button:disabled { opacity: 0.4; }
-.layer-context-menu button:not(:disabled):is(:hover, :focus-visible) { outline: none; background: var(--vscode-menu-selectionBackground, #04395e); color: var(--vscode-menu-selectionForeground, #ffffff); }
-.layer-context-menu [data-orientation=horizontal] { margin: 4px 0; }
+.layer-context-menu [role=menuitem] { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 27px; padding: 4px 8px; text-align: left; border-radius: 2px; outline: none; user-select: none; }
+.layer-context-menu [role=menuitem] span { flex: 1; }
+.layer-context-menu [role=menuitem] svg { flex-shrink: 0; }
+.layer-context-menu [data-disabled] { opacity: 0.4; }
+.layer-context-menu [role=menuitem]:not([data-disabled])[data-highlighted] { background: var(--vscode-menu-selectionBackground, #04395e); color: var(--vscode-menu-selectionForeground, #ffffff); }
+.layer-menu-separator { height: 1px; margin: 4px 0; background: var(--border); }
 .layer-context-menu kbd { font: 10px var(--vscode-font-family, "Segoe UI", sans-serif); opacity: 0.7; }
 .delete-menu-item { color: var(--destructive); }
 .menu-hint { padding: 6px 8px; font-size: 10px; color: var(--muted-foreground); }
 .layer-action { width: 17px; height: 22px; display: grid; place-items: center; color: var(--muted-foreground); opacity: 0.6; }
+.layer-action + .layer-action { margin-left: -4px; }
 .layer-action:hover { opacity: 1; color: var(--foreground); }
 .is-muted .layer-name { opacity: 0.4; }
 .layer-footer { padding: 8px 10px; font-size: 10px; color: var(--muted-foreground); border-top: 1px solid var(--vscode-panel-border, #3b3b3b); }
@@ -172,7 +187,6 @@ button svg { flex-shrink: 0; }
 @media (max-width: 540px) { .direct-tools { display: none; }.sync-status { font-size: 10px; }.topbar { gap: 6px; }.canvas-context span { display: none; }.layer-panel { width: 150px; }.inspector { width: 210px; }.topbar > strong { display: none; } }
 
 /* Prototype component and layout properties retain the compact VS Code shell. */
-.layer-context-menu { max-height: min(640px, calc(100vh - 100px)); overflow-y: auto; }
 .property-details { border-top: 1px solid var(--vscode-panel-border, #353535); padding-top: 8px; }
 .property-details summary { cursor: pointer; font-size: 11px; font-weight: 600; margin-bottom: 10px; }
 .property-details summary small { float: right; font-weight: 400; opacity: .6; }
@@ -180,11 +194,14 @@ button svg { flex-shrink: 0; }
 .constraint-control { margin: 10px 0; }
 .constraint-title { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted-foreground); margin-bottom: 6px; }
 .constraint-title small { font-size: 10px; }
-.constraint-map { display: grid; grid-template-columns: 34px minmax(0, 1fr); grid-template-rows: 22px 112px; gap: 5px; }
-.constraint-toggles { display: grid; }
-.constraint-x { grid-column: 2; grid-row: 1; grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.constraint-y { grid-column: 1; grid-row: 2; grid-template-rows: repeat(3, minmax(0, 1fr)); padding: 7px 0; }
-.constraint-toggles label { display: flex; align-items: center; justify-content: center; gap: 4px; min-width: 0; font-size: 11px; cursor: pointer; }
+.constraint-map-scroll { overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; }
+.constraint-map { display: grid; grid-template-columns: 34px minmax(0, 1fr) 48px; grid-template-rows: 22px 112px 24px; gap: 5px; min-width: 220px; }
+.constraint-toggles { position: relative; min-width: 0; }
+.constraint-x { grid-column: 2; grid-row: 1; }
+.constraint-y { grid-column: 1; grid-row: 2; }
+.constraint-toggles label { position: absolute; display: flex; align-items: center; justify-content: center; height: 22px; gap: 4px; min-width: 0; font-size: 11px; cursor: pointer; }
+.constraint-x label { top: 0; width: calc(100% / 3); transform: translateX(-50%); }
+.constraint-y label { left: 0; width: 100%; transform: translateY(-50%); }
 .constraint-toggles label:has(input:disabled) { opacity: .4; cursor: default; }
 .constraint-toggles input { width: 13px; height: 13px; margin: 0; accent-color: var(--vscode-focusBorder, #007fd4); }
 .constraint-diagram { grid-column: 2; grid-row: 2; width: 100%; height: 112px; }
@@ -193,9 +210,16 @@ button svg { flex-shrink: 0; }
 .constraint-child { fill: var(--vscode-editorWidget-background, #2b2b2b); }
 .constraint-guide { stroke: var(--vscode-input-border, #676767); stroke-width: .75; }
 .constraint-guide.is-active { stroke: var(--vscode-focusBorder, #007fd4); stroke-width: 1; }
-.constraint-values { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; margin-top: 8px; }
-.constraint-values .property-field { flex-direction: column; align-items: stretch; gap: 3px; }
-.constraint-values .property-field > span { width: auto; font-size: 10px; }
+.constraint-offsets { position: relative; min-width: 0; }
+.constraint-offsets-x { grid-column: 2; grid-row: 3; }
+.constraint-offsets-y { grid-column: 3; grid-row: 2; }
+.constraint-offset { position: absolute; }
+.constraint-offsets-x .constraint-offset { top: 0; width: calc(100% / 3 - 4px); transform: translateX(-50%); }
+.constraint-offsets-y .constraint-offset { left: 0; width: 100%; transform: translateY(-50%); }
+.constraint-offset .property-field { position: relative; display: block; min-width: 0; }
+.constraint-offset .property-field > span { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.constraint-offset input { display: block; width: 100%; height: 24px; min-height: 24px; padding: 2px 3px; font-size: 11px; text-align: center; appearance: textfield; }
+.constraint-offset input::-webkit-inner-spin-button, .constraint-offset input::-webkit-outer-spin-button { margin: 0; -webkit-appearance: none; }
 .padding-control { display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: 8px; margin: 8px 0; font-size: 11px; }
 .padding-control > span { padding-top: 4px; color: var(--muted-foreground); }
 .padding-values { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px 6px; }
@@ -211,7 +235,9 @@ button svg { flex-shrink: 0; }
 .property-hint { font-size: 10px; line-height: 1.6; opacity: .65; margin: 6px 0; }
 .property-toggle { display: flex; align-items: center; gap: 6px; font-size: 11px; }
 .property-toggle input { accent-color: var(--vscode-focusBorder, #007acc); }
-.component-identity { display: flex; justify-content: space-between; font-size: 10px; opacity: .65; }
+.component-identity { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; font-size: 11px; color: var(--muted-foreground); }
+.component-identity > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.component-identity > code { flex-shrink: 0; font-size: 10px; }
 .layout-diagnostics { background: var(--vscode-inputValidation-warningBackground, #40351c); border: 1px solid var(--vscode-inputValidation-warningBorder, #88702a); padding: 8px; font-size: 10px; line-height: 1.5; }
 .layout-diagnostics p { margin: 5px 0 0; }
 .widget-choice { display: flex; align-items: center; gap: 8px; width: 100%; padding: 2px; pointer-events: none; }

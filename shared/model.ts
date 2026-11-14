@@ -1,7 +1,8 @@
-import { allocateElementId, reserveDocumentElementIds } from "./element-id";
+import { allocateElementId, ELEMENT_ID_SCHEME, reserveDocumentElementIds } from "./element-id";
 import { canHaveChildren, COMPONENT_TYPES, PAGE_ROOT_TYPES } from "./ui-components";
 import { validateUIConfig } from "./ui-config";
 import type { NodeLayout, WidgetProps } from "./ui-config";
+import { variableNameError } from "./node-variable";
 export type { NodeLayout, WidgetProps } from "./ui-config";
 
 export const GAMEFLOW_SCHEMA_VERSION = 2 as const;
@@ -35,6 +36,7 @@ export interface GameFlowRequirement {
 export interface GameFlowNode {
   id: string;
   name: string;
+  variableName?: string;
   type: NodeType;
   frame: Frame;
   parentId?: string;
@@ -90,6 +92,7 @@ export interface GameFlowInteraction {
 
 export interface GameFlowDocument {
   schemaVersion: 1 | typeof GAMEFLOW_SCHEMA_VERSION;
+  elementIdScheme?: typeof ELEMENT_ID_SCHEME;
   documentId: string;
   title: string;
   requirements: GameFlowRequirement[];
@@ -185,6 +188,10 @@ function validateNode(
   }
   const frameValid = validateFrame(value.frame, `${path}.frame`, errors);
   let optionalValid = true;
+  if (value.variableName !== undefined) {
+    const issue = variableNameError(value.variableName);
+    if (issue) { errors.push(`${path}.variableName: ${issue}`); optionalValid = false; }
+  }
   if (value.parentId !== undefined) {
     optionalValid = validateString(value.parentId, `${path}.parentId`, errors) && optionalValid;
   }
@@ -258,8 +265,16 @@ function validatePage(
     errors.push(`${path}.nodes must be an array`);
     nodesValid = false;
   } else {
+    const variableNames = new Map<string, number>();
     nodes.forEach((node, index) => {
       nodesValid = validateNode(node, `${path}.nodes[${index}]`, errors) && nodesValid;
+      if (isRecord(node) && typeof node.variableName === "string") {
+        const first = variableNames.get(node.variableName);
+        if (first !== undefined) {
+          errors.push(`${path}.nodes[${index}].variableName duplicates ${node.variableName} first used at ${path}.nodes[${first}].variableName`);
+          nodesValid = false;
+        } else variableNames.set(node.variableName, index);
+      }
     });
   }
   return idValid && nameValid && kindValid && rootTypeValid && frameValid && nodesValid && backgroundValid;
@@ -322,6 +337,9 @@ export function validateGameFlowDocument(value: unknown): ValidationResult {
 
   if (value.schemaVersion !== 1 && value.schemaVersion !== GAMEFLOW_SCHEMA_VERSION) {
     errors.push(`schemaVersion must be 1 or ${GAMEFLOW_SCHEMA_VERSION}`);
+  }
+  if (value.elementIdScheme !== undefined && value.elementIdScheme !== ELEMENT_ID_SCHEME) {
+    errors.push(`elementIdScheme must be ${ELEMENT_ID_SCHEME}`);
   }
   validateString(value.documentId, "documentId", errors);
   validateString(value.title, "title", errors);
@@ -386,7 +404,7 @@ export function validateGameFlowDocument(value: unknown): ValidationResult {
       }
       const nodeIds = new Set(page.nodes.map((node) => node.id));
       for (const node of page.nodes) {
-        if (value.schemaVersion === 1 && (node.layout || node.widget || !["container", "rectangle", "text", "button", "image", "list", "input"].includes(node.type))) {
+        if (value.schemaVersion === 1 && (node.variableName !== undefined || node.layout || node.widget || !["container", "rectangle", "text", "button", "image", "list", "input"].includes(node.type))) {
           errors.push(`node ${node.id} UI configuration requires schemaVersion 2`);
         }
         if (node.parentId !== undefined && !nodeIds.has(node.parentId)) {
@@ -578,6 +596,7 @@ export function createDefaultGameFlowDocument(
   const pageIds = new Map(document.pages.map((page) => [page.id, allocateElementId(reserved)]));
   return {
     ...document,
+    elementIdScheme: ELEMENT_ID_SCHEME,
     pages: document.pages.map((page) => {
       const nodeIds = new Map(page.nodes.map((node) => [node.id, allocateElementId(reserved)]));
       return {

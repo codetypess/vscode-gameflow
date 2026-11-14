@@ -7,6 +7,7 @@
   "required": ["schemaVersion","documentId","title","requirements","pages","interactions"],
   "properties": {
     "schemaVersion": { "enum": [1,2] },
+    "elementIdScheme": { "const": "nanoid-8" },
     "documentId": { "type": "string", "minLength": 1 },
     "title": { "type": "string", "minLength": 1 },
     "requirements": {
@@ -59,6 +60,11 @@
     }
   },
   "$defs": {
+    "variableName": {
+      "type": "string",
+      "pattern": "^[A-Za-z_$][A-Za-z0-9_$]*$(?![\\s\\S])",
+      "not": { "enum": ["await","break","case","catch","class","const","continue","debugger","default","delete","do","else","enum","export","extends","false","finally","for","function","if","implements","import","in","instanceof","interface","let","new","null","package","private","protected","public","return","static","super","switch","this","throw","true","try","typeof","var","void","while","with","yield","eval","arguments"] }
+    },
     "color": { "type": "string", "pattern": "^(#[0-9a-fA-F]{6}|transparent)$" },
     "style": {
       "type": "object",
@@ -93,6 +99,7 @@
       "properties": {
         "id": { "type": "string", "minLength": 1 },
         "name": { "type": "string", "minLength": 1 },
+        "variableName": { "$ref": "#/$defs/variableName" },
         "type": { "enum": ["container","rectangle","text","button","image","list","input","hbox","vbox","grid","panel","checkbox","radio","progress","slider","combo"] },
         "parentId": { "type": "string", "minLength": 1 },
         "text": { "type": "string" },
@@ -159,6 +166,7 @@
         "layoutUnit": { "enum": ["absolute","percent"] },
         "widthMode": { "enum": ["explicit","measured"] },
         "heightMode": { "enum": ["explicit","measured"] },
+        "crossAxisMode": { "enum": ["aligned","explicit"] },
         "align": { "enum": ["left","center","right","justify"] },
         "valign": { "enum": ["top","middle","bottom","justify"] },
         "direction": { "enum": ["horizontal","vertical"] }
@@ -211,7 +219,8 @@
                     "not": {
                       "anyOf": [
                         { "required": ["layout"] },
-                        { "required": ["widget"] }
+                        { "required": ["widget"] },
+                        { "required": ["variableName"] }
                       ]
                     }
                   }
