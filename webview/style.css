@@ -48,7 +48,9 @@ button svg { flex-shrink: 0; }
 .canvas-viewport { position: relative; flex: 1; min-height: 0; overflow: hidden; background: var(--canvas-bg); touch-action: none; user-select: none; cursor: default; }
 .canvas-viewport:focus { outline: none; }
 .canvas-scope-dimmer { position: absolute; inset: 0; background: rgb(0 0 0 / 40%); pointer-events: none; }
-.canvas-scope-nav { position: absolute; z-index: 25; top: 12px; left: 16px; display: flex; align-items: center; gap: 2px; max-width: calc(100% - 32px); padding: 3px; overflow-x: auto; scrollbar-width: thin; }
+.canvas-top-controls { position: absolute; z-index: 25; top: 12px; left: 16px; display: flex; align-items: center; gap: 8px; max-width: calc(100% - 32px); }
+.canvas-scope-nav, .canvas-zoom { height: 34px; padding: 3px; }
+.canvas-scope-nav { display: flex; align-items: center; gap: 2px; min-width: 0; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
 .canvas-scope-step { display: flex; flex-shrink: 0; align-items: center; gap: 2px; color: var(--muted-foreground); }
 .canvas-scope-nav button { display: flex; flex-shrink: 0; align-items: center; gap: 6px; min-height: 26px; padding: 3px 8px; border: 0; border-radius: 3px; background: transparent; color: var(--muted-foreground); font-size: 11px; }
 .canvas-scope-nav button span { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -229,15 +231,15 @@ button svg { flex-shrink: 0; }
 .insert-menu button:not(:disabled):hover { background: var(--vscode-list-activeSelectionBackground, #04395e); color: var(--vscode-list-activeSelectionForeground, #ffffff); }
 .insert-menu button:disabled { opacity: 0.35; }
 .insert-menu button span { flex: 1; }.insert-menu kbd { font: 10px var(--vscode-font-family, "Segoe UI", sans-serif); color: var(--muted-foreground); }
-.canvas-zoom { position: absolute; bottom: 22px; right: 16px; display: flex; align-items: center; padding: 2px; z-index: 25; font-size: 11px; }
+.canvas-zoom { display: flex; flex-shrink: 0; align-items: center; font-size: 11px; }
 .canvas-zoom .toolbar-button { width: 25px; height: 26px; }.canvas-zoom > span { width: 38px; text-align: center; font-variant-numeric: tabular-nums; }
 .canvas-context { position: absolute; bottom: 30px; left: 17px; color: var(--muted-foreground); font-size: 11px; pointer-events: none; }
 .canvas-context span { display: block; margin-top: 4px; font-size: 10px; opacity: 0.7; }
 .editor-notice { position: absolute; left: 50%; top: 14px; transform: translateX(-50%); max-width: 70%; z-index: 50; padding: 10px 16px; border: 1px solid var(--border); background: var(--popover); box-shadow: 0 3px 12px #0005; font-size: 12px; white-space: pre-wrap; }
 .empty-canvas, .loading-state { position: absolute; left: 50%; top: 44%; transform: translate(-50%, -50%); color: var(--muted-foreground); }
 .empty-canvas { display: flex; flex-direction: column; align-items: center; gap: 12px; }.empty-canvas strong { font-size: 16px; color: var(--foreground); }.empty-canvas p { margin: 0 0 8px; font-size: 12px; }.empty-canvas button { gap: 6px; }
-@media (max-width: 1150px) { .canvas-context { bottom: 77px; }.canvas-zoom { bottom: 78px; } }
-@media (max-width: 800px) { .layer-panel { width: 176px; left: 8px; top: 8px; max-height: 45%; }.inspector { width: 230px; right: 8px; top: 8px; max-height: calc(100% - 128px); }.canvas-toolbar { bottom: 12px; }.canvas-context { bottom: 72px; }.canvas-zoom { bottom: 72px; right: 8px; }.toolbar-button { width: 29px; height: 30px; } }
+@media (max-width: 1150px) { .canvas-context { bottom: 77px; } }
+@media (max-width: 800px) { .layer-panel { width: 176px; left: 8px; top: 8px; max-height: 45%; }.inspector { width: 230px; right: 8px; top: 8px; max-height: calc(100% - 128px); }.canvas-toolbar { bottom: 12px; }.canvas-context { bottom: 72px; }.canvas-top-controls { top: 8px; left: 8px; max-width: calc(100% - 16px); }.toolbar-button { width: 29px; height: 30px; } }
 @media (max-width: 540px) { .direct-tools { display: none; }.sync-status { font-size: 10px; }.topbar { gap: 6px; }.canvas-context span { display: none; }.layer-panel { width: 150px; }.inspector { width: 210px; }.topbar > strong { display: none; } }
 
 /* Prototype component and layout properties retain the compact VS Code shell. */

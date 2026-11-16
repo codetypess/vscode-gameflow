@@ -33,6 +33,8 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 
 ## Active Work Items
 
+- [canvas-zoom-top-left.md](canvas-zoom-top-left.md) — Done：原型缩放条移至画布左上，与层级导航同一行、等高 34px，跟随面板避让；177 项测试、生产构建及总览/页内/窄窗口浏览器验收通过。
+
 - [inspector-overlay-scrollbar.md](inspector-overlay-scrollbar.md) — Done：属性面板滚动条覆盖显示、停止后自动隐藏；字段宽度稳定，滚动交互、窄窗口、177 项测试及构建通过。
 
 - [star-sea-login-sample.md](star-sea-login-sample.md) — Done：750×1334“星海远征”原型与 PSD 样例，独立图片导出组和文案；177 项测试、生产构建、独立 PSD 回读及工作台验收通过。

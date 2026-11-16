@@ -10,12 +10,12 @@ export function useFollowingPanels(viewport: RefObject<HTMLDivElement>, active: 
   useLayoutEffect(() => {
     const element = viewport.current;
     if (!active || !element) return;
-    const controls = [...element.querySelectorAll<HTMLElement>(".canvas-toolbar, .canvas-zoom")];
+    const controls = [...element.querySelectorAll<HTMLElement>(".canvas-toolbar")];
     const measure = () => {
       const width = element.clientWidth, fullHeight = element.clientHeight;
       if (!width || !fullHeight) return;
       const originY = element.getBoundingClientRect().top;
-      // Responsive styles can move zoom controls above the main toolbar.
+      // Only the bottom toolbar limits panel height; top controls use topInset.
       const height = Math.max(0, Math.min(fullHeight, ...controls.filter(control => control.offsetHeight > 0).map(control => control.getBoundingClientRect().top - originY)));
       const left = leftElement?.getBoundingClientRect().height ?? 0, right = rightElement?.getBoundingClientRect().height ?? 0;
       setMeasurement(old => old.width === width && old.height === height && old.left === left && old.right === right ? old : { width, height, left, right });

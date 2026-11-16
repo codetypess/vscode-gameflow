@@ -343,7 +343,7 @@ export function App() {
     x: visibleCamera.x + (editingId ? 0 : panelPageFrame.x * visibleCamera.zoom),
     y: visibleCamera.y + (editingId ? 0 : panelPageFrame.y * visibleCamera.zoom),
     width: panelPageFrame.width * visibleCamera.zoom
-  } : null, !!editingId, inspectorOpen, editingId ? 48 : 0);
+  } : null, !!editingId, inspectorOpen, 48);
   let renderPage = page;
   if (preview?.nodeIds && preview.sourcePage) renderPage = translateSelection(preview.sourcePage, preview.nodeIds, preview.next.x, preview.next.y);
   if (renderPage && preview?.nodeId && preview.pageId === renderPage.id) renderPage = editNodeFrame(renderPage, preview.nodeId, preview.next, preview.kind === "resize" ? "resize" : "move");
@@ -409,10 +409,13 @@ export function App() {
             </article>;
           })}
         </div>
-        {editingId && page ? <nav className="canvas-scope-nav floating-panel" aria-label="编辑层级导航" onPointerDown={event => event.stopPropagation()}>
-          <button type="button" title={`返回页面层：${page.name}`} aria-current={!scopeId ? "location" : undefined} onClick={() => navigateScope(null)}><LayoutPanelTop size={14} /><span>{page.name}</span></button>
-          {scopePath.map((node, index) => <span className="canvas-scope-step" key={node.id}><ChevronRight size={12} aria-hidden="true" /><button type="button" title={`编辑 ${node.name} 的子节点 · ${COMPONENTS[node.type].laya}`} aria-current={index === scopePath.length - 1 ? "location" : undefined} onClick={() => navigateScope(node.id)}><NodeIcon type={node.type} /><span>{node.name}</span></button></span>)}
-        </nav> : null}
+        <div className="canvas-top-controls" onPointerDown={event => event.stopPropagation()}>
+          <div className="canvas-zoom floating-panel"><IconTool label="缩小" onClick={() => zoomAtCenter(1 / 1.2)}><Minus size={14} /></IconTool><span>{Math.round(camera.zoom * 100)}%</span><IconTool label="放大" onClick={() => zoomAtCenter(1.2)}><Plus size={14} /></IconTool><Separator orientation="vertical" /><IconTool label="适应画布" onClick={() => fit(editingId && page ? [page] : canvasDocument.pages, !!editingId)}><Focus size={16} /></IconTool></div>
+          {editingId && page ? <nav className="canvas-scope-nav floating-panel" aria-label="编辑层级导航">
+            <button type="button" title={`返回页面层：${page.name}`} aria-current={!scopeId ? "location" : undefined} onClick={() => navigateScope(null)}><LayoutPanelTop size={14} /><span>{page.name}</span></button>
+            {scopePath.map((node, index) => <span className="canvas-scope-step" key={node.id}><ChevronRight size={12} aria-hidden="true" /><button type="button" title={`编辑 ${node.name} 的子节点 · ${COMPONENTS[node.type].laya}`} aria-current={index === scopePath.length - 1 ? "location" : undefined} onClick={() => navigateScope(node.id)}><NodeIcon type={node.type} /><span>{node.name}</span></button></span>)}
+          </nav> : null}
+        </div>
         {selectedNodeIds.length > 1 && renderPage ? selectedNodeIds.map(id => {
           const node = renderPage!.nodes.find(item => item.id === id)!, g = selectionLayout!.nodes.get(id)!;
           if (!g.inverse || inheritedFlag(renderPage!, node, "hidden")) return null;
@@ -440,7 +443,6 @@ export function App() {
           <div className="direct-tools">{TOOLS.filter((item) => item.key).map(({ type, icon: Icon, key }) => <IconTool key={type} label={`${NODE_LABELS[type]} (${key})`} disabled={!editingId} active={tool === type} onClick={() => chooseInsertTool(type)}><Icon size={19} /></IconTool>)}</div>
           <Separator orientation="vertical" /><IconTool label={inspectorOpen ? "隐藏属性面板" : "显示属性面板"} disabled={!page} active={!!page && inspectorOpen} onClick={() => setInspectorOpen(!inspectorOpen)}><PanelRight size={18} /></IconTool>
         </div>
-        <div className="canvas-zoom floating-panel" onPointerDown={(event) => event.stopPropagation()}><IconTool label="缩小" onClick={() => zoomAtCenter(1 / 1.2)}><Minus size={14} /></IconTool><span>{Math.round(camera.zoom * 100)}%</span><IconTool label="放大" onClick={() => zoomAtCenter(1.2)}><Plus size={14} /></IconTool><Separator orientation="vertical" /><IconTool label="适应画布" onClick={() => fit(editingId && page ? [page] : canvasDocument.pages, !!editingId)}><Focus size={16} /></IconTool></div>
       </>}
       {notice || (canvasDocument && error) ? <div className="editor-notice" role="status">{notice || error}</div> : null}
       <input ref={fileInput} className="hidden" type="file" accept="image/png,image/jpeg,image/webp,image/gif" aria-label="导入控件图片" onChange={(event) => { void importImage(event.target.files?.[0]); event.target.value = ""; }} />
