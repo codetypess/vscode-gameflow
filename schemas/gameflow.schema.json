@@ -35,6 +35,7 @@
           "name": { "type": "string", "minLength": 1 },
           "kind": { "enum": ["screen","modal"] },
           "rootType": { "enum": ["UIStack","UITop","UIScene","UIBox"] },
+          "layout": { "$ref": "#/$defs/rootLayout" },
           "background": { "$ref": "#/$defs/color" },
           "frame": { "$ref": "#/$defs/frame" },
           "nodes": {
@@ -60,6 +61,15 @@
     }
   },
   "$defs": {
+    "rootLayout": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "left": { "type": ["number","null"] }, "right": { "type": ["number","null"] },
+        "centerX": { "type": ["number","null"] }, "top": { "type": ["number","null"] },
+        "bottom": { "type": ["number","null"] }, "centerY": { "type": ["number","null"] },
+        "layoutUnit": { "enum": ["absolute","percent"] }
+      }
+    },
     "variableName": {
       "type": "string",
       "pattern": "^[A-Za-z_$][A-Za-z0-9_$]*$(?![\\s\\S])",
@@ -109,7 +119,18 @@
         "imageData": { "type": "string", "maxLength": 7000000, "pattern": "^data:image/(png|jpeg|webp|gif);base64,[a-zA-Z0-9+/]+=*$" },
         "frame": { "$ref": "#/$defs/frame" },
         "layout": { "$ref": "#/$defs/layout" },
-        "widget": { "$ref": "#/$defs/widget" }
+        "widget": { "$ref": "#/$defs/widget" },
+        "transform": { "$ref": "#/$defs/transform" }
+      }
+    },
+    "transform": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "anchorX": { "type": "number", "minimum": 0, "maximum": 1 },
+        "anchorY": { "type": "number", "minimum": 0, "maximum": 1 },
+        "scaleX": { "type": "number" }, "scaleY": { "type": "number" },
+        "skewX": { "type": "number" }, "skewY": { "type": "number" },
+        "rotation": { "type": "number" }
       }
     },
     "layout": {
@@ -167,6 +188,8 @@
         "widthMode": { "enum": ["explicit","measured"] },
         "heightMode": { "enum": ["explicit","measured"] },
         "crossAxisMode": { "enum": ["aligned","explicit"] },
+        "positionOffsetX": { "type": "number" },
+        "positionOffsetY": { "type": "number" },
         "align": { "enum": ["left","center","right","justify"] },
         "valign": { "enum": ["top","middle","bottom","justify"] },
         "direction": { "enum": ["horizontal","vertical"] }
@@ -209,7 +232,7 @@
         "properties": {
           "pages": {
             "items": {
-              "not": { "required": ["rootType"] },
+              "not": { "anyOf": [{ "required": ["rootType"] }, { "required": ["layout"] }] },
               "properties": {
                 "nodes": {
                   "items": {
@@ -220,7 +243,8 @@
                       "anyOf": [
                         { "required": ["layout"] },
                         { "required": ["widget"] },
-                        { "required": ["variableName"] }
+                        { "required": ["variableName"] },
+                        { "required": ["transform"] }
                       ]
                     }
                   }

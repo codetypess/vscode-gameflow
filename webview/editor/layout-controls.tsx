@@ -1,5 +1,5 @@
 import { AlignHorizontalJustifyStart, AlignHorizontalJustifyCenter, AlignHorizontalJustifyEnd, AlignHorizontalSpaceBetween, AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd, AlignVerticalSpaceBetween, type LucideIcon } from "lucide-react";
-import type { NodeLayout } from "../../shared/model";
+import type { ConstraintLayout, NodeLayout } from "../../shared/model";
 import type { Constraint } from "../../shared/ui-config";
 import { Button } from "../components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../components/ui/tooltip";
@@ -15,7 +15,7 @@ const CONSTRAINT_CONTROLS = [
 ] as const;
 
 export function ConstraintControl({ layout, disabledX, disabledY, onChange, onToggle }: {
-  layout: NodeLayout; disabledX: boolean; disabledY: boolean; onChange: (patch: Partial<NodeLayout>) => void;
+  layout: ConstraintLayout; disabledX: boolean; disabledY: boolean; onChange: (patch: Partial<ConstraintLayout>) => void;
   onToggle: (key: Constraint, enabled: boolean) => void;
 }) {
   const disabled = (axis: "x" | "y") => axis === "x" ? disabledX : disabledY;

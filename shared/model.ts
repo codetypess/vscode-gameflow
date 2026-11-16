@@ -1,9 +1,11 @@
 import { allocateElementId, ELEMENT_ID_SCHEME, reserveDocumentElementIds } from "./element-id";
 import { canHaveChildren, COMPONENT_TYPES, PAGE_ROOT_TYPES } from "./ui-components";
-import { validateUIConfig } from "./ui-config";
-import type { NodeLayout, WidgetProps } from "./ui-config";
+import { validateRootLayout, validateUIConfig } from "./ui-config";
+import type { ConstraintLayout, NodeLayout, WidgetProps } from "./ui-config";
 import { variableNameError } from "./node-variable";
-export type { NodeLayout, WidgetProps } from "./ui-config";
+import { validateNodeTransform, type NodeTransform } from "./ui-transform";
+export type { NodeTransform } from "./ui-transform";
+export type { ConstraintLayout, NodeLayout, WidgetProps } from "./ui-config";
 
 export const GAMEFLOW_SCHEMA_VERSION = 2 as const;
 
@@ -47,6 +49,7 @@ export interface GameFlowNode {
   locked?: boolean;
   layout?: NodeLayout;
   widget?: WidgetProps;
+  transform?: NodeTransform;
 }
 
 export interface NodeStyle {
@@ -69,6 +72,7 @@ export interface GameFlowPage {
   frame: Frame;
   nodes: GameFlowNode[];
   background?: string;
+  layout?: ConstraintLayout;
 }
 
 export function isColor(value: unknown): value is string {
@@ -236,7 +240,8 @@ function validateNode(
     }
   }
   const configValid = validateUIConfig(value, path, errors);
-  return idValid && nameValid && typeValid && frameValid && optionalValid && configValid;
+  const transformValid = validateNodeTransform(value.transform, `${path}.transform`, errors);
+  return idValid && nameValid && typeValid && frameValid && optionalValid && configValid && transformValid;
 }
 
 function validatePage(
@@ -256,6 +261,7 @@ function validatePage(
   }
   const rootTypeValid = value.rootType === undefined || PAGE_ROOT_TYPES.includes(value.rootType as PageRootType);
   if (!rootTypeValid) errors.push(`${path}.rootType must be UIStack, UITop, UIScene, or UIBox`);
+  const layoutValid = validateRootLayout(value.layout, `${path}.layout`, errors);
   const frameValid = validateFrame(value.frame, `${path}.frame`, errors);
   const backgroundValid = value.background === undefined || isColor(value.background);
   if (!backgroundValid) errors.push(`${path}.background must be a hex color or transparent`);
@@ -277,7 +283,7 @@ function validatePage(
       }
     });
   }
-  return idValid && nameValid && kindValid && rootTypeValid && frameValid && nodesValid && backgroundValid;
+  return idValid && nameValid && kindValid && rootTypeValid && layoutValid && frameValid && nodesValid && backgroundValid;
 }
 
 function validateInteraction(
@@ -402,9 +408,10 @@ export function validateGameFlowDocument(value: unknown): ValidationResult {
       if (value.schemaVersion === 1 && page.rootType !== undefined) {
         errors.push(`page ${page.id} rootType requires schemaVersion 2`);
       }
+      if (value.schemaVersion === 1 && page.layout !== undefined) errors.push(`page ${page.id} layout requires schemaVersion 2`);
       const nodeIds = new Set(page.nodes.map((node) => node.id));
       for (const node of page.nodes) {
-        if (value.schemaVersion === 1 && (node.variableName !== undefined || node.layout || node.widget || !["container", "rectangle", "text", "button", "image", "list", "input"].includes(node.type))) {
+        if (value.schemaVersion === 1 && (node.transform !== undefined || node.variableName !== undefined || node.layout || node.widget || !["container", "rectangle", "text", "button", "image", "list", "input"].includes(node.type))) {
           errors.push(`node ${node.id} UI configuration requires schemaVersion 2`);
         }
         if (node.parentId !== undefined && !nodeIds.has(node.parentId)) {

@@ -3,6 +3,7 @@ import { canHaveChildren, COMPONENTS } from "./ui-components";
 import { resolvePageLayout } from "./ui-layout";
 import { CONSTRAINTS } from "./ui-config";
 import { allocateVariableName } from "./node-variable";
+import { decomposeNode, IDENTITY, inverse, mapPoint, multiply, nodeMatrix, translation } from "./ui-transform";
 
 export type InsertType = NodeType;
 export type Handle = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w";
@@ -56,15 +57,21 @@ export function reparentNode(page: GameFlowPage, id: string, parentId?: string):
   if (!node || node.parentId === parentId || inheritedFlag(page, node, "locked") || (parentId && descendants(page, id).has(parentId))) return page;
   const parent = page.nodes.find((item) => item.id === parentId);
   if (parentId && (!parent || !canHaveChildren(parent) || inheritedFlag(page, parent, "locked"))) return page;
-  const absolute = absoluteFrame(page, node);
-  const origin = parent ? absoluteFrame(page, parent) : { x: 0, y: 0 };
+  const geometry = resolvePageLayout(page), resolved = geometry.nodes.get(id)!;
+  const parentMatrix = multiply(parent ? geometry.nodes.get(parent.id)!.matrix : IDENTITY, translation(-(parent?.layout?.scrollX ?? 0), -(parent?.layout?.scrollY ?? 0)));
+  const parentInverse = inverse(parentMatrix); if (!parentInverse) return page;
+  const relative = multiply(parentInverse, resolved.matrix);
+  const localMatrix = nodeMatrix(resolved.local, node.transform);
+  const sameLinear = relative.slice(0, 4).every((v, i) => Math.abs(v-localMatrix[i]) < 1e-10);
+  const pivot = mapPoint(relative, { x: (node.transform?.anchorX ?? 0)*resolved.local.width, y: (node.transform?.anchorY ?? 0)*resolved.local.height });
+  const pose = sameLinear ? { frame: { ...resolved.local, x: pivot.x, y: pivot.y } } : decomposeNode(relative, resolved.local, node.transform);
   return {
     ...page,
     nodes: page.nodes.map((item) => {
       if (item.id !== id) return item;
-      const next = { ...item, frame: { ...absolute, width: Math.max(1, absolute.width), height: Math.max(1, absolute.height), x: absolute.x - origin.x + (parent?.layout?.scrollX ?? 0), y: absolute.y - origin.y + (parent?.layout?.scrollY ?? 0) } };
+      const next = { ...item, ...pose, frame: { ...pose.frame, width: Math.max(1, pose.frame.width), height: Math.max(1, pose.frame.height) } };
       if (item.layout) next.layout = { ...item.layout, ...Object.fromEntries(CONSTRAINTS.map((key) => [key, null])), widthMode: "explicit", heightMode: "explicit" };
-      if (next.layout) delete next.layout.crossAxisMode;
+      if (next.layout) { delete next.layout.crossAxisMode; delete next.layout.positionOffsetX; delete next.layout.positionOffsetY; }
       if (parentId) next.parentId = parentId;
       else delete next.parentId;
       return next;
@@ -109,6 +116,7 @@ export function moveNode(page: GameFlowPage, id: string, drop: LayerDrop): GameF
   const parent = page.nodes.find((item) => item.id === parentId);
   if (parentId && (!parent || !canHaveChildren(parent) || inheritedFlag(page, parent, "locked"))) return page;
   const reparented = node.parentId === parentId ? page : reparentNode(page, id, parentId);
+  if (node.parentId !== parentId && reparented === page) return page;
   const ordered = orderedNodes(reparented);
   const subtree = ordered.filter((item) => moving.has(item.id));
   const nodes = ordered.filter((item) => !moving.has(item.id));
@@ -148,6 +156,7 @@ export function duplicatePage(page: GameFlowPage, makeId: () => string): GameFlo
   const mapping = new Map(page.nodes.map((node) => [node.id, makeId()]));
   return {
     ...page, id: makeId(), name: `${page.name} 副本`,
+    ...(page.layout ? { layout: { ...page.layout } } : {}),
     frame: { ...page.frame, x: page.frame.x + page.frame.width + 80 },
     nodes: page.nodes.map((node) => ({ ...structuredClone(node), id: mapping.get(node.id)!, frame: { ...node.frame },
       ...(node.parentId ? { parentId: mapping.get(node.parentId)! } : {}),

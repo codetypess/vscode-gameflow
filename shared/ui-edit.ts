@@ -3,6 +3,51 @@ import { AXES, constraintsFor, managedAxis, resolvePageLayout } from "./ui-layou
 import { inheritedFlag, makeNode, moveNode } from "./editor-ops";
 import type { Constraint } from "./ui-config";
 import { canHaveChildren, flowType } from "./ui-components";
+import { axisAnchor, axisScale, inverse, mapVector, nodeMatrix, type Matrix } from "./ui-transform";
+
+/** Keep the intended resolved coordinates when constraint positioning rounds its base value. */
+function compensatePosition(page: GameFlowPage, id: string, target: Partial<Pick<Frame, "x" | "y">>): GameFlowPage {
+  if (!Object.keys(target).length) return page;
+  const node = page.nodes.find(n => n.id === id)!, local = resolvePageLayout(page).nodes.get(id)!.local;
+  const layout = { ...node.layout };
+  let changed = false;
+  for (const axis of ["x", "y"] as const) {
+    if (target[axis] === undefined || Math.abs(target[axis]!-local[axis]) < 1e-10) continue;
+    const key = AXES[axis].positionOffset, offset = (layout[key] ?? 0)+target[axis]!-local[axis];
+    if (Math.abs(offset) < 1e-12) delete layout[key]; else layout[key] = offset;
+    changed = true;
+  }
+  return changed ? { ...page, nodes: page.nodes.map(n => n.id === id ? { ...n, layout } : n) } : page;
+}
+
+/** Move the anchor inside the same visual rectangle, including layout-managed axes. */
+export function setNodeAnchor(page: GameFlowPage, id: string, anchor: { anchorX?: number; anchorY?: number }): GameFlowPage {
+  const node = page.nodes.find(n => n.id === id);
+  if (!node || inheritedFlag(page, node, "locked") || Object.values(anchor).some(value => typeof value !== "number" || !Number.isFinite(value) || value < 0 || value > 1)) return page;
+  const transform = { ...node.transform, ...anchor };
+  if ((transform.anchorX ?? 0) === (node.transform?.anchorX ?? 0) && (transform.anchorY ?? 0) === (node.transform?.anchorY ?? 0)) return page;
+  const geometry = resolvePageLayout(page), old = geometry.nodes.get(id)!;
+  const delta = mapVector(nodeMatrix(old.local, node.transform), {
+    x: ((transform.anchorX ?? 0)-(node.transform?.anchorX ?? 0))*old.local.width,
+    y: ((transform.anchorY ?? 0)-(node.transform?.anchorY ?? 0))*old.local.height
+  });
+  const candidate = { ...node, transform }, next = { ...page, nodes: page.nodes.map(n => n.id === id ? candidate : n) };
+  const resolved = resolvePageLayout(next).nodes.get(id)!;
+  const parent = page.nodes.find(n => n.id === node.parentId), parentGeometry = parent ? geometry.nodes.get(parent.id)! : undefined;
+  const frame = { ...node.frame }, layout = { ...node.layout };
+  for (const axis of ["x", "y"] as const) {
+    const a = AXES[axis], correction = old.local[axis]+delta[axis]-resolved.local[axis];
+    if (Math.abs(correction) < 1e-12) continue;
+    const free = !constraintsFor(axis).some(key => node.layout?.[key] != null) && !managedAxis(parent, axis) &&
+      (flowType(parent) === "free" || node.layout?.crossAxisMode === "explicit") && parentGeometry?.[axis === "x" ? "widthSource" : "heightSource"] !== "measured";
+    if (free) frame[axis] += correction;
+    else {
+      const offset = (layout[a.positionOffset] ?? 0)+correction;
+      if (Math.abs(offset) < 1e-12) delete layout[a.positionOffset]; else layout[a.positionOffset] = offset;
+    }
+  }
+  return { ...page, nodes: page.nodes.map(n => n.id === id ? { ...candidate, frame, ...(node.layout || Object.keys(layout).length ? { layout } : {}) } : n) };
+}
 
 /** Switch anchors without reverting to stale authored coordinates or changing the visible bounds. */
 export function setNodeConstraint(page: GameFlowPage, id: string, key: Constraint, enabled: boolean): GameFlowPage {
@@ -22,15 +67,17 @@ export function setNodeConstraint(page: GameFlowPage, id: string, key: Constrain
     if (enabled) delete layout.crossAxisMode;
     else if (!constraintsFor(axis).some((constraint) => layout[constraint] != null)) layout.crossAxisMode = "explicit";
   }
-  const frame = { ...node.frame, [axis]: local[axis], [a.size]: local[a.size] };
+  const frame = { ...node.frame, [axis]: local[axis]-(layout[a.positionOffset] ?? 0), [a.size]: local[a.size] };
   const wasStretch = node.layout?.[a.leading] != null && node.layout?.[a.trailing] != null;
   if (wasStretch && (layout[a.leading] == null || layout[a.trailing] == null)) layout[a.mode] = "explicit";
   if (unit > 0) {
-    if (layout[a.leading] != null) layout[a.leading] = (local[axis] - start) / unit;
-    if (layout[a.trailing] != null) layout[a.trailing] = (start + available - local[axis] - local[a.size]) / unit;
-    if (layout[a.center] != null) layout[a.center] = (local[axis] - start - (available - local[a.size]) / 2) / unit;
+    const length = local[a.size] * axisScale(node.transform, axis), position = local[axis] - (layout[a.positionOffset] ?? 0) - axisAnchor(node.transform, axis) * length;
+    if (layout[a.leading] != null) layout[a.leading] = (position - start) / unit;
+    if (layout[a.trailing] != null) layout[a.trailing] = (start + available - position - length) / unit;
+    if (layout[a.center] != null) layout[a.center] = (position - start - (available - length) / 2) / unit;
   }
-  return { ...page, nodes: page.nodes.map((item) => item.id === id ? { ...item, frame, layout } : item) };
+  const next = { ...page, nodes: page.nodes.map((item) => item.id === id ? { ...item, frame, layout } : item) };
+  return compensatePosition(next, id, { [axis]: local[axis] });
 }
 /** Converts a resolved local rectangle back into authored coordinates/constraints. */
 export function editNodeFrame(page: GameFlowPage, id: string, next: Frame, intent: "move" | "resize" | "nudge" = "resize"): GameFlowPage {
@@ -60,6 +107,7 @@ export function editNodeFrame(page: GameFlowPage, id: string, next: Frame, inten
     if (target !== node) result = moveNode(page, id, { targetId: target.id, position: siblings.indexOf(target) < index ? "before" : "after" });
   }
   const frame = { ...node.frame }, layout: NodeLayout = { ...node.layout };
+  const positionTargets: Partial<Pick<Frame, "x" | "y">> = {};
   for (const axis of ["x", "y"] as const) {
     const a = AXES[axis], changedSize = next[a.size] !== old[a.size], changedPosition = next[axis] !== old[axis];
     if (!changedSize && !changedPosition) continue;
@@ -73,14 +121,34 @@ export function editNodeFrame(page: GameFlowPage, id: string, next: Frame, inten
     if (managed) continue;
     // Unanchored flow children follow alignment until an explicit cross-axis position is authored.
     if (flow !== "free" && layout.crossAxisMode !== "explicit" && !constraintsFor(axis).some((key) => layout[key] != null)) continue;
-    frame[axis] = next[axis];
+    frame[axis] = next[axis] - (layout[a.positionOffset] ?? 0);
+    positionTargets[axis] = next[axis];
     if (unit === 0) continue;
-    if (layout[a.leading] != null) layout[a.leading] = (next[axis] - start) / unit;
-    if (layout[a.trailing] != null) layout[a.trailing] = (start + available - next[axis] - next[a.size]) / unit;
-    if (layout[a.center] != null) layout[a.center] = (next[axis] - start - (available - next[a.size]) / 2) / unit;
+    const length = next[a.size] * axisScale(node.transform, axis), position = next[axis] - (layout[a.positionOffset] ?? 0) - axisAnchor(node.transform, axis) * length;
+    if (layout[a.leading] != null) layout[a.leading] = (position - start) / unit;
+    if (layout[a.trailing] != null) layout[a.trailing] = (start + available - position - length) / unit;
+    if (layout[a.center] != null) layout[a.center] = (position - start - (available - length) / 2) / unit;
   }
   const updated = { ...node, frame, ...(node.layout || Object.keys(layout).length ? { layout } : {}) };
-  return { ...result, nodes: result.nodes.map((n) => n.id === id ? updated : n) };
+  return compensatePosition({ ...result, nodes: result.nodes.map((n) => n.id === id ? updated : n) }, id, positionTargets);
+}
+
+/** Screen/page movement becomes a parent-local delta, independent of the node's own rotation. */
+export function nodeDragFrame(frame: Frame, parentMatrix: Matrix, dx: number, dy: number): Frame {
+  const inv = inverse(parentMatrix);
+  const delta = inv ? mapVector(inv, { x: dx, y: dy }) : { x: 0, y: 0 };
+  return { ...frame, x: frame.x + delta.x, y: frame.y + delta.y };
+}
+
+/** Resize local dimensions while keeping the opposite transformed edge/corner fixed. */
+export function nodeResizeFrame(node: GameFlowNode, frame: Frame, matrix: Matrix, handle: string, dx: number, dy: number): Frame {
+  const inv = inverse(matrix); if (!inv) return frame;
+  const delta = mapVector(inv, { x: dx, y: dy });
+  const width = handle.includes("w") ? Math.max(8, frame.width-delta.x) : handle.includes("e") ? Math.max(8, frame.width+delta.x) : frame.width;
+  const height = handle.includes("n") ? Math.max(8, frame.height-delta.y) : handle.includes("s") ? Math.max(8, frame.height+delta.y) : frame.height;
+  const localOffset = { x: (handle.includes("w") ? frame.width-width : 0)+axisAnchor(node.transform,"x")*(width-frame.width), y: (handle.includes("n") ? frame.height-height : 0)+axisAnchor(node.transform,"y")*(height-frame.height) };
+  const offset = mapVector(nodeMatrix(frame,node.transform),localOffset);
+  return { x: frame.x+offset.x, y: frame.y+offset.y, width, height };
 }
 
 export function changeContainerType(page: GameFlowPage, id: string, type: NodeType): GameFlowPage {
@@ -94,6 +162,7 @@ export function changeContainerType(page: GameFlowPage, id: string, type: NodeTy
     if (n.parentId !== id) return n;
     const layout = { ...n.layout };
     delete layout.crossAxisMode;
+    delete layout.positionOffsetX; delete layout.positionOffsetY;
     for (const axis of ["x", "y"] as const) if (managedAxis(parent, axis)) {
       for (const key of constraintsFor(axis)) layout[key] = null;
       if (resolved.nodes.get(n.id)![axis === "x" ? "widthSource" : "heightSource"] === "stretch") layout[AXES[axis].mode] = "explicit";

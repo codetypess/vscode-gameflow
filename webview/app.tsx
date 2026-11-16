@@ -2,8 +2,9 @@ import { ArrowLeft, Box, Check, ChevronDown, Focus, GitMerge, Hand, Layers3, Lay
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import type { Frame, GameFlowNode, GameFlowPage, PageRootType } from "../shared/model";
 import { allocateElementId, reserveDocumentElementIds } from "../shared/element-id";
-import { absoluteFrame, descendants, duplicateNode, duplicatePage, inheritedFlag, insertNode, makeComponent, moveNode, NODE_LABELS, removeNode, removePage, resizeFrame, type Handle, type InsertType, type LayerDrop } from "../shared/editor-ops";
-import { convertNodeType, editNodeFrame } from "../shared/ui-edit";
+import { descendants, duplicateNode, duplicatePage, inheritedFlag, insertNode, makeComponent, moveNode, NODE_LABELS, removeNode, removePage, type Handle, type InsertType, type LayerDrop } from "../shared/editor-ops";
+import { convertNodeType, editNodeFrame, nodeDragFrame, nodeResizeFrame } from "../shared/ui-edit";
+import { mapPoint, type Matrix } from "../shared/ui-transform";
 import { copyNode, pasteNode, type NodeClipboard } from "../shared/node-clipboard";
 import { resolvePageLayout } from "../shared/ui-layout";
 import { COMPONENTS, PAGE_ROOTS, PAGE_ROOT_TYPES } from "../shared/ui-components";
@@ -25,7 +26,7 @@ import { canvasPanelMetrics } from "./lib/canvas-panels";
 
 type Tool = "select" | "hand" | InsertType;
 type Camera = { x: number; y: number; zoom: number };
-type Gesture = { kind: "pan" | "page" | "node" | "resize"; clientX: number; clientY: number; camera: Camera; pageId?: string; nodeId?: string; handle?: Handle; origin: Frame; next: Frame; moved: boolean };
+type Gesture = { kind: "pan" | "page" | "node" | "resize"; clientX: number; clientY: number; camera: Camera; pageId?: string; nodeId?: string; handle?: Handle; origin: Frame; next: Frame; moved: boolean; transform?: { node: GameFlowNode; matrix: Matrix; parentMatrix: Matrix } };
 const HANDLES: Handle[] = ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
 const TOOLS = COMPONENT_TOOLS;
 const clampZoom = (value: number) => Math.max(0.1, Math.min(3, value));
@@ -237,15 +238,16 @@ export function App() {
     const handle = target.closest<HTMLElement>("[data-handle]")?.dataset.handle as Handle | undefined;
     let kind: Gesture["kind"] = "pan", frame: Frame = { x: camera.x, y: camera.y, width: 0, height: 0 };
     let nodeId: string | undefined, pageId: string | undefined;
+    let transform: Gesture["transform"];
     if (event.button === 1 || tool === "hand" || spaceHand) { /* Pan over any object. */ }
     else if (editingId && latestPage) {
       if (tool !== "select") { if (hitPageId) placeNode(tool, world.x, world.y); return; }
       const node = latestPage.nodes.find((item) => item.id === (handle ? selectedNodeId : hitNodeId));
-      if (node) { selectNode(node.id); if (!handle) setCanvasSelection((previous) => previous + 1); if (inheritedFlag(latestPage, node, "locked")) return; kind = handle ? "resize" : "node"; frame = resolvePageLayout(latestPage).nodes.get(node.id)!.local; nodeId = node.id; pageId = latestPage.id; }
+      if (node) { selectNode(node.id); if (!handle) setCanvasSelection((previous) => previous + 1); if (inheritedFlag(latestPage, node, "locked")) return; const g = resolvePageLayout(latestPage).nodes.get(node.id)!; if (!g.inverse) return; kind = handle ? "resize" : "node"; frame = g.local; transform = { node, matrix: g.matrix, parentMatrix: g.parentMatrix }; nodeId = node.id; pageId = latestPage.id; }
       else { setSelectedNodeId(null); if (hitPageId) setInspectorOpen(true); }
     } else if (hitPageId) { const hit = latest?.pages.find((item) => item.id === hitPageId); if (!hit) return; setSelectedPageId(hit.id); setInspectorOpen(true); kind = "page"; frame = hit.frame; pageId = hit.id; }
     else setSelectedPageId(null);
-    gesture.current = { kind, pageId, nodeId, handle, clientX: event.clientX, clientY: event.clientY, camera, origin: frame, next: frame, moved: false };
+    gesture.current = { kind, pageId, nodeId, handle, transform, clientX: event.clientX, clientY: event.clientY, camera, origin: frame, next: frame, moved: false };
   };
   const moveGesture = (event: ReactPointerEvent<HTMLDivElement>) => {
     const current = gesture.current; if (!current) return;
@@ -253,7 +255,7 @@ export function App() {
     if (!current.moved && Math.hypot(screenX, screenY) < 3) return;
     if (!event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.setPointerCapture(event.pointerId);
     const dx = screenX / current.camera.zoom, dy = screenY / current.camera.zoom;
-    const next = current.kind === "resize" ? resizeFrame(current.origin, current.handle!, dx, dy) : { ...current.origin, x: current.origin.x + (current.kind === "pan" ? screenX : dx), y: current.origin.y + (current.kind === "pan" ? screenY : dy) };
+    const next = current.kind === "resize" && current.transform ? nodeResizeFrame(current.transform.node, current.origin, current.transform.matrix, current.handle!, dx, dy) : current.kind === "node" && current.transform ? nodeDragFrame(current.origin, current.transform.parentMatrix, dx, dy) : { ...current.origin, x: current.origin.x + (current.kind === "pan" ? screenX : dx), y: current.origin.y + (current.kind === "pan" ? screenY : dy) };
     if (current.kind === "page") { next.x = Math.round(next.x); next.y = Math.round(next.y); }
     const updated = { ...current, next, moved: true }; gesture.current = updated; setPreview(updated);
   };
@@ -283,17 +285,28 @@ export function App() {
   let renderPage = page;
   if (renderPage && preview?.nodeId && preview.pageId === renderPage.id) renderPage = editNodeFrame(renderPage, preview.nodeId, preview.next, preview.kind === "resize" ? "resize" : "move");
   const renderedNode = renderPage?.nodes.find((node) => node.id === selectedNodeId);
-  const selectedFrame = editingId && renderPage && renderedNode && !inheritedFlag(renderPage, renderedNode, "hidden") ? absoluteFrame(renderPage, renderedNode) : null;
+  const selectedGeometry = editingId && renderPage && renderedNode && !inheritedFlag(renderPage, renderedNode, "hidden") ? resolvePageLayout(renderPage).nodes.get(renderedNode.id)! : null;
+  const selectionX = selectedGeometry ? Math.hypot(selectedGeometry.matrix[0], selectedGeometry.matrix[1]) : 1;
+  const selectionY = selectedGeometry ? Math.hypot(selectedGeometry.matrix[2], selectedGeometry.matrix[3]) : 1;
+  const selectionWidth = (selectedGeometry?.local.width ?? 0)*selectionX*visibleCamera.zoom;
+  const selectionHeight = (selectedGeometry?.local.height ?? 0)*selectionY*visibleCamera.zoom;
+  const selectionAnchor = selectedGeometry ? mapPoint(selectedGeometry.matrix, { x: (renderedNode?.transform?.anchorX ?? 0)*selectedGeometry.local.width, y: (renderedNode?.transform?.anchorY ?? 0)*selectedGeometry.local.height }) : null;
   const unlocked = renderPage && renderedNode && !inheritedFlag(renderPage, renderedNode, "locked");
   const zoomAtCenter = (factor: number) => { const rect = viewport.current?.getBoundingClientRect(); if (!rect) return; setCamera((previous) => { const zoom = clampZoom(previous.zoom * factor), x = rect.width / 2, y = rect.height / 2; return { x: x - (x - previous.x) / previous.zoom * zoom, y: y - (y - previous.y) / previous.zoom * zoom, zoom }; }); };
   const switchMode = (next: WorkspaceMode) => { gesture.current = null; setPreview(null); setSpaceHand(false); setInsertOpen(false); setMode(next); };
 
   return <TooltipProvider delayDuration={300}><main className="app-shell">
     <header className="topbar"><span className="brand-mark"><Layers3 size={18} /></span><strong>GameFlow</strong><Separator orientation="vertical" className="topbar-separator" />
+      {mode === "prototype" ? <div className="topbar-actions" role="group" aria-label="文档操作">
+        <IconTool label="撤销 (Ctrl+Z)" disabled={pending || !canvasDocument} onClick={() => history("undo")}><Undo2 size={15} /></IconTool>
+        <IconTool label="重做 (Ctrl+Shift+Z)" disabled={pending || !canvasDocument} onClick={() => history("redo")}><Redo2 size={15} /></IconTool>
+        <IconTool label="保存 (Ctrl+S)" disabled={pending || !canvasDocument} onClick={save}><Save size={15} /></IconTool>
+      </div> : null}
+      {mode === "prototype" ? <Separator orientation="vertical" className="topbar-separator" /> : null}
       {mode === "prototype" && editingId && page ? <><Button size="sm" variant="ghost" onClick={back}><ArrowLeft size={14} />总览</Button><span className="breadcrumb">/</span></> : null}
       <span className="document-title">{mode === "prototype" ? editingId ? page?.name : canvasDocument?.title ?? "正在打开画布" : "美术工作区"}</span>
       <nav className="mode-switcher" aria-label="工作模式">{([{ id: "prototype", label: "原型", icon: LayoutPanelTop }, { id: "merge", label: "PSD 合并", icon: GitMerge }, { id: "slice", label: "PSD 切图", icon: Scissors }] as const).map(({ icon: Icon, ...item }) => <Tooltip key={item.id}><TooltipTrigger asChild><Button size="icon" variant="ghost" aria-label={item.label} aria-pressed={mode === item.id} className={mode === item.id ? "mode-active" : ""} onClick={() => switchMode(item.id)}><Icon size={16} aria-hidden="true" /></Button></TooltipTrigger><TooltipContent side="bottom">{item.label}</TooltipContent></Tooltip>)}</nav>
-      {mode === "prototype" ? <><span className="sync-status" title={resourceName}>{pending ? "同步中…" : dirty ? "未保存" : <><Check size={12} />{isBrowserPreview ? "已存于浏览器" : "已保存"}</>}</span><IconTool label="保存 (Ctrl+S)" disabled={pending || !canvasDocument} onClick={save}><Save size={15} /></IconTool></> : <span className="sync-status">PSD 与原型独立保存</span>}
+      {mode === "prototype" ? pending || dirty || !isBrowserPreview ? <span className="sync-status" title={resourceName}>{pending ? "同步中…" : dirty ? "未保存" : <><Check size={12} />已保存</>}</span> : null : <span className="sync-status">PSD 与原型独立保存</span>}
     </header>
     <div ref={viewport} hidden={mode !== "prototype"} className={cn("canvas-viewport", (tool === "hand" || spaceHand) && "hand-tool", preview?.kind === "pan" && "is-panning", (preview?.kind === "node" || preview?.kind === "page") && "is-moving")} aria-label={editingId ? "页面编辑画布" : "页面总览画布"}
       onPointerDown={startGesture} onPointerMove={moveGesture} onPointerUp={(event) => finishGesture(event)} onPointerCancel={(event) => finishGesture(event, true)}
@@ -315,14 +328,15 @@ export function App() {
             </article>;
           })}
         </div>
-        {selectedFrame ? <div className="selection-box" style={{ left: visibleCamera.x + selectedFrame.x * visibleCamera.zoom, top: visibleCamera.y + selectedFrame.y * visibleCamera.zoom, width: selectedFrame.width * visibleCamera.zoom, height: selectedFrame.height * visibleCamera.zoom }}>
+        {selectedGeometry?.inverse ? <div className="selection-box" style={{ left: 0, top: 0, width: selectionWidth, height: selectionHeight, transformOrigin: "0 0", transform: `matrix(${selectedGeometry.matrix[0]/selectionX},${selectedGeometry.matrix[1]/selectionX},${selectedGeometry.matrix[2]/selectionY},${selectedGeometry.matrix[3]/selectionY},${visibleCamera.x+selectedGeometry.matrix[4]*visibleCamera.zoom},${visibleCamera.y+selectedGeometry.matrix[5]*visibleCamera.zoom})` }}>
           <span className="selection-label">{renderedNode?.name}{!unlocked ? " · 已锁定" : ""}</span>
           {unlocked ? HANDLES.map((handle) => <button key={handle} className={`resize-handle handle-${handle}`} data-handle={handle} aria-label={`缩放控件 ${handle}`} />) : null}
-          <span className="selection-size">{Math.round(selectedFrame.width)} × {Math.round(selectedFrame.height)}</span>
+          <span className="selection-size">{Math.round(selectedGeometry.local.width)} × {Math.round(selectedGeometry.local.height)}</span>
         </div> : null}
+        {selectedGeometry?.inverse && selectionAnchor ? <span className="selection-anchor" aria-hidden="true" style={{ left: visibleCamera.x+selectionAnchor.x*visibleCamera.zoom, top: visibleCamera.y+selectionAnchor.y*visibleCamera.zoom }} /> : null}
         {editingId && page ? <LayerTree key={page.id} panelRef={panels.leftRef} panelStyle={panels.leftStyle} page={page} selectedId={selectedNode?.id ?? null} reveal={canvasSelection} onSelect={selectNode} onPatch={patchNode} onBack={back} onAdd={addLayer} onDelete={deleteLayer} onMove={moveLayer}
           hasClipboard={!!clipboard} onCopy={copyLayer} onPaste={pasteLayer} onDuplicate={duplicateLayer} onConvert={convertLayer} /> : null}
-        {page && inspectorOpen ? <Inspector panelRef={panels.rightRef} panelStyle={panels.rightStyle} page={page} node={selectedNode} onNode={patchNode} onPage={(transform) => updatePage(page.id, transform)} onClose={() => setInspectorOpen(false)} onEnter={() => enter(page)} onImport={requestImport} /> : null}
+        {page && inspectorOpen ? <Inspector panelRef={panels.rightRef} panelStyle={panels.rightStyle} page={page} node={selectedNode} editingPage={!!editingId} onNode={patchNode} onPage={(transform) => updatePage(page.id, transform)} onClose={() => setInspectorOpen(false)} onEnter={() => enter(page)} onImport={requestImport} /> : null}
         <div className="canvas-context">{editingId ? "页面编辑" : `${canvasDocument.pages.length} 个页面`}<span>{tool === "select" ? editingId ? "拖动控件 · 双击文字修改内容" : "双击页面进入编辑" : tool === "hand" || spaceHand ? "拖动画布" : `点击页面放置${NODE_LABELS[tool]}`}</span></div>
         {canvasDocument.pages.length === 0 ? <div className="empty-canvas"><LayoutPanelTop size={32} /><strong>从第一个页面开始</strong><p>用底部 + 添加游戏界面</p><Button onClick={() => addPage()}><Plus size={15} />添加页面</Button></div> : null}
         <div className="canvas-toolbar floating-panel" onPointerDown={(event) => event.stopPropagation()}>
@@ -335,7 +349,6 @@ export function App() {
             <div className="insert-grid" role="group" aria-label="添加控件">{TOOLS.map(({ type, icon: Icon }) => <button key={type} disabled={!editingId} onClick={() => chooseInsertTool(type)}><Icon size={16} /><span>{NODE_LABELS[type]} <small className="menu-class">({COMPONENTS[type].laya})</small></span></button>)}</div>
           </PopoverContent></Popover>
           <div className="direct-tools">{TOOLS.filter((item) => item.key).map(({ type, icon: Icon, key }) => <IconTool key={type} label={`${NODE_LABELS[type]} (${key})`} disabled={!editingId} active={tool === type} onClick={() => chooseInsertTool(type)}><Icon size={19} /></IconTool>)}</div>
-          <Separator orientation="vertical" /><IconTool label="撤销 (Ctrl+Z)" disabled={pending} onClick={() => history("undo")}><Undo2 size={17} /></IconTool><IconTool label="重做 (Ctrl+Shift+Z)" disabled={pending} onClick={() => history("redo")}><Redo2 size={17} /></IconTool>
           <Separator orientation="vertical" /><IconTool label={inspectorOpen ? "隐藏属性面板" : "显示属性面板"} disabled={!page} active={!!page && inspectorOpen} onClick={() => setInspectorOpen(!inspectorOpen)}><PanelRight size={18} /></IconTool>
         </div>
         <div className="canvas-zoom floating-panel" onPointerDown={(event) => event.stopPropagation()}><IconTool label="缩小" onClick={() => zoomAtCenter(1 / 1.2)}><Minus size={14} /></IconTool><span>{Math.round(camera.zoom * 100)}%</span><IconTool label="放大" onClick={() => zoomAtCenter(1.2)}><Plus size={14} /></IconTool><Separator orientation="vertical" /><IconTool label="适应画布" onClick={() => fit(editingId && page ? [page] : canvasDocument.pages, !!editingId)}><Focus size={16} /></IconTool></div>

@@ -32,6 +32,7 @@ export function pasteNode(page: GameFlowPage, clipboard: NodeClipboard, makeId: 
       next.frame = { ...node.frame, x: node.frame.x + 16, y: node.frame.y + 16, width: Math.max(1, node.frame.width), height: Math.max(1, node.frame.height) };
       next.layout = { ...node.layout, ...Object.fromEntries(CONSTRAINTS.map((key) => [key, null])), widthMode: "explicit", heightMode: "explicit" };
       delete next.layout.crossAxisMode;
+      delete next.layout.positionOffsetX; delete next.layout.positionOffsetY;
       if (parentId) next.parentId = parentId; else delete next.parentId;
     } else next.parentId = mapping.get(node.parentId!)!;
     return next;

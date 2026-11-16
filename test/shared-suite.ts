@@ -17,6 +17,8 @@ import { migrateDocumentElementIds } from "../shared/document-id-migration";
 import { psdTests } from "./psd-suite";
 import { uiLayoutTests } from "./ui-layout-suite";
 import { nodeVariableTests } from "./node-variable-suite";
+import { uiTransformTests } from "./ui-transform-suite";
+import { pageRootLayoutTests } from "./page-root-layout-suite";
 
 type TestCase = { name: string; run: () => void | Promise<void> };
 const tests: TestCase[] = [];
@@ -588,6 +590,8 @@ test("invalid source blocks editing and a rejected transaction reloads host auth
 tests.push(...psdTests);
 tests.push(...uiLayoutTests);
 tests.push(...nodeVariableTests);
+tests.push(...uiTransformTests);
+tests.push(...pageRootLayoutTests);
 export const testsCompleted = (async () => {
   let failed = 0;
   for (const item of tests) {

@@ -1,17 +1,19 @@
 import type { CSSProperties } from "react";
 import { ImageIcon } from "lucide-react";
-import type { Frame, GameFlowNode, GameFlowPage } from "../../shared/model";
+import type { GameFlowNode, GameFlowPage } from "../../shared/model";
 import { defaultStyle, inheritedFlag } from "../../shared/editor-ops";
-import { intersectFrames, resolvePageLayout, type ResolvedNode } from "../../shared/ui-layout";
+import { resolvePageLayout, type ResolvedNode } from "../../shared/ui-layout";
+import { intersectPolygons, mapPoint } from "../../shared/ui-transform";
 
 export { orderedNodes } from "../../shared/editor-ops";
 
-export function NodeView({ page, node, frame, geometry }: { page: GameFlowPage; node: GameFlowNode; frame?: Frame; geometry?: ResolvedNode }) {
+export function NodeView({ page, node, geometry }: { page: GameFlowPage; node: GameFlowNode; geometry?: ResolvedNode }) {
   if (inheritedFlag(page, node, "hidden")) return null;
   const appearance = { ...defaultStyle(node.type), ...node.style };
   const resolved = geometry ?? resolvePageLayout(page).nodes.get(node.id)!;
-  const bounds = frame ?? resolved.absolute;
-  const clipped = resolved.clip ? intersectFrames(resolved.clip, bounds) : undefined;
+  const bounds = resolved.local;
+  const clipped = resolved.clipPolygon ? intersectPolygons(resolved.corners, resolved.clipPolygon) : undefined;
+  const clipLocal = clipped && resolved.inverse ? clipped.map(p => mapPoint(resolved.inverse!, p)) : undefined;
   const widget = node.widget ?? {};
   const ratio = Math.max(0, Math.min(1, ((widget.value ?? widget.min ?? 0) - (widget.min ?? 0)) / ((widget.max ?? 1) - (widget.min ?? 0))));
   let opacity = appearance.opacity;
@@ -23,7 +25,8 @@ export function NodeView({ page, node, frame, geometry }: { page: GameFlowPage; 
     parentId = parent.parentId;
   }
   const style: CSSProperties = {
-    left: bounds.x, top: bounds.y, width: bounds.width, height: bounds.height,
+    left: 0, top: 0, width: bounds.width, height: bounds.height,
+    transformOrigin: "0 0", transform: `matrix(${resolved.matrix.join(",")})`,
     backgroundColor: appearance.fill, color: appearance.color,
     border: `${appearance.borderWidth}px solid ${appearance.borderColor}`,
     borderRadius: appearance.radius, fontSize: appearance.fontSize, fontWeight: appearance.fontWeight,
@@ -31,8 +34,8 @@ export function NodeView({ page, node, frame, geometry }: { page: GameFlowPage; 
     opacity: opacity * (widget.disabled ? 0.45 : 1),
     overflow: node.type === "text" && widget.overflow === "visible" ? "visible" : "hidden",
     alignItems: widget.valign === "top" ? "flex-start" : widget.valign === "bottom" ? "flex-end" : node.type === "text" && !widget.valign ? "flex-start" : "center",
-    ...(clipped ? { clipPath: `inset(${Math.max(0, clipped.y - bounds.y)}px ${Math.max(0, bounds.x + bounds.width - clipped.x - clipped.width)}px ${Math.max(0, bounds.y + bounds.height - clipped.y - clipped.height)}px ${Math.max(0, clipped.x - bounds.x)}px)` } : {}),
-    ...(clipped && (!clipped.width || !clipped.height) ? { visibility: "hidden" } : {})
+    ...(clipLocal?.length ? { clipPath: `polygon(${clipLocal.map(p => `${p.x}px ${p.y}px`).join(",")})` } : {}),
+    ...(!resolved.inverse || (clipped && clipped.length < 3) ? { visibility: "hidden" } : {})
   };
   return <div className={`node-body node-${node.type}`} data-node-id={node.id} data-locked={inheritedFlag(page, node, "locked")} style={style}>
     {node.type === "image" ? node.imageData

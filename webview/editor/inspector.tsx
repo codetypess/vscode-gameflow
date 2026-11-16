@@ -1,18 +1,18 @@
 import { useState, type CSSProperties } from "react";
 import { AlignCenter, AlignLeft, AlignRight, ChevronDown, ChevronUp, ImagePlus, LockKeyhole, X } from "lucide-react";
 import type { Frame, GameFlowNode, GameFlowPage, NodeStyle, PageRootType } from "../../shared/model";
-import { defaultStyle, descendants, inheritedFlag, NODE_LABELS, reparentNode } from "../../shared/editor-ops";
+import { defaultStyle, inheritedFlag, NODE_LABELS } from "../../shared/editor-ops";
 import { Button } from "../components/ui/button";
 import { Separator } from "../components/ui/separator";
-import { Field, ColorField } from "./fields";
+import { Field, ColorField, NumericPropertyRow, SliderPropertyRow } from "./fields";
 import { VariableField } from "./variable-field";
-import { LayoutProperties, WidgetProperties } from "./ui-properties";
-import { canHaveChildren, COMPONENTS, flowType, PAGE_ROOTS, PAGE_ROOT_TYPES, pageRootType } from "../../shared/ui-components";
+import { LayoutProperties, PageLayoutProperties, WidgetProperties } from "./ui-properties";
+import { COMPONENTS, flowType, PAGE_ROOTS, PAGE_ROOT_TYPES, pageRootType } from "../../shared/ui-components";
 import { resolvePageLayout, constraintsFor, managedAxis } from "../../shared/ui-layout";
-import { editNodeFrame } from "../../shared/ui-edit";
+import { editNodeFrame, setNodeAnchor } from "../../shared/ui-edit";
 
-export function Inspector({ page, node, onNode, onPage, onClose, onEnter, onImport, panelRef, panelStyle }: {
-  page: GameFlowPage; node: GameFlowNode | null;
+export function Inspector({ page, node, editingPage, onNode, onPage, onClose, onEnter, onImport, panelRef, panelStyle }: {
+  page: GameFlowPage; node: GameFlowNode | null; editingPage: boolean;
   panelRef?: (element: HTMLElement | null) => void; panelStyle?: CSSProperties;
   onNode: (id: string, patch: Partial<GameFlowNode>) => void;
   onPage: (transform: (page: GameFlowPage) => GameFlowPage) => void;
@@ -26,8 +26,8 @@ export function Inspector({ page, node, onNode, onPage, onClose, onEnter, onImpo
   const identityLabel = node ? `${NODE_LABELS[node.type]}(${COMPONENTS[node.type].laya})` : `${page.kind === "modal" ? "弹窗" : "页面"}(${pageRootType(page)})`;
   const appearance = { ...defaultStyle(node?.type ?? "rectangle"), ...node?.style };
   const setFrame = (key: keyof Frame, value: string) => {
-    const next = { ...frame, [key]: Number(value) };
-    if (node) onPage((item) => editNodeFrame(item, node.id, next)); else onPage((item) => ({ ...item, frame: next }));
+    if (node) onPage((item) => editNodeFrame(item, node.id, { ...frame, [key]: Number(value) }));
+    else if (!editingPage || key === "width" || key === "height") onPage((item) => ({ ...item, frame: { ...item.frame, [key]: Number(value) } }));
   };
   const setStyle = (patch: Partial<NodeStyle>) => { if (node) onNode(node.id, { style: { ...node.style, ...patch } }); };
   return <aside ref={panelRef} className="inspector floating-panel" aria-label="悬浮属性面板" style={panelStyle} onPointerDown={(event) => event.stopPropagation()}>
@@ -44,12 +44,13 @@ export function Inspector({ page, node, onNode, onPage, onClose, onEnter, onImpo
         if (node) onNode(node.id, { name: name.trim() }); else onPage((item) => ({ ...item, name: name.trim() }));
       }} />
       {node ? <VariableField page={page} node={node} disabled={locked} onCommit={(variableName) => onNode(node.id, { variableName })} /> : null}
-      <div className="property-section-title">位置与尺寸</div>
-      <div className="property-grid">{(["x", "y", "width", "height"] as const).map((key) => <Field key={key} label={key === "width" ? "W" : key === "height" ? "H" : key.toUpperCase()} type="number" integer value={frame[key]} min={key === "width" || key === "height" ? 8 : undefined} disabled={locked || (!!node && (key === "x" || key === "y") && (managedAxis(parent, key) || (flowType(parent) !== "free" && node.layout?.crossAxisMode !== "explicit" && !constraintsFor(key).some((k) => node.layout?.[k] != null))))} onCommit={(value) => setFrame(key, value)} />)}</div>
+      <div className="property-section-title">基础属性</div>
+      <NumericPropertyRow label="位置" integer disabled={locked} fields={(["x", "y"] as const).map(key => ({ axis: key.toUpperCase(), ariaLabel: key.toUpperCase(), value: !node && editingPage ? 0 : frame[key], readOnly: !node && editingPage, disabled: !!node && (managedAxis(parent, key) || (flowType(parent) !== "free" && node.layout?.crossAxisMode !== "explicit" && !constraintsFor(key).some(k => node.layout?.[k] != null))), onCommit: value => setFrame(key, String(value)) }))} />
+      <NumericPropertyRow label="尺寸" integer disabled={locked} fields={(["width", "height"] as const).map(key => ({ axis: key === "width" ? "W" : "H", ariaLabel: key === "width" ? "W" : "H", value: frame[key], min: 8, onCommit: value => setFrame(key, String(value)) }))} />
       {node ? <>
-        <label className="property-field"><span>父容器</span><select aria-label="父容器" disabled={locked} value={node.parentId ?? ""} onChange={(event) => onPage((item) => reparentNode(item, node.id, event.target.value || undefined))}>
-          <option value="">页面根节点</option>{page.nodes.filter((item) => canHaveChildren(item) && !inheritedFlag(page, item, "locked") && !descendants(page, node.id).has(item.id)).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-        </select></label>
+        {([{ label: "锚点", keys: ["anchorX", "anchorY"], initial: 0 }, { label: "缩放", keys: ["scaleX", "scaleY"], initial: 1 }, { label: "倾斜", keys: ["skewX", "skewY"], initial: 0 }, { label: "旋转", keys: ["rotation"], initial: 0 }] as const).map(row => <NumericPropertyRow key={row.label} label={row.label} precision={2} disabled={locked} fields={row.keys.map((key, i) => ({ axis: key === "rotation" ? "°" : i ? "Y" : "X", ariaLabel: key === "rotation" ? "旋转角度" : `${row.label} ${i ? "Y" : "X"}`, value: node.transform?.[key] ?? row.initial, ...(row.label === "锚点" ? { min: 0, max: 1 } : {}), onCommit: value => key === "anchorX" || key === "anchorY" ? onPage(item => setNodeAnchor(item, node.id, { [key]: value })) : onNode(node.id, { transform: { ...node.transform, [key]: value } }) }))} />)}
+        <SliderPropertyRow label="不透明度" value={appearance.opacity} disabled={locked} onCommit={opacity => setStyle({ opacity })} />
+        {!geometry.nodes.get(node.id)!.inverse ? <p className="property-hint">变换使控件压扁，画布拖动暂不可用；调整缩放或倾斜可恢复。</p> : null}
         {locked ? <div className="locked-message"><LockKeyhole size={13} />控件已锁定，请在图层树中解锁</div> : null}
         <Separator />
         <LayoutProperties page={page} node={node} locked={locked} onNode={onNode} onPage={onPage} />
@@ -72,13 +73,14 @@ export function Inspector({ page, node, onNode, onPage, onClose, onEnter, onImpo
         <ColorField label="描边" value={appearance.borderColor} disabled={locked} onCommit={(borderColor) => setStyle({ borderColor })} />
         <div className="property-grid"><Field label="描边宽度" type="number" min={0} max={40} value={appearance.borderWidth} disabled={locked} onCommit={(value) => setStyle({ borderWidth: Number(value) })} />
           <Field label="圆角" type="number" min={0} value={appearance.radius} disabled={locked} onCommit={(value) => setStyle({ radius: Number(value) })} /></div>
-        <Field label="不透明度 %" type="number" min={0} max={100} value={Math.round(appearance.opacity * 100)} disabled={locked} onCommit={(value) => setStyle({ opacity: Number(value) / 100 })} />
       </> : <>
         <label className="property-field"><span>页面类型</span><select aria-label="页面类型" value={pageRootType(page)} onChange={(event) => { const rootType = event.target.value as PageRootType; onPage((item) => ({ ...item, rootType })); }}>
           {PAGE_ROOT_TYPES.map((type) => <option key={type} value={type}>{PAGE_ROOTS[type].label} ({type})</option>)}
         </select></label>
         <label className="property-field"><span>页面形式</span><select aria-label="页面形式" value={page.kind} onChange={(event) => { const kind = event.target.value as "screen" | "modal"; onPage((item) => ({ ...item, kind })); }}><option value="screen">页面</option><option value="modal">弹窗</option></select></label>
         <ColorField label="页面背景" value={page.background ?? "#ffffff"} onCommit={(background) => onPage((item) => ({ ...item, background }))} />
+        <Separator />
+        <PageLayoutProperties page={page} onPage={onPage} />
         <Button size="sm" variant="outline" onClick={onEnter}>进入页面编辑</Button>
       </>}
     </div> : null}

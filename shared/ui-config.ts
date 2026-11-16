@@ -1,17 +1,33 @@
 export const CONSTRAINTS = ["left", "right", "centerX", "top", "bottom", "centerY"] as const;
 export type Constraint = typeof CONSTRAINTS[number];
-export interface NodeLayout {
+export interface ConstraintLayout {
   left?: number | null; right?: number | null; centerX?: number | null;
   top?: number | null; bottom?: number | null; centerY?: number | null;
   layoutUnit?: "absolute" | "percent";
+}
+export interface NodeLayout extends ConstraintLayout {
   widthMode?: "explicit" | "measured"; heightMode?: "explicit" | "measured";
   crossAxisMode?: "aligned" | "explicit";
+  positionOffsetX?: number; positionOffsetY?: number;
   paddingLeft?: number; paddingRight?: number; paddingTop?: number; paddingBottom?: number;
   gap?: number; gapX?: number; gapY?: number;
   align?: "left" | "center" | "right" | "justify";
   valign?: "top" | "middle" | "bottom" | "justify";
   direction?: "horizontal" | "vertical"; wrapCount?: number;
   clipContent?: boolean; scrollX?: number; scrollY?: number;
+}
+
+/** Root constraints describe a future runtime parent, independently of canvas placement. */
+export function validateRootLayout(raw: unknown, path: string, errors: string[]): boolean {
+  if (raw === undefined) return true;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) { errors.push(`${path} must be an object`); return false; }
+  const before = errors.length;
+  for (const [key, value] of Object.entries(raw)) {
+    const valid = key === "layoutUnit" ? value === "absolute" || value === "percent"
+      : CONSTRAINTS.includes(key as Constraint) && (value === null || typeof value === "number" && Number.isFinite(value));
+    if (!valid) errors.push(`${path}.${key} is invalid`);
+  }
+  return errors.length === before;
 }
 export interface WidgetProps {
   selected?: boolean; disabled?: boolean;
@@ -35,7 +51,7 @@ export function validateUIConfig(node: Record<string, unknown>, path: string, er
       align: ["left", "center", "right", "justify"], valign: ["top", "middle", "bottom", "justify"], direction: ["horizontal", "vertical"]
     } : { direction: ["horizontal", "vertical"], overflow: ["visible", "hidden"], valign: ["top", "middle", "bottom"], imageFit: ["contain", "cover", "fill"] };
     const booleans = group === "layout" ? ["clipContent"] : ["selected", "disabled", "password", "wordWrap"];
-    const numbers = group === "layout" ? [...CONSTRAINTS, "paddingLeft", "paddingRight", "paddingTop", "paddingBottom", "gap", "gapX", "gapY", "wrapCount", "scrollX", "scrollY"] : ["min", "max", "value", "maxChars", "selectedIndex"];
+    const numbers = group === "layout" ? [...CONSTRAINTS, "paddingLeft", "paddingRight", "paddingTop", "paddingBottom", "gap", "gapX", "gapY", "wrapCount", "scrollX", "scrollY", "positionOffsetX", "positionOffsetY"] : ["min", "max", "value", "maxChars", "selectedIndex"];
     for (const [key, value] of Object.entries(values)) {
       let valid = false;
       if (Object.hasOwn(enums, key)) valid = typeof value === "string" && enums[key].includes(value);

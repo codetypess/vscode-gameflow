@@ -1,15 +1,27 @@
-import type { GameFlowNode, GameFlowPage, NodeLayout, WidgetProps, NodeType } from "../../shared/model";
+import type { ConstraintLayout, GameFlowNode, GameFlowPage, NodeLayout, WidgetProps, NodeType } from "../../shared/model";
 import { canHaveChildren, COMPONENTS, flowType } from "../../shared/ui-components";
 import { AXES, managedAxis, resolvePageLayout } from "../../shared/ui-layout";
 import { changeContainerType, setNodeConstraint } from "../../shared/ui-edit";
-import { Field } from "./fields";
+import { Field, NumericPropertyRow, ReadOnlyPropertyRow } from "./fields";
 import { ConstraintControl, ContainerAlignment, PaddingControl } from "./layout-controls";
 
-function Select({ label, value, options, disabled, onChange }: { label: string; value: string; options: readonly (readonly [string, string])[]; disabled?: boolean; onChange: (value: string) => void }) {
-  return <label className="property-field"><span>{label}</span><select aria-label={label} value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)}>{options.map(([key, name]) => <option key={key} value={key}>{name}</option>)}</select></label>;
+function Select({ label, value, options, disabled, compact, onChange }: { label: string; value: string; options: readonly (readonly [string, string])[]; disabled?: boolean; compact?: boolean; onChange: (value: string) => void }) {
+  return <label className={`property-field${compact ? " compact-property-field" : ""}`}><span>{label}</span><select aria-label={label} value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)}>{options.map(([key, name]) => <option key={key} value={key}>{name}</option>)}</select></label>;
 }
 function Toggle({ label, value, disabled, onChange }: { label: string; value: boolean; disabled?: boolean; onChange: (value: boolean) => void }) {
   return <label className="property-toggle"><input type="checkbox" checked={value} disabled={disabled} onChange={(e) => onChange(e.target.checked)} /><span>{label}</span></label>;
+}
+
+export function PageLayoutProperties({ page, onPage }: {
+  page: GameFlowPage; onPage: (transform: (page: GameFlowPage) => GameFlowPage) => void;
+}) {
+  const layout = page.layout ?? {};
+  const set = (patch: Partial<ConstraintLayout>) => onPage(p => ({ ...p, layout: { ...p.layout, ...patch } }));
+  return <details className="property-details" open><summary>根节点布局</summary>
+    <Select compact label="约束单位" value={layout.layoutUnit ?? "absolute"} options={[["absolute", "像素"], ["percent", "百分比 %"]]} onChange={value => set({ layoutUnit: value as "absolute" | "percent" })} />
+    <ConstraintControl layout={layout} disabledX={false} disabledY={false} onChange={set} onToggle={(key, enabled) => onPage(p => ({ ...p, layout: { ...p.layout, [key]: enabled ? p.layout?.[key] ?? 0 : null } }))} />
+    <p className="property-hint">相对于游戏父容器生效，画布保持设计尺寸。切换单位保留数值。</p>
+  </details>;
 }
 
 export function LayoutProperties({ page, node, locked, onNode, onPage }: {
@@ -21,11 +33,11 @@ export function LayoutProperties({ page, node, locked, onNode, onPage }: {
   const set = (patch: Partial<NodeLayout>) => onNode(node.id, { layout: { ...layout, ...patch } });
   return <>
     <details className="property-details" open><summary>尺寸与约束</summary>
-      <div className="property-grid">{(["x", "y"] as const).map((axis) => {
+      <ReadOnlyPropertyRow label="尺寸来源" fields={(["x", "y"] as const).map((axis) => {
         const source = resolved[axis === "x" ? "widthSource" : "heightSource"], label = axis === "x" ? "宽度来源" : "高度来源";
-        return <label className="property-field size-source" key={axis}><span>{label}</span><input aria-label={label} readOnly value={{ explicit: "显式尺寸", measured: "内容尺寸", stretch: "双边拉伸" }[source]} /></label>;
-      })}</div>
-      <Select label="约束单位" value={layout.layoutUnit ?? "absolute"} disabled={locked} options={[["absolute", "像素"], ["percent", "百分比 %"]]} onChange={(value) => {
+        return { axis: axis === "x" ? "W" : "H", ariaLabel: label, value: { explicit: "显式尺寸", measured: "内容尺寸", stretch: "双边拉伸" }[source] };
+      })} />
+      <Select compact label="约束单位" value={layout.layoutUnit ?? "absolute"} disabled={locked} options={[["absolute", "像素"], ["percent", "百分比 %"]]} onChange={(value) => {
         const next = { ...layout, layoutUnit: value as "absolute" | "percent" };
         const parentFrame = parent ? resolvePageLayout(page).nodes.get(parent.id)!.local : page.frame;
         for (const axis of ["x", "y"] as const) {
@@ -46,11 +58,11 @@ export function LayoutProperties({ page, node, locked, onNode, onPage }: {
       {flow === "grid" ? <>
         <Select label="排列方向" value={layout.direction ?? "horizontal"} disabled={locked} options={[["horizontal", "横向优先"], ["vertical", "纵向优先"]]} onChange={(v) => set({ direction: v as "horizontal" | "vertical" })} />
         <Field label={layout.direction === "vertical" ? "每列数量" : "每行数量"} type="number" integer min={1} max={1000} value={layout.wrapCount ?? (node.type === "list" ? 4 : 2)} disabled={locked} onCommit={(v) => set({ wrapCount: Math.round(Number(v)) })} />
-        <div className="property-grid"><Field label="水平间距" type="number" integer value={layout.gapX ?? 0} disabled={locked} onCommit={(v) => set({ gapX: Number(v) })} /><Field label="垂直间距" type="number" integer value={layout.gapY ?? 0} disabled={locked} onCommit={(v) => set({ gapY: Number(v) })} /></div>
+        <NumericPropertyRow label="间距" integer disabled={locked} fields={[{ axis: "X", ariaLabel: "水平间距", value: layout.gapX ?? 0, onCommit: gapX => set({ gapX }) }, { axis: "Y", ariaLabel: "垂直间距", value: layout.gapY ?? 0, onCommit: gapY => set({ gapY }) }]} />
       </> : null}
       {flow !== "free" ? <ContainerAlignment layout={layout} flow={flow} disabled={locked} onChange={set} /> : null}
       <Toggle label="裁剪超出内容" value={layout.clipContent ?? node.type === "panel"} disabled={locked} onChange={(v) => set({ clipContent: v })} />
-      {node.type === "panel" || node.type === "list" ? <div className="property-grid"><Field label="滚动 X" type="number" integer min={0} value={layout.scrollX ?? 0} disabled={locked} onCommit={(v) => set({ scrollX: Number(v) })} /><Field label="滚动 Y" type="number" integer min={0} value={layout.scrollY ?? 0} disabled={locked} onCommit={(v) => set({ scrollY: Number(v) })} /></div> : null}
+      {node.type === "panel" || node.type === "list" ? <NumericPropertyRow label="滚动" integer disabled={locked} fields={[{ axis: "X", ariaLabel: "滚动 X", min: 0, value: layout.scrollX ?? 0, onCommit: scrollX => set({ scrollX }) }, { axis: "Y", ariaLabel: "滚动 Y", min: 0, value: layout.scrollY ?? 0, onCommit: scrollY => set({ scrollY }) }]} /> : null}
       {node.type === "list" ? <p className="property-hint">静态列表项可在层级树中编辑、复制和排序。</p> : null}
     </details> : null}
   </>;

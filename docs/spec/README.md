@@ -34,6 +34,7 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 ## Active Work Items
 
 - [prototype-layaui-prefab-psd.md](prototype-layaui-prefab-psd.md) — Draft：原型布局与 LayaUI 对齐、新建/增量更新已有 Prefab、字段管理与冲突协调、PSD 导出/关联对照及美术回流；未替代当前实现基线。
+- [laya-control-asset-bindings.md](laya-control-asset-bindings.md) — Draft：按当前 xq-client 节点皮肤契约设计 Slider/CheckBox/Radio 部件、RadioGroup 引用，以及原型、PSD 切图与 Prefab 的资产绑定闭环。
 - [psd-three-way-merge.md](psd-three-way-merge.md) — Draft：左侧两份 PSD 的图层树/预览、右侧合并结果；共同基础版本、逐节点采用、PSD 依赖和结果输出。
 
 The completed [workspace-modes-psd-slicing.md](workspace-modes-psd-slicing.md) records three compact icon modes, real PSD import, slice/nine-grid configuration, same-name sidecars, metadata-only PSD copies and manual selection preview trees. Build, 35 shared tests, browser interactions and independent PSD output parsing passed. Extension Host/Photoshop validation and full merge/export delivery remain separate follow-ups.
@@ -67,6 +68,16 @@ The completed [node-variable-names.md](node-variable-names.md) adds optional v2 
 The completed [canvas-layer-selection-reveal.md](canvas-layer-selection-reveal.md) reveals canvas-selected prototype controls in the layer tree, expanding ancestors and minimally scrolling even for repeated picks of the same node. Search is retained when it includes the target and cleared otherwise. The 95 shared tests, production build and browser offscreen/collapse/repeat/filter/scroll regression checks passed; component automation remains unavailable.
 
 The completed [constraint-offset-placement.md](constraint-offset-placement.md) aligns constraint inputs with their diagram guides, uses integer direct editing for geometry/layout fields, and converts anchor toggles from current geometry to preserve position and size. Final flow cross-axis removal preserves manual coordinates through optional v2 `crossAxisMode`; new-parent operations reset it. All 102 shared tests, production build and browser placement/toggle/unit/input/lock/history/narrow-panel checks passed; DOM component automation remains unavailable.
+
+The completed [prototype-node-transforms.md](prototype-node-transforms.md) adds shared Laya anchor/scale/skew/rotation geometry, transformed clipping and inverse editing, plus reusable numeric rows. Transform fields show at most two decimals without trailing zeros; numeric focus selects the current value, and a hollow circle marks the anchor with aligned handle centers. The parent dropdown is removed in favor of tree dragging. All 114 shared tests, production build and browser input/selection/drag/resize/lock/history/save-reload checks passed; real engine and VS Code host verification remain separate.
+
+The completed [anchor-position-preservation.md](anchor-position-preservation.md) changes anchor editing to compensate parent-space coordinates and preserve visual geometry, including constrained/flow nodes and measured parents. Shared inverse editing consumes internal position offsets, and new-parent operations absorb them into local geometry. All 121 tests, production build and browser matrix/coordinate/history/save-reload checks passed; it supersedes the initial fixed-X/Y editing policy.
+
+The completed [basic-properties-opacity.md](basic-properties-opacity.md) renames the geometry group to Basic Properties and moves node opacity into a reusable shadcn/ui slider plus numeric input, using 0–1 with up to two decimals. All 121 shared tests, production build and browser drag/keyboard/precision/lock/history/save-reload checks passed; no model or protocol changes.
+
+The completed [page-root-constraints.md](page-root-constraints.md) adds optional v2 root constraints for all page classes, preserving canvas design geometry and existing history/save flows. It also combines size sources into compact readonly W/H fields and aligns the unit select at the same height and left edge with an 8px row gap. All 127 shared tests, production build and browser geometry/history/reload/lock/alignment checks passed; runtime parent preview and Prefab generation remain separate.
+
+The completed [page-root-local-position.md](page-root-local-position.md) passes editing scope to the Inspector so page roots show readonly local 0/0 inside a page and editable canvas placement in overview. Keyed size edits preserve overview coordinates. All 127 existing shared tests, production build and browser scope/size/history/save-reload/child-editing regression checks passed; DOM component automation is unavailable.
 
 The completed [simplified-prototype-editor.md](simplified-prototype-editor.md), [extension-scaffold.md](extension-scaffold.md), [canvas-insert-toolbar.md](canvas-insert-toolbar.md), [canvas-navigation-inputs.md](canvas-navigation-inputs.md), [infinite-canvas-prototype.md](infinite-canvas-prototype.md) and [canvas-bottom-toolbar.md](canvas-bottom-toolbar.md) record implementation and prototype checks; their lasting rules are incorporated in the numbered baseline specs.
 

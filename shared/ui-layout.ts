@@ -1,13 +1,14 @@
 import type { Frame, GameFlowNode, GameFlowPage } from "./model";
 import { canHaveChildren, flowType } from "./ui-components";
 import type { Constraint } from "./ui-config";
+import { axisAnchor, axisScale, framePolygon, IDENTITY, intersectPolygons, inverse, multiply, nodeMatrix, polygonBounds, translation, type Matrix, type Point } from "./ui-transform";
 
 export type SizeSource = "explicit" | "measured" | "stretch";
-export interface ResolvedNode { local: Frame; absolute: Frame; widthSource: SizeSource; heightSource: SizeSource; clip?: Frame }
+export interface ResolvedNode { local: Frame; absolute: Frame; matrix: Matrix; parentMatrix: Matrix; inverse: Matrix | null; corners: Point[]; clipPolygon?: Point[]; widthSource: SizeSource; heightSource: SizeSource; clip?: Frame }
 export interface LayoutResult { nodes: Map<string, ResolvedNode>; issues: { nodeId: string; message: string }[] }
 export const AXES = {
-  x: { size: "width", mode: "widthMode", leading: "left", trailing: "right", center: "centerX", padStart: "paddingLeft", padEnd: "paddingRight", scroll: "scrollX" },
-  y: { size: "height", mode: "heightMode", leading: "top", trailing: "bottom", center: "centerY", padStart: "paddingTop", padEnd: "paddingBottom", scroll: "scrollY" }
+  x: { size: "width", mode: "widthMode", leading: "left", trailing: "right", center: "centerX", padStart: "paddingLeft", padEnd: "paddingRight", scroll: "scrollX", positionOffset: "positionOffsetX" },
+  y: { size: "height", mode: "heightMode", leading: "top", trailing: "bottom", center: "centerY", padStart: "paddingTop", padEnd: "paddingBottom", scroll: "scrollY", positionOffset: "positionOffsetY" }
 } as const;
 export type Axis = keyof typeof AXES;
 export function constraintsFor(axis: Axis): Constraint[] { const a = AXES[axis]; return [a.leading, a.trailing, a.center]; }
@@ -19,7 +20,7 @@ export function intersectFrames(a: Frame, b: Frame): Frame {
   return { x, y, width: Math.max(0, Math.min(a.x + a.width, b.x + b.width) - x), height: Math.max(0, Math.min(a.y + a.height, b.y + b.height) - y) };
 }
 
-/** LayaUI layout for the prototype's unscaled, unrotated coordinate space. No DOM measurements. */
+/** Resolve layout in parent space, then compose affine geometry without DOM measurements. */
 export function resolvePageLayout(page: GameFlowPage): LayoutResult {
   const result: LayoutResult = { nodes: new Map(), issues: [] };
   const byId = new Map(page.nodes.map((n) => [n.id, n]));
@@ -52,7 +53,7 @@ export function resolvePageLayout(page: GameFlowPage): LayoutResult {
       if (managedAxis(parent, axis) && has(n, axis)) fail(`${n.name}：父容器排布管理${axis === "x" ? "水平" : "垂直"}轴，请清除该轴约束`);
       if (s === "stretch") {
         const p = content(parent, axis);
-        value = p.size - offset(n, a.leading, p.size) - offset(n, a.trailing, p.size);
+        value = (p.size - offset(n, a.leading, p.size) - offset(n, a.trailing, p.size)) / (axisScale(n.transform, axis) || .01);
       } else if (s === "measured") {
         const items = children.get(n.id) ?? [], flow = flowType(n), [start, end] = pad(n, axis);
         if (canHaveChildren(n)) {
@@ -64,7 +65,7 @@ export function resolvePageLayout(page: GameFlowPage): LayoutResult {
               fail(`${n.name}：内容${axis === "x" ? "宽度" : "高度"}依赖 ${child.name} 的同轴约束，请使用固定尺寸或清除约束`);
             }
           }
-          const lengths = items.map((child) => size(child, axis).value);
+          const lengths = items.map((child) => size(child, axis).value * (flow === "grid" ? Math.abs(axisScale(child.transform, axis)) : axisScale(child.transform, axis)));
           if (main) {
             const justify = axis === "x" ? l?.align === "justify" : l?.valign === "justify";
             value = lengths.reduce((sum, v) => sum + v, 0) + Math.max(0, items.length - 1) * (justify ? 0 : l?.gap ?? 0);
@@ -96,11 +97,12 @@ export function resolvePageLayout(page: GameFlowPage): LayoutResult {
   };
   const position = (n: GameFlowNode, axis: Axis): number => {
     const a = AXES[axis], l = n.layout, parent = byId.get(n.parentId ?? ""), flow = flowType(parent);
-    const length = size(n, axis).value;
+    const rawLength = size(n, axis).value, scale = axisScale(n.transform, axis);
+    const length = rawLength * scale, pivot = axisAnchor(n.transform, axis) * length;
     const p = content(parent, axis);
     if (parent && flow !== "free") {
       const items = children.get(parent.id) ?? [], index = items.indexOf(n), pl = parent.layout;
-      const lengths = items.map((child) => size(child, axis).value);
+      const lengths = items.map((child) => size(child, axis).value * (flow === "grid" ? Math.abs(axisScale(child.transform, axis)) : axisScale(child.transform, axis)));
       const align = axis === "x" ? pl?.align ?? "left" : pl?.valign ?? "top";
       const factor = ["center", "middle"].includes(align) ? 0.5 : ["right", "bottom"].includes(align) ? 1 : 0;
       if (managedAxis(parent, axis)) {
@@ -110,7 +112,7 @@ export function resolvePageLayout(page: GameFlowPage): LayoutResult {
           const cellIndex = first ? index % wrap : Math.floor(index / wrap);
           const extent = gridExtent(parent, axis, lengths);
           if (extent < 0) fail(`${parent.name}：网格尺寸不能为负`);
-          return p.start + (p.size - extent) * factor + cellIndex * (Math.max(0, ...lengths) + (pl?.[axis === "x" ? "gapX" : "gapY"] ?? 0));
+          return p.start + (p.size - extent) * factor + cellIndex * (Math.max(0, ...lengths) + (pl?.[axis === "x" ? "gapX" : "gapY"] ?? 0)) + pivot - Math.min(0, length);
         }
         const total = lengths.reduce((sum, v) => sum + v, 0), gaps = Math.max(0, lengths.length - 1);
         const gap = align === "justify" ? gaps ? (p.size - total) / gaps : 0 : pl?.gap ?? 0;
@@ -119,9 +121,9 @@ export function resolvePageLayout(page: GameFlowPage): LayoutResult {
       if (!has(n, axis)) return l?.crossAxisMode === "explicit" ? n.frame[axis] : p.start + (p.size - length) * factor;
     }
     if (has(n, axis) && parent && source(parent, axis) === "measured" && (l?.layoutUnit === "percent" || l?.[a.trailing] != null || l?.[a.center] != null)) fail(`${n.name}：相对约束需要父容器固定尺寸`);
-    if (l?.[a.center] != null) return Math.round(p.start + (p.size - length) / 2 + offset(n, a.center, p.size));
-    if (l?.[a.leading] != null) return Math.round(p.start + offset(n, a.leading, p.size));
-    if (l?.[a.trailing] != null) return Math.round(p.start + p.size - length - offset(n, a.trailing, p.size));
+    if (l?.[a.center] != null) return Math.round(p.start + (p.size - length) / 2 + offset(n, a.center, p.size) + pivot);
+    if (l?.[a.leading] != null) return Math.round(p.start + offset(n, a.leading, p.size) + pivot);
+    if (l?.[a.trailing] != null) return Math.round(p.start + p.size - length - offset(n, a.trailing, p.size) + pivot);
     return n.frame[axis];
   };
   const building = new Set<string>();
@@ -141,12 +143,15 @@ export function resolvePageLayout(page: GameFlowPage): LayoutResult {
         sources[axis === "x" ? "widthSource" : "heightSource"] = "explicit";
         result.issues.push({ nodeId: n.id, message: error instanceof Error ? error.message : String(error) });
       }
+      local[axis] += n.layout?.[AXES[axis].positionOffset] ?? 0;
     }
     const parent = byId.get(n.parentId ?? ""), parentGeometry = parent ? resolve(parent) : undefined;
-    const absolute = { ...local, x: local.x + (parentGeometry?.absolute.x ?? 0) - (parent?.layout?.scrollX ?? 0), y: local.y + (parentGeometry?.absolute.y ?? 0) - (parent?.layout?.scrollY ?? 0) };
-    let clip = parentGeometry?.clip;
-    if (parent && parentGeometry && (parent.layout?.clipContent ?? parent.type === "panel")) clip = clip ? intersectFrames(clip, parentGeometry.absolute) : parentGeometry.absolute;
-    const resolved = { local, absolute, ...sources, ...(clip ? { clip } : {}) };
+    const parentMatrix = multiply(parentGeometry?.matrix ?? IDENTITY, translation(-(parent?.layout?.scrollX ?? 0), -(parent?.layout?.scrollY ?? 0)));
+    const matrix = multiply(parentMatrix, nodeMatrix(local, n.transform));
+    const corners = framePolygon(matrix, local.width, local.height), absolute = polygonBounds(corners);
+    let clipPolygon = parentGeometry?.clipPolygon;
+    if (parent && parentGeometry && (parent.layout?.clipContent ?? parent.type === "panel")) clipPolygon = clipPolygon ? intersectPolygons(clipPolygon, parentGeometry.corners) : parentGeometry.corners;
+    const resolved = { local, absolute, matrix, parentMatrix, inverse: inverse(matrix), corners, ...sources, ...(clipPolygon ? { clipPolygon, clip: polygonBounds(clipPolygon) } : {}) };
     result.nodes.set(n.id, resolved); building.delete(n.id); return resolved;
   };
   for (const node of page.nodes) resolve(node);
