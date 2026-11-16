@@ -75,6 +75,12 @@ Browser regression: select a free-parent control with centerX/top enabled, ensur
 
 The SVG stretches horizontally, so input positions must use its viewBox percentages rather than fixed CSS pixel offsets. Small panels require a local overflow fallback. Reverting map markup/styles restores the prior presentation. Before reverting cross-axis codec support, convert any saved explicit cross-axis frame to an equivalent leading anchor to avoid invalidating new documents or moving their controls.
 
+### Vertical Checkbox Alignment Follow-up (2026-11-16)
+
+The vertical labels previously centered each checkbox/text pair as a flex group. The narrower `Y` glyph made its checkbox sit farther right than the `上` and `下` checkboxes, matching the marked screenshot. Use fixed 13px checkbox and 11px text columns within these labels so all three checkbox left edges align regardless of glyph width. Their shared guide-derived vertical positions and the horizontal controls remain unchanged.
+
+Verification: `npm run build` and `git diff --check` passed. Browser inspection was skipped at the user's request after automatic approval review denied access to the local preview origin. This is a mechanical CSS correction; the Node model tests cannot observe browser layout, and no DOM component test harness exists. For manual verification, select a node, expand the size/constraints section, and check that the top/centerY/bottom checkboxes share the same left edge at normal and narrow inspector widths.
+
 ## 11. Verification
 
 - `npm test`: 102 shared tests passed. Seven focused tests cover all six anchor sequences, padded/percent parents, stretch removal, locks/managed axes, integer edit targets, final flow cross-axis removal and persistence, and mode cleanup/validation at parent boundaries. The flow test failed with the matching y=23→170 symptom before the mode fix.

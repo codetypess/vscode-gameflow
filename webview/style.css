@@ -243,7 +243,7 @@ button svg { flex-shrink: 0; }
 .constraint-y { grid-column: 1; grid-row: 2; }
 .constraint-toggles label { position: absolute; display: flex; align-items: center; justify-content: center; height: 22px; gap: 4px; min-width: 0; font-size: 11px; cursor: pointer; }
 .constraint-x label { top: 0; width: calc(100% / 3); transform: translateX(-50%); }
-.constraint-y label { left: 0; width: 100%; transform: translateY(-50%); }
+.constraint-y label { display: grid; grid-template-columns: 13px 11px; left: 0; width: 100%; transform: translateY(-50%); }
 .constraint-toggles label:has(input:disabled) { opacity: .4; cursor: default; }
 .constraint-toggles input { width: 13px; height: 13px; margin: 0; accent-color: var(--vscode-focusBorder, #007fd4); }
 .constraint-diagram { grid-column: 2; grid-row: 2; width: 100%; height: 112px; }
