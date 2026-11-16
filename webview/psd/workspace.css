@@ -6,6 +6,12 @@
 .topbar .mode-switcher button { padding: 0; width: 30px; height: 22px; color: var(--muted-foreground); border-radius: 2px; }
 .mode-switcher button.mode-active { color: var(--foreground); background: var(--vscode-tab-activeBackground, #343434); box-shadow: 0 0 0 1px var(--border); }
 .psd-workspace { flex: 1; display: flex; flex-direction: column; min-height: 0; position: relative; background: var(--background); }
+.psd-merge-workspace { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.psd-drop-target { position: relative; }
+.psd-drop-overlay { position: absolute; inset: 8px; z-index: 30; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 16px; pointer-events: none; border: 2px dashed var(--selection); border-radius: 4px; background: color-mix(in srgb, var(--background) 90%, transparent); color: var(--foreground); text-align: center; }
+.psd-drop-overlay > svg { color: var(--selection); }
+.psd-drop-overlay strong { font-size: 15px; font-weight: 500; }
+.psd-drop-overlay span { color: var(--muted-foreground); font-size: 11px; }
 .psd-commandbar { height: 42px; min-height: 42px; display: flex; align-items: center; gap: 8px; padding: 5px 16px; border-bottom: 1px solid var(--vscode-panel-border, #303030); }
 .psd-commandbar button { gap: 6px; height: 27px; font-size: 11px; }
 .psd-commandbar strong { font-size: 12px; }

@@ -31,7 +31,7 @@ Scope: 顶部原型/PSD 合并/PSD 切图模式、真实 PSD 读取及图层切�
 ## 4. Architecture
 
 - 原型文档仍由宿主 TextDocument 管理；PSD 配置为独立导入/输出会话，不污染原型模型。
-- Webview 仅通过用户选择的 File 获取 PSD/sidecar；PSD 解码在 Worker 内执行，限制尺寸、文件大小、图层数和累计解码像素。浏览器预览下载文件；VS Code 由宿主验证输出名称/类型/大小并通过保存对话框写文件，Webview 不指定目标路径。
+- Webview 通过用户选择的 File 获取 PSD/sidecar，也支持在切图或合并来源 A/B 拖入单个 PSD，复用读取、错误及未保存保护流程，详见 [PSD 拖入打开](psd-file-drop.md)；PSD 解码在 Worker 内执行，限制尺寸、文件大小、图层数和累计解码像素。浏览器预览下载文件；VS Code 由宿主验证输出名称/类型/大小并通过保存对话框写文件，Webview 不指定目标路径。
 - Webview 使用本地 shadcn/ui Button/Input 和 VS Code 颜色。Worker 单独打包并以 blob 运行，CSP 仅开放对应本地资源/Worker。
 - 图层直接预览只承诺基础像素/文字的保存栅格；蒙版、剪贴、效果等需要依赖合成的层标出限制，整图仍可参考 PSD 自带合成图。
 - 合并结果保留选中图层的祖先层级，并继承父分组的隐藏状态。代码审查发现仅读取图层自身隐藏标志会错误显示隐藏分组的子图层；在解码边界统一计算有效可见性，以嵌套分组回归用例验证。

@@ -7,6 +7,7 @@ import { applySidecar, EMPTY_GRID, identityProblems, inheritLayerVisibility, mak
 import { isWebviewToHostMessage } from "../shared/protocol";
 import { fitPsdCamera, placePsdPanels, zoomPsdCamera } from "../webview/psd/canvas-layout";
 import { isCanvasDrag, makePixelMask, maskContains, pickPsdLayer, psdPoint } from "../webview/psd/layer-hit-test";
+import { droppedPsd, hasFileDrag } from "../webview/psd/file-drop-input";
 
 const sample = () => new Uint8Array(readFileSync(resolve("examples/psd-metadata/GameFlow-PSD-Metadata-Sample.psd")));
 function asset(): PsdAsset {
@@ -14,6 +15,23 @@ function asset(): PsdAsset {
   return { name: "login.psd", sourceHash: "fixture-sha", documentId: (parsed.layers[0].metadata as PsdLayerMeta).documentId, hasEmbeddedIdentity: true, width: parsed.width, height: parsed.height, preview: "", layers: parsed.layers.map(r => ({ key: r.key, nativeId: r.nativeId, parentKey: r.parentKey, name: r.name, group: !!r.divider, left: r.left, top: r.top, width: r.width, height: r.height, hidden: r.hidden, identityOrigin: "embedded", metadata: r.metadata as PsdLayerMeta, config: { enabled: false, name: r.name, nineGrid: null } })) };
 }
 export const psdTests: { name: string; run: () => void | Promise<void> }[] = [
+  { name: "PSD file drop accepts one case-insensitive PSD and preserves the original file", run() {
+    const file = { name: "登录.PsD", size: 200 };
+    assert.equal(droppedPsd({ 0: file, length: 1 }), file);
+    assert.equal(hasFileDrag({ types: ["Files"] }), true);
+    assert.equal(hasFileDrag({ types: ["text/uri-list", "Files"] }), true);
+  } },
+  { name: "PSD file drop rejects ambiguous or unsupported inputs before opening", run() {
+    const file = { name: "login.psd" };
+    assert.throws(() => droppedPsd([]), /每次拖入一个 PSD/);
+    assert.throws(() => droppedPsd([file, { name: "other.psd" }]), /每次拖入一个 PSD/);
+    assert.throws(() => droppedPsd([file, { name: "login.meta.json" }]), /每次拖入一个 PSD/);
+    for (const name of ["login.psb", "login.meta.json", "login.psd.png"]) {
+      assert.throws(() => droppedPsd([{ name }]), /请拖入 \.psd/);
+    }
+    assert.equal(hasFileDrag({ types: [] }), false);
+    assert.equal(hasFileDrag({ types: ["text/plain", "text/uri-list"] }), false);
+  } },
   { name: "PSD picking follows stacking order and passes through transparent pixels", async run() {
     const original = asset(), base = original.layers.find(l => !l.group)!;
     const front = { ...base, key: 1, parentKey: null, left: 10, top: 20, width: 2, height: 2, image: "front" };

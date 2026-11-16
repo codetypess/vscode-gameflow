@@ -33,6 +33,8 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 
 ## Active Work Items
 
+- [psd-file-drop.md](psd-file-drop.md) — Verifying：PSD 切图和合并来源 A/B 拖入入口已接入；177 项测试、生产构建及浏览器读取/保护回归通过，操作系统文件拖入手势待实测。
+
 - [layer-tree-default-collapse.md](layer-tree-default-collapse.md) — Done：层级树容器默认收起，保留搜索与选中定位；175 项测试、生产构建及新建/复制/搜索/定位浏览器验收通过。
 
 - [page-insert-camera.md](page-insert-camera.md) — Done：新增界面保持当前视角，页内新增补偿坐标原点；175 项测试、生产构建及四种根类型/历史/导航浏览器回归通过。

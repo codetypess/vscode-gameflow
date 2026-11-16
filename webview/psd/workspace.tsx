@@ -7,6 +7,8 @@ import { isBrowserPreview } from "../vscode-api";
 import { openPsd, psdTask, saveOutput } from "./io";
 import { NineGridEditor, NineGridPreview } from "./nine-grid-editor";
 import { PsdSliceCanvas } from "./slice-canvas";
+import { usePsdFileDrop } from "./file-drop";
+import { hasFileDrag } from "./file-drop-input";
 import { cn } from "../lib/utils";
 import "./workspace.css";
 
@@ -65,6 +67,17 @@ function ConfirmImport({ onAccept, onCancel, replacing = false }: { onAccept: ()
   return <dialog ref={ref} className="psd-dialog confirm-dialog" onCancel={e => { e.preventDefault(); onCancel(); }}><header><strong>{replacing ? "当前配置尚未保存" : "配置与 PSD 版本不同"}</strong></header><p>{replacing ? "打开另一份 PSD 会替换当前配置。可以取消并先保存 .meta.json，或继续打开新文件。" : "这份配置记录的源文件已发生变化。继续将按有效图层 ID 采用配置，并校验九宫格范围；无法对应的图层会报错。"}</p><footer><Button onClick={onAccept}>{replacing ? "继续打开" : "采用配置"}</Button><Button variant="secondary" onClick={onCancel}>取消</Button></footer></dialog>;
 }
 
+function DropHint({ label }: { label: string }) {
+  return <div className="psd-drop-overlay" role="status"><FileImage size={32} /><strong>{label}</strong><span>每次一个 .psd 文件</span></div>;
+}
+
+function MergeSourceDrop({ side, disabled, onFile, onError, children }: {
+  side: "A" | "B"; disabled: boolean; onFile: (file: File) => void; onError: (message: string) => void; children: ReactNode;
+}) {
+  const drop = usePsdFileDrop({ disabled, onFile, onError });
+  return <section className="psd-merge-pane psd-drop-target" aria-label={`合并来源 ${side}`} {...drop.handlers}>{children}{drop.dragging ? <DropHint label={`松开以打开来源 ${side}`} /> : null}</section>;
+}
+
 export function PsdWorkspace({ mode, active }: { mode: "slice" | "merge"; active: boolean }) {
   const [loaded, setLoaded] = useState<Loaded | null>(null), [selectedKey, setSelectedKey] = useState<number | null>(null);
   const [canvasSelection, setCanvasSelection] = useState(0);
@@ -73,14 +86,15 @@ export function PsdWorkspace({ mode, active }: { mode: "slice" | "merge"; active
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [past, setPast] = useState<PsdAsset[]>([]), [future, setFuture] = useState<PsdAsset[]>([]);
   const input = useRef<HTMLInputElement>(null), configInput = useRef<HTMLInputElement>(null);
+  const loading = useRef(false);
   const asset = loaded?.asset, selected = asset?.layers.find(l => l.key === selectedKey) ?? null;
   const change = (next: PsdAsset) => { if (!loaded || busy) return; setPast(p => [...p.slice(-39), loaded.asset]); setFuture([]); setLoaded({ ...loaded, asset: next }); setDirty(true); };
   const patchConfig = (key: number, patch: Partial<SliceConfig>) => { if (asset) change({ ...asset, layers: asset.layers.map(l => l.key === key ? { ...l, config: { ...l.config, ...patch } } : l) }); };
   const undo = (redo = false) => { if (!loaded || busy) return; const source = redo ? future : past, item = source.at(-1); if (!item) return; if (redo) { setFuture(source.slice(0, -1)); setPast([...past, loaded.asset]); } else { setPast(source.slice(0, -1)); setFuture([...future, loaded.asset]); } setLoaded({ ...loaded, asset: item }); setDirty(true); };
   const readFile = async (file?: File, discard = false) => {
-    if (!file || busy) return; if (dirty && !discard) { setPendingFile(file); return; } setBusy(true); setMessage("正在读取 PSD…");
+    if (!file || busy || loading.current) return; if (dirty && !discard) { setPendingFile(file); return; } loading.current = true; setBusy(true); setMessage("正在读取 PSD…");
     try { const result = await openPsd(file); setLoaded(result); setSelectedKey(result.asset.layers.find(l => l.config.nineGrid)?.key ?? result.asset.layers.find(l => !l.group)?.key ?? null); setPast([]); setFuture([]); setDirty(false); setMessage(identityProblems(result.asset).length ? "存在重复 ID：选中副本后，点击“作为新节点”。" : ""); }
-    catch (e) { setMessage(String(e instanceof Error ? e.message : e)); } finally { setBusy(false); }
+    catch (e) { setMessage(String(e instanceof Error ? e.message : e)); } finally { loading.current = false; setBusy(false); }
   };
   const adopt = (raw: unknown) => { if (!asset) return; try { change(applySidecar(asset, raw)); setMessage("已读取配置。保存后可保留本次设置。"); } catch (e) { setMessage(e instanceof Error ? e.message : String(e)); } setPendingImport(null); };
   const readConfig = async (file?: File) => { if (!file || !asset) return; try { if (file.size > 1024 * 1024) throw new Error("配置文件不能超过 1 MB。"); const raw = JSON.parse(await file.text()); if (raw?.schema !== "gameflow.psd-meta") throw new Error("不是 GameFlow PSD 配置。"); if (raw.source?.sha256 !== asset.sourceHash) setPendingImport(raw); else adopt(raw); } catch (e) { setMessage(e instanceof Error ? e.message : String(e)); } };
@@ -100,9 +114,10 @@ export function PsdWorkspace({ mode, active }: { mode: "slice" | "merge"; active
     window.addEventListener("keydown", keydown); return () => window.removeEventListener("keydown", keydown);
   });
   useEffect(() => { if (!dirty) return; const unload = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ""; }; window.addEventListener("beforeunload", unload); return () => window.removeEventListener("beforeunload", unload); }, [dirty]);
+  const drop = usePsdFileDrop({ disabled: !active || mode !== "slice" || busy || editingGrid !== null || !!pendingImport || !!pendingFile, onFile: file => { void readFile(file); }, onError: setMessage });
   const duplicates = asset ? identityProblems(asset) : [];
-  return <section className="psd-workspace" hidden={!active} aria-label={mode === "slice" ? "PSD 切图工作区" : "PSD 合并工作区"}>
-    {mode === "merge" ? <MergeWorkspace /> : <>
+  return <section className="psd-workspace" hidden={!active} aria-label={mode === "slice" ? "PSD 切图工作区" : "PSD 合并工作区"} {...(mode === "slice" ? drop.handlers : {})}>
+    {mode === "merge" ? <MergeWorkspace active={active} /> : <>
       <div className="psd-commandbar"><Button size="sm" variant="secondary" disabled={busy} onClick={() => input.current?.click()}><FolderOpen size={14} />打开 PSD</Button><span className="psd-filename">{asset?.name ?? "PSD 切图"}{dirty ? " · 未保存配置" : ""}</span><Button size="sm" variant="ghost" disabled={!asset || busy} onClick={() => configInput.current?.click()}><Upload size={14} />读取配置</Button><Button size="sm" variant="ghost" disabled={!asset || busy} onClick={() => void save(false)}><Save size={14} />保存 .meta.json</Button><Button size="sm" variant="secondary" disabled={!asset || busy} onClick={() => void save(true)}>写入 PSD 副本</Button></div>
       {asset ? <PsdSliceCanvas key={`${asset.sourceHash}:${asset.name}`} asset={asset} selected={selected} active={active} onSelect={key => { setSelectedKey(key); setCanvasSelection(n => n + 1); }}
         tree={<><div className="floating-heading"><Layers3 size={14} /><strong>图层</strong><span>{asset.layers.length}</span></div><div className="psd-hint">勾选需要切图的图层</div><Tree asset={asset} selected={selectedKey} reveal={canvasSelection} onSelect={setSelectedKey} checked={l => l.config.enabled} toggle={(layer, enabled) => { const keys = new Set(getChildren(asset, layer.key).filter(l => !l.group && l.image && !l.limitation && !duplicates.includes(l.metadata.layerId)).map(l => l.key)); change({ ...asset, layers: asset.layers.map(l => keys.has(l.key) ? { ...l, config: { ...l.config, enabled } } : l) }); }} /></>}
@@ -118,7 +133,8 @@ export function PsdWorkspace({ mode, active }: { mode: "slice" | "merge"; active
           {selected.image && selected.config.nineGrid ? <NineGridPreview image={selected.image} width={selected.width} height={selected.height} grid={selected.config.nineGrid} /> : null}
           <p className="psd-hint">图片导出格式待与 Laya 对齐；当前保存切图配置。</p>
         </div> : <p className="psd-hint">点击画布元素或左侧图层查看属性。</p>}</>}
-      /> : <div className="psd-empty"><FileImage size={40} /><h2>从 PSD 开始切图</h2><p>选择图层，标记切图并设置九宫格。</p><Button disabled={busy} onClick={() => input.current?.click()}><FolderOpen size={16} />打开 PSD</Button><small>支持 8 位 RGB · 最大 32 MB</small></div>}
+      /> : <div className="psd-empty"><FileImage size={40} /><h2>从 PSD 开始切图</h2><p>拖入 PSD 文件，或点击打开。选择图层后可标记切图并设置九宫格。</p><Button disabled={busy} onClick={() => input.current?.click()}><FolderOpen size={16} />打开 PSD</Button><small>支持 8 位 RGB · 最大 32 MB</small></div>}
+      {drop.dragging ? <DropHint label="松开以打开 PSD" /> : null}
       {message ? <div className="psd-status" role="status">{busy ? null : <Check size={13} />}{message}<button aria-label="关闭提示" onClick={() => setMessage("")}><X size={13} /></button></div> : null}
       <input ref={input} type="file" accept=".psd" className="hidden" aria-label="打开切图 PSD" onChange={e => { void readFile(e.target.files?.[0]); e.target.value = ""; }} /><input ref={configInput} type="file" accept=".json" className="hidden" aria-label="读取 PSD 配置" onChange={e => { void readConfig(e.target.files?.[0]); e.target.value = ""; }} />
       {editingGrid !== null && asset?.layers.find(l => l.key === editingGrid) ? <NineGridEditor layer={asset.layers.find(l => l.key === editingGrid)!} onSave={nineGrid => { patchConfig(editingGrid, { nineGrid, enabled: true }); setEditingGrid(null); }} onCancel={() => setEditingGrid(null)} /> : null}
@@ -128,19 +144,20 @@ export function PsdWorkspace({ mode, active }: { mode: "slice" | "merge"; active
   </section>;
 }
 
-function MergeWorkspace() {
+function MergeWorkspace({ active }: { active: boolean }) {
   const [sources, setSources] = useState<{ A: PsdAsset | null; B: PsdAsset | null }>({ A: null, B: null });
   const [choices, setChoices] = useState<Record<string, "A" | "B">>({});
   const [selected, setSelected] = useState<string | null>(null), [busy, setBusy] = useState(false), [message, setMessage] = useState("");
   const input = useRef<HTMLInputElement>(null), target = useRef<"A" | "B">("A");
+  const loading = useRef(false);
   const pick = (source: "A" | "B") => { target.current = source; input.current?.click(); };
-  const load = async (file?: File) => { if (!file) return; const side = target.current; setBusy(true); setMessage(""); try { const { asset } = await openPsd(file); setSources(old => ({ ...old, [side]: asset })); setChoices({}); if (identityProblems(asset).length) setMessage("来源含重复 ID，请先在 PSD 切图中为副本分配新身份并保存。"); } catch (e) { setMessage(e instanceof Error ? e.message : String(e)); } finally { setBusy(false); } };
+  const load = async (file?: File, side = target.current) => { if (!file || busy || loading.current) return; loading.current = true; setBusy(true); setMessage(""); try { const { asset } = await openPsd(file); setSources(old => ({ ...old, [side]: asset })); setChoices({}); if (identityProblems(asset).length) setMessage("来源含重复 ID，请先在 PSD 切图中为副本分配新身份并保存。"); } catch (e) { setMessage(e instanceof Error ? e.message : String(e)); } finally { loading.current = false; setBusy(false); } };
   const sizeMismatch = sources.A && sources.B && (sources.A.width !== sources.B.width || sources.A.height !== sources.B.height);
   const result = selectedMergeTree(sources, choices);
   const chosen = result?.layers.filter(l => !l.group) ?? [];
   const toggle = (side: "A" | "B", asset: PsdAsset, layer: PsdLayer, value: boolean) => { if (sizeMismatch) { setMessage("两份 PSD 尺寸不同，请先在美术工具中对齐画布。"); return; } const duplicates = identityProblems(asset); const leaves = getChildren(asset, layer.key).filter(l => !l.group && l.image && !l.limitation && !duplicates.includes(l.metadata.layerId)); setChoices(old => { const next = { ...old }; for (const l of leaves) { const id = layerIdentity(l); if (value) next[id] = side; else if (next[id] === side) delete next[id]; } return next; }); };
-  return <><div className="psd-commandbar"><strong>PSD 合并</strong><span className="psd-filename">无基础版本 · 手动选择</span><span className="psd-hint">当前提供选层预览，完整 PSD 合并写出尚未接入</span></div>
-    <div className="psd-merge-layout"><div className="psd-merge-sources">{(["A", "B"] as const).map(side => { const asset = sources[side]; return <section className="psd-merge-pane" key={side}><header><strong>来源 {side}</strong><span>{asset?.name ?? "未选择 PSD"}</span><Button size="sm" variant="ghost" disabled={busy} onClick={() => pick(side)}><FolderOpen size={13} />选择 PSD</Button></header>{asset ? <div className="psd-merge-pane-content"><Tree asset={asset} selected={asset.layers.find(l => layerIdentity(l) === selected)?.key ?? null} onSelect={key => setSelected(layerIdentity(asset.layers.find(l => l.key === key)!))} checked={l => choices[layerIdentity(l)] === side} toggle={(l, v) => toggle(side, asset, l, v)} /><PsdPreview asset={asset} selected={asset.layers.find(l => layerIdentity(l) === selected)} /></div> : <div className="psd-merge-empty"><Button variant="ghost" disabled={busy} onClick={() => pick(side)}>打开来源 {side}</Button></div>}</section>; })}</div>
+  return <div className="psd-merge-workspace" onDragOver={event => { if (hasFileDrag(event.dataTransfer)) { event.preventDefault(); event.dataTransfer.dropEffect = "none"; } }} onDrop={event => { if (hasFileDrag(event.dataTransfer)) { event.preventDefault(); if (!busy) setMessage("请将 PSD 拖到来源 A 或来源 B 区域。"); } }}><div className="psd-commandbar"><strong>PSD 合并</strong><span className="psd-filename">无基础版本 · 手动选择</span><span className="psd-hint">当前提供选层预览，完整 PSD 合并写出尚未接入</span></div>
+    <div className="psd-merge-layout"><div className="psd-merge-sources">{(["A", "B"] as const).map(side => { const asset = sources[side]; return <MergeSourceDrop key={side} side={side} disabled={!active || busy} onFile={file => { void load(file, side); }} onError={setMessage}><header><strong>来源 {side}</strong><span>{asset?.name ?? "未选择 PSD"}</span><Button size="sm" variant="ghost" disabled={busy} onClick={() => pick(side)}><FolderOpen size={13} />选择 PSD</Button></header>{asset ? <div className="psd-merge-pane-content"><Tree asset={asset} selected={asset.layers.find(l => layerIdentity(l) === selected)?.key ?? null} onSelect={key => setSelected(layerIdentity(asset.layers.find(l => l.key === key)!))} checked={l => choices[layerIdentity(l)] === side} toggle={(l, v) => toggle(side, asset, l, v)} /><PsdPreview asset={asset} selected={asset.layers.find(l => layerIdentity(l) === selected)} /></div> : <div className="psd-merge-empty"><Button variant="ghost" disabled={busy} onClick={() => pick(side)}>打开来源 {side}</Button><span>或拖入 PSD 到此区域</span></div>}</MergeSourceDrop>; })}</div>
       <section className="psd-merge-pane psd-merge-result"><header><strong>选择结果</strong><span>{chosen.length} 个图层</span><Button size="sm" variant="ghost" onClick={() => setChoices({})} disabled={!chosen.length}>清空选择</Button></header>{result ? <div className="psd-merge-pane-content"><Tree asset={result} selected={result.layers.find(l => layerIdentity(l) === selected)?.key ?? null} onSelect={key => setSelected(layerIdentity(result.layers.find(l => l.key === key)!))} /><PsdPreview asset={result} selected={chosen.find(l => layerIdentity(l) === selected)}>{[...chosen].reverse().filter(l => !l.hidden).map((l, i) => <img key={i} src={l.image} alt={l.name} style={{ position: "absolute", left: l.left, top: l.top, width: l.width, height: l.height }} />)}</PsdPreview></div> : <div className="psd-merge-empty"><Layers3 size={28} /><p>在左侧打开 PSD，勾选采用的图层。</p></div>}</section>
-    </div>{message || sizeMismatch ? <div className="psd-status" role="status">{message || "画布尺寸不同，需先对齐后选择。"}</div> : null}<input ref={input} type="file" accept=".psd" className="hidden" aria-label="打开合并来源 PSD" onChange={e => { void load(e.target.files?.[0]); e.target.value = ""; }} /></>;
+    </div>{message || sizeMismatch ? <div className="psd-status" role="status">{message || "画布尺寸不同，需先对齐后选择。"}</div> : null}<input ref={input} type="file" accept=".psd" className="hidden" aria-label="打开合并来源 PSD" onChange={e => { void load(e.target.files?.[0]); e.target.value = ""; }} /></div>;
 }
