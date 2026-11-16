@@ -33,6 +33,8 @@ export function NodeView({ page, node, geometry }: { page: GameFlowPage; node: G
     backgroundColor: appearance.fill, color: appearance.color,
     border: `${appearance.borderWidth}px solid ${appearance.borderColor}`,
     borderRadius: appearance.radius, fontSize: appearance.fontSize, fontWeight: appearance.fontWeight,
+    fontStyle: appearance.italic ? "italic" : "normal",
+    textDecorationLine: [appearance.underline && "underline", appearance.strikethrough && "line-through"].filter(Boolean).join(" ") || "none",
     textAlign: appearance.textAlign, justifyContent: appearance.textAlign === "left" ? "flex-start" : appearance.textAlign === "right" ? "flex-end" : "center",
     opacity: opacity * disabledOpacity(node),
     overflow: node.type === "text" && widget.overflow === "visible" ? "visible" : "hidden",

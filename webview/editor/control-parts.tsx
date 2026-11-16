@@ -35,7 +35,7 @@ export function ControlPartsProperties({ page, node, locked, onNode, onPage, onC
         <span className="radio-option-number">{index + 1}</span>
         <NodeReferenceField page={page} owner={node} kind="radioOption" label={`单选组成员 ${index + 1}`} disabled={locked} value={id} onChange={nextId => changeOptions(options.map((value, i) => i === index ? nextId : value))} />
       </div>)}
-      <Button variant="outline" size="sm" disabled={locked || options.length >= 1000} onClick={() => changeOptions([...options, null])}>添加选项</Button>
+      <div className="radio-option-row"><Button className="radio-option-add" variant="outline" size="sm" disabled={locked || options.length >= 1000} onClick={() => changeOptions([...options, null])}>添加选项</Button></div>
       <p className="property-hint">按成员顺序编号；图层移动不改变分组。移除成员保留其当前选中状态。</p>
     </details> : null}
   </>;

@@ -87,6 +87,9 @@
         "radius": { "type": "number", "minimum": 0 },
         "fontSize": { "type": "number", "minimum": 1 },
         "fontWeight": { "type": "number", "minimum": 0 },
+        "italic": { "type": "boolean" },
+        "underline": { "type": "boolean" },
+        "strikethrough": { "type": "boolean" },
         "opacity": { "type": "number", "minimum": 0, "maximum": 1 },
         "textAlign": { "enum": ["left","center","right"] }
       }

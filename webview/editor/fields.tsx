@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Input } from "../components/ui/input";
 import { Slider } from "../components/ui/slider";
+import { ColorEditSession } from "../lib/color-edit";
 
 export function Field({ label, ariaLabel, value, onCommit, type = "text", min, max, integer = false, precision, step, disabled = false, readOnly = false, validate }: {
   label: string; value: string | number; onCommit: (value: string) => void;
@@ -64,10 +65,36 @@ export function ReadOnlyPropertyRow({ label, fields }: {
   </div>;
 }
 
-export function ColorField({ label, value, onCommit, disabled = false }: { label: string; value: string; onCommit: (value: string) => void; disabled?: boolean }) {
-  return <div className="color-field"><Field label={label} value={value} disabled={disabled} validate={(next) => /^(#[0-9a-f]{6}|transparent)$/i.test(next)}
+export function ColorField({ label, value, onCommit, onPreview, disabled = false }: {
+  label: string; value: string; onCommit: (value: string) => void; onPreview: (value: string | null) => void; disabled?: boolean;
+}) {
+  const picker = useRef<HTMLInputElement>(null);
+  const session = useRef(new ColorEditSession());
+  const [draft, setDraft] = useState<string | null>(null);
+  const finish = () => {
+    if (!session.current.active) return;
+    const next = disabled ? (session.current.cancel(), null) : session.current.finish(value);
+    setDraft(null); onPreview(null);
+    if (next !== null) onCommit(next);
+  };
+  const latest = useRef(finish); latest.current = finish;
+  useEffect(() => {
+    const element = picker.current!;
+    const change = () => latest.current();
+    // React's value tracking can suppress the final change after the input previews.
+    element.addEventListener("change", change);
+    return () => { element.removeEventListener("change", change); latest.current(); };
+  }, []);
+  useEffect(() => {
+    if (!session.current.active) return;
+    session.current.cancel(); setDraft(null); onPreview(null);
+  }, [value, disabled]);
+  const displayed = draft ?? value;
+  return <div className="color-field"><Field label={label} value={displayed} disabled={disabled} validate={(next) => /^(#[0-9a-f]{6}|transparent)$/i.test(next)}
     onCommit={(next) => { if (/^(#[0-9a-f]{6}|transparent)$/i.test(next)) onCommit(next); }} />
-    <input type="color" aria-label={`${label}取色器`} disabled={disabled} value={value === "transparent" ? "#ffffff" : value}
-      onChange={(event) => onCommit(event.target.value)} />
+    <input ref={picker} type="color" aria-label={`${label}取色器`} disabled={disabled} value={displayed === "transparent" ? "#ffffff" : displayed}
+      onPointerDown={() => session.current.begin(value)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") session.current.begin(value); }}
+      onInput={(event) => { const next = event.currentTarget.value; session.current.update(next, value); setDraft(next); onPreview(next); }}
+      onChange={() => { /* Native change above ends the edit; input only previews. */ }} onBlur={finish} />
   </div>;
 }

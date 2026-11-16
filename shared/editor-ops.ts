@@ -190,6 +190,7 @@ export function defaultStyle(type: string): Required<NodeStyle> {
     radius: type === "button" ? 6 : 2,
     fontSize: type === "text" ? 16 : 14,
     fontWeight: type === "button" ? 600 : 400,
+    italic: false, underline: false, strikethrough: false,
     textAlign: type === "text" ? "left" : "center",
     opacity: 1
   };

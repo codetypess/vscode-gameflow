@@ -1,5 +1,5 @@
 import { useState, type CSSProperties } from "react";
-import { AlignCenter, AlignLeft, AlignRight, ChevronDown, ChevronUp, ImagePlus, LockKeyhole, X } from "lucide-react";
+import { ChevronDown, ChevronUp, ImagePlus, LockKeyhole, X } from "lucide-react";
 import type { Frame, GameFlowNode, GameFlowPage, NodeStyle, PageRootType } from "../../shared/model";
 import { defaultStyle, inheritedFlag, NODE_LABELS } from "../../shared/editor-ops";
 import { Button } from "../components/ui/button";
@@ -12,13 +12,16 @@ import { resolvePageLayout, constraintsFor, managedAxis } from "../../shared/ui-
 import { editNodeFrame, setNodeAnchor } from "../../shared/ui-edit";
 import { hasNodeSkin, sliderOwner } from "../../shared/ui-parts";
 import { ControlPartsProperties } from "./control-parts";
+import type { ColorPreview } from "../lib/color-edit";
+import { TextControls } from "./text-controls";
 
-export function Inspector({ page, node, selectedNodes = [], editingPage, onNode, onPage, onClose, onEnter, onImport, onCreateParts, panelRef, panelStyle }: {
+export function Inspector({ page, node, selectedNodes = [], editingPage, onNode, onPage, onColorPreview, onClose, onEnter, onImport, onCreateParts, panelRef, panelStyle }: {
   page: GameFlowPage; node: GameFlowNode | null; editingPage: boolean;
   selectedNodes?: GameFlowNode[];
   panelRef?: (element: HTMLElement | null) => void; panelStyle?: CSSProperties;
   onNode: (id: string, patch: Partial<GameFlowNode>) => void;
   onPage: (transform: (page: GameFlowPage) => GameFlowPage) => void;
+  onColorPreview: (preview: ColorPreview | null) => void;
   onClose: () => void; onEnter: () => void; onImport: () => void;
   onCreateParts: () => void;
 }) {
@@ -34,6 +37,7 @@ export function Inspector({ page, node, selectedNodes = [], editingPage, onNode,
     else if (!editingPage || key === "width" || key === "height") onPage((item) => ({ ...item, frame: { ...item.frame, [key]: Number(value) } }));
   };
   const setStyle = (patch: Partial<NodeStyle>) => { if (node) onNode(node.id, { style: { ...node.style, ...patch } }); };
+  const previewColor = (property: ColorPreview["property"], value: string | null) => onColorPreview(value === null ? null : { pageId: page.id, nodeId: node?.id, property, value });
   return <aside ref={panelRef} className="inspector floating-panel" aria-label="悬浮属性面板" style={panelStyle} onPointerDown={(event) => event.stopPropagation()}>
     <div className="floating-heading">
       <strong>{selectedNodes.length > 1 ? `已选择 ${selectedNodes.length} 个控件` : node ? "控件属性" : "页面属性"}</strong>
@@ -66,19 +70,15 @@ export function Inspector({ page, node, selectedNodes = [], editingPage, onNode,
         {(["text", "input"].includes(node.type) || (["checkbox", "radio"].includes(node.type) && !hasNodeSkin(node)) || (node.type === "button" && node.text !== undefined)) ? <>
           <div className="property-section-title">文字</div>
           <Field label="文字内容" value={node.text ?? node.name} disabled={locked} onCommit={(text) => onNode(node.id, { text })} />
-          <div className="property-grid"><Field label="字号" type="number" min={1} max={300} value={appearance.fontSize} disabled={locked} onCommit={(fontSize) => setStyle({ fontSize: Number(fontSize) })} />
-            <label className="property-field"><span>字重</span><select aria-label="字重" value={appearance.fontWeight} disabled={locked} onChange={(event) => setStyle({ fontWeight: Number(event.target.value) })}><option value={400}>常规</option><option value={500}>中等</option><option value={600}>半粗</option><option value={700}>粗体</option></select></label></div>
-          <ColorField label="文字颜色" value={appearance.color} disabled={locked} onCommit={(color) => setStyle({ color })} />
-          <div className="alignment-buttons">{(["left", "center", "right"] as const).map((align, i) => {
-            const Icon = [AlignLeft, AlignCenter, AlignRight][i];
-            return <Button key={align} variant={appearance.textAlign === align ? "secondary" : "ghost"} size="sm" disabled={locked} aria-label={`${["左", "居中", "右"][i]}对齐`} onClick={() => setStyle({ textAlign: align })}><Icon size={15} /></Button>;
-          })}</div><Separator />
+          <Field label="字号" type="number" min={1} max={300} value={appearance.fontSize} disabled={locked} onCommit={(fontSize) => setStyle({ fontSize: Number(fontSize) })} />
+          <ColorField label="文字颜色" value={appearance.color} disabled={locked} onPreview={value => previewColor("color", value)} onCommit={(color) => setStyle({ color })} />
+          <TextControls style={appearance} valign={node.widget?.valign ?? (node.type === "text" ? "top" : "middle")} disabled={locked} onStyle={setStyle} onVertical={valign => onNode(node.id, { widget: { ...node.widget, valign } })} /><Separator />
         </> : null}
         {node.type === "image" ? <Button variant="outline" size="sm" disabled={locked} onClick={onImport}><ImagePlus size={14} />{node.imageData ? "替换图片" : "导入图片"}</Button> : null}
         <div className="property-section-title">外观</div>
-        <ColorField label="填充" value={appearance.fill} disabled={locked} onCommit={(fill) => setStyle({ fill })} />
+        <ColorField label="填充" value={appearance.fill} disabled={locked} onPreview={value => previewColor("fill", value)} onCommit={(fill) => setStyle({ fill })} />
         <Button variant="ghost" size="sm" className="transparent-button" disabled={locked} onClick={() => setStyle({ fill: "transparent" })}>设为透明</Button>
-        <ColorField label="描边" value={appearance.borderColor} disabled={locked} onCommit={(borderColor) => setStyle({ borderColor })} />
+        <ColorField label="描边" value={appearance.borderColor} disabled={locked} onPreview={value => previewColor("borderColor", value)} onCommit={(borderColor) => setStyle({ borderColor })} />
         <div className="property-grid"><Field label="描边宽度" type="number" min={0} max={40} value={appearance.borderWidth} disabled={locked} onCommit={(value) => setStyle({ borderWidth: Number(value) })} />
           <Field label="圆角" type="number" min={0} value={appearance.radius} disabled={locked} onCommit={(value) => setStyle({ radius: Number(value) })} /></div>
       </> : <>
@@ -86,7 +86,7 @@ export function Inspector({ page, node, selectedNodes = [], editingPage, onNode,
           {PAGE_ROOT_TYPES.map((type) => <option key={type} value={type}>{PAGE_ROOTS[type].label} ({type})</option>)}
         </select></label>
         <label className="property-field"><span>页面形式</span><select aria-label="页面形式" value={page.kind} onChange={(event) => { const kind = event.target.value as "screen" | "modal"; onPage((item) => ({ ...item, kind })); }}><option value="screen">页面</option><option value="modal">弹窗</option></select></label>
-        <ColorField label="页面背景" value={page.background ?? "#ffffff"} onCommit={(background) => onPage((item) => ({ ...item, background }))} />
+        <ColorField label="页面背景" value={page.background ?? "#ffffff"} onPreview={value => previewColor("background", value)} onCommit={(background) => onPage((item) => ({ ...item, background }))} />
         <PageLayoutProperties page={page} onPage={onPage} />
         <Button size="sm" variant="outline" onClick={onEnter}>进入页面编辑</Button>
       </>}

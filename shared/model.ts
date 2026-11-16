@@ -61,6 +61,9 @@ export interface NodeStyle {
   radius?: number;
   fontSize?: number;
   fontWeight?: number;
+  italic?: boolean;
+  underline?: boolean;
+  strikethrough?: boolean;
   textAlign?: "left" | "center" | "right";
   opacity?: number;
 }
@@ -220,6 +223,12 @@ function validateNode(
       optionalValid = false;
     } else {
       const style = value.style;
+      for (const key of ["italic", "underline", "strikethrough"] as const) {
+        if (style[key] !== undefined && typeof style[key] !== "boolean") {
+          errors.push(`${path}.style.${key} must be a boolean`);
+          optionalValid = false;
+        }
+      }
       for (const key of ["fill", "color", "borderColor"] as const) {
         if (style[key] !== undefined && !isColor(style[key])) {
           errors.push(`${path}.style.${key} must be a hex color or transparent`);

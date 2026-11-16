@@ -23,6 +23,8 @@ import { nodeReferenceTests } from "./node-reference-suite";
 import { pageRootLayoutTests } from "./page-root-layout-suite";
 import { canvasScopeTests } from "./canvas-scope-suite";
 import { nodeSelectionTests } from "./node-selection-suite";
+import { colorEditTests } from "./color-edit-suite";
+import { textFormattingTests } from "./text-formatting-suite";
 
 type TestCase = { name: string; run: () => void | Promise<void> };
 const tests: TestCase[] = [];
@@ -595,7 +597,7 @@ tests.push(...psdTests);
 tests.push(...uiLayoutTests);
 tests.push(...nodeVariableTests);
 tests.push(...uiTransformTests);
-tests.push(...pageRootLayoutTests, ...uiPartsTests, ...nodeReferenceTests, ...canvasScopeTests, ...nodeSelectionTests);
+tests.push(...pageRootLayoutTests, ...uiPartsTests, ...nodeReferenceTests, ...canvasScopeTests, ...nodeSelectionTests, ...colorEditTests, ...textFormattingTests);
 export const testsCompleted = (async () => {
   let failed = 0;
   for (const item of tests) {

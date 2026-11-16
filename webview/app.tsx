@@ -28,6 +28,7 @@ import { canvasPanelMetrics } from "./lib/canvas-panels";
 import { canvasHitNode, canvasPasteTarget, canvasScopePath, placeCanvasComponent, reconcileCanvasScope } from "./lib/canvas-scope";
 import { pickSelection, reconcileSelection, singleSelection, type NodeSelection, type SelectionIntent } from "./lib/node-selection";
 import { commonSelectionParent, copySelection, duplicateSelection, moveSelection, removeSelection, translateSelection } from "../shared/selection-ops";
+import { applyColorPreview, type ColorPreview } from "./lib/color-edit";
 
 type Tool = "select" | "hand" | InsertType;
 type Camera = { x: number; y: number; zoom: number };
@@ -62,6 +63,7 @@ export function App() {
   const [showContainerOutlines, setShowContainerOutlines] = useState(false);
   const [spaceHand, setSpaceHand] = useState(false);
   const [preview, setPreview] = useState<Gesture | null>(null);
+  const [colorPreview, setColorPreview] = useState<ColorPreview | null>(null);
   const [inspectorOpen, setInspectorOpen] = useState(true);
   const [insertOpen, setInsertOpen] = useState(false);
   const [notice, setNotice] = useState("");
@@ -343,6 +345,7 @@ export function App() {
   let renderPage = page;
   if (preview?.nodeIds && preview.sourcePage) renderPage = translateSelection(preview.sourcePage, preview.nodeIds, preview.next.x, preview.next.y);
   if (renderPage && preview?.nodeId && preview.pageId === renderPage.id) renderPage = editNodeFrame(renderPage, preview.nodeId, preview.next, preview.kind === "resize" ? "resize" : "move");
+  if (renderPage) renderPage = applyColorPreview(renderPage, colorPreview);
   const renderedNode = renderPage?.nodes.find((node) => node.id === selectedNodeId);
   const selectionLayout = renderPage ? resolvePageLayout(renderPage) : null;
   const selectedGeometry = selectedNodeIds.length === 1 && editingId && renderPage && renderedNode && !inheritedFlag(renderPage, renderedNode, "hidden") ? selectionLayout!.nodes.get(renderedNode.id)! : null;
@@ -386,7 +389,7 @@ export function App() {
       {scopeId ? <div className="canvas-scope-dimmer" aria-hidden="true" /> : null}
       {!canvasDocument ? <div className="loading-state">{error ?? "正在载入画布…"}</div> : <>
         <div className="canvas-world" style={{ transform: `translate(${visibleCamera.x}px, ${visibleCamera.y}px) scale(${visibleCamera.zoom})` }}>
-          {(editingId ? renderPage ? [renderPage] : [] : canvasDocument.pages).map((item) => {
+          {(editingId ? renderPage ? [renderPage] : [] : canvasDocument.pages.map(item => applyColorPreview(item, colorPreview))).map((item) => {
             const frame = preview?.kind === "page" && preview.pageId === item.id ? preview.next : item.frame;
             const geometry = resolvePageLayout(item);
             const nodes = orderedNodes(item), activeNodes = editingId && scopeId ? descendants(item, scopeId) : null;
@@ -421,7 +424,7 @@ export function App() {
         {selectedGeometry?.inverse && selectionAnchor ? <span className="selection-anchor" aria-hidden="true" style={{ left: visibleCamera.x+selectionAnchor.x*visibleCamera.zoom, top: visibleCamera.y+selectionAnchor.y*visibleCamera.zoom }} /> : null}
         {editingId && page ? <LayerTree key={page.id} panelRef={panels.leftRef} panelStyle={panels.leftStyle} page={page} scopeId={scopeId} selectedIds={selectedNodeIds} selectedId={selectedNode?.id ?? null} reveal={canvasSelection} onSelect={selectNode} onPatch={patchNode} onBack={back} onAdd={addLayer} onDelete={deleteLayer} onMove={moveLayer}
           hasClipboard={!!clipboard} onCopy={copyLayer} onPaste={pasteLayer} onDuplicate={duplicateLayer} onConvert={convertLayer} /> : null}
-        {page && inspectorOpen ? <Inspector selectedNodes={page.nodes.filter(node => selectedNodeIds.includes(node.id))} onCreateParts={() => { if (editingId && selectedNodeId) { const makeId = newIds(); updatePage(editingId, item => createControlParts(item, selectedNodeId, makeId)); } }} panelRef={panels.rightRef} panelStyle={panels.rightStyle} page={page} node={selectedNode} editingPage={!!editingId} onNode={patchNode} onPage={(transform) => updatePage(page.id, transform)} onClose={() => setInspectorOpen(false)} onEnter={() => enter(page)} onImport={requestImport} /> : null}
+        {page && inspectorOpen ? <Inspector onColorPreview={setColorPreview} selectedNodes={page.nodes.filter(node => selectedNodeIds.includes(node.id))} onCreateParts={() => { if (editingId && selectedNodeId) { const makeId = newIds(); updatePage(editingId, item => createControlParts(item, selectedNodeId, makeId)); } }} panelRef={panels.rightRef} panelStyle={panels.rightStyle} page={page} node={selectedNode} editingPage={!!editingId} onNode={patchNode} onPage={(transform) => updatePage(page.id, transform)} onClose={() => setInspectorOpen(false)} onEnter={() => enter(page)} onImport={requestImport} /> : null}
         <div className="canvas-context">{editingId ? scopePath.at(-1) ? `编辑 ${scopePath.at(-1)!.name} 的子节点` : "页面编辑" : `${canvasDocument.pages.length} 个页面`}<span>{tool === "select" ? editingId ? "双击容器进入 · 双击空白退一级" : "双击页面进入编辑" : tool === "hand" || spaceHand ? "拖动画布" : `点击页面放置${NODE_LABELS[tool]}`}</span></div>
         {canvasDocument.pages.length === 0 ? <div className="empty-canvas"><LayoutPanelTop size={32} /><strong>从第一个页面开始</strong><p>用底部 + 添加游戏界面</p><Button onClick={() => addPage()}><Plus size={15} />添加页面</Button></div> : null}
         <div className="canvas-toolbar floating-panel" onPointerDown={(event) => event.stopPropagation()}>

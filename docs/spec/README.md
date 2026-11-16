@@ -33,6 +33,10 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 
 ## Active Work Items
 
+- [text-formatting-controls.md](text-formatting-controls.md) — Done：紧凑 B/I/U/S 样式开关、移除字重下拉框及六项对齐；175 项测试、生产构建与浏览器样式/历史/保存刷新/锁定验收通过。
+
+- [color-picker-history.md](color-picker-history.md) — Verifying：连续取色实时预览、结束一次提交；173 项测试、生产构建及浏览器颜色输入/撤销/重做通过，原生弹窗连续拖动待人工验收。
+
 - [container-outline-toggle.md](container-outline-toggle.md) — Done：以默认关闭的“虚线框”开关替代选择/抓手按钮；容器辅助边界、166 项测试、生产构建及浏览器交互验收通过。
 
 - [node-multiselection.md](node-multiselection.md) — Done：树选中后的键盘焦点修复、Ctrl/Shift 多选及整组编辑；167 项测试、构建和浏览器交互验收通过。
