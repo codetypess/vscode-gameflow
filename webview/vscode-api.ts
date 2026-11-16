@@ -2,14 +2,16 @@ import { createDefaultGameFlowDocument, parseGameFlowDocument, serializeGameFlow
 import type { GameFlowDocument } from "../shared/model";
 import { isWebviewToHostMessage, type HostToWebviewMessage, type WebviewToHostMessage } from "../shared/protocol";
 import componentSample from "../sample/ui-components.gameflow.json";
+import starSeaSample from "../sample/star-sea-login.gameflow.json";
 
 export const isBrowserPreview = typeof acquireVsCodeApi !== "function";
 const api = isBrowserPreview ? createBrowserPreviewApi() : acquireVsCodeApi();
 
 function createBrowserPreviewApi(): VsCodeApi {
-  const sample = new URLSearchParams(location.search).get("sample") === "ui-components";
-  const storageKey = sample ? "gameflow.prototype.ui-components.v2" : "gameflow.prototype.v1";
-  let document = sample ? parseGameFlowDocument(JSON.stringify(componentSample)) : createDefaultGameFlowDocument("gameflow-browser-preview");
+  const sampleName = new URLSearchParams(location.search).get("sample");
+  const sample = sampleName === "ui-components" ? componentSample : sampleName === "star-sea-login" ? starSeaSample : null;
+  const storageKey = sampleName === "star-sea-login" ? "gameflow.prototype.star-sea-login.v1" : sample ? "gameflow.prototype.ui-components.v2" : "gameflow.prototype.v1";
+  let document = sample ? parseGameFlowDocument(JSON.stringify(sample)) : createDefaultGameFlowDocument("gameflow-browser-preview");
   try {
     const saved = localStorage.getItem(storageKey);
     if (saved) document = parseGameFlowDocument(saved);

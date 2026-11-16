@@ -1,0 +1,646 @@
+{
+  "schema": "gameflow.psd-meta",
+  "version": 1,
+  "documentId": "47061573-175a-4735-986e-15e5faa87890",
+  "source": {
+    "name": "Star-Sea-Login-750x1334.psd",
+    "sha256": "ff70bf34957488e8c2a225e80625cda4b1e4e72c143ed6916cf6f44ed1834439",
+    "width": 750,
+    "height": 1334
+  },
+  "layers": [
+    {
+      "id": "bh86004z",
+      "sourceKey": 32,
+      "nativeId": 201,
+      "name": "星海远征 · 登录 (UIStack)",
+      "config": {
+        "enabled": false,
+        "name": "星海远征 · 登录 (UIStack)",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "47061573-175a-4735-986e-15e5faa87890",
+        "layerId": "bh86004z",
+        "role": "screen",
+        "prototype": {
+          "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
+          "pageId": "umlxcxo4",
+          "nodeId": "umlxcxo4",
+          "layaClass": "UIStack"
+        },
+        "slicing": {
+          "enabled": false,
+          "name": "星海远征 · 登录 (UIStack)",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "kek8zl77",
+      "sourceKey": 31,
+      "nativeId": 222,
+      "name": "底部提示 (UILabel)",
+      "config": {
+        "enabled": false,
+        "name": "底部提示 (UILabel)",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "47061573-175a-4735-986e-15e5faa87890",
+        "layerId": "kek8zl77",
+        "role": "text",
+        "prototype": {
+          "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
+          "pageId": "umlxcxo4",
+          "nodeId": "bz0nfn04",
+          "layaClass": "UILabel"
+        },
+        "slicing": {
+          "enabled": false,
+          "name": "底部提示 (UILabel)",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "hnof2wq6",
+      "sourceKey": 30,
+      "nativeId": 218,
+      "name": "开始远征 (UIButton)",
+      "config": {
+        "enabled": false,
+        "name": "开始远征 (UIButton)",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "47061573-175a-4735-986e-15e5faa87890",
+        "layerId": "hnof2wq6",
+        "role": "button",
+        "prototype": {
+          "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
+          "pageId": "umlxcxo4",
+          "nodeId": "fud92jz0",
+          "layaClass": "UIButton"
+        },
+        "slicing": {
+          "enabled": false,
+          "name": "开始远征 (UIButton)",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "zbat2hl1",
+      "sourceKey": 29,
+      "nativeId": 221,
+      "name": "按钮文案 (UILabel)",
+      "config": {
+        "enabled": false,
+        "name": "按钮文案 (UILabel)",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "47061573-175a-4735-986e-15e5faa87890",
+        "layerId": "zbat2hl1",
+        "role": "text",
+        "prototype": {
+          "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
+          "pageId": "umlxcxo4",
+          "nodeId": "92i5vexr",
+          "layaClass": "UILabel"
+        },
+        "slicing": {
+          "enabled": false,
+          "name": "按钮文案 (UILabel)",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "akmamc23",
+      "sourceKey": 28,
+      "nativeId": 219,
+      "name": "按钮底图 (UIImage)",
+      "config": {
+        "enabled": false,
+        "name": "按钮底图 (UIImage)",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "47061573-175a-4735-986e-15e5faa87890",
+        "layerId": "akmamc23",
+        "role": "asset.export-group",
+        "prototype": {
+          "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
+          "pageId": "umlxcxo4",
+          "nodeId": "owlmmgyl",
+          "layaClass": "UIImage"
+        },
+        "slicing": {
+          "enabled": false,
+          "name": "按钮底图 (UIImage)",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "c6ni4g0w",
+      "sourceKey": 27,
+      "nativeId": 220,
+      "name": "按钮底图 · 像素",
+      "config": {
+        "enabled": true,
+        "name": "button_bg",
+        "nineGrid": {
+          "top": 20,
+          "right": 20,
+          "bottom": 20,
+          "left": 20,
+          "repeat": false
+        }
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "47061573-175a-4735-986e-15e5faa87890",
+        "layerId": "c6ni4g0w",
+        "role": "asset.raster",
+        "exportGroupId": "akmamc23",
+        "slicing": {
+          "enabled": true,
+          "name": "button_bg",
+          "nineGrid": {
+            "top": 20,
+            "right": 20,
+            "bottom": 20,
+            "left": 20,
+            "repeat": false
+          }
+        },
+        "state": "normal"
+      }
+    },
+    {
+      "id": "58ys93tj",
+      "sourceKey": 24,
+      "nativeId": 212,
+      "name": "服务器信息 (UIBox)",
+      "config": {
+        "enabled": false,
+        "name": "服务器信息 (UIBox)",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "47061573-175a-4735-986e-15e5faa87890",
+        "layerId": "58ys93tj",
+        "role": "container",
+        "prototype": {
+          "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
+          "pageId": "umlxcxo4",
+          "nodeId": "k865l2ly",
+          "layaClass": "UIBox"
+        },
+        "slicing": {
+          "enabled": false,
+          "name": "服务器信息 (UIBox)",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "evdrys20",
+      "sourceKey": 23,
+      "nativeId": 217,
+      "name": "服务器名称 (UILabel)",
+      "config": {
+        "enabled": false,
+        "name": "服务器名称 (UILabel)",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "47061573-175a-4735-986e-15e5faa87890",
+        "layerId": "evdrys20",
+        "role": "text",
+        "prototype": {
+          "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
+          "pageId": "umlxcxo4",
+          "nodeId": "wy3s8pwe",
+          "layaClass": "UILabel"
+        },
+        "slicing": {
+          "enabled": false,
+          "name": "服务器名称 (UILabel)",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "tiv2cail",
+      "sourceKey": 22,
+      "nativeId": 215,
+      "name": "连接状态灯 (UIImage)",
+      "config": {
+        "enabled": false,
+        "name": "连接状态灯 (UIImage)",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "47061573-175a-4735-986e-15e5faa87890",
+        "layerId": "tiv2cail",
+        "role": "asset.export-group",
+        "prototype": {
+          "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
+          "pageId": "umlxcxo4",
+          "nodeId": "3zt548wx",
+          "layaClass": "UIImage"
+        },
+        "slicing": {
+          "enabled": false,
+          "name": "连接状态灯 (UIImage)",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "zht8rdqu",
+      "sourceKey": 21,
+      "nativeId": 216,
+      "name": "连接状态灯 · 像素",
+      "config": {
+        "enabled": true,
+        "name": "status_dot",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "47061573-175a-4735-986e-15e5faa87890",
+        "layerId": "zht8rdqu",
+        "role": "asset.raster",
+        "exportGroupId": "tiv2cail",
+        "slicing": {
+          "enabled": true,
+          "name": "status_dot",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "o0mva3gk",
+      "sourceKey": 19,
+      "nativeId": 213,
+      "name": "服务器底板 (UIImage)",
+      "config": {
+        "enabled": false,
+        "name": "服务器底板 (UIImage)",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "47061573-175a-4735-986e-15e5faa87890",
+        "layerId": "o0mva3gk",
+        "role": "asset.export-group",
+        "prototype": {
+          "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
+          "pageId": "umlxcxo4",
+          "nodeId": "i57rqmsq",
+          "layaClass": "UIImage"
+        },
+        "slicing": {
+          "enabled": false,
+          "name": "服务器底板 (UIImage)",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "zes4xdk1",
+      "sourceKey": 18,
+      "nativeId": 214,
+      "name": "服务器底板 · 像素",
+      "config": {
+        "enabled": true,
+        "name": "server_bg",
+        "nineGrid": {
+          "top": 12,
+          "right": 12,
+          "bottom": 12,
+          "left": 12,
+          "repeat": false
+        }
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "47061573-175a-4735-986e-15e5faa87890",
+        "layerId": "zes4xdk1",
+        "role": "asset.raster",
+        "exportGroupId": "o0mva3gk",
+        "slicing": {
+          "enabled": true,
+          "name": "server_bg",
+          "nineGrid": {
+            "top": 12,
+            "right": 12,
+            "bottom": 12,
+            "left": 12,
+            "repeat": false
+          }
+        }
+      }
+    },
+    {
+      "id": "mnqc6mbj",
+      "sourceKey": 15,
+      "nativeId": 207,
+      "name": "标题区 (UIBox)",
+      "config": {
+        "enabled": false,
+        "name": "标题区 (UIBox)",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "47061573-175a-4735-986e-15e5faa87890",
+        "layerId": "mnqc6mbj",
+        "role": "container",
+        "prototype": {
+          "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
+          "pageId": "umlxcxo4",
+          "nodeId": "5amcsa7u",
+          "layaClass": "UIBox"
+        },
+        "slicing": {
+          "enabled": false,
+          "name": "标题区 (UIBox)",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "mpcgmcrj",
+      "sourceKey": 14,
+      "nativeId": 211,
+      "name": "副标题 (UILabel)",
+      "config": {
+        "enabled": false,
+        "name": "副标题 (UILabel)",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "47061573-175a-4735-986e-15e5faa87890",
+        "layerId": "mpcgmcrj",
+        "role": "text",
+        "prototype": {
+          "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
+          "pageId": "umlxcxo4",
+          "nodeId": "3y70xjmg",
+          "layaClass": "UILabel"
+        },
+        "slicing": {
+          "enabled": false,
+          "name": "副标题 (UILabel)",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "cwqbzioa",
+      "sourceKey": 13,
+      "nativeId": 210,
+      "name": "游戏标题 (UILabel)",
+      "config": {
+        "enabled": false,
+        "name": "游戏标题 (UILabel)",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "47061573-175a-4735-986e-15e5faa87890",
+        "layerId": "cwqbzioa",
+        "role": "text",
+        "prototype": {
+          "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
+          "pageId": "umlxcxo4",
+          "nodeId": "2uij4u4o",
+          "layaClass": "UILabel"
+        },
+        "slicing": {
+          "enabled": false,
+          "name": "游戏标题 (UILabel)",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "79m7v9xo",
+      "sourceKey": 12,
+      "nativeId": 208,
+      "name": "星海徽记 (UIImage)",
+      "config": {
+        "enabled": false,
+        "name": "星海徽记 (UIImage)",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "47061573-175a-4735-986e-15e5faa87890",
+        "layerId": "79m7v9xo",
+        "role": "asset.export-group",
+        "prototype": {
+          "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
+          "pageId": "umlxcxo4",
+          "nodeId": "3o30ft4g",
+          "layaClass": "UIImage"
+        },
+        "slicing": {
+          "enabled": false,
+          "name": "星海徽记 (UIImage)",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "1jjds7jk",
+      "sourceKey": 11,
+      "nativeId": 209,
+      "name": "星海徽记 · 像素",
+      "config": {
+        "enabled": true,
+        "name": "emblem",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "47061573-175a-4735-986e-15e5faa87890",
+        "layerId": "1jjds7jk",
+        "role": "asset.raster",
+        "exportGroupId": "79m7v9xo",
+        "slicing": {
+          "enabled": true,
+          "name": "emblem",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "nb4bl6n7",
+      "sourceKey": 8,
+      "nativeId": 202,
+      "name": "背景 (UIBox)",
+      "config": {
+        "enabled": false,
+        "name": "背景 (UIBox)",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "47061573-175a-4735-986e-15e5faa87890",
+        "layerId": "nb4bl6n7",
+        "role": "container",
+        "prototype": {
+          "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
+          "pageId": "umlxcxo4",
+          "nodeId": "ofnub76o",
+          "layaClass": "UIBox"
+        },
+        "slicing": {
+          "enabled": false,
+          "name": "背景 (UIBox)",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "a7lcmr8w",
+      "sourceKey": 7,
+      "nativeId": 205,
+      "name": "星点与轨道 (UIImage)",
+      "config": {
+        "enabled": false,
+        "name": "星点与轨道 (UIImage)",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "47061573-175a-4735-986e-15e5faa87890",
+        "layerId": "a7lcmr8w",
+        "role": "asset.export-group",
+        "prototype": {
+          "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
+          "pageId": "umlxcxo4",
+          "nodeId": "ct08f7f6",
+          "layaClass": "UIImage"
+        },
+        "slicing": {
+          "enabled": false,
+          "name": "星点与轨道 (UIImage)",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "g6aijsld",
+      "sourceKey": 6,
+      "nativeId": 206,
+      "name": "星点与轨道 · 像素",
+      "config": {
+        "enabled": true,
+        "name": "stars",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "47061573-175a-4735-986e-15e5faa87890",
+        "layerId": "g6aijsld",
+        "role": "asset.raster",
+        "exportGroupId": "a7lcmr8w",
+        "slicing": {
+          "enabled": true,
+          "name": "stars",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "dzf6b5bx",
+      "sourceKey": 4,
+      "nativeId": 203,
+      "name": "深空渐变 (UIImage)",
+      "config": {
+        "enabled": false,
+        "name": "深空渐变 (UIImage)",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "47061573-175a-4735-986e-15e5faa87890",
+        "layerId": "dzf6b5bx",
+        "role": "asset.export-group",
+        "prototype": {
+          "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
+          "pageId": "umlxcxo4",
+          "nodeId": "ptkmcxds",
+          "layaClass": "UIImage"
+        },
+        "slicing": {
+          "enabled": false,
+          "name": "深空渐变 (UIImage)",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "atbs1ky7",
+      "sourceKey": 3,
+      "nativeId": 204,
+      "name": "深空渐变 · 像素",
+      "config": {
+        "enabled": true,
+        "name": "deep_space",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "47061573-175a-4735-986e-15e5faa87890",
+        "layerId": "atbs1ky7",
+        "role": "asset.raster",
+        "exportGroupId": "dzf6b5bx",
+        "slicing": {
+          "enabled": true,
+          "name": "deep_space",
+          "nineGrid": null
+        }
+      }
+    }
+  ]
+}

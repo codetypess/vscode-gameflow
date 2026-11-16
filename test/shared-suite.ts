@@ -131,7 +131,7 @@ test("unique legacy IDs and duplicate display names round-trip without identity 
 });
 
 test("checked-in samples retain valid unique element identities", () => {
-  for (const name of ["backpack", "ui-components"]) {
+  for (const name of ["backpack", "ui-components", "star-sea-login"]) {
     const source = readFileSync(`sample/${name}.gameflow.json`, "utf8");
     const document = parseGameFlowDocument(source);
     assert.equal(document.elementIdScheme, "nanoid-8");

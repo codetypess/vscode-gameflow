@@ -1,0 +1,45 @@
+{
+  "width": 750,
+  "height": 1334,
+  "prototypeNodes": 15,
+  "bindings": 16,
+  "groups": 11,
+  "editableTextRecords": 5,
+  "imageExportGroups": 6,
+  "rasterLayers": 6,
+  "taggedRecords": 22,
+  "psdBytes": 859421,
+  "sourceHash": "ff70bf34957488e8c2a225e80625cda4b1e4e72c143ed6916cf6f44ed1834439",
+  "prototypeCodecAndLayout": "passed",
+  "metadataIndependentReader": "passed",
+  "savedCompositeBytes": "exact match",
+  "imageGroupsExcludeLabels": "passed",
+  "photoshopRoundTrip": "not executed",
+  "independentPsdTools": {
+    "parser": "psd-tools",
+    "groups": 11,
+    "textLayers": 5,
+    "taggedRecords": 22,
+    "imagePixelsMatch": true,
+    "savedCompositeMatches": true,
+    "recomposedPixelMaxDifference": 1
+  },
+  "browserAcceptance": {
+    "prototypeOpened": true,
+    "psdOpened": true,
+    "editableButtonLabelAndUndo": "passed",
+    "slicingAndNineGrid": "passed",
+    "consoleWarningsOrErrors": 0,
+    "screenshot": "workbench-preview.jpg",
+    "prototypePreview": {
+      "sourceZoomPercent": 39,
+      "outputWidth": 750,
+      "outputHeight": 1334,
+      "note": "Cropped from the actual workbench screenshot and resized to design dimensions."
+    }
+  },
+  "repositoryChecks": {
+    "sharedTestsPassed": 177,
+    "productionBuildAndTypecheck": "passed"
+  }
+}

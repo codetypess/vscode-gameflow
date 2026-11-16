@@ -4,6 +4,7 @@ import type { Frame, GameFlowNode, GameFlowPage, NodeStyle, PageRootType } from 
 import { defaultStyle, inheritedFlag, NODE_LABELS } from "../../shared/editor-ops";
 import { Button } from "../components/ui/button";
 import { Separator } from "../components/ui/separator";
+import { ScrollArea } from "../components/ui/scroll-area";
 import { Field, ColorField, NumericPropertyRow, SliderPropertyRow } from "./fields";
 import { VariableField } from "./variable-field";
 import { LayoutProperties, PageLayoutProperties, WidgetProperties } from "./ui-properties";
@@ -44,11 +45,12 @@ export function Inspector({ page, node, selectedNodes = [], editingPage, onNode,
       <Button variant="ghost" size="icon" aria-label={collapsed ? "展开属性面板" : "收起属性面板"} onClick={() => setCollapsed(!collapsed)}>{collapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}</Button>
       <Button variant="ghost" size="icon" aria-label="关闭属性面板" onClick={onClose}><X size={14} /></Button>
     </div>
-    {!collapsed && selectedNodes.length > 1 ? <div className="inspector-content multiselection-summary">
+    {!collapsed ? <ScrollArea className="inspector-scroll" label="属性内容" key={selectedNodes.length > 1 ? "selection" : node?.id ?? page.id}>
+    {selectedNodes.length > 1 ? <div className="inspector-content multiselection-summary">
       <p className="property-hint">Ctrl 点击增减选择 · Shift 点击连续选择</p>
       <ul>{selectedNodes.map(item => <li key={item.id}><span>{item.name}</span><small>{COMPONENTS[item.type].laya}</small></li>)}</ul>
       <p className="property-hint">方向键移动整组 · Delete / Backspace 删除<br />单击控件可编辑它的属性</p>
-    </div> : !collapsed ? <div className="inspector-content" key={node?.id ?? page.id}>
+    </div> : <div className="inspector-content">
       <div className="component-identity"><span title={identityLabel}>{identityLabel}</span><code title="稳定节点 ID">{node?.id ?? page.id}</code></div>
       {geometry.issues.length ? <div className="layout-diagnostics" role="status"><strong>布局需要调整</strong>{geometry.issues.slice(0, 4).map((issue, i) => <p key={i}>{issue.message}</p>)}<p>暂用原始位置/尺寸显示，可继续修改。</p></div> : null}
       <Field label={node ? "名称" : "页面名称"} value={node?.name ?? page.name} disabled={locked} validate={(name) => !!name.trim()} onCommit={(name) => {
@@ -90,6 +92,7 @@ export function Inspector({ page, node, selectedNodes = [], editingPage, onNode,
         <PageLayoutProperties page={page} onPage={onPage} />
         <Button size="sm" variant="outline" onClick={onEnter}>进入页面编辑</Button>
       </>}
-    </div> : null}
+    </div>}
+    </ScrollArea> : null}
   </aside>;
 }

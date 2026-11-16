@@ -33,6 +33,10 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 
 ## Active Work Items
 
+- [inspector-overlay-scrollbar.md](inspector-overlay-scrollbar.md) — Done：属性面板滚动条覆盖显示、停止后自动隐藏；字段宽度稳定，滚动交互、窄窗口、177 项测试及构建通过。
+
+- [star-sea-login-sample.md](star-sea-login-sample.md) — Done：750×1334“星海远征”原型与 PSD 样例，独立图片导出组和文案；177 项测试、生产构建、独立 PSD 回读及工作台验收通过。
+
 - [psd-file-drop.md](psd-file-drop.md) — Verifying：PSD 切图和合并来源 A/B 拖入入口已接入；177 项测试、生产构建及浏览器读取/保护回归通过，操作系统文件拖入手势待实测。
 
 - [layer-tree-default-collapse.md](layer-tree-default-collapse.md) — Done：层级树容器默认收起，保留搜索与选中定位；175 项测试、生产构建及新建/复制/搜索/定位浏览器验收通过。

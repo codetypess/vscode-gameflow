@@ -1,0 +1,378 @@
+{
+  "schema": "gameflow.sample.prototype-psd-map",
+  "version": 1,
+  "experimental": true,
+  "prototype": "star-sea-login.gameflow.json",
+  "psd": "Star-Sea-Login-750x1334.psd",
+  "psdSha256": "ff70bf34957488e8c2a225e80625cda4b1e4e72c143ed6916cf6f44ed1834439",
+  "bindings": [
+    {
+      "prototype": {
+        "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
+        "pageId": "umlxcxo4",
+        "nodeId": "umlxcxo4",
+        "layaClass": "UIStack"
+      },
+      "psd": {
+        "documentId": "47061573-175a-4735-986e-15e5faa87890",
+        "layerId": "bh86004z",
+        "nativeId": 201
+      },
+      "name": "星海远征 · 登录",
+      "frame": {
+        "x": 0,
+        "y": 0,
+        "width": 750,
+        "height": 1334
+      }
+    },
+    {
+      "prototype": {
+        "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
+        "pageId": "umlxcxo4",
+        "nodeId": "ofnub76o",
+        "layaClass": "UIBox"
+      },
+      "psd": {
+        "documentId": "47061573-175a-4735-986e-15e5faa87890",
+        "layerId": "nb4bl6n7",
+        "nativeId": 202
+      },
+      "name": "背景",
+      "frame": {
+        "x": 0,
+        "y": 0,
+        "width": 750,
+        "height": 1334
+      }
+    },
+    {
+      "prototype": {
+        "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
+        "pageId": "umlxcxo4",
+        "nodeId": "ptkmcxds",
+        "layaClass": "UIImage"
+      },
+      "psd": {
+        "documentId": "47061573-175a-4735-986e-15e5faa87890",
+        "layerId": "dzf6b5bx",
+        "nativeId": 203
+      },
+      "name": "深空渐变",
+      "frame": {
+        "x": 0,
+        "y": 0,
+        "width": 750,
+        "height": 1334
+      },
+      "asset": {
+        "path": "assets/deep_space.png",
+        "rasterLayerId": "atbs1ky7",
+        "nativeId": 204,
+        "nineGrid": null
+      }
+    },
+    {
+      "prototype": {
+        "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
+        "pageId": "umlxcxo4",
+        "nodeId": "ct08f7f6",
+        "layaClass": "UIImage"
+      },
+      "psd": {
+        "documentId": "47061573-175a-4735-986e-15e5faa87890",
+        "layerId": "a7lcmr8w",
+        "nativeId": 205
+      },
+      "name": "星点与轨道",
+      "frame": {
+        "x": 0,
+        "y": 0,
+        "width": 750,
+        "height": 1334
+      },
+      "asset": {
+        "path": "assets/stars.png",
+        "rasterLayerId": "g6aijsld",
+        "nativeId": 206,
+        "nineGrid": null
+      }
+    },
+    {
+      "prototype": {
+        "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
+        "pageId": "umlxcxo4",
+        "nodeId": "5amcsa7u",
+        "layaClass": "UIBox"
+      },
+      "psd": {
+        "documentId": "47061573-175a-4735-986e-15e5faa87890",
+        "layerId": "mnqc6mbj",
+        "nativeId": 207
+      },
+      "name": "标题区",
+      "frame": {
+        "x": 60,
+        "y": 275,
+        "width": 630,
+        "height": 295
+      }
+    },
+    {
+      "prototype": {
+        "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
+        "pageId": "umlxcxo4",
+        "nodeId": "3o30ft4g",
+        "layaClass": "UIImage"
+      },
+      "psd": {
+        "documentId": "47061573-175a-4735-986e-15e5faa87890",
+        "layerId": "79m7v9xo",
+        "nativeId": 208
+      },
+      "name": "星海徽记",
+      "frame": {
+        "x": 267,
+        "y": 275,
+        "width": 216,
+        "height": 80
+      },
+      "asset": {
+        "path": "assets/emblem.png",
+        "rasterLayerId": "1jjds7jk",
+        "nativeId": 209,
+        "nineGrid": null
+      }
+    },
+    {
+      "prototype": {
+        "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
+        "pageId": "umlxcxo4",
+        "nodeId": "2uij4u4o",
+        "layaClass": "UILabel"
+      },
+      "psd": {
+        "documentId": "47061573-175a-4735-986e-15e5faa87890",
+        "layerId": "cwqbzioa",
+        "nativeId": 210
+      },
+      "name": "游戏标题",
+      "frame": {
+        "x": 60,
+        "y": 405,
+        "width": 630,
+        "height": 106
+      }
+    },
+    {
+      "prototype": {
+        "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
+        "pageId": "umlxcxo4",
+        "nodeId": "3y70xjmg",
+        "layaClass": "UILabel"
+      },
+      "psd": {
+        "documentId": "47061573-175a-4735-986e-15e5faa87890",
+        "layerId": "mpcgmcrj",
+        "nativeId": 211
+      },
+      "name": "副标题",
+      "frame": {
+        "x": 60,
+        "y": 515,
+        "width": 630,
+        "height": 40
+      }
+    },
+    {
+      "prototype": {
+        "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
+        "pageId": "umlxcxo4",
+        "nodeId": "k865l2ly",
+        "layaClass": "UIBox"
+      },
+      "psd": {
+        "documentId": "47061573-175a-4735-986e-15e5faa87890",
+        "layerId": "58ys93tj",
+        "nativeId": 212
+      },
+      "name": "服务器信息",
+      "frame": {
+        "x": 145,
+        "y": 870,
+        "width": 460,
+        "height": 64
+      }
+    },
+    {
+      "prototype": {
+        "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
+        "pageId": "umlxcxo4",
+        "nodeId": "i57rqmsq",
+        "layaClass": "UIImage"
+      },
+      "psd": {
+        "documentId": "47061573-175a-4735-986e-15e5faa87890",
+        "layerId": "o0mva3gk",
+        "nativeId": 213
+      },
+      "name": "服务器底板",
+      "frame": {
+        "x": 145,
+        "y": 870,
+        "width": 460,
+        "height": 64
+      },
+      "asset": {
+        "path": "assets/server_bg.png",
+        "rasterLayerId": "zes4xdk1",
+        "nativeId": 214,
+        "nineGrid": {
+          "top": 12,
+          "right": 12,
+          "bottom": 12,
+          "left": 12,
+          "repeat": false
+        }
+      }
+    },
+    {
+      "prototype": {
+        "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
+        "pageId": "umlxcxo4",
+        "nodeId": "3zt548wx",
+        "layaClass": "UIImage"
+      },
+      "psd": {
+        "documentId": "47061573-175a-4735-986e-15e5faa87890",
+        "layerId": "tiv2cail",
+        "nativeId": 215
+      },
+      "name": "连接状态灯",
+      "frame": {
+        "x": 177,
+        "y": 897,
+        "width": 10,
+        "height": 10
+      },
+      "asset": {
+        "path": "assets/status_dot.png",
+        "rasterLayerId": "zht8rdqu",
+        "nativeId": 216,
+        "nineGrid": null
+      }
+    },
+    {
+      "prototype": {
+        "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
+        "pageId": "umlxcxo4",
+        "nodeId": "wy3s8pwe",
+        "layaClass": "UILabel"
+      },
+      "psd": {
+        "documentId": "47061573-175a-4735-986e-15e5faa87890",
+        "layerId": "evdrys20",
+        "nativeId": 217
+      },
+      "name": "服务器名称",
+      "frame": {
+        "x": 203,
+        "y": 882,
+        "width": 378,
+        "height": 40
+      }
+    },
+    {
+      "prototype": {
+        "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
+        "pageId": "umlxcxo4",
+        "nodeId": "fud92jz0",
+        "layaClass": "UIButton"
+      },
+      "psd": {
+        "documentId": "47061573-175a-4735-986e-15e5faa87890",
+        "layerId": "hnof2wq6",
+        "nativeId": 218
+      },
+      "name": "开始远征",
+      "frame": {
+        "x": 130,
+        "y": 978,
+        "width": 490,
+        "height": 94
+      }
+    },
+    {
+      "prototype": {
+        "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
+        "pageId": "umlxcxo4",
+        "nodeId": "owlmmgyl",
+        "layaClass": "UIImage"
+      },
+      "psd": {
+        "documentId": "47061573-175a-4735-986e-15e5faa87890",
+        "layerId": "akmamc23",
+        "nativeId": 219
+      },
+      "name": "按钮底图",
+      "frame": {
+        "x": 130,
+        "y": 978,
+        "width": 490,
+        "height": 94
+      },
+      "asset": {
+        "path": "assets/button_bg.png",
+        "rasterLayerId": "c6ni4g0w",
+        "nativeId": 220,
+        "nineGrid": {
+          "top": 20,
+          "right": 20,
+          "bottom": 20,
+          "left": 20,
+          "repeat": false
+        }
+      }
+    },
+    {
+      "prototype": {
+        "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
+        "pageId": "umlxcxo4",
+        "nodeId": "92i5vexr",
+        "layaClass": "UILabel"
+      },
+      "psd": {
+        "documentId": "47061573-175a-4735-986e-15e5faa87890",
+        "layerId": "zbat2hl1",
+        "nativeId": 221
+      },
+      "name": "按钮文案",
+      "frame": {
+        "x": 130,
+        "y": 978,
+        "width": 490,
+        "height": 94
+      }
+    },
+    {
+      "prototype": {
+        "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
+        "pageId": "umlxcxo4",
+        "nodeId": "bz0nfn04",
+        "layaClass": "UILabel"
+      },
+      "psd": {
+        "documentId": "47061573-175a-4735-986e-15e5faa87890",
+        "layerId": "kek8zl77",
+        "nativeId": 222
+      },
+      "name": "底部提示",
+      "frame": {
+        "x": 60,
+        "y": 1220,
+        "width": 630,
+        "height": 30
+      }
+    }
+  ]
+}
