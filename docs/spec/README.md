@@ -33,6 +33,8 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 
 ## Active Work Items
 
+- [page-insert-camera.md](page-insert-camera.md) — Done：新增界面保持当前视角，页内新增补偿坐标原点；175 项测试、生产构建及四种根类型/历史/导航浏览器回归通过。
+
 - [text-formatting-controls.md](text-formatting-controls.md) — Done：紧凑 B/I/U/S 样式开关、移除字重下拉框及六项对齐；175 项测试、生产构建与浏览器样式/历史/保存刷新/锁定验收通过。
 
 - [color-picker-history.md](color-picker-history.md) — Verifying：连续取色实时预览、结束一次提交；173 项测试、生产构建及浏览器颜色输入/撤销/重做通过，原生弹窗连续拖动待人工验收。

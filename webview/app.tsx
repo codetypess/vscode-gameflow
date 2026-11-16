@@ -100,7 +100,8 @@ export function App() {
     setEditingId(target.id); setSelectedPageId(target.id); setSelectedNodeId(null); setScopeIds([]);
     setTool("select"); setInspectorOpen(true); fit([target], true);
   };
-  const back = () => { gesture.current = null; setPreview(null); setEditingId(null); setSelectedNodeId(null); setScopeIds([]); setTool("select"); setCamera(overviewCamera.current); };
+  const leavePage = (nextCamera: Camera) => { gesture.current = null; setPreview(null); setEditingId(null); setSelectedNodeId(null); setScopeIds([]); setTool("select"); setCamera(nextCamera); };
+  const back = () => leavePage(overviewCamera.current);
   useEffect(() => {
     if (canvasDocument) reserveDocumentElementIds(canvasDocument, allocatedIds.current);
     if (canvasDocument && !initialized.current && viewport.current) { initialized.current = true; fit(canvasDocument.pages, false); }
@@ -154,14 +155,15 @@ export function App() {
   };
   const addPage = (rootType: PageRootType = "UIStack") => {
     if (!canvasDocument) return;
-    if (editingId) back();
+    // Convert the current page-local view to overview coordinates without moving the page on screen.
+    if (editingId) leavePage(page ? { ...camera, x: camera.x - page.frame.x * camera.zoom, y: camera.y - page.frame.y * camera.zoom } : camera);
     const makeId = newIds();
     const id = makeId();
     const x = canvasDocument.pages.length ? Math.round(Math.max(...canvasDocument.pages.map((item) => item.frame.x + item.frame.width)) + 80) : 0;
-    const size = rootType === "UIBox" ? { width: 320, height: 240 } : { width: 390, height: 844 };
+    const size = rootType === "UIBox" ? { width: 320, height: 240 } : { width: 750, height: 1334 };
     const next: GameFlowPage = { id, name: `${PAGE_ROOTS[rootType].label} ${canvasDocument.pages.length + 1}`, kind: "screen", rootType, frame: { x, y: 0, ...size }, nodes: [] };
     edit((document) => ({ ...document, pages: [...document.pages, next] }));
-    setSelectedPageId(id); setSelectedNodeId(null); setInspectorOpen(true); setInsertOpen(false); fit([...canvasDocument.pages, next], false);
+    setSelectedPageId(id); setSelectedNodeId(null); setInspectorOpen(true); setInsertOpen(false);
   };
   const chooseInsertTool = (type: InsertType) => {
     if (!editingId) return;
