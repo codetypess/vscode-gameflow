@@ -33,6 +33,8 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 
 ## Active Work Items
 
+- [layer-tree-default-collapse.md](layer-tree-default-collapse.md) — Done：层级树容器默认收起，保留搜索与选中定位；175 项测试、生产构建及新建/复制/搜索/定位浏览器验收通过。
+
 - [page-insert-camera.md](page-insert-camera.md) — Done：新增界面保持当前视角，页内新增补偿坐标原点；175 项测试、生产构建及四种根类型/历史/导航浏览器回归通过。
 
 - [text-formatting-controls.md](text-formatting-controls.md) — Done：紧凑 B/I/U/S 样式开关、移除字重下拉框及六项对齐；175 项测试、生产构建与浏览器样式/历史/保存刷新/锁定验收通过。

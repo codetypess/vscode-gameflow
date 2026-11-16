@@ -29,13 +29,13 @@ export function LayerTree({ page, scopeId, selectedId, selectedIds, reveal, onSe
   hasClipboard: boolean; onCopy: (id: string) => void; onPaste: (parentId?: string, afterId?: string) => void;
   onDuplicate: (id: string) => void; onConvert: (id: string, type: InsertType) => void;
 }) {
-  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [query, setQuery] = useState("");
   const [searchCollapsed, setSearchCollapsed] = useState<Set<string>>(new Set());
   const searchInput = useRef<HTMLInputElement | null>(null);
   const filtering = !!query.trim();
   const { matches, visible } = searchLayers(page, query);
-  const activeCollapsed = filtering ? searchCollapsed : collapsed;
+  const activeCollapsed = filtering ? searchCollapsed : new Set(page.nodes.filter(node => !expanded.has(node.id)).map(node => node.id));
   const selectionOrder = visibleLayerOrder(page, visible, activeCollapsed);
   const [menu, setMenu] = useState<LayerMenuTarget | null>(null);
   const [dragging, setDragging] = useState<string | null>(null);
@@ -49,9 +49,8 @@ export function LayerTree({ page, scopeId, selectedId, selectedIds, reveal, onSe
   const drag = useRef<TreeDrag | null>(null);
   const suppressClick = useRef(false);
   const returnFocus = useRef<HTMLElement | null>(null);
-  const setActiveCollapsed = filtering ? setSearchCollapsed : setCollapsed;
-  const toggle = (id: string) => setActiveCollapsed((previous) => { const next = new Set(previous); if (next.has(id)) next.delete(id); else next.add(id); return next; });
-  const expand = (id?: string) => { if (id) setActiveCollapsed((previous) => { const next = new Set(previous); next.delete(id); return next; }); };
+  const toggle = (id: string) => (filtering ? setSearchCollapsed : setExpanded)((previous) => { const next = new Set(previous); if (next.has(id)) next.delete(id); else next.add(id); return next; });
+  const expand = (id?: string) => { if (id) (filtering ? setSearchCollapsed : setExpanded)((previous) => { const next = new Set(previous); if (filtering) next.delete(id); else next.add(id); return next; }); };
   const cancelDrag = () => {
     const current = drag.current;
     drag.current = null; setDragging(null); setDrop(null);
@@ -76,7 +75,8 @@ export function LayerTree({ page, scopeId, selectedId, selectedIds, reveal, onSe
       parentId = page.nodes.find((item) => item.id === parentId)?.parentId;
     }
     if ([...activeCollapsed].some((id) => ancestors.has(id))) {
-      setActiveCollapsed(new Set([...activeCollapsed].filter((id) => !ancestors.has(id))));
+      if (filtering) setSearchCollapsed(previous => new Set([...previous].filter(id => !ancestors.has(id))));
+      else setExpanded(previous => new Set([...previous, ...ancestors]));
       return;
     }
     const tree = panel.current?.querySelector<HTMLElement>(".layer-tree");

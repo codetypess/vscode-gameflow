@@ -28,15 +28,15 @@ export function ControlPartsProperties({ page, node, locked, onNode, onPage, onC
     {node.type === "radioGroup" ? <details className="property-details" open><summary>单选组</summary>
       <label className="property-field"><span>当前选项</span><select aria-label="单选组当前选项" disabled={locked} value={node.widget?.selectedIndex ?? -1} onChange={event => onNode(node.id, { widget: { ...node.widget, selectedIndex: Number(event.target.value) } })}>
         <option value={-1}>未选中</option>
-        {options.map((id, index) => id ? <option key={index} value={index}>{index + 1}. {page.nodes.find(item => item.id === id)?.name}</option> : null)}
+        {options.map((id, index) => id ? <option key={index} value={index}>{index}. {page.nodes.find(item => item.id === id)?.name}</option> : null)}
       </select></label>
       {options.map((id, index) => <div key={index} className="radio-option-row">
-        <Button variant="ghost" size="icon" className="radio-option-remove" aria-label={`移除成员 ${index + 1}`} title={`移除成员 ${index + 1}`} disabled={locked} onClick={() => changeOptions(options.filter((_, i) => i !== index))}><Trash2 size={14} aria-hidden="true" /></Button>
-        <span className="radio-option-number">{index + 1}</span>
-        <NodeReferenceField page={page} owner={node} kind="radioOption" label={`单选组成员 ${index + 1}`} disabled={locked} value={id} onChange={nextId => changeOptions(options.map((value, i) => i === index ? nextId : value))} />
+        <Button variant="ghost" size="icon" className="radio-option-remove" aria-label={`移除成员 ${index}`} title={`移除成员 ${index}`} disabled={locked} onClick={() => changeOptions(options.filter((_, i) => i !== index))}><Trash2 size={14} aria-hidden="true" /></Button>
+        <span className="radio-option-number">{index}</span>
+        <NodeReferenceField page={page} owner={node} kind="radioOption" label={`单选组成员 ${index}`} disabled={locked} value={id} onChange={nextId => changeOptions(options.map((value, i) => i === index ? nextId : value))} />
       </div>)}
       <div className="radio-option-row"><Button className="radio-option-add" variant="outline" size="sm" disabled={locked || options.length >= 1000} onClick={() => changeOptions([...options, null])}>添加选项</Button></div>
-      <p className="property-hint">按成员顺序编号；图层移动不改变分组。移除成员保留其当前选中状态。</p>
+      <p className="property-hint">成员索引从 0 开始；图层移动不改变分组。移除成员保留其当前选中状态。</p>
     </details> : null}
   </>;
 }
