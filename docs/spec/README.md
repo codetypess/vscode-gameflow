@@ -70,7 +70,7 @@ The completed [nanoid-element-ids.md](nanoid-element-ids.md) replaces handwritte
 
 The completed [document-element-id-uniqueness.md](document-element-id-uniqueness.md) closes cross-page and page/node collision gaps with document-wide identity validation for v1/v2, actionable conflict locations and rejection at parsing, serialization and edit-message boundaries. All 77 tests and the production build passed, including controlled copy collisions, retained session reservations and both checked-in samples.
 
-The completed [compact-insert-menu.md](compact-insert-menu.md) shows all insert choices in two compact columns at common desktop sizes, with scrolling only when space is limited. [cyclic-canvas-grid.md](cyclic-canvas-grid.md) shares a world-anchored, density-cycling dot grid between prototype and PSD slice canvases. Build, 79 tests and browser menu/zoom/pan checks passed.
+The completed [compact-insert-menu.md](compact-insert-menu.md) restores a 225px single-column insert menu, with internal scrolling when height is limited; the production build and browser layout, scrolling and keyboard checks passed. [cyclic-canvas-grid.md](cyclic-canvas-grid.md) shares a world-anchored, density-cycling dot grid between prototype and PSD slice canvases; its original build, 79 tests and browser zoom/pan checks passed.
 
 The completed [psd-metadata-sample.md](psd-metadata-sample.md) records a standalone layered PSD fixture, an offline inspector and two art-return checks: ordinary edits preserve metadata, duplication repeats IDs, and the tested layer merge loses metadata. The Draft PSD design now treats merged layers as new objects and manages identity from metadata only; production integration and broader compatibility remain unimplemented.
 

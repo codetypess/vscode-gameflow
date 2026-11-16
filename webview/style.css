@@ -208,8 +208,8 @@ button svg { flex-shrink: 0; }
 .canvas-toolbar [data-orientation=vertical], .canvas-zoom [data-orientation=vertical] { height: 20px; margin: 0 4px; background: var(--border); }
 .direct-tools { display: flex; gap: 2px; }
 .insert-trigger { position: relative; }.insert-trigger svg:last-child { position: absolute; right: 0; bottom: 3px; }
-.insert-menu { width: 440px; max-width: calc(100vw - 24px); max-height: var(--radix-popover-content-available-height, calc(100vh - 100px)); overflow-y: auto; padding: 5px; background: var(--popover); color: var(--popover-foreground); font-size: 12px; border-radius: 4px; }
-.insert-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr)); column-gap: 4px; }
+.insert-menu { width: 225px; max-width: calc(100vw - 24px); max-height: var(--radix-popover-content-available-height, calc(100vh - 100px)); overflow-y: auto; padding: 5px; background: var(--popover); color: var(--popover-foreground); font-size: 12px; border-radius: 4px; }
+.insert-grid { display: grid; grid-template-columns: minmax(0, 1fr); }
 .menu-class { font-size: 11px; opacity: 0.7; white-space: nowrap; }
 .menu-heading { padding: 7px 8px 5px; font-size: 10px; color: var(--muted-foreground); }
 .insert-menu button { display: flex; align-items: center; gap: 7px; width: 100%; padding: 5px 8px; border-radius: 2px; text-align: left; line-height: 18px; white-space: nowrap; }
