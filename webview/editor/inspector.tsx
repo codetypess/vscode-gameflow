@@ -10,13 +10,16 @@ import { LayoutProperties, PageLayoutProperties, WidgetProperties } from "./ui-p
 import { COMPONENTS, flowType, PAGE_ROOTS, PAGE_ROOT_TYPES, pageRootType } from "../../shared/ui-components";
 import { resolvePageLayout, constraintsFor, managedAxis } from "../../shared/ui-layout";
 import { editNodeFrame, setNodeAnchor } from "../../shared/ui-edit";
+import { hasNodeSkin, sliderOwner } from "../../shared/ui-parts";
+import { ControlPartsProperties } from "./control-parts";
 
-export function Inspector({ page, node, editingPage, onNode, onPage, onClose, onEnter, onImport, panelRef, panelStyle }: {
+export function Inspector({ page, node, editingPage, onNode, onPage, onClose, onEnter, onImport, onCreateParts, panelRef, panelStyle }: {
   page: GameFlowPage; node: GameFlowNode | null; editingPage: boolean;
   panelRef?: (element: HTMLElement | null) => void; panelStyle?: CSSProperties;
   onNode: (id: string, patch: Partial<GameFlowNode>) => void;
   onPage: (transform: (page: GameFlowPage) => GameFlowPage) => void;
   onClose: () => void; onEnter: () => void; onImport: () => void;
+  onCreateParts: () => void;
 }) {
   const [collapsed, setCollapsed] = useState(false);
   const locked = node ? inheritedFlag(page, node, "locked") : false;
@@ -45,17 +48,17 @@ export function Inspector({ page, node, editingPage, onNode, onPage, onClose, on
       }} />
       {node ? <VariableField page={page} node={node} disabled={locked} onCommit={(variableName) => onNode(node.id, { variableName })} /> : null}
       <div className="property-section-title">基础属性</div>
-      <NumericPropertyRow label="位置" integer disabled={locked} fields={(["x", "y"] as const).map(key => ({ axis: key.toUpperCase(), ariaLabel: key.toUpperCase(), value: !node && editingPage ? 0 : frame[key], readOnly: !node && editingPage, disabled: !!node && (managedAxis(parent, key) || (flowType(parent) !== "free" && node.layout?.crossAxisMode !== "explicit" && !constraintsFor(key).some(k => node.layout?.[k] != null))), onCommit: value => setFrame(key, String(value)) }))} />
+      <NumericPropertyRow label="位置" integer disabled={locked} fields={(["x", "y"] as const).map(key => ({ axis: key.toUpperCase(), ariaLabel: key.toUpperCase(), value: !node && editingPage ? 0 : frame[key], readOnly: !node && editingPage, disabled: !!node && (!!sliderOwner(page, node) || managedAxis(parent, key) || (flowType(parent) !== "free" && node.layout?.crossAxisMode !== "explicit" && !constraintsFor(key).some(k => node.layout?.[k] != null))), onCommit: value => setFrame(key, String(value)) }))} />
       <NumericPropertyRow label="尺寸" integer disabled={locked} fields={(["width", "height"] as const).map(key => ({ axis: key === "width" ? "W" : "H", ariaLabel: key === "width" ? "W" : "H", value: frame[key], min: 8, onCommit: value => setFrame(key, String(value)) }))} />
       {node ? <>
         {([{ label: "锚点", keys: ["anchorX", "anchorY"], initial: 0 }, { label: "缩放", keys: ["scaleX", "scaleY"], initial: 1 }, { label: "倾斜", keys: ["skewX", "skewY"], initial: 0 }, { label: "旋转", keys: ["rotation"], initial: 0 }] as const).map(row => <NumericPropertyRow key={row.label} label={row.label} precision={2} disabled={locked} fields={row.keys.map((key, i) => ({ axis: key === "rotation" ? "°" : i ? "Y" : "X", ariaLabel: key === "rotation" ? "旋转角度" : `${row.label} ${i ? "Y" : "X"}`, value: node.transform?.[key] ?? row.initial, ...(row.label === "锚点" ? { min: 0, max: 1 } : {}), onCommit: value => key === "anchorX" || key === "anchorY" ? onPage(item => setNodeAnchor(item, node.id, { [key]: value })) : onNode(node.id, { transform: { ...node.transform, [key]: value } }) }))} />)}
         <SliderPropertyRow label="不透明度" value={appearance.opacity} disabled={locked} onCommit={opacity => setStyle({ opacity })} />
         {!geometry.nodes.get(node.id)!.inverse ? <p className="property-hint">变换使控件压扁，画布拖动暂不可用；调整缩放或倾斜可恢复。</p> : null}
         {locked ? <div className="locked-message"><LockKeyhole size={13} />控件已锁定，请在图层树中解锁</div> : null}
-        <Separator />
         <LayoutProperties page={page} node={node} locked={locked} onNode={onNode} onPage={onPage} />
+        <ControlPartsProperties page={page} node={node} locked={locked} onNode={onNode} onPage={onPage} onCreateParts={onCreateParts} />
         <WidgetProperties node={node} locked={locked} onNode={onNode} />
-        {(["text", "input", "checkbox", "radio"].includes(node.type) || (node.type === "button" && node.text !== undefined)) ? <>
+        {(["text", "input"].includes(node.type) || (["checkbox", "radio"].includes(node.type) && !hasNodeSkin(node)) || (node.type === "button" && node.text !== undefined)) ? <>
           <div className="property-section-title">文字</div>
           <Field label="文字内容" value={node.text ?? node.name} disabled={locked} onCommit={(text) => onNode(node.id, { text })} />
           <div className="property-grid"><Field label="字号" type="number" min={1} max={300} value={appearance.fontSize} disabled={locked} onCommit={(fontSize) => setStyle({ fontSize: Number(fontSize) })} />
@@ -79,7 +82,6 @@ export function Inspector({ page, node, editingPage, onNode, onPage, onClose, on
         </select></label>
         <label className="property-field"><span>页面形式</span><select aria-label="页面形式" value={page.kind} onChange={(event) => { const kind = event.target.value as "screen" | "modal"; onPage((item) => ({ ...item, kind })); }}><option value="screen">页面</option><option value="modal">弹窗</option></select></label>
         <ColorField label="页面背景" value={page.background ?? "#ffffff"} onCommit={(background) => onPage((item) => ({ ...item, background }))} />
-        <Separator />
         <PageLayoutProperties page={page} onPage={onPage} />
         <Button size="sm" variant="outline" onClick={onEnter}>进入页面编辑</Button>
       </>}

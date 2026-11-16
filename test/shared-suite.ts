@@ -18,6 +18,8 @@ import { psdTests } from "./psd-suite";
 import { uiLayoutTests } from "./ui-layout-suite";
 import { nodeVariableTests } from "./node-variable-suite";
 import { uiTransformTests } from "./ui-transform-suite";
+import { uiPartsTests } from "./ui-parts-suite";
+import { nodeReferenceTests } from "./node-reference-suite";
 import { pageRootLayoutTests } from "./page-root-layout-suite";
 
 type TestCase = { name: string; run: () => void | Promise<void> };
@@ -495,7 +497,7 @@ test("editor initialization migrates legacy IDs once in a save-ordered, undoable
   assert.equal(migration.type, "replaceDocument");
   if (migration.type !== "replaceDocument") throw new Error("expected identity migration transaction");
   assert.equal(migration.baseVersion, 1);
-  assert.equal(migration.document.schemaVersion, 2);
+  assert.equal(migration.document.schemaVersion, 3);
   assert.equal(validateGameFlowDocument(migration.document).ok, true);
   assert.equal(session.state.dirty, true);
   assert.equal(session.state.pending, true);
@@ -591,7 +593,7 @@ tests.push(...psdTests);
 tests.push(...uiLayoutTests);
 tests.push(...nodeVariableTests);
 tests.push(...uiTransformTests);
-tests.push(...pageRootLayoutTests);
+tests.push(...pageRootLayoutTests, ...uiPartsTests, ...nodeReferenceTests);
 export const testsCompleted = (async () => {
   let failed = 0;
   for (const item of tests) {

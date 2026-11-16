@@ -23,6 +23,7 @@ export const COMPONENTS = {
   list: { label: "列表", laya: "UIList", children: true },
   checkbox: { label: "复选框", laya: "UICheckBox", children: true },
   radio: { label: "单选框", laya: "UIRadio", children: true },
+  radioGroup: { label: "单选组", laya: "UIRadioGroup", children: true },
   progress: { label: "进度条", laya: "UIProgressBar", children: true },
   slider: { label: "滑块", laya: "UISlider", children: true },
   combo: { label: "下拉框", laya: "UIComboBox", children: true }

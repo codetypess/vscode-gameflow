@@ -4,6 +4,7 @@ import { canHaveChildren } from "./ui-components";
 import { CONSTRAINTS } from "./ui-config";
 import { resolvePageLayout } from "./ui-layout";
 import { allocateVariableName } from "./node-variable";
+import { controlSelected, remapControlReferences } from "./ui-parts";
 
 export interface NodeClipboard { rootId: string; nodes: GameFlowNode[] }
 
@@ -13,6 +14,7 @@ export function copyNode(page: GameFlowPage, id: string): NodeClipboard | null {
   if (!root) return null;
   const ids = descendants(page, id);
   const nodes = structuredClone(orderedNodes(page).filter((node) => ids.has(node.id)));
+  for (const node of nodes) if (node.type === "radio") node.widget = { ...node.widget, selected: controlSelected(page, node) };
   nodes[0].frame = { ...resolvePageLayout(page).nodes.get(id)!.local };
   return { rootId: id, nodes };
 }
@@ -35,7 +37,7 @@ export function pasteNode(page: GameFlowPage, clipboard: NodeClipboard, makeId: 
       delete next.layout.positionOffsetX; delete next.layout.positionOffsetY;
       if (parentId) next.parentId = parentId; else delete next.parentId;
     } else next.parentId = mapping.get(node.parentId!)!;
-    return next;
+    return remapControlReferences(next, mapping);
   });
   const root = copies.find((node) => node.id === mapping.get(clipboard.rootId))!;
   const inserted = insertNode(page, root, parentId, afterId);

@@ -3,6 +3,7 @@ import { AXES, constraintsFor, managedAxis, resolvePageLayout } from "./ui-layou
 import { inheritedFlag, makeNode, moveNode } from "./editor-ops";
 import type { Constraint } from "./ui-config";
 import { canHaveChildren, flowType } from "./ui-components";
+import { reconcileControlReferences, sliderOwner } from "./ui-parts";
 import { axisAnchor, axisScale, inverse, mapVector, nodeMatrix, type Matrix } from "./ui-transform";
 
 /** Keep the intended resolved coordinates when constraint positioning rounds its base value. */
@@ -25,6 +26,7 @@ export function setNodeAnchor(page: GameFlowPage, id: string, anchor: { anchorX?
   const node = page.nodes.find(n => n.id === id);
   if (!node || inheritedFlag(page, node, "locked") || Object.values(anchor).some(value => typeof value !== "number" || !Number.isFinite(value) || value < 0 || value > 1)) return page;
   const transform = { ...node.transform, ...anchor };
+  if (sliderOwner(page, node)) return { ...page, nodes: page.nodes.map(item => item.id === id ? { ...item, transform } : item) };
   if ((transform.anchorX ?? 0) === (node.transform?.anchorX ?? 0) && (transform.anchorY ?? 0) === (node.transform?.anchorY ?? 0)) return page;
   const geometry = resolvePageLayout(page), old = geometry.nodes.get(id)!;
   const delta = mapVector(nodeMatrix(old.local, node.transform), {
@@ -53,6 +55,7 @@ export function setNodeAnchor(page: GameFlowPage, id: string, anchor: { anchorX?
 export function setNodeConstraint(page: GameFlowPage, id: string, key: Constraint, enabled: boolean): GameFlowPage {
   const node = page.nodes.find((item) => item.id === id);
   if (!node || inheritedFlag(page, node, "locked") || (node.layout?.[key] != null) === enabled) return page;
+  if (enabled && sliderOwner(page, node)) return page;
   const axis = key === "left" || key === "centerX" || key === "right" ? "x" : "y";
   const parent = page.nodes.find((item) => item.id === node.parentId);
   if (managedAxis(parent, axis)) return page;
@@ -83,6 +86,10 @@ export function setNodeConstraint(page: GameFlowPage, id: string, key: Constrain
 export function editNodeFrame(page: GameFlowPage, id: string, next: Frame, intent: "move" | "resize" | "nudge" = "resize"): GameFlowPage {
   const node = page.nodes.find((n) => n.id === id);
   if (!node || inheritedFlag(page, node, "locked")) return page;
+  if (sliderOwner(page, node)) {
+    if (intent !== "resize" || (next.width === resolvePageLayout(page).nodes.get(id)!.local.width && next.height === resolvePageLayout(page).nodes.get(id)!.local.height)) return page;
+    return { ...page, nodes: page.nodes.map(item => item.id === id ? { ...item, frame: { ...item.frame, width: Math.max(1, Math.round(next.width)), height: Math.max(1, Math.round(next.height)) }, layout: { ...item.layout, widthMode: "explicit", heightMode: "explicit" } } : item) };
+  }
   const geometry = resolvePageLayout(page), old = geometry.nodes.get(id)!.local;
   next = { ...next };
   for (const key of ["x", "y", "width", "height"] as const) {
@@ -184,9 +191,9 @@ export function convertNodeType(page: GameFlowPage, id: string, type: NodeType):
   if (!canConvertNodeType(page, id, type)) return page;
   const changed = changeContainerType(page, id, type);
   const defaults = makeNode(type, id, 0, 0);
-  return { ...changed, nodes: changed.nodes.map((node) => node.id === id ? {
+  return reconcileControlReferences(page, { ...changed, nodes: changed.nodes.map((node) => node.id === id ? {
     ...node, type,
     ...(node.text === undefined && defaults.text !== undefined ? { text: defaults.text } : {}),
-    ...(!node.widget && defaults.widget ? { widget: structuredClone(defaults.widget) } : {})
-  } : node) };
+    ...(type === "radioGroup" ? { widget: { ...node.widget, optionNodeIds: [], selectedIndex: -1 } } : !node.widget && defaults.widget ? { widget: structuredClone(defaults.widget) } : {})
+  } : node) });
 }

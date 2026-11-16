@@ -93,7 +93,7 @@ test("root constraint edits upgrade v1 atomically and survive save, undo and red
   session.receive({ type: "init", document: original, documentVersion: 1, resourceName: "test", dirty: false });
   session.edit(document => ({ ...document, pages: document.pages.map(page => ({ ...page, layout: { left: 0, centerY: 0 } })) }));
   const changed = session.state.document!;
-  assert.equal(changed.schemaVersion, 2);
+  assert.equal(changed.schemaVersion, 3);
   assert.deepEqual(changed.pages[0].frame, original.pages[0].frame);
   assert.deepEqual(changed.pages[0].nodes, original.pages[0].nodes);
   assert.equal(changed.pages[0].id, original.pages[0].id);

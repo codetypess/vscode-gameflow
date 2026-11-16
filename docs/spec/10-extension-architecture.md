@@ -51,6 +51,8 @@ Status: Baseline for the initial extension scaffold
 
 ## Future Document Evolution
 
-原型 UI 文档已演进至 schemaVersion 2：新增类型化 layout/widget 字段，兼容读取 v1，首次有效编辑由 DocumentSession 在原事务升级，不改写已有 ID。布局解算、编辑意图与字段验证分别由 shared/ui-layout.ts、ui-edit.ts、ui-config.ts 负责；DOM 只呈现解算几何。计算结果不是第二份文档权威。详细规则见 [11-prototype-ui-layout.md](11-prototype-ui-layout.md)。
+原型复合控件使用 schemaVersion 3；v1/v2 仍可读取，普通读取保持内容，首次有效编辑由现有 DocumentSession 事务升级为 v3。新增 radioGroup 类型、widget.skinNodeId 和 widget.optionNodeIds，旧版本拒绝这些类型/字段。共享 ui-parts.ts 校验皮肤的直接子级关系、Slider 无相对约束、Radio 成员有效性及唯一归组、空槽与选中索引；JSON Schema 约束字段类型、适用节点类型与文档版本。引用使用节点身份，复制/粘贴/整页复制及 Nano ID 迁移同时重映射，删除/换父级/转换在原事务中解除失效关系。派生皮肤位置与可见性不形成第二份文档权威。此变更不新增宿主协议、PSD 资源引用或 Prefab 写入入口。
+
+此前 schemaVersion 2 引入类型化 layout/widget 字段；这些字段与原有 ID 在 v3 中继续保留。布局解算、编辑意图与字段验证分别由 shared/ui-layout.ts、ui-edit.ts、ui-config.ts 负责；DOM 只呈现解算几何。计算结果不是第二份文档权威。详细规则见 [11-prototype-ui-layout.md](11-prototype-ui-layout.md)。
 
 The initial `CustomTextEditorProvider` and full-document edit are intentionally small. A future host session, fine-grained reducer or multi-view synchronization requires a new work-item spec when at least one is needed: concurrent Agent edits, multiple authoritative Webviews, independent history, external-change conflict resolution, or demonstrated whole-document performance problems. The v1 node model allows optional presentation fields (`style`, `imageData`, `hidden`, `locked`) and page background while keeping the TextDocument authoritative; the Webview does not accept remote image URLs or arbitrary commands.

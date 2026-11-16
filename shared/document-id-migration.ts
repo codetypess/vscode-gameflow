@@ -1,5 +1,6 @@
 import { allocateElementId, ELEMENT_ID_SCHEME, reserveDocumentElementIds } from "./element-id";
 import { GameFlowValidationError, validateGameFlowDocument, type GameFlowDocument } from "./model";
+import { remapControlReferences } from "./ui-parts";
 
 /** Rekey legacy prototype elements together with every modeled identity reference. */
 export function migrateDocumentElementIds(
@@ -25,11 +26,11 @@ export function migrateDocumentElementIds(
     pages: document.pages.map(page => ({
       ...page,
       id: remap(page.id),
-      nodes: page.nodes.map(node => ({
+      nodes: page.nodes.map(node => remapControlReferences({
         ...node,
         id: remap(node.id),
         ...(node.parentId !== undefined ? { parentId: remap(node.parentId) } : {})
-      }))
+      }, replacements))
     })),
     interactions: document.interactions.map(interaction => ({
       ...interaction,

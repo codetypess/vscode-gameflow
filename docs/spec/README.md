@@ -29,10 +29,13 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 | --- | --- |
 | [01-product-workspace.md](01-product-workspace.md) | Planning workspace, infinite canvas, page groups and editing scope |
 | [10-extension-architecture.md](10-extension-architecture.md) | Extension host, Webview, shared contracts, document authority and evolution boundary |
-| [11-prototype-ui-layout.md](11-prototype-ui-layout.md) | Prototype UI components, shared layout geometry, edit semantics and v1/v2 persistence |
+| [11-prototype-ui-layout.md](11-prototype-ui-layout.md) | Prototype UI components, shared layout geometry, control references and v1/v2/v3 persistence |
 
 ## Active Work Items
 
+- [node-reference-picker.md](node-reference-picker.md) — Done：节点引用树形弹窗、绑定上下文及 Delete / Backspace 清空引用；146 项测试、构建和浏览器交互验收通过。
+
+- [prototype-control-parts.md](prototype-control-parts.md) — Done：UIButton 可选文案、Slider/CheckBox/Radio 显式部件、RadioGroup 成员引用及 v3 持久化；140 项测试、类型检查、生产构建及浏览器交互/保存刷新验收通过。
 - [prototype-layaui-prefab-psd.md](prototype-layaui-prefab-psd.md) — Draft：原型布局与 LayaUI 对齐、新建/增量更新已有 Prefab、字段管理与冲突协调、PSD 导出/关联对照及美术回流；未替代当前实现基线。
 - [laya-control-asset-bindings.md](laya-control-asset-bindings.md) — Draft：按当前 xq-client 节点皮肤契约设计 Slider/CheckBox/Radio 部件、RadioGroup 引用，以及原型、PSD 切图与 Prefab 的资产绑定闭环。
 - [psd-three-way-merge.md](psd-three-way-merge.md) — Draft：左侧两份 PSD 的图层树/预览、右侧合并结果；共同基础版本、逐节点采用、PSD 依赖和结果输出。

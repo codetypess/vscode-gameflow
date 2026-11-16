@@ -2,7 +2,7 @@
 
 Status: Draft
 Date: 2026-11-16
-Scope: 基于 xq-client 当前源码的协作设计；本次只调查与记录方案，不实现模型、控件或资源导出。
+Scope: 基于 xq-client 当前源码的协作设计；控件模型第一阶段已完成 [原型复合控件实现](prototype-control-parts.md)，PSD 资源绑定与 Prefab 管线仍为后续设计。
 
 ## 1. Context
 

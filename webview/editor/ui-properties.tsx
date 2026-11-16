@@ -4,6 +4,7 @@ import { AXES, managedAxis, resolvePageLayout } from "../../shared/ui-layout";
 import { changeContainerType, setNodeConstraint } from "../../shared/ui-edit";
 import { Field, NumericPropertyRow, ReadOnlyPropertyRow } from "./fields";
 import { ConstraintControl, ContainerAlignment, PaddingControl } from "./layout-controls";
+import { sliderOwner } from "../../shared/ui-parts";
 
 function Select({ label, value, options, disabled, compact, onChange }: { label: string; value: string; options: readonly (readonly [string, string])[]; disabled?: boolean; compact?: boolean; onChange: (value: string) => void }) {
   return <label className={`property-field${compact ? " compact-property-field" : ""}`}><span>{label}</span><select aria-label={label} value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)}>{options.map(([key, name]) => <option key={key} value={key}>{name}</option>)}</select></label>;
@@ -47,11 +48,11 @@ export function LayoutProperties({ page, node, locked, onNode, onPage }: {
         }
         onNode(node.id, { layout: next });
       }} />
-      <ConstraintControl layout={layout} disabledX={locked || managedAxis(parent, "x")} disabledY={locked || managedAxis(parent, "y")} onChange={set} onToggle={(key, enabled) => onPage((p) => setNodeConstraint(p, node.id, key, enabled))} />
+      <ConstraintControl layout={layout} disabledX={locked || !!sliderOwner(page, node) || managedAxis(parent, "x")} disabledY={locked || !!sliderOwner(page, node) || managedAxis(parent, "y")} onChange={set} onToggle={(key, enabled) => onPage((p) => setNodeConstraint(p, node.id, key, enabled))} />
       {flowType(parent) !== "free" ? <p className="property-hint">父容器自动排布：拖动调整顺序；交叉轴可单独定位。</p> : null}
       {node.type === "text" && (layout.widthMode === "measured" || layout.heightMode === "measured") ? <p className="property-hint">文字内容尺寸为原型估算，实际以游戏字体为准。</p> : null}
     </details>
-    {canHaveChildren(node) ? <details className="property-details" open={["container", "hbox", "vbox", "grid", "panel", "list"].includes(node.type)}><summary>容器布局</summary>
+    {canHaveChildren(node) ? <details className="property-details" open><summary>容器布局</summary>
       {["container", "hbox", "vbox", "grid"].includes(node.type) ? <Select label="排布方式" value={node.type} disabled={locked || page.nodes.some((n) => n.parentId === node.id && n.locked)} options={[["container", "自由布局"], ["hbox", "横向排列"], ["vbox", "纵向排列"], ["grid", "网格排列"]]} onChange={(value) => onPage((p) => changeContainerType(p, node.id, value as NodeType))} /> : null}
       <PaddingControl layout={layout} disabled={locked} onChange={set} />
       {flow === "hbox" || flow === "vbox" ? <Field label="间距" type="number" integer value={layout.gap ?? 0} disabled={locked || (flow === "hbox" ? layout.align === "justify" : layout.valign === "justify")} onCommit={(v) => set({ gap: Number(v) })} /> : null}
@@ -74,8 +75,7 @@ export function WidgetProperties({ node, locked, onNode }: { node: GameFlowNode;
   const interactive = ["button", "input", "checkbox", "radio", "slider", "combo"].includes(node.type);
   if (!interactive && !["text", "progress", "image"].includes(node.type)) return null;
   return <details className="property-details" open><summary>组件设置 <small>{COMPONENTS[node.type].laya}</small></summary>
-    {interactive ? <Toggle label="禁用状态" value={w.disabled ?? false} disabled={locked} onChange={(v) => set({ disabled: v })} /> : null}
-    {["checkbox", "radio"].includes(node.type) ? <Toggle label="选中状态" value={w.selected ?? false} disabled={locked} onChange={(v) => set({ selected: v })} /> : null}
+    {interactive && node.type !== "slider" ? <Toggle label="禁用状态" value={w.disabled ?? false} disabled={locked} onChange={(v) => set({ disabled: v })} /> : null}
     {["progress", "slider"].includes(node.type) ? <>
       <div className="property-grid">{(["min", "max"] as const).map((key) => <Field key={key} label={key === "min" ? "最小值" : "最大值"} type="number" value={w[key] ?? (key === "min" ? 0 : 1)} disabled={locked} validate={(v) => key === "min" ? Number(v) < (w.max ?? 1) : Number(v) > (w.min ?? 0)} onCommit={(v) => { const min = key === "min" ? Number(v) : w.min ?? 0, max = key === "max" ? Number(v) : w.max ?? 1; set({ [key]: Number(v), value: Math.min(max, Math.max(min, w.value ?? min)) }); }} />)}</div>
       <Field label="当前值" type="number" min={w.min ?? 0} max={w.max ?? 1} value={w.value ?? w.min ?? 0} disabled={locked} onCommit={(v) => set({ value: Number(v) })} />

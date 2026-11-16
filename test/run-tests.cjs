@@ -13,6 +13,7 @@ async function main() {
       bundle: true,
       platform: "node",
       format: "cjs",
+      jsx: "automatic",
       target: "node20"
     });
     await require(outputFile).testsCompleted;

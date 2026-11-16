@@ -278,3 +278,59 @@ button svg { flex-shrink: 0; }
 .widget-slider.is-vertical .widget-thumb { left: 50%; }
 .widget-input { padding: 0 10px; text-align: left; width: 100%; white-space: pre; pointer-events: none; }
 .widget-combo { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 0 10px; gap: 8px; pointer-events: none; }
+
+.radio-option-row { display: flex; align-items: center; gap: 2px; margin-bottom: 4px; }
+.radio-option-number { width: 14px; flex-shrink: 0; color: var(--muted-foreground); font-size: 10px; text-align: center; }
+.radio-option-row button { flex-shrink: 0; width: 24px; height: 24px; }
+
+.node-reference-field { display: flex; flex: 1; min-width: 0; height: 27px; background: var(--vscode-input-background, #313131); border: 1px solid var(--vscode-input-border, transparent); border-radius: 2px; }
+.node-reference-field:focus-within { border-color: var(--vscode-focusBorder, #007acc); }
+.node-reference-field .node-reference-value, .node-reference-field .node-reference-pick { display: flex; align-items: center; gap: 5px; height: 25px; min-height: 25px; padding: 0 5px; border-radius: 0; outline: none; color: inherit; font-size: 11px; }
+.node-reference-field .node-reference-value { flex: 1; width: 0; min-width: 0; text-align: left; }
+.node-reference-value span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.node-reference-field svg { flex-shrink: 0; }
+.node-reference-field .node-reference-pick { width: 25px; flex-shrink: 0; justify-content: center; color: var(--muted-foreground); }
+.node-reference-field button:focus-visible { background: var(--vscode-list-inactiveSelectionBackground, #ffffff0d); }
+.node-reference-pick:hover { background: var(--vscode-toolbar-hoverBackground, #ffffff14); }
+.node-reference-field button:disabled { opacity: .5; cursor: default; }
+.node-picker { width: min(600px, calc(100vw - 24px)); max-width: none; max-height: calc(100dvh - 24px); margin: auto; padding: 0; color: var(--popover-foreground); background: var(--popover); border: 1px solid var(--border); border-radius: 6px; box-shadow: 0 12px 40px #0008; overflow: hidden; }
+.node-picker::backdrop { background: #0006; }
+.node-picker-content { display: flex; flex-direction: column; height: min(680px, calc(100dvh - 28px)); min-height: 0; }
+.node-picker-heading { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+.node-picker-heading h2 { flex: 1; margin: 0; font-size: 13px; font-weight: 600; }
+.node-picker-heading button { height: 26px; width: 26px; }
+.node-picker-context { display: flex; flex-direction: column; gap: 5px; padding: 12px 14px 8px; font-size: 12px; }
+.node-picker-context strong { color: var(--vscode-textLink-foreground, #75beff); font-weight: 500; }
+.node-picker-context small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted-foreground); font-size: 10px; }
+.node-picker-search { display: flex; align-items: center; gap: 7px; flex-shrink: 0; height: 30px; margin: 0 12px 10px; padding: 0 8px; border: 1px solid var(--vscode-input-border, #454545); border-radius: 3px; background: var(--vscode-input-background, #313131); }
+.node-picker-search:focus-within { border-color: var(--vscode-focusBorder, #007acc); }
+.node-picker-search input { width: 100%; min-width: 0; border: 0; outline: none; background: transparent; color: inherit; font-size: 12px; }
+.node-picker-search button { display: grid; place-items: center; width: 20px; height: 20px; flex-shrink: 0; }
+.node-picker-page { display: flex; align-items: center; gap: 6px; padding: 5px 16px; font-size: 11px; color: var(--muted-foreground); }
+.node-picker-page strong { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.node-picker-page small { margin-left: auto; }
+.node-picker-tree { flex: 1; min-height: 64px; margin: 0 12px; padding: 4px 0; border: 1px solid var(--border); overflow: auto; scrollbar-width: thin; }
+.node-picker-row { display: flex; align-items: center; gap: 6px; min-height: 30px; padding: 3px 8px; font-size: 12px; cursor: pointer; outline: none; }
+.node-picker-row > svg { flex-shrink: 0; }
+.node-picker-row:hover { background: var(--vscode-list-hoverBackground, #ffffff0c); }
+.node-picker-row.is-selected { background: var(--vscode-list-activeSelectionBackground, #094771); color: var(--vscode-list-activeSelectionForeground, #fff); }
+.node-picker-row:focus-visible { outline: 1px solid var(--vscode-focusBorder, #007acc); outline-offset: -1px; }
+.node-picker-row[aria-disabled=true] { cursor: default; color: var(--muted-foreground); }
+.node-picker-row[aria-disabled=true] > .node-picker-name, .node-picker-row[aria-disabled=true] > svg { opacity: .6; }
+.node-picker-expander { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 16px; height: 20px; }
+.node-picker-expander:hover { background: #ffffff12; }
+.node-picker-name { flex: 1; min-width: 30px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.node-picker-type { flex-shrink: 0; opacity: .6; font-size: 10px; }
+.node-picker-badge { flex-shrink: 0; border: 1px solid currentColor; border-radius: 3px; padding: 1px 4px; font-size: 9px; line-height: 14px; color: var(--vscode-textLink-foreground, #75beff); }
+.node-picker-badge.is-owner { color: var(--vscode-descriptionForeground, #aaa); }
+.node-picker-row.is-selected .node-picker-badge { color: inherit; }
+.node-picker-empty { padding: 24px 8px; text-align: center; font-size: 12px; color: var(--muted-foreground); }
+.node-picker-selection { display: flex; flex-direction: column; gap: 4px; padding: 10px 14px; min-height: 84px; font-size: 11px; }
+.node-picker-selection strong { font-weight: 500; }
+.node-picker-selection small { overflow-wrap: anywhere; color: var(--muted-foreground); }
+.node-picker-selection code { color: var(--muted-foreground); font-size: 10px; }
+.node-picker-selection p { margin: 0; font-size: 10px; color: var(--muted-foreground); }
+.node-picker-footer { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 8px 12px; border-top: 1px solid var(--border); }
+.node-picker-footer > span { flex: 1; font-size: 10px; color: var(--muted-foreground); }
+.node-picker-footer button { height: 28px; }
+@media (max-width: 480px) { .node-picker-footer > span { display: none; } .node-picker-context > span { line-height: 1.5; overflow-wrap: anywhere; } }

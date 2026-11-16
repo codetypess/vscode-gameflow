@@ -4,6 +4,7 @@ import { resolvePageLayout } from "./ui-layout";
 import { CONSTRAINTS } from "./ui-config";
 import { allocateVariableName } from "./node-variable";
 import { decomposeNode, IDENTITY, inverse, mapPoint, multiply, nodeMatrix, translation } from "./ui-transform";
+import { controlHidden, controlSelected, hasNodeSkin, reconcileControlReferences, remapControlReferences, supportsNodeSkin } from "./ui-parts";
 
 export type InsertType = NodeType;
 export type Handle = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w";
@@ -41,6 +42,7 @@ export function absoluteFrame(page: GameFlowPage, node: GameFlowNode): Frame {
 }
 
 export function inheritedFlag(page: GameFlowPage, node: GameFlowNode, key: "hidden" | "locked"): boolean {
+  if (key === "hidden") return controlHidden(page, node);
   let current: GameFlowNode | undefined = node;
   const visited = new Set<string>();
   while (current && !visited.has(current.id)) {
@@ -65,7 +67,7 @@ export function reparentNode(page: GameFlowPage, id: string, parentId?: string):
   const sameLinear = relative.slice(0, 4).every((v, i) => Math.abs(v-localMatrix[i]) < 1e-10);
   const pivot = mapPoint(relative, { x: (node.transform?.anchorX ?? 0)*resolved.local.width, y: (node.transform?.anchorY ?? 0)*resolved.local.height });
   const pose = sameLinear ? { frame: { ...resolved.local, x: pivot.x, y: pivot.y } } : decomposeNode(relative, resolved.local, node.transform);
-  return {
+  return reconcileControlReferences(page, {
     ...page,
     nodes: page.nodes.map((item) => {
       if (item.id !== id) return item;
@@ -76,12 +78,12 @@ export function reparentNode(page: GameFlowPage, id: string, parentId?: string):
       else delete next.parentId;
       return next;
     })
-  };
+  });
 }
 
 export function removeNode(page: GameFlowPage, id: string): GameFlowPage {
   const ids = descendants(page, id);
-  return { ...page, nodes: page.nodes.filter((node) => !ids.has(node.id)) };
+  return reconcileControlReferences(page, { ...page, nodes: page.nodes.filter((node) => !ids.has(node.id)) });
 }
 
 export interface LayerDrop {
@@ -140,15 +142,16 @@ export function duplicateNode(page: GameFlowPage, id: string, makeId: () => stri
   const ids = descendants(page, id);
   const mapping = new Map([...ids].map((key) => [key, makeId()]));
   const variableNames = new Set(page.nodes.flatMap((node) => node.variableName ? [node.variableName] : []));
-  const copies = page.nodes.filter((node) => ids.has(node.id)).map((node) => ({
+  const copies = page.nodes.filter((node) => ids.has(node.id)).map((node) => remapControlReferences({
     ...structuredClone(node),
     id: mapping.get(node.id)!,
     name: node.id === id ? `${node.name} 副本` : node.name,
     ...(node.variableName ? { variableName: allocateVariableName(node.variableName, variableNames) } : {}),
     frame: { ...node.frame, x: node.frame.x + (node.id === id ? 16 : 0), y: node.frame.y + (node.id === id ? 16 : 0) },
     ...(node.parentId ? { parentId: mapping.get(node.parentId) ?? node.parentId } : {}),
-    ...(node.style ? { style: { ...node.style } } : {})
-  }));
+    ...(node.style ? { style: { ...node.style } } : {}),
+    ...(node.type === "radio" ? { widget: { ...node.widget, selected: controlSelected(page, node) } } : {})
+  }, mapping));
   return { page: { ...page, nodes: [...page.nodes, ...copies] }, id: mapping.get(id)! };
 }
 
@@ -158,9 +161,9 @@ export function duplicatePage(page: GameFlowPage, makeId: () => string): GameFlo
     ...page, id: makeId(), name: `${page.name} 副本`,
     ...(page.layout ? { layout: { ...page.layout } } : {}),
     frame: { ...page.frame, x: page.frame.x + page.frame.width + 80 },
-    nodes: page.nodes.map((node) => ({ ...structuredClone(node), id: mapping.get(node.id)!, frame: { ...node.frame },
+    nodes: page.nodes.map((node) => remapControlReferences({ ...structuredClone(node), id: mapping.get(node.id)!, frame: { ...node.frame },
       ...(node.parentId ? { parentId: mapping.get(node.parentId)! } : {}),
-      ...(node.style ? { style: { ...node.style } } : {}) }))
+      ...(node.style ? { style: { ...node.style } } : {}) }, mapping))
   };
 }
 
@@ -193,26 +196,62 @@ export function defaultStyle(type: string): Required<NodeStyle> {
 }
 
 export function makeNode(type: InsertType, id: string, x: number, y: number): GameFlowNode {
-  const box = ["container", "hbox", "vbox", "grid", "panel", "list"].includes(type);
+  const box = ["container", "hbox", "vbox", "grid", "panel", "list", "radioGroup"].includes(type);
   const width = box ? 240 : type === "button" ? 108 : type === "progress" || type === "slider" ? 200 : 140;
   const height = box ? 160 : ["text", "checkbox", "radio", "progress", "slider"].includes(type) ? 32 : ["button", "input", "combo"].includes(type) ? 40 : 90;
   return { id, type, name: NODE_LABELS[type], frame: { x: Math.round(x - width / 2), y: Math.round(y - height / 2), width, height },
-    style: { ...defaultStyle(type), ...(["checkbox", "radio", "slider"].includes(type) ? { fill: "transparent", borderWidth: 0 } : {}) },
-    ...(type === "text" ? { text: "文本内容" } : ["button", "checkbox", "radio"].includes(type) ? { text: NODE_LABELS[type] } : {}),
+    style: { ...defaultStyle(type), ...(["checkbox", "radio", "radioGroup", "slider"].includes(type) ? { fill: "transparent", borderWidth: 0 } : {}) },
+    ...(type === "text" ? { text: "文本内容" } : {}),
     ...(box ? { layout: { gap: 8, gapX: 8, gapY: 8, wrapCount: type === "list" ? 3 : 2, paddingLeft: 12, paddingRight: 12, paddingTop: 12, paddingBottom: 12, clipContent: type === "panel" || type === "list" } } : {}),
     ...(type === "input" ? { widget: { placeholder: "请输入内容" } } : {}),
     ...(["progress", "slider"].includes(type) ? { widget: { min: 0, max: 100, value: 60 } } : {}),
     ...(type === "combo" ? { widget: { options: ["选项一", "选项二", "选项三"], selectedIndex: 0 } } : {}) };
 }
 
-/** Buttons use a real label child; lists start with editable static cells. */
+/** Creates explicit editable parts. Buttons have no required children. */
 export function makeComponent(type: InsertType, id: string, x: number, y: number, makeId: () => string): GameFlowNode[] {
   const root = makeNode(type, id, x, y), nodes = [root];
-  if (type === "button") {
-    delete root.text;
-    nodes.push({ ...makeNode("text", makeId(), 0, 0), parentId: id, name: "按钮文字", text: "按钮", frame: { x: 0, y: 0, width: 108, height: 32 },
-      layout: { left: 0, right: 0, centerY: 0 }, style: { ...defaultStyle("text"), fontSize: 14, color: "#ffffff", textAlign: "center" } });
+  if (supportsNodeSkin(root)) {
+    const slider = type === "slider", radio = type === "radio";
+    if (slider) root.frame.height = 64;
+    const image = (name: string, frame: Frame, fill: string, radius: number): GameFlowNode => ({
+      ...makeNode("image", makeId(), 0, 0), parentId: id, name, frame,
+      style: { fill, borderWidth: 0, radius }
+    });
+    const track = image(slider ? "轨道" : "底框", { x: 0, y: slider ? 29 : 6, width: slider ? root.frame.width : 20, height: slider ? 6 : 20 }, "#cbd5e1", radio ? 10 : 3);
+    track.layout = slider ? { left: 0, right: 0, centerY: 0 } : { left: 0, centerY: 0 };
+    const skin = image(slider ? "滑块" : "选中标记", { x: slider ? 0 : 4, y: slider ? 0 : 10, width: slider ? 24 : 12, height: slider ? 24 : 12 }, "#3b82f6", slider ? 12 : radio ? 6 : 2);
+    if (!slider) skin.layout = { left: 4, centerY: 0 };
+    root.widget = { ...root.widget, skinNodeId: skin.id };
+    nodes.push(track, skin, { ...makeNode("text", makeId(), 0, 0), parentId: id, name: "说明", text: NODE_LABELS[type],
+      frame: { x: slider ? 0 : 28, y: slider ? 46 : 0, width: slider ? root.frame.width : root.frame.width - 28, height: slider ? 18 : 32 },
+      layout: slider ? { left: 0, right: 0, bottom: 0 } : { left: 28, right: 0, centerY: 0 },
+      widget: { valign: "middle" }, style: { ...defaultStyle("text"), fontSize: 14 } });
+  }
+  if (type === "radioGroup") {
+    const members: string[] = [];
+    root.layout = {};
+    root.frame.width = 160; root.frame.height = 80;
+    for (let i = 0; i < 2; i++) {
+      const parts = makeComponent("radio", makeId(), 0, 0, makeId);
+      parts[0].parentId = id; parts[0].name = `选项${i + 1}`; parts[0].frame.x = 0; parts[0].frame.y = i * 40;
+      parts[3].text = parts[0].name;
+      members.push(parts[0].id); nodes.push(...parts);
+    }
+    root.widget = { optionNodeIds: members, selectedIndex: -1 };
   }
   if (type === "list") for (let i = 0; i < 6; i++) nodes.push({ ...makeNode("panel", makeId(), 0, 0), parentId: id, name: `列表项 ${i + 1}`, frame: { x: 0, y: 0, width: 64, height: 60 } });
   return nodes;
+}
+
+/** Opt-in conversion preserves the control identity, existing children and design state. */
+export function createControlParts(page: GameFlowPage, id: string, makeId: () => string): GameFlowPage {
+  const original = page.nodes.find(node => node.id === id);
+  if (!original || !supportsNodeSkin(original) || hasNodeSkin(original) || inheritedFlag(page, original, "locked")) return page;
+  const [template, ...parts] = makeComponent(original.type, id, 0, 0, makeId);
+  const root = { ...original, widget: { ...original.widget, skinNodeId: template.widget!.skinNodeId } };
+  delete root.text;
+  const label = parts.find(node => node.type === "text")!;
+  label.text = original.text ?? original.name;
+  return { ...page, nodes: [...page.nodes.map(node => node.id === id ? root : node), ...parts] };
 }

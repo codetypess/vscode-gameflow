@@ -26,6 +26,8 @@ GameFlow 是面向游戏策划的 VS Code 扩展方向。Agent 从策划需求�
 
 ## Human and Agent Collaboration
 
+容器控件允许独立子节点：UIButton 默认无需文案，UILabel 按需添加；Slider、CheckBox、Radio 使用可编辑图片部件及显式皮肤引用。RadioGroup 的成员关系独立于显示树。属性面板编辑设计状态与绑定，实际游戏交互、PSD 切图回流和 Prefab 导出仍为后续管线；见 [原型复合控件](prototype-control-parts.md)。
+
 Agent 输出区分明确需求、推断和待确认项。策划可编辑生成结果；后续 Agent 局部建议需尊重受保护的手动修改。素材生成是后续环节。
 
 ## PSD Workspaces

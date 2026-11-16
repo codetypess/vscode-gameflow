@@ -213,7 +213,7 @@ test("editing a legacy page root upgrades in one transaction and accepts undo an
   session.receive({ type: "init", document: doc, documentVersion: 1, resourceName: "test", dirty: false });
   session.edit((d) => ({ ...d, pages: d.pages.map((p, i) => i === 0 ? { ...p, rootType: "UIScene" } : p) }));
   const changed = session.state.document!;
-  assert.equal(changed.schemaVersion, 2); assert.equal(changed.pages[0].rootType, "UIScene");
+  assert.equal(changed.schemaVersion, 3); assert.equal(changed.pages[0].rootType, "UIScene");
   const { rootType: _, ...unchanged } = changed.pages[0];
   assert.deepEqual(unchanged, doc.pages[0]);
   assert.equal(messages.length, 1); assert.ok(isWebviewToHostMessage(messages[0]));
@@ -294,17 +294,17 @@ test("v1 documents retain original identities and frames until the first edit up
   session.receive({ type: "init", document: doc, documentVersion: 1, resourceName: "test", dirty: false });
   session.edit((d) => d); assert.equal(session.state.document!.schemaVersion, 1);
   session.edit((d) => ({ ...d, title: "updated" }));
-  assert.equal(session.state.document!.schemaVersion, 2);
+  assert.equal(session.state.document!.schemaVersion, 3);
   assert.deepEqual(session.state.document!.pages, doc.pages);
 });
-test("all UI component factories round-trip including children and independent button labels", () => {
+test("all UI component factories round-trip including parts and buttons without required labels", () => {
   let id = 0;
   const nodes = COMPONENT_TYPES.flatMap((type) => makeComponent(type, `node${++id}`, 100, 100, () => `node${++id}`));
   const doc = { ...createDefaultGameFlowDocument(), pages: [page(...nodes)], interactions: [] };
   assert.deepEqual(parseGameFlowDocument(serializeGameFlowDocument(doc)), doc);
   const button = nodes.find((n) => n.type === "button")!;
   assert.equal(button.text, undefined);
-  assert.equal(nodes.find((n) => n.parentId === button.id)!.type, "text");
+  assert.equal(nodes.some((n) => n.parentId === button.id), false);
   assert.equal(resolvePageLayout(doc.pages[0]).issues.length, 0);
 });
 test("UI configuration rejects invalid fields, ranges, fractional grid counts and legacy v2 payloads", () => {
@@ -490,7 +490,7 @@ test("switching container layout clears prohibited child constraints and preserv
   assert.equal(resolvePageLayout(changed).issues.length, 0);
 });
 test("duplicating components deep copies configuration and remaps only internal identities", () => {
-  let id = 0; const nodes = makeComponent("button", "root", 100, 100, () => `n${++id}`);
+  let id = 0; const nodes = makeComponent("checkbox", "root", 100, 100, () => `n${++id}`);
   nodes[0].widget = { options: ["a", "b"], selectedIndex: 0 };
   const p = page(...nodes), copy = duplicateNode(p, "root", () => `n${++id}`);
   const duplicate = copy.page.nodes.find((n) => n.id === copy.id)!;

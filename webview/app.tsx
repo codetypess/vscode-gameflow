@@ -1,8 +1,9 @@
+import { sliderOwner } from "../shared/ui-parts";
 import { ArrowLeft, Box, Check, ChevronDown, Focus, GitMerge, Hand, Layers3, LayoutPanelTop, Minus, MousePointer2, PanelRight, Plus, Redo2, Save, Scissors, Undo2 } from "lucide-react";
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import type { Frame, GameFlowNode, GameFlowPage, PageRootType } from "../shared/model";
 import { allocateElementId, reserveDocumentElementIds } from "../shared/element-id";
-import { descendants, duplicateNode, duplicatePage, inheritedFlag, insertNode, makeComponent, moveNode, NODE_LABELS, removeNode, removePage, type Handle, type InsertType, type LayerDrop } from "../shared/editor-ops";
+import { createControlParts, descendants, duplicateNode, duplicatePage, inheritedFlag, insertNode, makeComponent, moveNode, NODE_LABELS, removeNode, removePage, type Handle, type InsertType, type LayerDrop } from "../shared/editor-ops";
 import { convertNodeType, editNodeFrame, nodeDragFrame, nodeResizeFrame } from "../shared/ui-edit";
 import { mapPoint, type Matrix } from "../shared/ui-transform";
 import { copyNode, pasteNode, type NodeClipboard } from "../shared/node-clipboard";
@@ -190,7 +191,7 @@ export function App() {
   useEffect(() => {
     if (mode !== "prototype") return;
     const keydown = (event: KeyboardEvent) => {
-      if ((event.target as Element).closest("[role=menu]")) return;
+      if ((event.target as Element).closest("[role=menu], dialog[open]")) return;
       const command = event.ctrlKey || event.metaKey, key = event.key.toLowerCase();
       if (isField(event.target)) {
         if (command && key === "s") { event.preventDefault(); (event.target as HTMLElement).blur(); save(); }
@@ -243,7 +244,7 @@ export function App() {
     else if (editingId && latestPage) {
       if (tool !== "select") { if (hitPageId) placeNode(tool, world.x, world.y); return; }
       const node = latestPage.nodes.find((item) => item.id === (handle ? selectedNodeId : hitNodeId));
-      if (node) { selectNode(node.id); if (!handle) setCanvasSelection((previous) => previous + 1); if (inheritedFlag(latestPage, node, "locked")) return; const g = resolvePageLayout(latestPage).nodes.get(node.id)!; if (!g.inverse) return; kind = handle ? "resize" : "node"; frame = g.local; transform = { node, matrix: g.matrix, parentMatrix: g.parentMatrix }; nodeId = node.id; pageId = latestPage.id; }
+      if (node) { selectNode(node.id); if (!handle) setCanvasSelection((previous) => previous + 1); if (inheritedFlag(latestPage, node, "locked") || (!handle && sliderOwner(latestPage, node))) return; const g = resolvePageLayout(latestPage).nodes.get(node.id)!; if (!g.inverse) return; kind = handle ? "resize" : "node"; frame = g.local; transform = { node, matrix: g.matrix, parentMatrix: g.parentMatrix }; nodeId = node.id; pageId = latestPage.id; }
       else { setSelectedNodeId(null); if (hitPageId) setInspectorOpen(true); }
     } else if (hitPageId) { const hit = latest?.pages.find((item) => item.id === hitPageId); if (!hit) return; setSelectedPageId(hit.id); setInspectorOpen(true); kind = "page"; frame = hit.frame; pageId = hit.id; }
     else setSelectedPageId(null);
@@ -336,7 +337,7 @@ export function App() {
         {selectedGeometry?.inverse && selectionAnchor ? <span className="selection-anchor" aria-hidden="true" style={{ left: visibleCamera.x+selectionAnchor.x*visibleCamera.zoom, top: visibleCamera.y+selectionAnchor.y*visibleCamera.zoom }} /> : null}
         {editingId && page ? <LayerTree key={page.id} panelRef={panels.leftRef} panelStyle={panels.leftStyle} page={page} selectedId={selectedNode?.id ?? null} reveal={canvasSelection} onSelect={selectNode} onPatch={patchNode} onBack={back} onAdd={addLayer} onDelete={deleteLayer} onMove={moveLayer}
           hasClipboard={!!clipboard} onCopy={copyLayer} onPaste={pasteLayer} onDuplicate={duplicateLayer} onConvert={convertLayer} /> : null}
-        {page && inspectorOpen ? <Inspector panelRef={panels.rightRef} panelStyle={panels.rightStyle} page={page} node={selectedNode} editingPage={!!editingId} onNode={patchNode} onPage={(transform) => updatePage(page.id, transform)} onClose={() => setInspectorOpen(false)} onEnter={() => enter(page)} onImport={requestImport} /> : null}
+        {page && inspectorOpen ? <Inspector onCreateParts={() => { if (editingId && selectedNodeId) { const makeId = newIds(); updatePage(editingId, item => createControlParts(item, selectedNodeId, makeId)); } }} panelRef={panels.rightRef} panelStyle={panels.rightStyle} page={page} node={selectedNode} editingPage={!!editingId} onNode={patchNode} onPage={(transform) => updatePage(page.id, transform)} onClose={() => setInspectorOpen(false)} onEnter={() => enter(page)} onImport={requestImport} /> : null}
         <div className="canvas-context">{editingId ? "页面编辑" : `${canvasDocument.pages.length} 个页面`}<span>{tool === "select" ? editingId ? "拖动控件 · 双击文字修改内容" : "双击页面进入编辑" : tool === "hand" || spaceHand ? "拖动画布" : `点击页面放置${NODE_LABELS[tool]}`}</span></div>
         {canvasDocument.pages.length === 0 ? <div className="empty-canvas"><LayoutPanelTop size={32} /><strong>从第一个页面开始</strong><p>用底部 + 添加游戏界面</p><Button onClick={() => addPage()}><Plus size={15} />添加页面</Button></div> : null}
         <div className="canvas-toolbar floating-panel" onPointerDown={(event) => event.stopPropagation()}>

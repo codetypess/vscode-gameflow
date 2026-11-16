@@ -6,7 +6,7 @@
   "additionalProperties": false,
   "required": ["schemaVersion","documentId","title","requirements","pages","interactions"],
   "properties": {
-    "schemaVersion": { "enum": [1,2] },
+    "schemaVersion": { "enum": [1,2,3] },
     "elementIdScheme": { "const": "nanoid-8" },
     "documentId": { "type": "string", "minLength": 1 },
     "title": { "type": "string", "minLength": 1 },
@@ -103,6 +103,10 @@
       }
     },
     "node": {
+      "allOf": [
+        { "if": { "properties": { "type": { "not": { "enum": ["checkbox","radio","slider"] } } } }, "then": { "properties": { "widget": { "not": { "required": ["skinNodeId"] } } } } },
+        { "if": { "properties": { "type": { "not": { "const": "radioGroup" } } } }, "then": { "properties": { "widget": { "not": { "required": ["optionNodeIds"] } } } } }
+      ],
       "type": "object",
       "additionalProperties": false,
       "required": ["id","name","type","frame"],
@@ -110,7 +114,7 @@
         "id": { "type": "string", "minLength": 1 },
         "name": { "type": "string", "minLength": 1 },
         "variableName": { "$ref": "#/$defs/variableName" },
-        "type": { "enum": ["container","rectangle","text","button","image","list","input","hbox","vbox","grid","panel","checkbox","radio","progress","slider","combo"] },
+        "type": { "enum": ["container","rectangle","text","button","image","list","input","hbox","vbox","grid","panel","checkbox","radio","radioGroup","progress","slider","combo"] },
         "parentId": { "type": "string", "minLength": 1 },
         "text": { "type": "string" },
         "style": { "$ref": "#/$defs/style" },
@@ -199,6 +203,8 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "skinNodeId": { "type": ["string","null"], "minLength": 1 },
+        "optionNodeIds": { "type": "array", "maxItems": 1000, "items": { "type": ["string","null"], "minLength": 1 } },
         "selected": { "type": "boolean" },
         "disabled": { "type": "boolean" },
         "password": { "type": "boolean" },
@@ -254,6 +260,7 @@
           }
         }
       }
-    }
+    },
+    { "if": { "properties": { "schemaVersion": { "enum": [1,2] } } }, "then": { "properties": { "pages": { "items": { "properties": { "nodes": { "items": { "properties": { "type": { "not": { "const": "radioGroup" } }, "widget": { "not": { "anyOf": [{ "required": ["skinNodeId"] }, { "required": ["optionNodeIds"] }] } } } } } } } } } } }
   ]
 }

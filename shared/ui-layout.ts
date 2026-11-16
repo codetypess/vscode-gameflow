@@ -1,6 +1,7 @@
 import type { Frame, GameFlowNode, GameFlowPage } from "./model";
 import { canHaveChildren, flowType } from "./ui-components";
 import type { Constraint } from "./ui-config";
+import { sliderOwner } from "./ui-parts";
 import { axisAnchor, axisScale, framePolygon, IDENTITY, intersectPolygons, inverse, multiply, nodeMatrix, polygonBounds, translation, type Matrix, type Point } from "./ui-transform";
 
 export type SizeSource = "explicit" | "measured" | "stretch";
@@ -71,7 +72,13 @@ export function resolvePageLayout(page: GameFlowPage): LayoutResult {
             value = lengths.reduce((sum, v) => sum + v, 0) + Math.max(0, items.length - 1) * (justify ? 0 : l?.gap ?? 0);
           } else if (cross) value = Math.max(0, ...lengths);
           else if (flow === "grid") value = gridExtent(n, axis, lengths);
-          else value = Math.max(0, ...items.map((child, i) => (child.layout?.[a.leading] ?? child.frame[axis]) + lengths[i]));
+          else value = Math.max(0, ...items.map((child, i) => {
+            if (n.type === "slider" && n.widget?.skinNodeId === child.id) {
+              const bounds = polygonBounds(framePolygon(nodeMatrix({ x: 0, y: 0, width: size(child, "x").value, height: size(child, "y").value }, child.transform), size(child, "x").value, size(child, "y").value));
+              return bounds[a.size];
+            }
+            return (child.layout?.[a.leading] ?? child.frame[axis]) + lengths[i];
+          }));
           value += start + end;
         } else if (n.type === "text" || n.type === "input") {
           const font = n.style?.fontSize ?? (n.type === "text" ? 16 : 14);
@@ -146,6 +153,14 @@ export function resolvePageLayout(page: GameFlowPage): LayoutResult {
       local[axis] += n.layout?.[AXES[axis].positionOffset] ?? 0;
     }
     const parent = byId.get(n.parentId ?? ""), parentGeometry = parent ? resolve(parent) : undefined;
+    if (parentGeometry && sliderOwner(page, n)) {
+      const bounds = polygonBounds(framePolygon(nodeMatrix({ ...local, x: 0, y: 0 }, n.transform), local.width, local.height));
+      const widget = parent!.widget ?? {}, min = widget.min ?? 0, max = widget.max ?? 1;
+      const ratio = Math.max(0, Math.min(1, ((widget.value ?? min) - min) / (max - min)));
+      const vertical = widget.direction === "vertical";
+      local.x = (vertical ? (parentGeometry.local.width - bounds.width) / 2 : Math.max(0, parentGeometry.local.width - bounds.width) * ratio) - bounds.x;
+      local.y = (vertical ? Math.max(0, parentGeometry.local.height - bounds.height) * ratio : (parentGeometry.local.height - bounds.height) / 2) - bounds.y;
+    }
     const parentMatrix = multiply(parentGeometry?.matrix ?? IDENTITY, translation(-(parent?.layout?.scrollX ?? 0), -(parent?.layout?.scrollY ?? 0)));
     const matrix = multiply(parentMatrix, nodeMatrix(local, n.transform));
     const corners = framePolygon(matrix, local.width, local.height), absolute = polygonBounds(corners);

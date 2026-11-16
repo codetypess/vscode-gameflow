@@ -1,3 +1,4 @@
+import { skinOwner } from "../../shared/ui-parts";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type MouseEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { ChevronDown, ChevronRight, Eye, EyeOff, LockKeyhole, UnlockKeyhole, Box, Search, X } from "lucide-react";
 import type { GameFlowNode, GameFlowPage } from "../../shared/model";
@@ -156,6 +157,8 @@ export function LayerTree({ page, selectedId, reveal, onSelect, onPatch, onBack,
   const branch = (parentId: string | undefined, depth: number): React.ReactNode => page.nodes.filter((node) => node.parentId === parentId && visible.has(node.id)).map((node) => {
     const hasChildren = page.nodes.some((item) => item.parentId === node.id && visible.has(item.id));
     const locked = inheritedFlag(page, node, "locked");
+    const owner = skinOwner(page, node), controlledVisibility = owner?.type === "checkbox" || owner?.type === "radio";
+    const hidden = controlledVisibility ? inheritedFlag(page, node, "hidden") : node.hidden;
     return <div key={node.id}>
       <div role="treeitem" data-layer-id={node.id} aria-selected={selectedId === node.id} aria-expanded={hasChildren ? !activeCollapsed.has(node.id) : undefined}
         className={cn("layer-row", filtering && matches.has(node.id) && "layer-search-match", selectedId === node.id && "is-selected", inheritedFlag(page, node, "hidden") && "is-muted", dragging === node.id && "layer-drag-source", dropClass(node.id))}
@@ -175,7 +178,7 @@ export function LayerTree({ page, selectedId, reveal, onSelect, onPatch, onBack,
             if (event.button !== 0 || menu || locked || filtering) return;
             onSelect(node.id); drag.current = { id: node.id, pointerId: event.pointerId, x: event.clientX, y: event.clientY, active: false, drop: null };
           }} onClick={() => { if (!suppressClick.current) onSelect(node.id); }}><NodeIcon type={node.type} /><span>{node.name}</span>{node.variableName ? <code className="layer-variable" title={`变量：${node.variableName}`}>{node.variableName}</code> : null}</button>}
-        <button className="layer-action" aria-label={`${node.hidden ? "显示" : "隐藏"}${node.name}`} onClick={() => onPatch(node.id, { hidden: !node.hidden })}>{node.hidden ? <EyeOff size={12} /> : <Eye size={12} />}</button>
+        <button className="layer-action" disabled={controlledVisibility} title={controlledVisibility ? "显示状态由所属控件的选中状态控制" : undefined} aria-label={`${hidden ? "显示" : "隐藏"}${node.name}`} onClick={() => onPatch(node.id, { hidden: !node.hidden })}>{hidden ? <EyeOff size={12} /> : <Eye size={12} />}</button>
         <button className="layer-action" aria-label={`${node.locked ? "解锁" : "锁定"}${node.name}`} onClick={() => onPatch(node.id, { locked: !node.locked })}>{node.locked ? <LockKeyhole size={12} /> : <UnlockKeyhole size={12} />}</button>
       </div>
       {hasChildren && !activeCollapsed.has(node.id) ? <div role="group">{branch(node.id, depth + 1)}</div> : null}

@@ -3,11 +3,12 @@ import { canHaveChildren, COMPONENT_TYPES, PAGE_ROOT_TYPES } from "./ui-componen
 import { validateRootLayout, validateUIConfig } from "./ui-config";
 import type { ConstraintLayout, NodeLayout, WidgetProps } from "./ui-config";
 import { variableNameError } from "./node-variable";
+import { validateControlReferences } from "./ui-parts";
 import { validateNodeTransform, type NodeTransform } from "./ui-transform";
 export type { NodeTransform } from "./ui-transform";
 export type { ConstraintLayout, NodeLayout, WidgetProps } from "./ui-config";
 
-export const GAMEFLOW_SCHEMA_VERSION = 2 as const;
+export const GAMEFLOW_SCHEMA_VERSION = 3 as const;
 
 export type RequirementStatus = "confirmed" | "inferred" | "question";
 export type PageKind = "screen" | "modal";
@@ -19,7 +20,7 @@ export type NodeType =
   | "button"
   | "image"
   | "list"
-  | "input" | "hbox" | "vbox" | "grid" | "panel" | "checkbox" | "radio" | "progress" | "slider" | "combo";
+  | "input" | "hbox" | "vbox" | "grid" | "panel" | "checkbox" | "radio" | "radioGroup" | "progress" | "slider" | "combo";
 
 export interface Frame {
   x: number;
@@ -95,7 +96,7 @@ export interface GameFlowInteraction {
 }
 
 export interface GameFlowDocument {
-  schemaVersion: 1 | typeof GAMEFLOW_SCHEMA_VERSION;
+  schemaVersion: 1 | 2 | typeof GAMEFLOW_SCHEMA_VERSION;
   elementIdScheme?: typeof ELEMENT_ID_SCHEME;
   documentId: string;
   title: string;
@@ -341,8 +342,8 @@ export function validateGameFlowDocument(value: unknown): ValidationResult {
     return { ok: false, errors: ["document must be an object"] };
   }
 
-  if (value.schemaVersion !== 1 && value.schemaVersion !== GAMEFLOW_SCHEMA_VERSION) {
-    errors.push(`schemaVersion must be 1 or ${GAMEFLOW_SCHEMA_VERSION}`);
+  if (value.schemaVersion !== 1 && value.schemaVersion !== 2 && value.schemaVersion !== GAMEFLOW_SCHEMA_VERSION) {
+    errors.push(`schemaVersion must be 1, 2 or ${GAMEFLOW_SCHEMA_VERSION}`);
   }
   if (value.elementIdScheme !== undefined && value.elementIdScheme !== ELEMENT_ID_SCHEME) {
     errors.push(`elementIdScheme must be ${ELEMENT_ID_SCHEME}`);
@@ -405,12 +406,14 @@ export function validateGameFlowDocument(value: unknown): ValidationResult {
       }
     }
     for (const page of pages) {
+      validateControlReferences(page, errors);
       if (value.schemaVersion === 1 && page.rootType !== undefined) {
         errors.push(`page ${page.id} rootType requires schemaVersion 2`);
       }
       if (value.schemaVersion === 1 && page.layout !== undefined) errors.push(`page ${page.id} layout requires schemaVersion 2`);
       const nodeIds = new Set(page.nodes.map((node) => node.id));
       for (const node of page.nodes) {
+        if (value.schemaVersion !== 3 && (node.type === "radioGroup" || node.widget?.skinNodeId !== undefined || node.widget?.optionNodeIds !== undefined)) errors.push(`node ${node.id} control references require schemaVersion 3`);
         if (value.schemaVersion === 1 && (node.transform !== undefined || node.variableName !== undefined || node.layout || node.widget || !["container", "rectangle", "text", "button", "image", "list", "input"].includes(node.type))) {
           errors.push(`node ${node.id} UI configuration requires schemaVersion 2`);
         }

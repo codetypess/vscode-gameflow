@@ -6,5 +6,5 @@ export const COMPONENT_TOOLS = [
   { type: "text", icon: Type, key: "T" }, { type: "button", icon: MousePointerClick, key: "B" }, { type: "image", icon: ImageIcon, key: "I" },
   { type: "hbox", icon: Columns3, key: "" }, { type: "vbox", icon: Rows3, key: "" }, { type: "grid", icon: Grid2X2, key: "" }, { type: "panel", icon: PanelTop, key: "R" },
   { type: "input", icon: TextCursorInput, key: "" }, { type: "list", icon: List, key: "" }, { type: "checkbox", icon: SquareCheck, key: "" },
-  { type: "radio", icon: CircleDot, key: "" }, { type: "progress", icon: Gauge, key: "" }, { type: "slider", icon: SlidersHorizontal, key: "" }, { type: "combo", icon: ListFilter, key: "" }
+  { type: "radio", icon: CircleDot, key: "" }, { type: "radioGroup", icon: List, key: "" }, { type: "progress", icon: Gauge, key: "" }, { type: "slider", icon: SlidersHorizontal, key: "" }, { type: "combo", icon: ListFilter, key: "" }
 ] satisfies { type: NodeType; icon: typeof Box; key: string }[];

@@ -30,6 +30,8 @@ export function validateRootLayout(raw: unknown, path: string, errors: string[])
   return errors.length === before;
 }
 export interface WidgetProps {
+  skinNodeId?: string | null;
+  optionNodeIds?: (string | null)[];
   selected?: boolean; disabled?: boolean;
   min?: number; max?: number; value?: number; direction?: "horizontal" | "vertical";
   placeholder?: string; password?: boolean; maxChars?: number;
@@ -60,14 +62,16 @@ export function validateUIConfig(node: Record<string, unknown>, path: string, er
         valid = (group === "layout" && CONSTRAINTS.includes(key as Constraint) && value === null) || (typeof value === "number" && Number.isFinite(value));
         if (key.startsWith("padding") || ["scrollX", "scrollY", "maxChars"].includes(key)) valid = valid && Number(value) >= 0;
         if (["wrapCount", "maxChars", "selectedIndex"].includes(key)) valid = valid && Number.isSafeInteger(value) && Number(value) >= (key === "wrapCount" ? 1 : key === "selectedIndex" ? -1 : 0);
-      } else if (group === "widget" && key === "placeholder") valid = typeof value === "string";
+      } else if (group === "widget" && key === "skinNodeId") valid = ["checkbox", "radio", "slider"].includes(String(node.type)) && (value === null || typeof value === "string" && value.length > 0);
+      else if (group === "widget" && key === "optionNodeIds") valid = node.type === "radioGroup" && Array.isArray(value) && value.length <= 1000 && value.every(id => id === null || typeof id === "string" && id.length > 0);
+      else if (group === "widget" && key === "placeholder") valid = typeof value === "string";
       else if (group === "widget" && key === "options") valid = Array.isArray(value) && value.length <= 1000 && value.every((item) => typeof item === "string");
       if (!valid) errors.push(`${path}.${group}.${key} is invalid`);
     }
     if (group === "widget") {
       const min = Number(values.min ?? 0), max = Number(values.max ?? 1), value = Number(values.value ?? min);
       if (max <= min || value < min || value > max) errors.push(`${path}.widget range requires min < max and min <= value <= max`);
-      if (values.selectedIndex !== undefined && Number(values.selectedIndex) >= (Array.isArray(values.options) ? values.options.length : 3)) errors.push(`${path}.widget.selectedIndex exceeds options`);
+      if (node.type !== "radioGroup" && values.selectedIndex !== undefined && Number(values.selectedIndex) >= (Array.isArray(values.options) ? values.options.length : 3)) errors.push(`${path}.widget.selectedIndex exceeds options`);
     }
   }
   return before === errors.length;
