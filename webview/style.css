@@ -46,6 +46,14 @@ button svg { flex-shrink: 0; }
 .document-title { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 12px; flex: 1; }
 .sync-status { display: flex; align-items: center; gap: 5px; white-space: nowrap; color: var(--muted-foreground); font-size: 11px; }
 .canvas-viewport { position: relative; flex: 1; min-height: 0; overflow: hidden; background: var(--canvas-bg); touch-action: none; user-select: none; cursor: default; }
+.canvas-viewport:focus { outline: none; }
+.canvas-scope-dimmer { position: absolute; inset: 0; background: rgb(0 0 0 / 40%); pointer-events: none; }
+.canvas-scope-nav { position: absolute; z-index: 25; top: 12px; left: 16px; display: flex; align-items: center; gap: 2px; max-width: calc(100% - 32px); padding: 3px; overflow-x: auto; scrollbar-width: thin; }
+.canvas-scope-step { display: flex; flex-shrink: 0; align-items: center; gap: 2px; color: var(--muted-foreground); }
+.canvas-scope-nav button { display: flex; flex-shrink: 0; align-items: center; gap: 6px; min-height: 26px; padding: 3px 8px; border: 0; border-radius: 3px; background: transparent; color: var(--muted-foreground); font-size: 11px; }
+.canvas-scope-nav button span { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.canvas-scope-nav button:hover { background: var(--accent); color: var(--foreground); }
+.canvas-scope-nav button[aria-current] { background: var(--accent); color: var(--foreground); font-weight: 600; }
 .canvas-dots { position: absolute; inset: 0; pointer-events: none; background-image: radial-gradient(circle, var(--canvas-grid) 0.7px, transparent 0.9px); }
 .canvas-world { position: absolute; top: 0; left: 0; width: 0; height: 0; transform-origin: 0 0; }
 .page-group { position: absolute; box-shadow: 0 3px 16px #0003; outline: 1px solid color-mix(in srgb, var(--foreground) 14%, transparent); cursor: default; }
@@ -55,6 +63,7 @@ button svg { flex-shrink: 0; }
 .page-caption span { overflow: hidden; text-overflow: ellipsis; }
 .page-caption small { margin-left: auto; color: var(--muted-foreground); font-size: 11px; }
 .page-surface { position: absolute; inset: 0; overflow: hidden; }
+.container-outlines { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; color: var(--selection); }
 .node-body { position: absolute; display: flex; align-items: center; overflow: hidden; line-height: 1.35; cursor: default; font-family: "Segoe UI", "Microsoft YaHei", sans-serif; }
 .page-group:not(.page-editing) .node-body { pointer-events: none; }
 .node-body[data-locked=true] { cursor: default; }
@@ -71,6 +80,11 @@ button svg { flex-shrink: 0; }
 .hand-tool, .hand-tool .page-group, .hand-tool .node-body { cursor: grab; }
 .is-panning, .is-panning .page-group, .is-panning .node-body, .is-moving, .is-moving .page-group, .is-moving .node-body { cursor: grabbing; }
 .selection-box { position: absolute; z-index: 5; outline: 1px solid var(--selection); pointer-events: none; }
+.layer-panel:focus { outline: none; }
+.multiselection-summary ul { list-style: none; padding: 0; margin: 8px 0; }
+.multiselection-summary li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 5px 0; }
+.multiselection-summary li span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.multiselection-summary li small { color: var(--muted-foreground); flex-shrink: 0; }
 .selection-label { position: absolute; bottom: calc(100% + 5px); left: -1px; color: var(--selection); font-size: 10px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .selection-size { position: absolute; top: calc(100% + 6px); left: 50%; transform: translateX(-50%); padding: 1px 4px; background: var(--primary); color: var(--primary-foreground); border-radius: 2px; font-size: 10px; white-space: nowrap; }
 .resize-handle { position: absolute; width: 7px; height: 7px; border: 1px solid var(--selection); background: white; padding: 0; pointer-events: auto; transform: translate(-50%, -50%); }
@@ -282,6 +296,8 @@ button svg { flex-shrink: 0; }
 .radio-option-row { display: flex; align-items: center; gap: 2px; margin-bottom: 4px; }
 .radio-option-number { width: 14px; flex-shrink: 0; color: var(--muted-foreground); font-size: 10px; text-align: center; }
 .radio-option-row button { flex-shrink: 0; width: 24px; height: 24px; }
+.radio-option-remove { opacity: 0; pointer-events: none; }
+.radio-option-row:hover .radio-option-remove, .radio-option-row:focus-within .radio-option-remove { opacity: 1; pointer-events: auto; }
 
 .node-reference-field { display: flex; flex: 1; min-width: 0; height: 27px; background: var(--vscode-input-background, #313131); border: 1px solid var(--vscode-input-border, transparent); border-radius: 2px; }
 .node-reference-field:focus-within { border-color: var(--vscode-focusBorder, #007acc); }

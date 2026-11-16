@@ -1,0 +1,68 @@
+import type { GameFlowNode, GameFlowPage } from "../../shared/model";
+import { inheritedFlag, insertNode, makeComponent, type InsertType } from "../../shared/editor-ops";
+import { canHaveChildren } from "../../shared/ui-components";
+import { resolvePageLayout } from "../../shared/ui-layout";
+import { inverse, mapPoint, multiply, translation, type Point } from "../../shared/ui-transform";
+
+/** Containers from the page root through the current editing scope. */
+export function canvasScopePath(page: GameFlowPage, scopeId: string | null): GameFlowNode[] {
+  const path: GameFlowNode[] = [], visited = new Set<string>();
+  let id = scopeId;
+  while (id) {
+    const node = page.nodes.find(item => item.id === id);
+    if (!node || !canHaveChildren(node) || visited.has(id)) return [];
+    visited.add(id); path.unshift(node); id = node.parentId ?? null;
+  }
+  return path;
+}
+
+/** A deep visual hit selects only the direct child of the current scope. */
+export function canvasHitNode(page: GameFlowPage, scopeId: string | null, hitId?: string): GameFlowNode | null {
+  const visited = new Set<string>();
+  let node = page.nodes.find(item => item.id === hitId);
+  while (node && !visited.has(node.id)) {
+    if (node.id === scopeId) return null;
+    if ((node.parentId ?? null) === scopeId) return node;
+    visited.add(node.id);
+    const parentId: string | undefined = node.parentId;
+    node = page.nodes.find(item => item.id === parentId);
+  }
+  return null;
+}
+
+/** Follow a reparented selection, or retreat to a surviving scope after deletion/undo. */
+export function reconcileCanvasScope(page: GameFlowPage, previousPath: string[], selectedId: string | null) {
+  const selected = page.nodes.find(node => node.id === selectedId);
+  if (selected) return { path: canvasScopePath(page, selected.parentId ?? null), selectedId: selected.id };
+  for (const id of [...previousPath].reverse()) {
+    const path = canvasScopePath(page, id);
+    if (path.length) return { path, selectedId: null };
+  }
+  return { path: [] as GameFlowNode[], selectedId: null };
+}
+
+export function canvasPasteTarget(page: GameFlowPage, scopeId: string | null, selectedId: string | null): { parentId?: string; afterId?: string } {
+  const selected = page.nodes.find(node => node.id === selectedId);
+  if (!selected) return { parentId: scopeId ?? undefined };
+  return canHaveChildren(selected) ? { parentId: selected.id } : { parentId: selected.parentId, afterId: selected.id };
+}
+
+/** Convert page-space placement into the scope's child coordinates, including scrolling. */
+export function canvasPlacementPoint(page: GameFlowPage, scopeId: string | null, point: Point): Point | null {
+  if (!scopeId) return point;
+  const parent = page.nodes.find(node => node.id === scopeId);
+  if (!parent || !canHaveChildren(parent) || inheritedFlag(page, parent, "locked")) return null;
+  const geometry = resolvePageLayout(page).nodes.get(parent.id)!;
+  const matrix = multiply(geometry.matrix, translation(-(parent.layout?.scrollX ?? 0), -(parent.layout?.scrollY ?? 0)));
+  const inv = inverse(matrix);
+  return inv ? mapPoint(inv, point) : null;
+}
+
+export function placeCanvasComponent(page: GameFlowPage, scopeId: string | null, type: InsertType, point: Point, makeId: () => string): { page: GameFlowPage; id: string | null } {
+  const local = canvasPlacementPoint(page, scopeId, point);
+  if (!local) return { page, id: null };
+  const nodes = makeComponent(type, makeId(), local.x, local.y, makeId);
+  const inserted = insertNode(page, nodes[0], scopeId ?? undefined);
+  if (inserted === page) return { page, id: null };
+  return { page: { ...inserted, nodes: [...inserted.nodes, ...nodes.slice(1)] }, id: nodes[0].id };
+}

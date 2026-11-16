@@ -13,8 +13,9 @@ import { editNodeFrame, setNodeAnchor } from "../../shared/ui-edit";
 import { hasNodeSkin, sliderOwner } from "../../shared/ui-parts";
 import { ControlPartsProperties } from "./control-parts";
 
-export function Inspector({ page, node, editingPage, onNode, onPage, onClose, onEnter, onImport, onCreateParts, panelRef, panelStyle }: {
+export function Inspector({ page, node, selectedNodes = [], editingPage, onNode, onPage, onClose, onEnter, onImport, onCreateParts, panelRef, panelStyle }: {
   page: GameFlowPage; node: GameFlowNode | null; editingPage: boolean;
+  selectedNodes?: GameFlowNode[];
   panelRef?: (element: HTMLElement | null) => void; panelStyle?: CSSProperties;
   onNode: (id: string, patch: Partial<GameFlowNode>) => void;
   onPage: (transform: (page: GameFlowPage) => GameFlowPage) => void;
@@ -35,11 +36,15 @@ export function Inspector({ page, node, editingPage, onNode, onPage, onClose, on
   const setStyle = (patch: Partial<NodeStyle>) => { if (node) onNode(node.id, { style: { ...node.style, ...patch } }); };
   return <aside ref={panelRef} className="inspector floating-panel" aria-label="悬浮属性面板" style={panelStyle} onPointerDown={(event) => event.stopPropagation()}>
     <div className="floating-heading">
-      <strong>{node ? "控件属性" : "页面属性"}</strong>
+      <strong>{selectedNodes.length > 1 ? `已选择 ${selectedNodes.length} 个控件` : node ? "控件属性" : "页面属性"}</strong>
       <Button variant="ghost" size="icon" aria-label={collapsed ? "展开属性面板" : "收起属性面板"} onClick={() => setCollapsed(!collapsed)}>{collapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}</Button>
       <Button variant="ghost" size="icon" aria-label="关闭属性面板" onClick={onClose}><X size={14} /></Button>
     </div>
-    {!collapsed ? <div className="inspector-content" key={node?.id ?? page.id}>
+    {!collapsed && selectedNodes.length > 1 ? <div className="inspector-content multiselection-summary">
+      <p className="property-hint">Ctrl 点击增减选择 · Shift 点击连续选择</p>
+      <ul>{selectedNodes.map(item => <li key={item.id}><span>{item.name}</span><small>{COMPONENTS[item.type].laya}</small></li>)}</ul>
+      <p className="property-hint">方向键移动整组 · Delete / Backspace 删除<br />单击控件可编辑它的属性</p>
+    </div> : !collapsed ? <div className="inspector-content" key={node?.id ?? page.id}>
       <div className="component-identity"><span title={identityLabel}>{identityLabel}</span><code title="稳定节点 ID">{node?.id ?? page.id}</code></div>
       {geometry.issues.length ? <div className="layout-diagnostics" role="status"><strong>布局需要调整</strong>{geometry.issues.slice(0, 4).map((issue, i) => <p key={i}>{issue.message}</p>)}<p>暂用原始位置/尺寸显示，可继续修改。</p></div> : null}
       <Field label={node ? "名称" : "页面名称"} value={node?.name ?? page.name} disabled={locked} validate={(name) => !!name.trim()} onCommit={(name) => {

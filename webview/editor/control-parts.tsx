@@ -1,4 +1,5 @@
 import type { GameFlowNode, GameFlowPage } from "../../shared/model";
+import { Trash2 } from "lucide-react";
 import { controlSelected, hasNodeSkin, radioGroupFor, setControlSelection, setRadioOptions, skinOwner, sliderOwner, supportsNodeSkin } from "../../shared/ui-parts";
 import { inheritedFlag } from "../../shared/editor-ops";
 import { Button } from "../components/ui/button";
@@ -30,11 +31,9 @@ export function ControlPartsProperties({ page, node, locked, onNode, onPage, onC
         {options.map((id, index) => id ? <option key={index} value={index}>{index + 1}. {page.nodes.find(item => item.id === id)?.name}</option> : null)}
       </select></label>
       {options.map((id, index) => <div key={index} className="radio-option-row">
+        <Button variant="ghost" size="icon" className="radio-option-remove" aria-label={`移除成员 ${index + 1}`} title={`移除成员 ${index + 1}`} disabled={locked} onClick={() => changeOptions(options.filter((_, i) => i !== index))}><Trash2 size={14} aria-hidden="true" /></Button>
         <span className="radio-option-number">{index + 1}</span>
         <NodeReferenceField page={page} owner={node} kind="radioOption" label={`单选组成员 ${index + 1}`} disabled={locked} value={id} onChange={nextId => changeOptions(options.map((value, i) => i === index ? nextId : value))} />
-        <Button variant="ghost" size="icon" aria-label={`上移成员 ${index + 1}`} disabled={locked || index === 0} onClick={() => { const next = [...options]; [next[index - 1], next[index]] = [next[index], next[index - 1]]; changeOptions(next); }}>↑</Button>
-        <Button variant="ghost" size="icon" aria-label={`下移成员 ${index + 1}`} disabled={locked || index === options.length - 1} onClick={() => { const next = [...options]; [next[index + 1], next[index]] = [next[index], next[index + 1]]; changeOptions(next); }}>↓</Button>
-        <Button variant="ghost" size="icon" aria-label={`移除成员 ${index + 1}`} disabled={locked} onClick={() => changeOptions(options.filter((_, i) => i !== index))}>×</Button>
       </div>)}
       <Button variant="outline" size="sm" disabled={locked || options.length >= 1000} onClick={() => changeOptions([...options, null])}>添加选项</Button>
       <p className="property-hint">按成员顺序编号；图层移动不改变分组。移除成员保留其当前选中状态。</p>

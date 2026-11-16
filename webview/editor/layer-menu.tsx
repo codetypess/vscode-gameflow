@@ -5,12 +5,14 @@ import { inheritedFlag, NODE_LABELS, type InsertType } from "../../shared/editor
 import { COMPONENT_TOOLS } from "./component-tools";
 import { canHaveChildren, COMPONENTS } from "../../shared/ui-components";
 import { canConvertNodeType } from "../../shared/ui-edit";
+import { selectionRoots } from "../../shared/selection-ops";
 
 export interface LayerMenuTarget { x: number; y: number; id: string | null }
 const TYPES = COMPONENT_TOOLS;
 
-export function LayerMenu({ page, target, onClose, onAdd, onDelete, onRestoreFocus, hasClipboard, onCopy, onPaste, onRename, onDuplicate, onConvert }: {
+export function LayerMenu({ page, selectedIds, target, onClose, onAdd, onDelete, onRestoreFocus, hasClipboard, onCopy, onPaste, onRename, onDuplicate, onConvert }: {
   page: GameFlowPage; target: LayerMenuTarget | null; onClose: () => void;
+  selectedIds: string[];
   onAdd: (type: InsertType, parentId?: string, afterId?: string) => void;
   onDelete: (id: string) => void; onRestoreFocus: () => void;
   hasClipboard: boolean; onCopy: (id: string) => void; onPaste: (parentId?: string, afterId?: string) => void;
@@ -21,7 +23,8 @@ export function LayerMenu({ page, target, onClose, onAdd, onDelete, onRestoreFoc
   const parentId = container ? node.id : node?.parentId;
   const parent = page.nodes.find((item) => item.id === parentId);
   const addDisabled = !!(parent && inheritedFlag(page, parent, "locked"));
-  const deleteDisabled = !node || inheritedFlag(page, node, "locked");
+  const multi = !!node && selectedIds.includes(node.id) && selectedIds.length > 1;
+  const deleteDisabled = !node || (multi ? selectionRoots(page, selectedIds).some(item => inheritedFlag(page, item, "locked")) : inheritedFlag(page, node, "locked"));
   const addLabel = container ? "添加子节点" : node ? "添加同级节点" : "添加节点";
   const command = /Mac/.test(navigator.platform) ? "⌘" : "Ctrl+";
   const action = (run: () => void) => () => { run(); onClose(); };
@@ -35,9 +38,9 @@ export function LayerMenu({ page, target, onClose, onAdd, onDelete, onRestoreFoc
       {node ? <DropdownMenu.Item onSelect={action(() => onCopy(node.id))}><Copy size={14} /><span>复制</span><kbd>{command}C</kbd></DropdownMenu.Item> : null}
       <DropdownMenu.Item disabled={!hasClipboard || addDisabled} onSelect={action(() => onPaste(parentId, !container ? node?.id : undefined))}><ClipboardPaste size={14} /><span>粘贴</span><kbd>{command}V</kbd></DropdownMenu.Item>
       {node ? <><DropdownMenu.Separator className="layer-menu-separator" />
-        <DropdownMenu.Item disabled={deleteDisabled} onSelect={action(() => onRename(node.id))}><Pencil size={14} /><span>重命名</span><kbd>F2</kbd></DropdownMenu.Item>
+        <DropdownMenu.Item disabled={deleteDisabled || multi} onSelect={action(() => onRename(node.id))}><Pencil size={14} /><span>重命名</span><kbd>F2</kbd></DropdownMenu.Item>
         <DropdownMenu.Item disabled={deleteDisabled} onSelect={action(() => onDuplicate(node.id))}><CopyPlus size={14} /><span>生成副本</span><kbd>{command}D</kbd></DropdownMenu.Item>
-        <DropdownMenu.Item className="delete-menu-item" disabled={deleteDisabled} onSelect={action(() => onDelete(node.id))}><Trash2 size={14} /><span>删除{page.nodes.some((item) => item.parentId === node.id) ? "节点及子节点" : "节点"}</span><kbd>Delete</kbd></DropdownMenu.Item>
+        <DropdownMenu.Item className="delete-menu-item" disabled={deleteDisabled} onSelect={action(() => onDelete(node.id))}><Trash2 size={14} /><span>{multi ? `删除 ${selectedIds.length} 个节点` : `删除${page.nodes.some((item) => item.parentId === node.id) ? "节点及子节点" : "节点"}`}</span><kbd>Delete</kbd></DropdownMenu.Item>
       </> : null}
       <DropdownMenu.Separator className="layer-menu-separator" />
       <DropdownMenu.Sub>
@@ -48,7 +51,7 @@ export function LayerMenu({ page, target, onClose, onAdd, onDelete, onRestoreFoc
         </DropdownMenu.SubContent></DropdownMenu.Portal>
       </DropdownMenu.Sub>
       {node ? <><DropdownMenu.Separator className="layer-menu-separator" />
-        <DropdownMenu.Sub><DropdownMenu.SubTrigger disabled={deleteDisabled || page.nodes.some((item) => item.parentId === node.id && item.locked)}><ArrowRightLeft size={14} /><span>转换节点类型</span><ChevronRight size={14} /></DropdownMenu.SubTrigger>
+        <DropdownMenu.Sub><DropdownMenu.SubTrigger disabled={deleteDisabled || multi || page.nodes.some((item) => item.parentId === node.id && item.locked)}><ArrowRightLeft size={14} /><span>转换节点类型</span><ChevronRight size={14} /></DropdownMenu.SubTrigger>
           <DropdownMenu.Portal><DropdownMenu.SubContent loop sideOffset={2} alignOffset={-4} collisionPadding={6} className="layer-context-menu layer-context-submenu" aria-label="转换节点类型菜单"
             onPointerDown={(event) => event.stopPropagation()} onContextMenu={(event) => event.preventDefault()} onKeyDown={(event) => event.stopPropagation()}>
             {TYPES.map(({ type, icon: Icon }) => <DropdownMenu.Item key={type} disabled={!canConvertNodeType(page, node.id, type)} onSelect={action(() => onConvert(node.id, type))}><Icon size={14} /><span>{NODE_LABELS[type]} <small className="menu-class">({COMPONENTS[type].laya})</small></span>{node.type === type ? <Check size={14} /> : null}</DropdownMenu.Item>)}

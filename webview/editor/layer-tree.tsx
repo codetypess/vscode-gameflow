@@ -2,7 +2,9 @@ import { skinOwner } from "../../shared/ui-parts";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type MouseEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { ChevronDown, ChevronRight, Eye, EyeOff, LockKeyhole, UnlockKeyhole, Box, Search, X } from "lucide-react";
 import type { GameFlowNode, GameFlowPage } from "../../shared/model";
-import { inheritedFlag, moveNode, type InsertType, type LayerDrop } from "../../shared/editor-ops";
+import { inheritedFlag, type InsertType, type LayerDrop } from "../../shared/editor-ops";
+import { moveSelection } from "../../shared/selection-ops";
+import { visibleLayerOrder, type SelectionIntent } from "../lib/node-selection";
 import { Button } from "../components/ui/button";
 import { cn } from "../lib/utils";
 import { LayerMenu, type LayerMenuTarget } from "./layer-menu";
@@ -17,8 +19,9 @@ export function NodeIcon({ type }: { type: string }) {
 
 interface TreeDrag { id: string; pointerId: number; x: number; y: number; active: boolean; drop: LayerDrop | null }
 
-export function LayerTree({ page, selectedId, reveal, onSelect, onPatch, onBack, onAdd, onDelete, onMove, panelRef, panelStyle, hasClipboard, onCopy, onPaste, onDuplicate, onConvert }: {
-  page: GameFlowPage; selectedId: string | null; reveal: number; onSelect: (id: string | null) => void;
+export function LayerTree({ page, scopeId, selectedId, selectedIds, reveal, onSelect, onPatch, onBack, onAdd, onDelete, onMove, panelRef, panelStyle, hasClipboard, onCopy, onPaste, onDuplicate, onConvert }: {
+  page: GameFlowPage; selectedId: string | null; selectedIds: string[]; reveal: number; onSelect: (id: string | null, intent?: SelectionIntent) => void;
+  scopeId: string | null;
   panelRef?: (element: HTMLElement | null) => void; panelStyle?: CSSProperties;
   onPatch: (id: string, patch: Partial<GameFlowNode>) => void; onBack: () => void;
   onAdd: (type: InsertType, parentId?: string, afterId?: string) => void;
@@ -33,6 +36,7 @@ export function LayerTree({ page, selectedId, reveal, onSelect, onPatch, onBack,
   const filtering = !!query.trim();
   const { matches, visible } = searchLayers(page, query);
   const activeCollapsed = filtering ? searchCollapsed : collapsed;
+  const selectionOrder = visibleLayerOrder(page, visible, activeCollapsed);
   const [menu, setMenu] = useState<LayerMenuTarget | null>(null);
   const [dragging, setDragging] = useState<string | null>(null);
   const [drop, setDrop] = useState<LayerDrop | null>(null);
@@ -107,9 +111,9 @@ export function LayerTree({ page, selectedId, reveal, onSelect, onPatch, onBack,
 
   const openMenu = (event: MouseEvent, id: string | null) => {
     event.preventDefault(); event.stopPropagation(); cancelDrag();
-    onSelect(id);
+    onSelect(id, { preserve: true });
     const row = event.target instanceof Element ? event.target.closest<HTMLElement>("[data-layer-id], [data-layer-root]") : null;
-    returnFocus.current = row?.querySelector<HTMLElement>(".layer-name") ?? row ?? panel.current;
+    returnFocus.current = event.clientX || event.clientY ? panel.current : row?.querySelector<HTMLElement>(".layer-name") ?? panel.current;
     const bounds = row?.getBoundingClientRect();
     setMenu({ id, x: event.clientX || (bounds?.left ?? 16) + 20, y: event.clientY || (bounds?.bottom ?? 100) });
   };
@@ -140,15 +144,15 @@ export function LayerTree({ page, selectedId, reveal, onSelect, onPatch, onBack,
       if (event.clientY > bounds.bottom - 18) scrollArea.scrollTop += 8;
     }
     const next = hitDrop(event);
-    current.drop = next && moveNode(page, current.id, next) !== page ? next : null;
+    current.drop = next && moveSelection(page, selectedIds.includes(current.id) ? selectedIds : [current.id], next) !== page ? next : null;
     setDrop(current.drop);
   };
   const pointerUp = (event: ReactPointerEvent<HTMLElement>) => {
     const current = drag.current;
     if (!current || current.pointerId !== event.pointerId) return;
     const target = current.active ? hitDrop(event) : null;
-    if (target && moveNode(page, current.id, target) !== page) {
-      onMove(current.id, target); onSelect(current.id);
+    if (target && moveSelection(page, selectedIds.includes(current.id) ? selectedIds : [current.id], target) !== page) {
+      onMove(current.id, target);
       expand(target.position === "inside" ? target.targetId : page.nodes.find((item) => item.id === target.targetId)?.parentId);
     }
     cancelDrag();
@@ -160,8 +164,8 @@ export function LayerTree({ page, selectedId, reveal, onSelect, onPatch, onBack,
     const owner = skinOwner(page, node), controlledVisibility = owner?.type === "checkbox" || owner?.type === "radio";
     const hidden = controlledVisibility ? inheritedFlag(page, node, "hidden") : node.hidden;
     return <div key={node.id}>
-      <div role="treeitem" data-layer-id={node.id} aria-selected={selectedId === node.id} aria-expanded={hasChildren ? !activeCollapsed.has(node.id) : undefined}
-        className={cn("layer-row", filtering && matches.has(node.id) && "layer-search-match", selectedId === node.id && "is-selected", inheritedFlag(page, node, "hidden") && "is-muted", dragging === node.id && "layer-drag-source", dropClass(node.id))}
+      <div role="treeitem" data-layer-id={node.id} aria-selected={selectedIds.includes(node.id)} aria-expanded={hasChildren ? !activeCollapsed.has(node.id) : undefined}
+        className={cn("layer-row", filtering && matches.has(node.id) && "layer-search-match", selectedIds.includes(node.id) && "is-selected", inheritedFlag(page, node, "hidden") && "is-muted", dragging === node.id && "layer-drag-source", dropClass(node.id))}
         style={{ paddingLeft: 8 + depth * 10 }} onContextMenu={(event) => openMenu(event, node.id)}>
         <button className="tree-chevron" aria-label={`${activeCollapsed.has(node.id) ? "展开" : "折叠"}${node.name}`} disabled={!hasChildren} onClick={() => toggle(node.id)}>
           {hasChildren ? activeCollapsed.has(node.id) ? <ChevronRight size={12} /> : <ChevronDown size={12} /> : null}
@@ -175,8 +179,12 @@ export function LayerTree({ page, selectedId, reveal, onSelect, onPatch, onBack,
           }} /> : <button className={cn("layer-name", !locked && !filtering && "layer-draggable")} aria-haspopup="menu" title={`${node.name}${node.variableName ? ` · 变量：${node.variableName}` : ""}${locked ? " · 已锁定" : filtering ? " · 右键编辑，清除搜索后可拖动排序" : " · 拖动排序或移入容器，右键编辑"}`}
           onPointerDown={(event) => {
             suppressClick.current = false;
-            if (event.button !== 0 || menu || locked || filtering) return;
-            onSelect(node.id); drag.current = { id: node.id, pointerId: event.pointerId, x: event.clientX, y: event.clientY, active: false, drop: null };
+            if (event.button !== 0 || menu) return;
+            event.preventDefault(); panel.current?.focus({ preventScroll: true });
+            const modified = event.ctrlKey || event.metaKey || event.shiftKey;
+            onSelect(node.id, { toggle: event.ctrlKey || event.metaKey, range: event.shiftKey, order: selectionOrder, preserve: !modified });
+            if (modified) { suppressClick.current = true; return; }
+            if (!locked && !filtering) drag.current = { id: node.id, pointerId: event.pointerId, x: event.clientX, y: event.clientY, active: false, drop: null };
           }} onClick={() => { if (!suppressClick.current) onSelect(node.id); }}><NodeIcon type={node.type} /><span>{node.name}</span>{node.variableName ? <code className="layer-variable" title={`变量：${node.variableName}`}>{node.variableName}</code> : null}</button>}
         <button className="layer-action" disabled={controlledVisibility} title={controlledVisibility ? "显示状态由所属控件的选中状态控制" : undefined} aria-label={`${hidden ? "显示" : "隐藏"}${node.name}`} onClick={() => onPatch(node.id, { hidden: !node.hidden })}>{hidden ? <EyeOff size={12} /> : <Eye size={12} />}</button>
         <button className="layer-action" aria-label={`${node.locked ? "解锁" : "锁定"}${node.name}`} onClick={() => onPatch(node.id, { locked: !node.locked })}>{node.locked ? <LockKeyhole size={12} /> : <UnlockKeyhole size={12} />}</button>
@@ -185,7 +193,7 @@ export function LayerTree({ page, selectedId, reveal, onSelect, onPatch, onBack,
     </div>;
   });
   return <aside ref={attachPanel} style={panelStyle} tabIndex={-1} className={cn("layer-panel floating-panel", dragging && "layer-dragging")} aria-label="控件层级树"
-    onKeyDown={(event) => { if (event.key === "F2" && selectedId && !renaming && !menu && !(event.target instanceof HTMLInputElement)) { event.preventDefault(); event.stopPropagation(); beginRename(selectedId); } }}
+    onKeyDown={(event) => { if (event.key === "F2" && selectedIds.length === 1 && selectedId && !renaming && !menu && !(event.target instanceof HTMLInputElement)) { event.preventDefault(); event.stopPropagation(); beginRename(selectedId); } }}
     onPointerDownCapture={() => { if (!drag.current?.active) suppressClick.current = false; }}
     onPointerDown={(event) => event.stopPropagation()} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={cancelDrag} onLostPointerCapture={cancelDrag}
     onClickCapture={(event) => { if (suppressClick.current) { event.preventDefault(); event.stopPropagation(); suppressClick.current = false; } }}>
@@ -194,12 +202,13 @@ export function LayerTree({ page, selectedId, reveal, onSelect, onPatch, onBack,
       onChange={(event) => changeQuery(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); clearSearch(); } }} />
       {query ? <button aria-label="清除图层搜索" title="清除搜索 (Esc)" onClick={clearSearch}><X size={12} /></button> : null}
     </div>
-    <button data-layer-root className={cn("tree-root", !selectedId && "is-selected", dropClass())} aria-haspopup="menu" onContextMenu={(event) => openMenu(event, null)} onClick={() => onSelect(null)}><Box size={15} /><strong>{page.name}</strong><small>{pageRootType(page)}</small></button>
-    <div role="tree" aria-label={page.name} data-layer-root className="layer-tree" onContextMenu={(event) => openMenu(event, null)}>{branch(undefined, 0)}{filtering && !matches.size ? <p className="empty-layers" role="status">没有匹配的图层</p> : page.nodes.length === 0 ? <p className="empty-layers">右键添加节点<br />或用底部工具条点击放置</p> : null}
+    <button data-layer-root className={cn("tree-root", !selectedId && !scopeId && "is-selected", dropClass())} aria-haspopup="menu" onContextMenu={(event) => openMenu(event, null)}
+      onPointerDown={(event) => { if (event.button === 0) { event.preventDefault(); panel.current?.focus({ preventScroll: true }); } }} onClick={() => onSelect(null)}><Box size={15} /><strong>{page.name}</strong><small>{pageRootType(page)}</small></button>
+    <div role="tree" aria-multiselectable="true" aria-label={page.name} data-layer-root className="layer-tree" onContextMenu={(event) => openMenu(event, null)}>{branch(undefined, 0)}{filtering && !matches.size ? <p className="empty-layers" role="status">没有匹配的图层</p> : page.nodes.length === 0 ? <p className="empty-layers">右键添加节点<br />或用底部工具条点击放置</p> : null}
       <div className={cn("tree-root-drop", drop && !drop.targetId && "layer-drop-inside")} data-layer-root>{dragging ? "移到页面根节点" : ""}</div>
     </div>
     <div className="layer-footer">{filtering ? "搜索中 · 清除搜索后可拖动排序" : "右键编辑节点 · 拖动调整层级"}</div>
-    <LayerMenu page={page} target={menu} onClose={() => setMenu(null)} onAdd={(type, parentId, afterId) => { expand(parentId); onAdd(type, parentId, afterId); }} onDelete={onDelete}
+    <LayerMenu page={page} selectedIds={selectedIds} target={menu} onClose={() => setMenu(null)} onAdd={(type, parentId, afterId) => { expand(parentId); onAdd(type, parentId, afterId); }} onDelete={onDelete}
       hasClipboard={hasClipboard} onCopy={onCopy} onPaste={(parentId, afterId) => { expand(parentId); onPaste(parentId, afterId); }} onRename={beginRename} onDuplicate={onDuplicate} onConvert={onConvert}
       onRestoreFocus={() => { if (renameInput.current) { renameInput.current.focus(); renameInput.current.select(); } else if (returnFocus.current?.isConnected) returnFocus.current.focus(); else panel.current?.focus(); }} />
   </aside>;

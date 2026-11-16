@@ -33,6 +33,16 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 
 ## Active Work Items
 
+- [container-outline-toggle.md](container-outline-toggle.md) — Done：以默认关闭的“虚线框”开关替代选择/抓手按钮；容器辅助边界、166 项测试、生产构建及浏览器交互验收通过。
+
+- [node-multiselection.md](node-multiselection.md) — Done：树选中后的键盘焦点修复、Ctrl/Shift 多选及整组编辑；167 项测试、构建和浏览器交互验收通过。
+
+- [radio-option-row-actions.md](radio-option-row-actions.md) — Done：移除成员上下移入口，删除按钮放序号前并悬停显示；构建、显隐/键盘/删除撤销浏览器验收通过。
+
+- [canvas-editing-scope.md](canvas-editing-scope.md) — Done：画布逐层选择、双击钻入/返回、路径导航、图层树直达及背景遮罩；154 项测试、生产构建与浏览器交互验收通过。
+
+- [canvas-keyboard-focus.md](canvas-keyboard-focus.md) — Done：画布点击接管键盘焦点，修复方向键操作时旧树行出现焦点框；构建与浏览器交互回归通过。
+
 - [node-reference-picker.md](node-reference-picker.md) — Done：节点引用树形弹窗、绑定上下文及 Delete / Backspace 清空引用；146 项测试、构建和浏览器交互验收通过。
 
 - [prototype-control-parts.md](prototype-control-parts.md) — Done：UIButton 可选文案、Slider/CheckBox/Radio 显式部件、RadioGroup 成员引用及 v3 持久化；140 项测试、类型检查、生产构建及浏览器交互/保存刷新验收通过。

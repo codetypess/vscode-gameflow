@@ -6,7 +6,7 @@ import { resolvePageLayout } from "./ui-layout";
 import { allocateVariableName } from "./node-variable";
 import { controlSelected, remapControlReferences } from "./ui-parts";
 
-export interface NodeClipboard { rootId: string; nodes: GameFlowNode[] }
+export interface NodeClipboard { rootId: string; rootIds?: string[]; nodes: GameFlowNode[] }
 
 /** A session-local snapshot, independent of subsequent source edits or deletion. */
 export function copyNode(page: GameFlowPage, id: string): NodeClipboard | null {
@@ -19,15 +19,16 @@ export function copyNode(page: GameFlowPage, id: string): NodeClipboard | null {
   return { rootId: id, nodes };
 }
 
-export function pasteNode(page: GameFlowPage, clipboard: NodeClipboard, makeId: () => string, parentId?: string, afterId?: string): { page: GameFlowPage; id: string | null } {
+export function pasteNode(page: GameFlowPage, clipboard: NodeClipboard, makeId: () => string, parentId?: string, afterId?: string): { page: GameFlowPage; id: string | null; ids?: string[] } {
   const parent = page.nodes.find((node) => node.id === parentId);
   const anchor = page.nodes.find((node) => node.id === afterId);
   if ((parentId && (!parent || !canHaveChildren(parent) || inheritedFlag(page, parent, "locked"))) ||
     (afterId && (!anchor || anchor.parentId !== parentId))) return { page, id: null };
   const mapping = new Map(clipboard.nodes.map((node) => [node.id, makeId()]));
+  const rootIds = clipboard.rootIds ?? [clipboard.rootId];
   const variableNames = new Set(page.nodes.flatMap((node) => node.variableName ? [node.variableName] : []));
   const copies = structuredClone(clipboard.nodes).map((node) => {
-    const root = node.id === clipboard.rootId;
+    const root = rootIds.includes(node.id);
     const next = { ...node, id: mapping.get(node.id)! };
     if (node.variableName) next.variableName = allocateVariableName(node.variableName, variableNames);
     if (root) {
@@ -39,7 +40,8 @@ export function pasteNode(page: GameFlowPage, clipboard: NodeClipboard, makeId: 
     } else next.parentId = mapping.get(node.parentId!)!;
     return remapControlReferences(next, mapping);
   });
-  const root = copies.find((node) => node.id === mapping.get(clipboard.rootId))!;
-  const inserted = insertNode(page, root, parentId, afterId);
-  return { page: { ...inserted, nodes: [...inserted.nodes, ...copies.filter((node) => node !== root)] }, id: root.id };
+  const ids = rootIds.map(id => mapping.get(id)!);
+  let inserted = page, anchorId = afterId;
+  for (const id of ids) { const root = copies.find(node => node.id === id)!; inserted = insertNode(inserted, root, parentId, anchorId); anchorId = id; }
+  return { page: { ...inserted, nodes: [...inserted.nodes, ...copies.filter(node => !ids.includes(node.id))] }, id: ids[0], ids };
 }
