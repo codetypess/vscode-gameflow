@@ -1,3 +1,4 @@
+import { GAMEFLOW_SCHEMA_VERSION } from "../shared/model";
 import assert from "node:assert/strict";
 import { createDefaultGameFlowDocument, parseGameFlowDocument, serializeGameFlowDocument, validateGameFlowDocument, type Frame, type GameFlowNode, type GameFlowPage, type NodeTransform } from "../shared/model";
 import { isWebviewToHostMessage, type WebviewToHostMessage } from "../shared/protocol";
@@ -292,7 +293,7 @@ test("copies isolate transforms and type conversion, save, undo and redo retain 
   session.receive({type:"init",document:legacy,documentVersion:1,resourceName:"test",dirty:false});
   session.edit(d=>({...d,pages:[source]}));
   const changed = session.state.document!;
-  assert.equal(changed.schemaVersion, 3); assert.equal(changed.pages[0].nodes[0].id,"n");
+  assert.equal(changed.schemaVersion, GAMEFLOW_SCHEMA_VERSION); assert.equal(changed.pages[0].nodes[0].id,"n");
   assert.deepEqual(parseGameFlowDocument(serializeGameFlowDocument(changed)),changed);
   session.receive({type:"documentChanged",document:changed,documentVersion:2,dirty:true});
   session.command("save"); assert.deepEqual(messages.at(-1),{type:"save"});

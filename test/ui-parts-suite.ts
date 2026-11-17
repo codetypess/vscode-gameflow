@@ -1,3 +1,4 @@
+import { GAMEFLOW_SCHEMA_VERSION } from "../shared/model";
 import assert from "node:assert/strict";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -169,7 +170,7 @@ test("legacy controls gain parts only explicitly and v2 edits upgrade in the und
   const sent: WebviewToHostMessage[] = [], session = new DocumentSession(message => sent.push(message), () => {});
   session.receive({ type: "init", document: source, resourceName: "test", dirty: false, documentVersion: 1 });
   session.edit(d => ({ ...d, pages: [changed] }));
-  assert.equal(session.state.document!.schemaVersion, 3);
+  assert.equal(session.state.document!.schemaVersion, GAMEFLOW_SCHEMA_VERSION);
   assert.ok(sent.some(message => message.type === "replaceDocument"));
 });
 

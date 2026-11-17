@@ -2,11 +2,15 @@ import {
   type GameFlowDocument,
   validateGameFlowDocument
 } from "./model";
+import { isCanvasReferenceSource } from "./model";
+import type { CanvasSources } from "./canvas-references";
 
 export type WebviewToHostMessage =
   | { type: "ready" }
   | { type: "history"; action: "undo" | "redo" }
   | { type: "save" }
+  | { type: "chooseCanvasSource" }
+  | { type: "openCanvasSource"; source: string }
   | { type: "psdOutput"; requestId: string; name: string; kind: "psd" | "meta"; base64: string }
   | {
       type: "replaceDocument";
@@ -15,6 +19,7 @@ export type WebviewToHostMessage =
     };
 
 export type HostToWebviewMessage =
+  | { type: "canvasSources"; sources: CanvasSources; pickedSource?: string; error?: string }
   | { type: "psdOutputResult"; requestId: string; saved: boolean; error?: string }
   | { type: "commandCompleted"; action: "save" | "undo" | "redo" }
   | {
@@ -51,6 +56,8 @@ export function isWebviewToHostMessage(
     return true;
   }
   if (value.type === "save") return true;
+  if (value.type === "chooseCanvasSource") return true;
+  if (value.type === "openCanvasSource") return isCanvasReferenceSource(value.source) && value.source !== "";
   if (value.type === "psdOutput") {
     return typeof value.requestId === "string" && value.requestId.length <= 80 && typeof value.name === "string" && value.name.length > 0 && value.name.length <= 160 && !/[\\/:*?"<>|\x00-\x1f]/.test(value.name) && !value.name.includes("..") && !/^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(value.name) && (value.kind === "psd" ? /\.psd$/i.test(value.name) : value.kind === "meta" && /\.meta\.json$/i.test(value.name)) && typeof value.base64 === "string" && value.base64.length > 0 && value.base64.length <= 48 * 1024 * 1024 && value.base64.length % 4 === 0 && /^[A-Za-z0-9+/]*={0,2}$/.test(value.base64);
   }

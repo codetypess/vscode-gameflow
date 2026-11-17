@@ -34,6 +34,38 @@ test("scope background, other branches and blank space cannot select nodes outsi
   assert.deepEqual(ids(canvasScopePath(p, "empty")), ["empty"], "empty/button containers are editable scopes");
 });
 
+test("direct selection reaches nested composite parts while scoped selection remains the default", () => {
+  let serial = 0;
+  const parts = makeComponent("slider", "volume", 100, 100, () => `part${++serial}`);
+  parts[0].parentId = "settings";
+  const p = page(node("settings", "container"), ...parts);
+  for (const part of parts.slice(1)) {
+    assert.equal(canvasHitNode(p, null, part.id)?.id, "settings");
+    assert.equal(canvasHitNode(p, null, part.id, false)?.id, "settings");
+    const picked = canvasHitNode(p, null, part.id, true)!;
+    assert.equal(picked.id, part.id);
+    assert.deepEqual(ids(reconcileCanvasScope(p, [], picked.id).path), ["settings", "volume"]);
+  }
+});
+
+test("direct selection can leave the current branch and select container backgrounds", () => {
+  const p = page(node("a", "container"), node("b", "button"), node("a1", "text", "a"), node("b1", "text", "b"));
+  assert.equal(canvasHitNode(p, "a", "b1"), null);
+  const picked = canvasHitNode(p, "a", "b1", true)!;
+  assert.equal(picked.id, "b1");
+  assert.deepEqual(ids(reconcileCanvasScope(p, ["a"], picked.id).path), ["b"]);
+  assert.equal(canvasHitNode(p, "b", "a1", true)?.id, "a1");
+  assert.equal(canvasHitNode(p, "a", "a", true)?.id, "a");
+  for (const id of [undefined, "missing", p.id]) assert.equal(canvasHitNode(p, "a", id, true), null);
+});
+
+test("direct selection excludes inherited hidden nodes and keeps locked nodes inspectable", () => {
+  const p = page({ ...node("hidden", "container"), hidden: true }, node("hidden-child", "text", "hidden"), { ...node("leaf", "image"), hidden: true }, { ...node("locked", "button"), locked: true }, node("locked-child", "text", "locked"));
+  for (const id of ["hidden", "hidden-child", "leaf"]) assert.equal(canvasHitNode(p, null, id, true), null);
+  assert.equal(canvasHitNode(p, null, "locked-child", true)?.id, "locked-child");
+  assert.equal(canvasHitNode(p, null, "locked", true)?.id, "locked");
+});
+
 test("tree selection jumps straight to a nested node's parent scope and follows reparenting", () => {
   const p = page(node("group", "container"), node("button", "button", "group"), node("label", "text", "button"), node("other", "container"));
   const direct = reconcileCanvasScope(p, [], "label");

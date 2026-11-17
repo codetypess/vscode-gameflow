@@ -16,10 +16,11 @@ export function canvasScopePath(page: GameFlowPage, scopeId: string | null): Gam
   return path;
 }
 
-/** A deep visual hit selects only the direct child of the current scope. */
-export function canvasHitNode(page: GameFlowPage, scopeId: string | null, hitId?: string): GameFlowNode | null {
+/** Normally select the scope's direct child; direct mode keeps the actual visible hit. */
+export function canvasHitNode(page: GameFlowPage, scopeId: string | null, hitId?: string, direct = false): GameFlowNode | null {
   const visited = new Set<string>();
   let node = page.nodes.find(item => item.id === hitId);
+  if (direct) return node && !inheritedFlag(page, node, "hidden") ? node : null;
   while (node && !visited.has(node.id)) {
     if (node.id === scopeId) return null;
     if ((node.parentId ?? null) === scopeId) return node;
@@ -59,6 +60,7 @@ export function canvasPlacementPoint(page: GameFlowPage, scopeId: string | null,
 }
 
 export function placeCanvasComponent(page: GameFlowPage, scopeId: string | null, type: InsertType, point: Point, makeId: () => string): { page: GameFlowPage; id: string | null } {
+  if (!scopeId && page.nodes.some(node => node.id === page.componentRootId)) scopeId = page.componentRootId!;
   const local = canvasPlacementPoint(page, scopeId, point);
   if (!local) return { page, id: null };
   const nodes = makeComponent(type, makeId(), local.x, local.y, makeId);

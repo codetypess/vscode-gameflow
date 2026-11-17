@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 4,
+  "elementIdScheme": "nanoid-8",
+  "documentId": "gameflow-shared-components",
+  "title": "公共画布组件",
+  "requirements": [],
+  "pages": [{
+    "id": "7x5404qh", "name": "公共提示卡", "kind": "screen", "rootType": "UIBox",
+    "componentRootId": "cardroot", "background": "transparent",
+    "frame": { "x": 0, "y": 0, "width": 280, "height": 96 },
+    "nodes": [
+      { "id": "cardroot", "name": "提示卡", "type": "container", "frame": { "x": 0, "y": 0, "width": 280, "height": 96 }, "style": { "fill": "#163b53", "borderColor": "#4395b7", "borderWidth": 1, "radius": 10 } },
+      { "id": "cardtext", "name": "提示文案", "parentId": "cardroot", "type": "text", "text": "来自公共模块的组件", "frame": { "x": 20, "y": 24, "width": 240, "height": 48 }, "layout": { "left": 20, "right": 20, "centerY": 0 }, "style": { "color": "#e1f6ff", "fontSize": 18 }, "widget": { "valign": "middle" } }
+    ]
+  }],
+  "interactions": []
+}

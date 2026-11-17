@@ -3,6 +3,7 @@ import type { GameFlowDocument } from "../shared/model";
 import { isWebviewToHostMessage, type HostToWebviewMessage, type WebviewToHostMessage } from "../shared/protocol";
 import componentSample from "../sample/ui-components.gameflow.json";
 import starSeaSample from "../sample/star-sea-login.gameflow.json";
+import { loadCanvasSources, type CanvasSources } from "../shared/canvas-references";
 
 export const isBrowserPreview = typeof acquireVsCodeApi !== "function";
 const api = isBrowserPreview ? createBrowserPreviewApi() : acquireVsCodeApi();
@@ -20,20 +21,62 @@ function createBrowserPreviewApi(): VsCodeApi {
   const past: GameFlowDocument[] = [];
   const future: GameFlowDocument[] = [];
   let state: unknown;
+  const imported: Record<string, GameFlowDocument> = {};
+  try {
+    const stored = JSON.parse(localStorage.getItem(`${storageKey}.sources`) ?? "{}");
+    for (const [key, value] of Object.entries(stored)) imported[key] = parseGameFlowDocument(JSON.stringify(value));
+  } catch { /* Invalid source snapshots are shown as unresolved references. */ }
+  let sourceEpoch = 0;
+  let sources: CanvasSources = {};
   const send = (message: HostToWebviewMessage) => window.setTimeout(() => {
     window.dispatchEvent(new MessageEvent("message", { data: message }));
   }, 0);
+  const refreshSources = async (pickedSource?: string) => {
+    const epoch = ++sourceEpoch;
+    const next = await loadCanvasSources(document, async source => {
+      if (!Object.hasOwn(imported, source)) throw new Error(`请重新导入 ${source}（浏览器使用文件快照）`);
+      return imported[source];
+    }, Object.keys(imported));
+    if (epoch !== sourceEpoch) return;
+    sources = next; send({ type: "canvasSources", sources, ...(pickedSource !== undefined ? { pickedSource } : {}) });
+  };
+  const chooseSource = () => {
+    const input = window.document.createElement("input");
+    input.type = "file"; input.accept = ".gameflow.json,application/json"; input.multiple = true; input.hidden = true;
+    input.setAttribute("aria-label", "导入引用画布文件"); window.document.body.append(input);
+    input.addEventListener("cancel", () => input.remove(), { once: true });
+    input.addEventListener("change", async () => {
+      try {
+        const files = Array.from(input.files ?? []);
+        for (const file of files) {
+          if (!/\.gameflow\.json$/i.test(file.name) || file.size > 50 * 1024 * 1024) throw new Error("请选择不超过 50 MB 的 .gameflow.json 文件。");
+          imported[file.name] = parseGameFlowDocument(await file.text());
+        }
+        try { localStorage.setItem(`${storageKey}.sources`, JSON.stringify(imported)); }
+        catch { send({ type: "canvasSources", sources, error: "浏览器存储空间不足，源文件快照仅在本次会话可用。" }); }
+        await refreshSources(files[0]?.name);
+      } catch (error) { send({ type: "canvasSources", sources, error: String(error) }); }
+      finally { input.remove(); }
+    }, { once: true });
+    input.click();
+  };
   const snapshot = () => {
     let dirty = false;
     try { localStorage.setItem(storageKey, serializeGameFlowDocument(document)); }
     catch { dirty = true; }
     send({ type: "documentChanged", document, documentVersion: version, dirty });
+    void refreshSources();
   };
   return {
     postMessage(raw: unknown) {
       if (!isWebviewToHostMessage(raw)) return;
       if (raw.type === "ready") {
         send({ type: "init", document, documentVersion: version, resourceName: "策划原型.gameflow.json", dirty: false });
+        void refreshSources();
+      } else if (raw.type === "chooseCanvasSource") {
+        chooseSource();
+      } else if (raw.type === "openCanvasSource") {
+        send({ type: "canvasSources", sources, error: "浏览器预览使用文件快照；请在 VS Code 打开源文件编辑，再重新导入快照。" });
       } else if (raw.type === "replaceDocument") {
         if (raw.baseVersion !== version) {
           send({ type: "updateRejected", reason: "文档版本变化，请重新操作。", currentVersion: version });

@@ -23,7 +23,7 @@ RadioGroup 为可含子节点的容器，`widget.optionNodeIds` 保存同页 Rad
 
 删除或移出皮肤、删除成员、改变节点类型时，同一事务清除失效关系；删除成员保留空槽并在必要时清空选择。涉及锁定关联节点的关系改写不提交。旧无 skinNodeId 的控件保留低保真显示，可通过“建立默认部件”显式转换，保留根 ID、原布局、状态和已有子节点。实际实现与验收见 [原型复合控件](prototype-control-parts.md)。
 
-底部添加菜单将页面根和控件分别以紧凑单列展示，正常宽 225px，保留中文名称、类名和图标；窄视口按可用宽度收缩，菜单按实际可用高度限位并在必要时内部滚动。
+底部添加菜单将页面根和控件分别以紧凑单列展示，正常宽 225px，保留中文名称、类名和图标；窄视口按可用宽度收缩，菜单按实际可用高度限位并在必要时内部滚动。最左侧“直选模式”使用带点击射线的鼠标指针（Lucide `MousePointerClick`）；按钮控件使用圆角矩形内带三点的 `RectangleEllipsis`；自由容器使用四块错落排列的线框布局图标 `LayoutDashboard`，包括添加到画布的 UIBox 入口。控件图标在底部快捷入口、添加菜单、图层树、层级导航及图层菜单保持一致。
 
 ## Geometry
 
@@ -44,7 +44,9 @@ RadioGroup 为可含子节点的容器，`widget.optionNodeIds` 保存同页 Rad
 
 底部工具条以默认关闭的“虚线框”开关替代选择/抓手两个按钮。开启时，为 `COMPONENTS.children=true` 的可见容器（含复合控件与旧矩形）显示虚线辅助边界，叶子不显示；辅助框沿用节点变换与裁剪，不接收指针、不改变节点样式或布局。按钮通过高亮和 aria-pressed 表示状态。开关独立于当前工具、选择与文档历史，切页/模式切换保留，刷新后关闭；选择 V、抓手 H 与空格临时平移继续可用。详见 [容器虚线框](container-outline-toggle.md)。
 
-页面内维护独立于文档的容器编辑路径。画布单击把最深命中映射为当前层的直属子节点；当前容器自身背景、其他分支与画布空白取消选择。双击支持子节点的控件进入其子层（含空容器），文字/输入叶子双击仍聚焦文字属性。双击空白退一级并选中刚退出的容器；页根双击空白保持页内编辑。左上路径导航可进入任意祖先的子层，清空选择；图层树选择直接进入节点父层并选中节点，根选择返回页面层。相机不随层级跳转；退出/重进页面重置路径。结构编辑与撤销后跟随仍有效的选中节点父级，否则退至原路径最近的有效容器。详见 [画布编辑层级](canvas-editing-scope.md)。
+页面内维护独立于文档的容器编辑路径。默认关闭“直选模式”，画布单击把最深命中映射为当前层的直属子节点；当前容器自身背景、其他分支与画布空白取消选择。双击支持子节点的控件进入其子层（含空容器），文字/输入叶子双击仍聚焦文字属性。双击空白退一级并选中刚退出的容器；页根双击空白保持页内编辑。左上路径导航可进入任意祖先的子层，清空选择；图层树选择直接进入节点父层并选中节点，根选择返回页面层。相机不随层级跳转；退出/重进页面重置路径。结构编辑与撤销后跟随仍有效的选中节点父级，否则退至原路径最近的有效容器。详见 [画布编辑层级](canvas-editing-scope.md)。
+
+底部工具条在虚线框之前提供“直选模式”开关，图标高亮和 aria-pressed 表示状态。开启时单击/双击使用实际命中的可见节点，可跨分支选择后代；容器背景可选自身，隐藏节点不可选，锁定保护保留。选择继续驱动父层路径、树定位、属性和选框；Ctrl/Cmd 可跨分支增减，Shift 只在目标父容器的可见直属节点中取范围。直选期间停用范围遮罩和前景提升，保持页面正常绘制和明暗；关闭恢复当前层规则。切换本身不改变选择、层级、工具、相机或内容历史；切页/模式切换保留，刷新关闭。总览仍选择整页，新增/粘贴仍遵循当前层。详见 [画布直选模式](canvas-direct-selection.md)。
 
 树与画布共享会话选择集合、主节点及范围锚点。单击替换，Ctrl/Cmd 点击增减，Shift 选择锚点到目标的连续区间，Ctrl/Cmd+Shift 追加区间；重复 Shift 保留锚点。树范围只包含当前展开且搜索可见的行，画布范围按当前层直属节点绘制顺序；锚点不可见时选择目标。多选时以最近公共父容器作为编辑层，每个可见节点显示选框，属性面板显示数量和名称，不提供单节点属性字段或缩放手柄。点击已选节点可拖动整组，轻点收为单选；修饰点击不启动拖动。空白/Escape 清空选择，层级导航重置选择；结构编辑清理失效 ID，不恢复历史选择集合。详见 [节点多选](node-multiselection.md)。
 
@@ -78,7 +80,7 @@ RadioGroup 为可含子节点的容器，`widget.optionNodeIds` 保存同页 Rad
 
 直接从树用鼠标选择也阻止名称按钮的默认取焦，并聚焦无外框的树面板，选择后可直接方向键移动、Delete/Backspace 删除。修饰选择仅在 pointerdown 处理一次，click 不再次切换集合；鼠标打开菜单关闭后回到树面板，键盘菜单保留原按钮焦点。输入字段继续使用自己的键盘编辑行为。
 
-节点复制捕获独立子树快照，剪贴板仅限当前编辑会话，可跨页粘贴。粘贴目标与新增一致；根节点使用复制时解算的局部 frame 加 16px 偏移，清除六项旧父约束并固化尺寸，子节点保持局部数据，全部身份重新分配。空剪贴板和锁定目标禁用粘贴。重命名提交去除首尾空白的非空名称，Enter/失焦提交、Escape 取消。类型转换保留 ID、名称、层级、样式、内容及子节点，复用容器切换的约束规范化；仅在缺省时补上目标文字/widget 默认值。有子节点不能转为叶子类型，存在锁定直属子节点时也不能转换。替换预制体当前禁用并显示未接入状态。
+节点复制捕获独立子树快照，剪贴板仅限当前编辑会话，可跨页粘贴。粘贴目标与新增一致；根节点使用复制时解算的局部 frame 加 16px 偏移，清除六项旧父约束并固化尺寸，子节点保持局部数据，全部身份重新分配。空剪贴板和锁定目标禁用粘贴。重命名提交去除首尾空白的非空名称，Enter/失焦提交、Escape 取消。类型转换保留 ID、名称、层级、样式、内容及子节点，复用容器切换的约束规范化；仅在缺省时补上目标文字/widget 默认值。有子节点不能转为叶子类型，存在锁定直属子节点时也不能转换。单个普通 UIBox 可“存到画布”；引用节点提供“编辑源组件”，保持原子性且禁止类型转换或添加子节点。
 
 控件属性面板的六项约束用 checkbox 和方位示意图表达。勾选/取消时从当前解算几何换算同轴全部有效偏移，保持位置与尺寸；取消的字段写 null，最后一个约束取消后保留当前局部坐标，解除双边拉伸后固化当前尺寸为显式尺寸。父容器内容区与 Padding、像素/百分比单位都参与换算；自动排布管理的轴和锁定节点禁用。只为启用项显示数值偏移输入：上/垂直居中/下位于图示右侧，左/水平居中/右位于图示下方，输入框中心对齐对应引导线并使用固定方向槽位；保留完整无障碍名称和悬停说明。正常 280px 面板完整显示，过窄时图示局部横向滚动。“尺寸来源”通过 ReadOnlyPropertyRow 显示并排 W/H 两个只读框，保留宽度来源/高度来源无障碍名称；行标签 48px、控件高 25px，约束单位使用同样的列宽/高度并与输入左边缘对齐，行距 8px。该紧凑样式不影响其他下拉框。Padding 使用 U/R、D/L 两行紧凑数字框。流式容器对齐使用水平/垂直图标组；两端分布仅出现在 HBox 水平轴和 VBox 垂直轴。
 
@@ -92,10 +94,18 @@ RadioGroup 为可含子节点的容器，`widget.optionNodeIds` 保存同页 Rad
 
 ## Persistence and Sample
 
-新文件使用 schemaVersion 2；v1 读取和无编辑往返保留原字段/版本/ID，首次有效编辑在同一事务升级到 v2，可撤销。可选 page.rootType 接收 UIStack/UITop/UIScene/UIBox，缺省按 UIStack 显示但不在解析时补写字段。v1 不接收 rootType、新增节点类型及 layout/widget/variableName/transform；v2 校验新增字段和取值。transform 缺省值不在读取时补写，未知字段、非有限数值和越界 anchor 在 codec/协议边界拒绝。变量语法、保留字及版本限制在 JSON Schema 与共享校验中保持一致；共享校验额外拒绝同页变量重名，包含两个字段位置。变量与变换通过现有宿主事务保存及撤销，不新增消息类型。
+新文件使用 schemaVersion 4；v1/v2/v3 读取和无编辑往返保留原字段/版本/ID，首次有效编辑在同一事务升级到 v4，可撤销。可选 page.rootType 接收 UIStack/UITop/UIScene/UIBox，缺省按 UIStack 显示但不在解析时补写字段。v1 不接收 rootType、新增节点类型及 layout/widget/variableName/transform；v2 校验新增字段和取值。transform 缺省值不在读取时补写，未知字段、非有限数值和越界 anchor 在 codec/协议边界拒绝。变量语法、保留字及版本限制在 JSON Schema 与共享校验中保持一致；共享校验额外拒绝同页变量重名，包含两个字段位置。变量与变换通过现有宿主事务保存及撤销；画布组件源目录使用独立消息，不进入文档事务。
 
 页面根 layout 同样仅限 v2：六项约束接受有限数字或 null，单位 absolute/percent；拒绝其他字段及错误对象/类型。JSON Schema 与共享验证约束一致，旧页面读取不补写布局默认值。
 
 页面根与所有控件在整份文档内共享唯一 ID 空间，包括独立 UIBox 画板。v1/v2 均在共享运行时校验中拒绝跨页面、根与控件、同页控件重号，错误包含 ID 和两个位置；解析/序列化/协议校验不自动分配或修复歧义身份，名字相同不构成冲突。新身份采用 8 位小写字母/数字 Nano ID，首位允许数字。未带 `elementIdScheme: "nanoid-8"` 的旧文档首次进入编辑会话时，独立迁移事务统一重分配页面/控件 ID、更新引用并记录标记；v1 在同一事务升级，可撤销。迁移完成后普通编辑及保存保持 ID，详见 [nanoid-element-ids.md](nanoid-element-ids.md)。
 
 `sample/ui-components.gameflow.json` 包含自适应背包和游戏设置；浏览器 `?sample=ui-components` 使用独立 localStorage key，避免覆盖原有预览文档。实际 Prefab 生成、资源/PSD 绑定仍由后续方案负责。
+
+## Reusable Canvas Components
+
+`page.componentRootId` identifies an extracted UIBox definition root. Save-to-canvas accepts only one unlocked ordinary UIBox with positive resolved dimensions; contained nodes may have any supported type. It clones and remaps the subtree into a transparent board to the right, normalizes definition-root placement and leaves one linked instance retaining the original ID, affine placement and constraints. Cross-boundary skin/radio references block extraction. The operation is one undoable edit and preserves the camera. New/pasted content defaults inside the definition root; its root type cannot be converted, and moving children cannot create root siblings. Root duplication creates content inside the existing root; whole-board duplication remaps componentRootId. Deleting a definition/root leaves references visibly invalid.
+
+Instances store v4 `prefab: { source, documentId, pageId }`, type container, independent explicit/constrained dimensions, placement transform, identity, visibility/lock and optional opacity. Other content/style/widget properties belong to the source. A source may be any legal canvas root. Local page targets survive document ID migration, external targets remain unchanged, and instance copies retain their target. Derived source children are absent from persistence and the layer tree, and every projected DOM hit selects the owning instance in normal and direct modes. Inspector displays source identity/errors and source navigation; content/appearance editing occurs at the source. Root placement, dimensions and transforms are instance overrides, while source children, root appearance, padding and clipping synchronize. Cycles, missing sources, identity mismatches, deleted roots and expansion limits yield explicit diagnostics.
+
+`sample/canvas-reference-demo.gameflow.json` references `sample/shared-components.gameflow.json` twice. Editing the latter in VS Code refreshes both instances, including unsaved text. Browser imports remain explicit snapshots. Details and validation are recorded in [canvas-component-references.md](canvas-component-references.md).

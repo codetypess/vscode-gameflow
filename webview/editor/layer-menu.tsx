@@ -6,17 +6,19 @@ import { COMPONENT_TOOLS } from "./component-tools";
 import { canHaveChildren, COMPONENTS } from "../../shared/ui-components";
 import { canConvertNodeType } from "../../shared/ui-edit";
 import { selectionRoots } from "../../shared/selection-ops";
+import { canvasExtractionIssue } from "../../shared/canvas-references";
 
 export interface LayerMenuTarget { x: number; y: number; id: string | null }
 const TYPES = COMPONENT_TOOLS;
 
-export function LayerMenu({ page, selectedIds, target, onClose, onAdd, onDelete, onRestoreFocus, hasClipboard, onCopy, onPaste, onRename, onDuplicate, onConvert }: {
+export function LayerMenu({ page, selectedIds, target, onClose, onAdd, onDelete, onRestoreFocus, hasClipboard, onCopy, onPaste, onRename, onDuplicate, onConvert, onSaveToCanvas, onOpenSource }: {
   page: GameFlowPage; target: LayerMenuTarget | null; onClose: () => void;
   selectedIds: string[];
   onAdd: (type: InsertType, parentId?: string, afterId?: string) => void;
   onDelete: (id: string) => void; onRestoreFocus: () => void;
   hasClipboard: boolean; onCopy: (id: string) => void; onPaste: (parentId?: string, afterId?: string) => void;
   onRename: (id: string) => void; onDuplicate: (id: string) => void; onConvert: (id: string, type: InsertType) => void;
+  onSaveToCanvas: (id: string) => void; onOpenSource: (id: string) => void;
 }) {
   const node = page.nodes.find((item) => item.id === target?.id);
   const container = node && canHaveChildren(node);
@@ -57,7 +59,10 @@ export function LayerMenu({ page, selectedIds, target, onClose, onAdd, onDelete,
             {TYPES.map(({ type, icon: Icon }) => <DropdownMenu.Item key={type} disabled={!canConvertNodeType(page, node.id, type)} onSelect={action(() => onConvert(node.id, type))}><Icon size={14} /><span>{NODE_LABELS[type]} <small className="menu-class">({COMPONENTS[type].laya})</small></span>{node.type === type ? <Check size={14} /> : null}</DropdownMenu.Item>)}
           </DropdownMenu.SubContent></DropdownMenu.Portal>
         </DropdownMenu.Sub>
-        <DropdownMenu.Item disabled title="尚未接入预制体资源与节点关联"><Package size={14} /><span>替换预制体</span><small>未接入</small></DropdownMenu.Item>
+        {node.prefab ? <DropdownMenu.Item onSelect={action(() => onOpenSource(node.id))}><Package size={14} /><span>编辑源组件</span></DropdownMenu.Item> : <>
+          <DropdownMenu.Item disabled={multi || !!canvasExtractionIssue(page, node.id)} title={canvasExtractionIssue(page, node.id) ?? "保存为组件并保留关联引用"} onSelect={action(() => onSaveToCanvas(node.id))}><Package size={14} /><span>存到画布</span></DropdownMenu.Item>
+          {canvasExtractionIssue(page, node.id) ? <div className="menu-hint">{canvasExtractionIssue(page, node.id)}</div> : null}
+        </>}
       </> : null}
       {addDisabled || (node && deleteDisabled) ? <div className="menu-hint">已锁定，请先在图层树中解锁</div> : null}
     </DropdownMenu.Content></DropdownMenu.Portal>

@@ -9,7 +9,7 @@ Status: Baseline for the initial extension scaffold
 2. React Webview owns presentation and local interaction state. It has no arbitrary filesystem access or extension secrets. Explicit user-selected PSD and sidecar Files are read through the browser File API; writes in VS Code remain host-owned.
 3. `shared/` owns document contracts, validation, ID allocation and host/Webview messages. Secure Nano ID is its runtime package dependency for identity generation.
 4. Build adapters stay at the boundary: esbuild for the extension host and Vite for the browser Webview.
-5. The Webview uses local shadcn/ui component source and design tokens mapped to VS Code theme variables; runtime UI assets must not depend on a CDN.
+5. The Webview uses local shadcn/ui component source and design tokens mapped to VS Code theme variables; runtime UI assets must not depend on a CDN. Shared entry styles explicitly reset root margin and padding to zero, overriding VS Code's injected body padding so the workspace fills the Webview in both extension and browser environments.
 
 ## Document Rules
 
@@ -35,7 +35,7 @@ Status: Baseline for the initial extension scaffold
 - Webview first sends `ready`; host answers with `init` or `documentError`.
 - Accepted edits produce normal TextDocument changes, and the host then broadcasts a fresh `documentChanged` snapshot.
 - Webview keeps one candidate edit in flight and replaces a queued candidate with the latest state. Save/undo/redo are serialized after the edit acknowledgement and complete with an explicit fixed action message; duplicate document snapshots are not command acknowledgements.
-- The protocol contains no arbitrary command execution or filesystem path supplied by Webview.
+- The protocol contains no arbitrary command execution. Reference navigation accepts only validated relative `.gameflow.json` source keys already present in the host dependency registry; file selection is host-owned.
 
 ## PSD Session Boundary
 
@@ -52,8 +52,14 @@ Status: Baseline for the initial extension scaffold
 
 ## Future Document Evolution
 
-原型复合控件使用 schemaVersion 3；v1/v2 仍可读取，普通读取保持内容，首次有效编辑由现有 DocumentSession 事务升级为 v3。新增 radioGroup 类型、widget.skinNodeId 和 widget.optionNodeIds，旧版本拒绝这些类型/字段。共享 ui-parts.ts 校验皮肤的直接子级关系、Slider 无相对约束、Radio 成员有效性及唯一归组、空槽与选中索引；JSON Schema 约束字段类型、适用节点类型与文档版本。引用使用节点身份，复制/粘贴/整页复制及 Nano ID 迁移同时重映射，删除/换父级/转换在原事务中解除失效关系。派生皮肤位置与可见性不形成第二份文档权威。此变更不新增宿主协议、PSD 资源引用或 Prefab 写入入口。
+原型复合控件由 schemaVersion 3 引入；当前新文档和首次有效编辑使用 schemaVersion 4，v1/v2/v3 仍可读取，普通读取保持内容。新增 radioGroup 类型、widget.skinNodeId 和 widget.optionNodeIds，旧版本拒绝这些类型/字段。共享 ui-parts.ts 校验皮肤的直接子级关系、Slider 无相对约束、Radio 成员有效性及唯一归组、空槽与选中索引；JSON Schema 约束字段类型、适用节点类型与文档版本。引用使用节点身份，复制/粘贴/整页复制及 Nano ID 迁移同时重映射，删除/换父级/转换在原事务中解除失效关系。派生皮肤位置与可见性不形成第二份文档权威。此变更不新增宿主协议、PSD 资源引用或 Prefab 写入入口。
 
 此前 schemaVersion 2 引入类型化 layout/widget 字段；这些字段与原有 ID 在 v3 中继续保留。布局解算、编辑意图与字段验证分别由 shared/ui-layout.ts、ui-edit.ts、ui-config.ts 负责；DOM 只呈现解算几何。计算结果不是第二份文档权威。详细规则见 [11-prototype-ui-layout.md](11-prototype-ui-layout.md)。
 
 The initial `CustomTextEditorProvider` and full-document edit are intentionally small. A future host session, fine-grained reducer or multi-view synchronization requires a new work-item spec when at least one is needed: concurrent Agent edits, multiple authoritative Webviews, independent history, external-change conflict resolution, or demonstrated whole-document performance problems. The v1 node model allows optional presentation fields (`style`, `imageData`, `hidden`, `locked`) and page background while keeping the TextDocument authoritative; the Webview does not accept remote image URLs or arbitrary commands.
+
+## Canvas Reference Ownership
+
+Schema v4 adds optional `page.componentRootId` and atomic `node.prefab: { source, documentId, pageId }`. Empty source addresses the containing file; external paths resolve relative to that file. Canonical instances own placement and contain no descendant cache. Shared extraction retains the original root ID, remaps the new definition subtree and blocks cross-boundary control bindings. Shared projection remaps temporary control IDs, maps every hit to the real owner and bounds expansion to 24 levels / 5000 projected nodes. Real nodes are never dropped by expansion limits. Broken references retain their identity and diagnostics. Component-board insertion/paste/moves retain a single editable UIBox root.
+
+`chooseCanvasSource`, `openCanvasSource` and `canvasSources` isolate source catalogs from authoritative snapshots. DocumentSession ignores source responses for edit/save/history sequencing. The per-editor host controller loads a maximum of 64 source files, includes dirty open TextDocuments, reads clean files from disk, watches changes/create/delete and refreshes nested dependencies with an epoch guard. Disposal releases watchers, subscriptions and pending timers. Selecting a legacy source completes the normal ID migration as an unsaved undoable WorkspaceEdit before exposing target IDs. Browser preview imports explicit File snapshots with separate localStorage persistence and an explicit reimport message; it cannot watch arbitrary disk paths. See [canvas-component-references.md](canvas-component-references.md).

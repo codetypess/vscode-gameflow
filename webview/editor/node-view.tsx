@@ -8,7 +8,7 @@ import { controlSelected, hasNodeSkin } from "../../shared/ui-parts";
 
 export { orderedNodes } from "../../shared/editor-ops";
 
-export function NodeView({ page, node, geometry }: { page: GameFlowPage; node: GameFlowNode; geometry?: ResolvedNode }) {
+export function NodeView({ page, node, geometry, hitId, referenceError }: { page: GameFlowPage; node: GameFlowNode; geometry?: ResolvedNode; hitId?: string; referenceError?: string }) {
   if (inheritedFlag(page, node, "hidden")) return null;
   const appearance = { ...defaultStyle(node.type), ...node.style };
   const resolved = geometry ?? resolvePageLayout(page).nodes.get(node.id)!;
@@ -42,7 +42,8 @@ export function NodeView({ page, node, geometry }: { page: GameFlowPage; node: G
     ...(clipLocal?.length ? { clipPath: `polygon(${clipLocal.map(p => `${p.x}px ${p.y}px`).join(",")})` } : {}),
     ...(!resolved.inverse || (clipped && clipped.length < 3) ? { visibility: "hidden" } : {})
   };
-  return <div className={`node-body node-${node.type}`} data-node-id={node.id} data-locked={inheritedFlag(page, node, "locked")} style={style}>
+  return <div className={`node-body node-${node.type}${referenceError ? " reference-broken" : ""}`} data-node-id={hitId ?? node.id} data-reference-error={referenceError} data-locked={inheritedFlag(page, node, "locked")} style={style}>
+    {referenceError ? <span className="reference-error-label" role="status">组件引用失效<br />{referenceError}</span> : null}
     {node.type === "image" ? node.imageData
       ? <img src={node.imageData} alt={node.name} draggable={false} style={{ objectFit: widget.imageFit ?? "contain" }} />
       : partImage ? null : <span className="image-placeholder"><ImageIcon size={24} /><small>图片</small></span>

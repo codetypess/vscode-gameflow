@@ -1,3 +1,4 @@
+import { GAMEFLOW_SCHEMA_VERSION } from "../shared/model";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
@@ -25,6 +26,8 @@ import { canvasScopeTests } from "./canvas-scope-suite";
 import { nodeSelectionTests } from "./node-selection-suite";
 import { colorEditTests } from "./color-edit-suite";
 import { textFormattingTests } from "./text-formatting-suite";
+import { canvasReferenceTests } from "./canvas-references-suite";
+import { canvasReferenceHostTests } from "./canvas-reference-host-suite";
 
 type TestCase = { name: string; run: () => void | Promise<void> };
 const tests: TestCase[] = [];
@@ -501,7 +504,7 @@ test("editor initialization migrates legacy IDs once in a save-ordered, undoable
   assert.equal(migration.type, "replaceDocument");
   if (migration.type !== "replaceDocument") throw new Error("expected identity migration transaction");
   assert.equal(migration.baseVersion, 1);
-  assert.equal(migration.document.schemaVersion, 3);
+  assert.equal(migration.document.schemaVersion, GAMEFLOW_SCHEMA_VERSION);
   assert.equal(validateGameFlowDocument(migration.document).ok, true);
   assert.equal(session.state.dirty, true);
   assert.equal(session.state.pending, true);
@@ -594,6 +597,8 @@ test("invalid source blocks editing and a rejected transaction reloads host auth
 });
 
 tests.push(...psdTests);
+tests.push(...canvasReferenceTests);
+tests.push(...canvasReferenceHostTests);
 tests.push(...uiLayoutTests);
 tests.push(...nodeVariableTests);
 tests.push(...uiTransformTests);

@@ -115,6 +115,7 @@ export function duplicateSelection(page: GameFlowPage, ids: string[], makeId: ()
     if (node.variableName) node.variableName = allocateVariableName(node.variableName, variables);
     node.id = mapping.get(original.id)!;
     if (node.parentId) node.parentId = mapping.get(node.parentId) ?? node.parentId;
+    else if (original.id === page.componentRootId) node.parentId = page.componentRootId;
     if (root) { node.name += " 副本"; node.frame.x += 16; node.frame.y += 16; }
     return remapControlReferences(node, mapping);
   });

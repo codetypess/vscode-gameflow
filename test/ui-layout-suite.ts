@@ -1,3 +1,4 @@
+import { GAMEFLOW_SCHEMA_VERSION } from "../shared/model";
 import assert from "node:assert/strict";
 import type { GameFlowNode, GameFlowPage } from "../shared/model";
 import { createDefaultGameFlowDocument, parseGameFlowDocument, serializeGameFlowDocument, validateGameFlowDocument } from "../shared/model";
@@ -213,7 +214,7 @@ test("editing a legacy page root upgrades in one transaction and accepts undo an
   session.receive({ type: "init", document: doc, documentVersion: 1, resourceName: "test", dirty: false });
   session.edit((d) => ({ ...d, pages: d.pages.map((p, i) => i === 0 ? { ...p, rootType: "UIScene" } : p) }));
   const changed = session.state.document!;
-  assert.equal(changed.schemaVersion, 3); assert.equal(changed.pages[0].rootType, "UIScene");
+  assert.equal(changed.schemaVersion, GAMEFLOW_SCHEMA_VERSION); assert.equal(changed.pages[0].rootType, "UIScene");
   const { rootType: _, ...unchanged } = changed.pages[0];
   assert.deepEqual(unchanged, doc.pages[0]);
   assert.equal(messages.length, 1); assert.ok(isWebviewToHostMessage(messages[0]));
@@ -294,7 +295,7 @@ test("v1 documents retain original identities and frames until the first edit up
   session.receive({ type: "init", document: doc, documentVersion: 1, resourceName: "test", dirty: false });
   session.edit((d) => d); assert.equal(session.state.document!.schemaVersion, 1);
   session.edit((d) => ({ ...d, title: "updated" }));
-  assert.equal(session.state.document!.schemaVersion, 3);
+  assert.equal(session.state.document!.schemaVersion, GAMEFLOW_SCHEMA_VERSION);
   assert.deepEqual(session.state.document!.pages, doc.pages);
 });
 test("all UI component factories round-trip including parts and buttons without required labels", () => {

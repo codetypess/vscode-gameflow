@@ -6,7 +6,7 @@
   "additionalProperties": false,
   "required": ["schemaVersion","documentId","title","requirements","pages","interactions"],
   "properties": {
-    "schemaVersion": { "enum": [1,2,3] },
+    "schemaVersion": { "enum": [1,2,3,4] },
     "elementIdScheme": { "const": "nanoid-8" },
     "documentId": { "type": "string", "minLength": 1 },
     "title": { "type": "string", "minLength": 1 },
@@ -35,6 +35,7 @@
           "name": { "type": "string", "minLength": 1 },
           "kind": { "enum": ["screen","modal"] },
           "rootType": { "enum": ["UIStack","UITop","UIScene","UIBox"] },
+          "componentRootId": { "type": "string", "minLength": 1 },
           "layout": { "$ref": "#/$defs/rootLayout" },
           "background": { "$ref": "#/$defs/color" },
           "frame": { "$ref": "#/$defs/frame" },
@@ -107,6 +108,7 @@
     },
     "node": {
       "allOf": [
+        { "if": { "required": ["prefab"] }, "then": { "properties": { "type": { "const": "container" }, "text": false, "imageData": false, "widget": false, "style": { "propertyNames": { "const": "opacity" } }, "layout": { "propertyNames": { "enum": ["left","right","centerX","top","bottom","centerY","layoutUnit","widthMode","heightMode","crossAxisMode","positionOffsetX","positionOffsetY"] }, "properties": { "widthMode": { "const": "explicit" }, "heightMode": { "const": "explicit" } } } } } },
         { "if": { "properties": { "type": { "not": { "enum": ["checkbox","radio","slider"] } } } }, "then": { "properties": { "widget": { "not": { "required": ["skinNodeId"] } } } } },
         { "if": { "properties": { "type": { "not": { "const": "radioGroup" } } } }, "then": { "properties": { "widget": { "not": { "required": ["optionNodeIds"] } } } } }
       ],
@@ -119,6 +121,14 @@
         "variableName": { "$ref": "#/$defs/variableName" },
         "type": { "enum": ["container","rectangle","text","button","image","list","input","hbox","vbox","grid","panel","checkbox","radio","radioGroup","progress","slider","combo"] },
         "parentId": { "type": "string", "minLength": 1 },
+        "prefab": {
+          "type": "object", "additionalProperties": false, "required": ["source","documentId","pageId"],
+          "properties": {
+            "source": { "type": "string", "maxLength": 512, "pattern": "^(?:$|(?!(?:/|.*[\\\\:*?\"<>|#\\u0000-\\u001f])).*\\.[gG][aA][mM][eE][fF][lL][oO][wW]\\.[jJ][sS][oO][nN]$)" },
+            "documentId": { "type": "string", "minLength": 1 },
+            "pageId": { "type": "string", "minLength": 1 }
+          }
+        },
         "text": { "type": "string" },
         "style": { "$ref": "#/$defs/style" },
         "hidden": { "type": "boolean" },
@@ -264,6 +274,7 @@
         }
       }
     },
-    { "if": { "properties": { "schemaVersion": { "enum": [1,2] } } }, "then": { "properties": { "pages": { "items": { "properties": { "nodes": { "items": { "properties": { "type": { "not": { "const": "radioGroup" } }, "widget": { "not": { "anyOf": [{ "required": ["skinNodeId"] }, { "required": ["optionNodeIds"] }] } } } } } } } } } } }
+    { "if": { "properties": { "schemaVersion": { "enum": [1,2] } } }, "then": { "properties": { "pages": { "items": { "properties": { "nodes": { "items": { "properties": { "type": { "not": { "const": "radioGroup" } }, "widget": { "not": { "anyOf": [{ "required": ["skinNodeId"] }, { "required": ["optionNodeIds"] }] } } } } } } } } } } },
+    { "if": { "properties": { "schemaVersion": { "enum": [1,2,3] } } }, "then": { "properties": { "pages": { "items": { "properties": { "componentRootId": false, "nodes": { "items": { "properties": { "prefab": false } } } } } } } } }
   ]
 }

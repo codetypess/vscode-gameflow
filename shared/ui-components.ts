@@ -29,7 +29,7 @@ export const COMPONENTS = {
   combo: { label: "下拉框", laya: "UIComboBox", children: true }
 } as const;
 export const COMPONENT_TYPES = Object.keys(COMPONENTS) as NodeType[];
-export function canHaveChildren(node: Pick<GameFlowNode, "type">): boolean { return COMPONENTS[node.type].children; }
+export function canHaveChildren(node: Pick<GameFlowNode, "type" | "prefab">): boolean { return !node.prefab && COMPONENTS[node.type].children; }
 export function flowType(node?: Pick<GameFlowNode, "type">): "free" | "hbox" | "vbox" | "grid" {
   return node?.type === "list" ? "grid" : node && ["hbox", "vbox", "grid"].includes(node.type) ? node.type as "hbox" | "vbox" | "grid" : "free";
 }

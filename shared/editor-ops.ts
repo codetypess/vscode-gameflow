@@ -55,6 +55,8 @@ export function inheritedFlag(page: GameFlowPage, node: GameFlowNode, key: "hidd
 }
 
 export function reparentNode(page: GameFlowPage, id: string, parentId?: string): GameFlowPage {
+  if (page.componentRootId === id && parentId !== undefined) return page;
+  if (id !== page.componentRootId && page.nodes.some(node => node.id === page.componentRootId)) parentId ??= page.componentRootId;
   const node = page.nodes.find((item) => item.id === id);
   if (!node || node.parentId === parentId || inheritedFlag(page, node, "locked") || (parentId && descendants(page, id).has(parentId))) return page;
   const parent = page.nodes.find((item) => item.id === parentId);
@@ -93,6 +95,8 @@ export interface LayerDrop {
 
 /** Inserts a fresh node into a valid unlocked parent, in parent-local coordinates. */
 export function insertNode(page: GameFlowPage, node: GameFlowNode, parentId?: string, afterId?: string): GameFlowPage {
+  if (page.nodes.some(item => item.id === page.componentRootId)) parentId ??= page.componentRootId;
+  if (afterId === page.componentRootId && parentId === page.componentRootId) afterId = undefined;
   if (page.nodes.some((item) => item.id === node.id)) return page;
   const parent = page.nodes.find((item) => item.id === parentId);
   if (parentId && (!parent || !canHaveChildren(parent) || inheritedFlag(page, parent, "locked"))) return page;
@@ -109,6 +113,8 @@ export function insertNode(page: GameFlowPage, node: GameFlowNode, parentId?: st
 
 /** Moves a whole subtree, preserving page-space positions when its parent changes. */
 export function moveNode(page: GameFlowPage, id: string, drop: LayerDrop): GameFlowPage {
+  if (page.componentRootId === id) return page;
+  if (page.nodes.some(node => node.id === page.componentRootId) && (!drop.targetId || drop.targetId === page.componentRootId)) drop = { targetId: page.componentRootId, position: "inside" };
   const node = page.nodes.find((item) => item.id === id);
   const target = page.nodes.find((item) => item.id === drop.targetId);
   const moving = descendants(page, id);
@@ -149,6 +155,7 @@ export function duplicateNode(page: GameFlowPage, id: string, makeId: () => stri
     ...(node.variableName ? { variableName: allocateVariableName(node.variableName, variableNames) } : {}),
     frame: { ...node.frame, x: node.frame.x + (node.id === id ? 16 : 0), y: node.frame.y + (node.id === id ? 16 : 0) },
     ...(node.parentId ? { parentId: mapping.get(node.parentId) ?? node.parentId } : {}),
+    ...(node.id === page.componentRootId ? { parentId: page.componentRootId } : {}),
     ...(node.style ? { style: { ...node.style } } : {}),
     ...(node.type === "radio" ? { widget: { ...node.widget, selected: controlSelected(page, node) } } : {})
   }, mapping));
@@ -159,6 +166,7 @@ export function duplicatePage(page: GameFlowPage, makeId: () => string): GameFlo
   const mapping = new Map(page.nodes.map((node) => [node.id, makeId()]));
   return {
     ...page, id: makeId(), name: `${page.name} 副本`,
+    ...(page.componentRootId ? { componentRootId: mapping.get(page.componentRootId) ?? page.componentRootId } : {}),
     ...(page.layout ? { layout: { ...page.layout } } : {}),
     frame: { ...page.frame, x: page.frame.x + page.frame.width + 80 },
     nodes: page.nodes.map((node) => remapControlReferences({ ...structuredClone(node), id: mapping.get(node.id)!, frame: { ...node.frame },

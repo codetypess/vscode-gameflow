@@ -8,7 +8,21 @@ import { validateNodeTransform, type NodeTransform } from "./ui-transform";
 export type { NodeTransform } from "./ui-transform";
 export type { ConstraintLayout, NodeLayout, WidgetProps } from "./ui-config";
 
-export const GAMEFLOW_SCHEMA_VERSION = 3 as const;
+export const GAMEFLOW_SCHEMA_VERSION = 4 as const;
+export const CANVAS_INSTANCE_LAYOUT_KEYS: readonly string[] = ["left", "right", "centerX", "top", "bottom", "centerY", "layoutUnit", "widthMode", "heightMode", "crossAxisMode", "positionOffsetX", "positionOffsetY"];
+
+export interface CanvasReference {
+  /** Relative to the containing GameFlow file; empty means the same file. */
+  source: string;
+  documentId: string;
+  pageId: string;
+}
+
+export function isCanvasReferenceSource(value: unknown): value is string {
+  return typeof value === "string" && value.length <= 512 && (value === "" ||
+    (!value.startsWith("/") &&
+      !/[\\:*?"<>|#\x00-\x1f]/.test(value) && /\.gameflow\.json$/i.test(value)));
+}
 
 export type RequirementStatus = "confirmed" | "inferred" | "question";
 export type PageKind = "screen" | "modal";
@@ -51,6 +65,7 @@ export interface GameFlowNode {
   layout?: NodeLayout;
   widget?: WidgetProps;
   transform?: NodeTransform;
+  prefab?: CanvasReference;
 }
 
 export interface NodeStyle {
@@ -77,6 +92,8 @@ export interface GameFlowPage {
   nodes: GameFlowNode[];
   background?: string;
   layout?: ConstraintLayout;
+  /** Explicit editable root for a component extracted from a UIBox subtree. */
+  componentRootId?: string;
 }
 
 export function isColor(value: unknown): value is string {
@@ -99,7 +116,7 @@ export interface GameFlowInteraction {
 }
 
 export interface GameFlowDocument {
-  schemaVersion: 1 | 2 | typeof GAMEFLOW_SCHEMA_VERSION;
+  schemaVersion: 1 | 2 | 3 | typeof GAMEFLOW_SCHEMA_VERSION;
   elementIdScheme?: typeof ELEMENT_ID_SCHEME;
   documentId: string;
   title: string;
@@ -196,6 +213,29 @@ function validateNode(
   }
   const frameValid = validateFrame(value.frame, `${path}.frame`, errors);
   let optionalValid = true;
+  if (value.prefab !== undefined) {
+    if (!isRecord(value.prefab) || !isCanvasReferenceSource(value.prefab.source)) {
+      errors.push(`${path}.prefab.source must be empty or a relative .gameflow.json path`);
+      optionalValid = false;
+    } else {
+      if (Object.keys(value.prefab).some(key => !["source", "documentId", "pageId"].includes(key))) { errors.push(`${path}.prefab has unsupported fields`); optionalValid = false; }
+      optionalValid = validateString(value.prefab.documentId, `${path}.prefab.documentId`, errors) && optionalValid;
+      optionalValid = validateString(value.prefab.pageId, `${path}.prefab.pageId`, errors) && optionalValid;
+    }
+    if (value.type !== "container") { errors.push(`${path}.prefab requires a container instance`); optionalValid = false; }
+    if (value.text !== undefined || value.imageData !== undefined || value.widget !== undefined) {
+      errors.push(`${path}.prefab content belongs to the source`); optionalValid = false;
+    }
+    if (isRecord(value.style) && Object.keys(value.style).some(key => key !== "opacity")) {
+      errors.push(`${path}.prefab appearance belongs to the source`); optionalValid = false;
+    }
+    if (isRecord(value.layout) && (value.layout.widthMode === "measured" || value.layout.heightMode === "measured")) {
+      errors.push(`${path}.prefab dimensions must be explicit or constrained`); optionalValid = false;
+    }
+    if (isRecord(value.layout) && Object.keys(value.layout).some(key => !CANVAS_INSTANCE_LAYOUT_KEYS.includes(key))) {
+      errors.push(`${path}.prefab content layout belongs to the source`); optionalValid = false;
+    }
+  }
   if (value.variableName !== undefined) {
     const issue = variableNameError(value.variableName);
     if (issue) { errors.push(`${path}.variableName: ${issue}`); optionalValid = false; }
@@ -272,6 +312,7 @@ function validatePage(
   const rootTypeValid = value.rootType === undefined || PAGE_ROOT_TYPES.includes(value.rootType as PageRootType);
   if (!rootTypeValid) errors.push(`${path}.rootType must be UIStack, UITop, UIScene, or UIBox`);
   const layoutValid = validateRootLayout(value.layout, `${path}.layout`, errors);
+  const componentValid = value.componentRootId === undefined || validateString(value.componentRootId, `${path}.componentRootId`, errors);
   const frameValid = validateFrame(value.frame, `${path}.frame`, errors);
   const backgroundValid = value.background === undefined || isColor(value.background);
   if (!backgroundValid) errors.push(`${path}.background must be a hex color or transparent`);
@@ -293,7 +334,7 @@ function validatePage(
       }
     });
   }
-  return idValid && nameValid && kindValid && rootTypeValid && layoutValid && frameValid && nodesValid && backgroundValid;
+  return idValid && nameValid && kindValid && rootTypeValid && layoutValid && componentValid && frameValid && nodesValid && backgroundValid;
 }
 
 function validateInteraction(
@@ -351,8 +392,8 @@ export function validateGameFlowDocument(value: unknown): ValidationResult {
     return { ok: false, errors: ["document must be an object"] };
   }
 
-  if (value.schemaVersion !== 1 && value.schemaVersion !== 2 && value.schemaVersion !== GAMEFLOW_SCHEMA_VERSION) {
-    errors.push(`schemaVersion must be 1, 2 or ${GAMEFLOW_SCHEMA_VERSION}`);
+  if (value.schemaVersion !== 1 && value.schemaVersion !== 2 && value.schemaVersion !== 3 && value.schemaVersion !== GAMEFLOW_SCHEMA_VERSION) {
+    errors.push(`schemaVersion must be 1, 2, 3 or ${GAMEFLOW_SCHEMA_VERSION}`);
   }
   if (value.elementIdScheme !== undefined && value.elementIdScheme !== ELEMENT_ID_SCHEME) {
     errors.push(`elementIdScheme must be ${ELEMENT_ID_SCHEME}`);
@@ -415,6 +456,7 @@ export function validateGameFlowDocument(value: unknown): ValidationResult {
       }
     }
     for (const page of pages) {
+      if (page.componentRootId !== undefined && value.schemaVersion !== 4) errors.push(`page ${page.id} componentRootId requires schemaVersion 4`);
       validateControlReferences(page, errors);
       if (value.schemaVersion === 1 && page.rootType !== undefined) {
         errors.push(`page ${page.id} rootType requires schemaVersion 2`);
@@ -422,7 +464,8 @@ export function validateGameFlowDocument(value: unknown): ValidationResult {
       if (value.schemaVersion === 1 && page.layout !== undefined) errors.push(`page ${page.id} layout requires schemaVersion 2`);
       const nodeIds = new Set(page.nodes.map((node) => node.id));
       for (const node of page.nodes) {
-        if (value.schemaVersion !== 3 && (node.type === "radioGroup" || node.widget?.skinNodeId !== undefined || node.widget?.optionNodeIds !== undefined)) errors.push(`node ${node.id} control references require schemaVersion 3`);
+        if (node.prefab && value.schemaVersion !== 4) errors.push(`node ${node.id} prefab requires schemaVersion 4`);
+        if (Number(value.schemaVersion) < 3 && (node.type === "radioGroup" || node.widget?.skinNodeId !== undefined || node.widget?.optionNodeIds !== undefined)) errors.push(`node ${node.id} control references require schemaVersion 3`);
         if (value.schemaVersion === 1 && (node.transform !== undefined || node.variableName !== undefined || node.layout || node.widget || !["container", "rectangle", "text", "button", "image", "list", "input"].includes(node.type))) {
           errors.push(`node ${node.id} UI configuration requires schemaVersion 2`);
         }

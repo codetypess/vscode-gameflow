@@ -16,7 +16,7 @@ import { ControlPartsProperties } from "./control-parts";
 import type { ColorPreview } from "../lib/color-edit";
 import { TextControls } from "./text-controls";
 
-export function Inspector({ page, node, selectedNodes = [], editingPage, onNode, onPage, onColorPreview, onClose, onEnter, onImport, onCreateParts, panelRef, panelStyle }: {
+export function Inspector({ page, node, selectedNodes = [], editingPage, onNode, onPage, onColorPreview, onClose, onEnter, onImport, onCreateParts, panelRef, panelStyle, referenceError, onOpenSource }: {
   page: GameFlowPage; node: GameFlowNode | null; editingPage: boolean;
   selectedNodes?: GameFlowNode[];
   panelRef?: (element: HTMLElement | null) => void; panelStyle?: CSSProperties;
@@ -25,6 +25,7 @@ export function Inspector({ page, node, selectedNodes = [], editingPage, onNode,
   onColorPreview: (preview: ColorPreview | null) => void;
   onClose: () => void; onEnter: () => void; onImport: () => void;
   onCreateParts: () => void;
+  referenceError?: string; onOpenSource: () => void;
 }) {
   const [collapsed, setCollapsed] = useState(false);
   const locked = node ? inheritedFlag(page, node, "locked") : false;
@@ -52,6 +53,8 @@ export function Inspector({ page, node, selectedNodes = [], editingPage, onNode,
       <p className="property-hint">方向键移动整组 · Delete / Backspace 删除<br />单击控件可编辑它的属性</p>
     </div> : <div className="inspector-content">
       <div className="component-identity"><span title={identityLabel}>{identityLabel}</span><code title="稳定节点 ID">{node?.id ?? page.id}</code></div>
+      {node?.prefab ? <div className="canvas-reference-info"><strong>画布组件引用</strong><span title={node.prefab.source}>{node.prefab.source || "当前文件"}</span><code>{node.prefab.pageId}</code>{referenceError ? <p className="layout-diagnostics" role="status">{referenceError}</p> : null}<Button size="sm" variant="outline" onClick={onOpenSource}>编辑源组件</Button><p className="property-hint">内容与外观跟随源组件，位置和尺寸独立。</p></div> : null}
+      {node?.id === page.componentRootId ? <p className="property-hint">组件根节点：内容与外观同步到引用，根的位置、尺寸和变换由各实例独立保存。</p> : null}
       {geometry.issues.length ? <div className="layout-diagnostics" role="status"><strong>布局需要调整</strong>{geometry.issues.slice(0, 4).map((issue, i) => <p key={i}>{issue.message}</p>)}<p>暂用原始位置/尺寸显示，可继续修改。</p></div> : null}
       <Field label={node ? "名称" : "页面名称"} value={node?.name ?? page.name} disabled={locked} validate={(name) => !!name.trim()} onCommit={(name) => {
         if (!name.trim()) return;
@@ -67,8 +70,8 @@ export function Inspector({ page, node, selectedNodes = [], editingPage, onNode,
         {!geometry.nodes.get(node.id)!.inverse ? <p className="property-hint">变换使控件压扁，画布拖动暂不可用；调整缩放或倾斜可恢复。</p> : null}
         {locked ? <div className="locked-message"><LockKeyhole size={13} />控件已锁定，请在图层树中解锁</div> : null}
         <LayoutProperties page={page} node={node} locked={locked} onNode={onNode} onPage={onPage} />
-        <ControlPartsProperties page={page} node={node} locked={locked} onNode={onNode} onPage={onPage} onCreateParts={onCreateParts} />
-        <WidgetProperties node={node} locked={locked} onNode={onNode} />
+        {!node.prefab ? <><ControlPartsProperties page={page} node={node} locked={locked} onNode={onNode} onPage={onPage} onCreateParts={onCreateParts} />
+        <WidgetProperties node={node} locked={locked} onNode={onNode} /></> : null}
         {(["text", "input"].includes(node.type) || (["checkbox", "radio"].includes(node.type) && !hasNodeSkin(node)) || (node.type === "button" && node.text !== undefined)) ? <>
           <div className="property-section-title">文字</div>
           <Field label="文字内容" value={node.text ?? node.name} disabled={locked} onCommit={(text) => onNode(node.id, { text })} />
@@ -77,12 +80,12 @@ export function Inspector({ page, node, selectedNodes = [], editingPage, onNode,
           <TextControls style={appearance} valign={node.widget?.valign ?? (node.type === "text" ? "top" : "middle")} disabled={locked} onStyle={setStyle} onVertical={valign => onNode(node.id, { widget: { ...node.widget, valign } })} /><Separator />
         </> : null}
         {node.type === "image" ? <Button variant="outline" size="sm" disabled={locked} onClick={onImport}><ImagePlus size={14} />{node.imageData ? "替换图片" : "导入图片"}</Button> : null}
-        <div className="property-section-title">外观</div>
+        {!node.prefab ? <><div className="property-section-title">外观</div>
         <ColorField label="填充" value={appearance.fill} disabled={locked} onPreview={value => previewColor("fill", value)} onCommit={(fill) => setStyle({ fill })} />
         <Button variant="ghost" size="sm" className="transparent-button" disabled={locked} onClick={() => setStyle({ fill: "transparent" })}>设为透明</Button>
         <ColorField label="描边" value={appearance.borderColor} disabled={locked} onPreview={value => previewColor("borderColor", value)} onCommit={(borderColor) => setStyle({ borderColor })} />
         <div className="property-grid"><Field label="描边宽度" type="number" min={0} max={40} value={appearance.borderWidth} disabled={locked} onCommit={(value) => setStyle({ borderWidth: Number(value) })} />
-          <Field label="圆角" type="number" min={0} value={appearance.radius} disabled={locked} onCommit={(value) => setStyle({ radius: Number(value) })} /></div>
+          <Field label="圆角" type="number" min={0} value={appearance.radius} disabled={locked} onCommit={(value) => setStyle({ radius: Number(value) })} /></div></> : null}
       </> : <>
         <label className="property-field"><span>页面类型</span><select aria-label="页面类型" value={pageRootType(page)} onChange={(event) => { const rootType = event.target.value as PageRootType; onPage((item) => ({ ...item, rootType })); }}>
           {PAGE_ROOT_TYPES.map((type) => <option key={type} value={type}>{PAGE_ROOTS[type].label} ({type})</option>)}

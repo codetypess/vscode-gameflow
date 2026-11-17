@@ -19,7 +19,7 @@ export function NodeIcon({ type }: { type: string }) {
 
 interface TreeDrag { id: string; pointerId: number; x: number; y: number; active: boolean; drop: LayerDrop | null }
 
-export function LayerTree({ page, scopeId, selectedId, selectedIds, reveal, onSelect, onPatch, onBack, onAdd, onDelete, onMove, panelRef, panelStyle, hasClipboard, onCopy, onPaste, onDuplicate, onConvert }: {
+export function LayerTree({ page, scopeId, selectedId, selectedIds, reveal, onSelect, onPatch, onBack, onAdd, onDelete, onMove, panelRef, panelStyle, hasClipboard, onCopy, onPaste, onDuplicate, onConvert, onSaveToCanvas, onOpenSource }: {
   page: GameFlowPage; selectedId: string | null; selectedIds: string[]; reveal: number; onSelect: (id: string | null, intent?: SelectionIntent) => void;
   scopeId: string | null;
   panelRef?: (element: HTMLElement | null) => void; panelStyle?: CSSProperties;
@@ -28,6 +28,7 @@ export function LayerTree({ page, scopeId, selectedId, selectedIds, reveal, onSe
   onDelete: (id: string) => void; onMove: (id: string, drop: LayerDrop) => void;
   hasClipboard: boolean; onCopy: (id: string) => void; onPaste: (parentId?: string, afterId?: string) => void;
   onDuplicate: (id: string) => void; onConvert: (id: string, type: InsertType) => void;
+  onSaveToCanvas: (id: string) => void; onOpenSource: (id: string) => void;
 }) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [query, setQuery] = useState("");
@@ -209,7 +210,7 @@ export function LayerTree({ page, scopeId, selectedId, selectedIds, reveal, onSe
     </div>
     <div className="layer-footer">{filtering ? "搜索中 · 清除搜索后可拖动排序" : "右键编辑节点 · 拖动调整层级"}</div>
     <LayerMenu page={page} selectedIds={selectedIds} target={menu} onClose={() => setMenu(null)} onAdd={(type, parentId, afterId) => { expand(parentId); onAdd(type, parentId, afterId); }} onDelete={onDelete}
-      hasClipboard={hasClipboard} onCopy={onCopy} onPaste={(parentId, afterId) => { expand(parentId); onPaste(parentId, afterId); }} onRename={beginRename} onDuplicate={onDuplicate} onConvert={onConvert}
+      hasClipboard={hasClipboard} onCopy={onCopy} onPaste={(parentId, afterId) => { expand(parentId); onPaste(parentId, afterId); }} onRename={beginRename} onDuplicate={onDuplicate} onConvert={onConvert} onSaveToCanvas={onSaveToCanvas} onOpenSource={onOpenSource}
       onRestoreFocus={() => { if (renameInput.current) { renameInput.current.focus(); renameInput.current.select(); } else if (returnFocus.current?.isConnected) returnFocus.current.focus(); else panel.current?.focus(); }} />
   </aside>;
 }

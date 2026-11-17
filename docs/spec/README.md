@@ -29,11 +29,19 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 | --- | --- |
 | [01-product-workspace.md](01-product-workspace.md) | Planning workspace, infinite canvas, page groups and editing scope |
 | [10-extension-architecture.md](10-extension-architecture.md) | Extension host, Webview, shared contracts, document authority and evolution boundary |
-| [11-prototype-ui-layout.md](11-prototype-ui-layout.md) | Prototype UI components, shared layout geometry, control references and v1/v2/v3 persistence |
+| [11-prototype-ui-layout.md](11-prototype-ui-layout.md) | Prototype UI components, shared layout geometry, control references and v1/v2/v3/v4 persistence |
 
 ## Active Work Items
 
+- [canvas-component-references.md](canvas-component-references.md) — Done：UIBox 存到画布并保留关联实例、同文件及跨模块画布引用、源更新和失效诊断；200 项测试、生产构建、宿主适配器文件监听测试和浏览器保存刷新验收通过，真实 Extension Host 人工联调未覆盖。
+
+- [runtime-slice-preview.md](runtime-slice-preview.md) — Draft：运行预览复用工作台已有布局和控件，聚焦切图装载；与项目 Laya UI 的已支持行为差异按 BUG 修正，预览不依赖启动游戏引擎。
+
+- [canvas-direct-selection.md](canvas-direct-selection.md) — Done：底部新增默认关闭的直选模式，可直接选择子节点并跨分支多选；180 项测试、生产构建和浏览器选择/拖动/会话验收通过。
+
 - [canvas-zoom-top-left.md](canvas-zoom-top-left.md) — Done：原型缩放条移至画布左上，与层级导航同一行、等高 34px，跟随面板避让；177 项测试、生产构建及总览/页内/窄窗口浏览器验收通过。
+
+- [webview-full-bleed.md](webview-full-bleed.md) — Implementing：清除 VS Code Webview 默认左右内边距，让工作台铺满编辑器内容区。
 
 - [inspector-overlay-scrollbar.md](inspector-overlay-scrollbar.md) — Done：属性面板滚动条覆盖显示、停止后自动隐藏；字段宽度稳定，滚动交互、窄窗口、177 项测试及构建通过。
 

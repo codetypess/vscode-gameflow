@@ -26,9 +26,11 @@ export function migrateDocumentElementIds(
     pages: document.pages.map(page => ({
       ...page,
       id: remap(page.id),
+      ...(page.componentRootId ? { componentRootId: remap(page.componentRootId) } : {}),
       nodes: page.nodes.map(node => remapControlReferences({
         ...node,
         id: remap(node.id),
+        ...(node.prefab?.source === "" && node.prefab.documentId === document.documentId ? { prefab: { ...node.prefab, pageId: remap(node.prefab.pageId) } } : {}),
         ...(node.parentId !== undefined ? { parentId: remap(node.parentId) } : {})
       }, replacements))
     })),

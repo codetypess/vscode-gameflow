@@ -14,6 +14,9 @@ async function main() {
       platform: "node",
       format: "cjs",
       jsx: "automatic",
+      plugins: [{ name: "reference-host-adapter", setup(build) {
+        build.onResolve({ filter: /^vscode$/ }, () => ({ path: path.join(__dirname, "vscode-reference-host.ts") }));
+      } }],
       target: "node20"
     });
     await require(outputFile).testsCompleted;

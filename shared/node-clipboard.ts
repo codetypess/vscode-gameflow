@@ -20,6 +20,8 @@ export function copyNode(page: GameFlowPage, id: string): NodeClipboard | null {
 }
 
 export function pasteNode(page: GameFlowPage, clipboard: NodeClipboard, makeId: () => string, parentId?: string, afterId?: string): { page: GameFlowPage; id: string | null; ids?: string[] } {
+  if (page.nodes.some(node => node.id === page.componentRootId)) parentId ??= page.componentRootId;
+  if (afterId === page.componentRootId && parentId === page.componentRootId) afterId = undefined;
   const parent = page.nodes.find((node) => node.id === parentId);
   const anchor = page.nodes.find((node) => node.id === afterId);
   if ((parentId && (!parent || !canHaveChildren(parent) || inheritedFlag(page, parent, "locked"))) ||

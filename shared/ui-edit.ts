@@ -160,7 +160,7 @@ export function nodeResizeFrame(node: GameFlowNode, frame: Frame, matrix: Matrix
 
 export function changeContainerType(page: GameFlowPage, id: string, type: NodeType): GameFlowPage {
   const original = page.nodes.find((n) => n.id === id);
-  if (!original || inheritedFlag(page, original, "locked") || page.nodes.some((n) => n.parentId === id && n.locked)) return page;
+  if (!original || original.prefab || (page.componentRootId === id && type !== "container") || inheritedFlag(page, original, "locked") || page.nodes.some((n) => n.parentId === id && n.locked)) return page;
   const resolved = resolvePageLayout(page), parent = { ...original, type, layout: { ...original.layout } };
   if (type !== "hbox" && parent.layout.align === "justify") parent.layout.align = "left";
   if (type !== "vbox" && parent.layout.valign === "justify") parent.layout.valign = "top";
@@ -182,7 +182,7 @@ export function changeContainerType(page: GameFlowPage, id: string, type: NodeTy
 export function canConvertNodeType(page: GameFlowPage, id: string, type: NodeType): boolean {
   const node = page.nodes.find((item) => item.id === id);
   const children = page.nodes.filter((item) => item.parentId === id);
-  return !!node && node.type !== type && !inheritedFlag(page, node, "locked") &&
+  return !!node && !node.prefab && page.componentRootId !== id && node.type !== type && !inheritedFlag(page, node, "locked") &&
     !children.some((child) => child.locked) && (!children.length || canHaveChildren({ type }));
 }
 

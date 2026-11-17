@@ -1,5 +1,5 @@
 import { sliderOwner } from "../shared/ui-parts";
-import { ArrowLeft, Box, Check, ChevronDown, ChevronRight, Focus, GitMerge, Layers3, LayoutPanelTop, Minus, PanelRight, Plus, Redo2, Save, Scissors, SquareDashed, Undo2 } from "lucide-react";
+import { ArrowLeft, Box, Check, ChevronDown, ChevronRight, Focus, GitMerge, Layers3, LayoutDashboard, LayoutPanelTop, Minus, MousePointerClick, PanelRight, Plus, Redo2, Save, Scissors, SquareDashed, Undo2 } from "lucide-react";
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import type { Frame, GameFlowNode, GameFlowPage, PageRootType } from "../shared/model";
 import { allocateElementId, reserveDocumentElementIds } from "../shared/element-id";
@@ -8,7 +8,9 @@ import { convertNodeType, editNodeFrame, nodeDragFrame, nodeResizeFrame } from "
 import { mapPoint, type Matrix } from "../shared/ui-transform";
 import { pasteNode, type NodeClipboard } from "../shared/node-clipboard";
 import { resolvePageLayout } from "../shared/ui-layout";
-import { COMPONENTS, PAGE_ROOTS, PAGE_ROOT_TYPES } from "../shared/ui-components";
+import { canHaveChildren, COMPONENTS, PAGE_ROOTS, PAGE_ROOT_TYPES } from "../shared/ui-components";
+import { extractCanvasComponent, findCanvasTarget, makeCanvasInstance, projectCanvasReferences, type CanvasSources } from "../shared/canvas-references";
+import type { HostToWebviewMessage } from "../shared/protocol";
 import { COMPONENT_TOOLS } from "./editor/component-tools";
 import { Button } from "./components/ui/button";
 import { CanvasDots } from "./components/canvas-dots";
@@ -16,11 +18,12 @@ import { Popover, PopoverContent, PopoverTrigger } from "./components/ui/popover
 import { Separator } from "./components/ui/separator";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./components/ui/tooltip";
 import { Inspector } from "./editor/inspector";
+import { CanvasReferencePicker } from "./editor/canvas-reference-picker";
 import { LayerTree, NodeIcon } from "./editor/layer-tree";
 import { NodeView, orderedNodes } from "./editor/node-view";
 import { ContainerOutlines } from "./editor/container-outlines";
 import { useDocument } from "./use-document";
-import { isBrowserPreview } from "./vscode-api";
+import { isBrowserPreview, postHostMessage } from "./vscode-api";
 import { cn } from "./lib/utils";
 import { PsdWorkspace, type WorkspaceMode } from "./psd/workspace";
 import { PROTOTYPE_PANELS, useFollowingPanels } from "./editor/use-following-panels";
@@ -60,6 +63,7 @@ export function App() {
   const [scopeIds, setScopeIds] = useState<string[]>([]);
   const [canvasSelection, setCanvasSelection] = useState(0);
   const [tool, setTool] = useState<Tool>("select");
+  const [directSelection, setDirectSelection] = useState(false);
   const [showContainerOutlines, setShowContainerOutlines] = useState(false);
   const [spaceHand, setSpaceHand] = useState(false);
   const [preview, setPreview] = useState<Gesture | null>(null);
@@ -67,6 +71,8 @@ export function App() {
   const [inspectorOpen, setInspectorOpen] = useState(true);
   const [insertOpen, setInsertOpen] = useState(false);
   const [notice, setNotice] = useState("");
+  const [sources, setSources] = useState<CanvasSources>({});
+  const [pickerSource, setPickerSource] = useState<string | null>(null);
   const [clipboard, setClipboard] = useState<NodeClipboard | null>(null);
   const page = canvasDocument?.pages.find((item) => item.id === (editingId ?? selectedPageId)) ?? null;
   const currentSelection = page && editingId ? reconcileSelection(page, selection) : singleSelection(null);
@@ -115,6 +121,17 @@ export function App() {
     if (JSON.stringify(next) !== JSON.stringify(selection)) setSelection(next);
   }, [page, editingId, scopeIds, selection]);
   useEffect(() => { if (!notice) return; const timer = window.setTimeout(() => setNotice(""), 4500); return () => window.clearTimeout(timer); }, [notice]);
+  useEffect(() => {
+    const listener = (event: MessageEvent<HostToWebviewMessage>) => {
+      const message = event.data;
+      if (message?.type !== "canvasSources") return;
+      setSources(message.sources);
+      if (message.pickedSource !== undefined) setPickerSource(message.pickedSource);
+      if (message.error) setNotice(message.error);
+    };
+    window.addEventListener("message", listener);
+    return () => window.removeEventListener("message", listener);
+  }, []);
   useEffect(() => {
     const element = viewport.current;
     if (!element) return;
@@ -179,6 +196,7 @@ export function App() {
   };
   const addLayer = (type: InsertType, parentId?: string, afterId?: string) => {
     if (!editingId) return;
+    if (page?.nodes.some(node => node.id === page.componentRootId)) parentId ??= page.componentRootId;
     const makeId = newIds();
     const id = makeId();
     updatePage(editingId, (item) => {
@@ -219,6 +237,39 @@ export function App() {
     if (result.ids.length) { updatePage(currentPage.id, () => result.page); selectNodes(result.ids); }
   };
   const convertLayer = (id: string, type: InsertType) => { if (editingId) updatePage(editingId, (item) => convertNodeType(item, id, type)); };
+  const saveToCanvas = (id: string) => {
+    if (!editingId) return;
+    const makeId = newIds();
+    edit(document => {
+      try {
+        const next = extractCanvasComponent(document, editingId, id, makeId);
+        setNotice("已存为画布组件，原位置保留关联引用。"); return next;
+      } catch (error) { setNotice(error instanceof Error ? error.message : String(error)); return document; }
+    });
+    setSelectedNodeId(id); setScopeIds([]);
+  };
+  const openSource = (id: string) => {
+    const document = read(), node = document?.pages.find(p => p.id === editingId)?.nodes.find(n => n.id === id);
+    if (!document || !node?.prefab) return;
+    const target = findCanvasTarget(document, sources, node.prefab);
+    if (target.key) { postHostMessage({ type: "openCanvasSource", source: target.key }); return; }
+    if (!target.page) { setNotice(target.error ?? "源画布不存在。"); return; }
+    enter(target.page);
+    if (target.page.componentRootId) { setSelectedNodeId(target.page.componentRootId); setCanvasSelection(value => value + 1); }
+  };
+  const insertReference = (source: string, pageId: string) => {
+    const document = read(), current = document?.pages.find(p => p.id === editingId);
+    const sourceDocument = source ? sources[source]?.document : document;
+    const definition = sourceDocument?.pages.find(p => p.id === pageId);
+    if (!document || !current || !sourceDocument || !definition) { setNotice("请先进入目标页面。"); return; }
+    const node = makeCanvasInstance(sourceDocument, definition, source, newIds()());
+    const next = insertNode(current, node, scopeId ?? undefined);
+    if (next === current) { setNotice("当前容器已锁定，无法添加引用。"); return; }
+    const candidate = { ...document, pages: document.pages.map(p => p.id === current.id ? next : p) };
+    const issue = projectCanvasReferences(candidate, next, sources).errors.get(node.id);
+    if (issue?.includes("循环")) { setNotice(issue); return; }
+    updatePage(current.id, () => next); selectNode(node.id); setPickerSource(null); setTool("select");
+  };
   const duplicate = () => {
     if (!page || (selectedNode && inheritedFlag(page, selectedNode, "locked"))) return;
     if (editingId && !selectedNode) return;
@@ -235,6 +286,7 @@ export function App() {
   useEffect(() => {
     if (mode !== "prototype") return;
     const keydown = (event: KeyboardEvent) => {
+      if (pickerSource !== null) return;
       if ((event.target as Element).closest("[role=menu], dialog[open]")) return;
       const command = event.ctrlKey || event.metaKey, key = event.key.toLowerCase();
       if (isField(event.target)) {
@@ -292,10 +344,10 @@ export function App() {
     if (event.button === 1 || tool === "hand" || spaceHand) { /* Pan over any object. */ }
     else if (editingId && latestPage) {
       if (tool !== "select") { if (hitPageId) placeNode(tool, world.x, world.y); return; }
-      const node = handle || (selectedNodeIds.length > 1 && selectedNodeIds.includes(hitNodeId ?? "")) ? latestPage.nodes.find(item => item.id === (handle ? selectedNodeId : hitNodeId)) : canvasHitNode(latestPage, scopeId, hitNodeId);
+      const node = handle || (selectedNodeIds.length > 1 && selectedNodeIds.includes(hitNodeId ?? "")) ? latestPage.nodes.find(item => item.id === (handle ? selectedNodeId : hitNodeId)) : canvasHitNode(latestPage, scopeId, hitNodeId, directSelection);
       if (node) {
         if (!handle) setCanvasSelection(previous => previous + 1);
-        if (event.ctrlKey || event.metaKey || event.shiftKey) { selectNode(node.id, { toggle: event.ctrlKey || event.metaKey, range: event.shiftKey, order: orderedNodes(latestPage).filter(item => (item.parentId ?? null) === scopeId).map(item => item.id) }); return; }
+        if (event.ctrlKey || event.metaKey || event.shiftKey) { selectNode(node.id, { toggle: event.ctrlKey || event.metaKey, range: event.shiftKey, order: orderedNodes(latestPage).filter(item => (item.parentId ?? null) === (directSelection ? node.parentId ?? null : scopeId) && (!directSelection || !inheritedFlag(latestPage, item, "hidden"))).map(item => item.id) }); return; }
         if (!handle && selectedNodeIds.length > 1 && selectedNodeIds.includes(node.id)) {
           kind = "node"; frame = { x: 0, y: 0, width: 0, height: 0 }; nodeIds = selectedNodeIds; sourcePage = latestPage; collapseId = node.id; pageId = latestPage.id;
         } else {
@@ -361,7 +413,7 @@ export function App() {
   const switchMode = (next: WorkspaceMode) => { gesture.current = null; setPreview(null); setSpaceHand(false); setInsertOpen(false); setMode(next); };
 
   return <TooltipProvider delayDuration={300}><main className="app-shell">
-    <header className="topbar"><span className="brand-mark"><Layers3 size={18} /></span><strong>GameFlow</strong><Separator orientation="vertical" className="topbar-separator" />
+    <header className="topbar"><span className="brand-mark"><Layers3 size={18} /></span><strong>工作台</strong><Separator orientation="vertical" className="topbar-separator" />
       {mode === "prototype" ? <div className="topbar-actions" role="group" aria-label="文档操作">
         <IconTool label="撤销 (Ctrl+Z)" disabled={pending || !canvasDocument} onClick={() => history("undo")}><Undo2 size={15} /></IconTool>
         <IconTool label="重做 (Ctrl+Shift+Z)" disabled={pending || !canvasDocument} onClick={() => history("redo")}><Redo2 size={15} /></IconTool>
@@ -381,30 +433,31 @@ export function App() {
         const id = element.closest<HTMLElement>("[data-page-id]")?.dataset.pageId;
         if (!editingId && id) { const target = canvasDocument?.pages.find((item) => item.id === id); if (target) enter(target); }
         else if (editingId && page) {
-          const node = canvasHitNode(page, scopeId, element.closest<HTMLElement>("[data-node-id]")?.dataset.nodeId);
-          if (node && COMPONENTS[node.type].children) navigateScope(node.id);
+          const node = canvasHitNode(page, scopeId, element.closest<HTMLElement>("[data-node-id]")?.dataset.nodeId, directSelection);
+          if (node && canHaveChildren(node)) navigateScope(node.id);
           else if (node && ["text", "input"].includes(node.type)) viewport.current?.querySelector<HTMLInputElement>('input[aria-label="文字内容"]')?.focus();
           else if (!node && scopeId) { const current = scopePath.at(-1)!; navigateScope(current.parentId ?? null, current.id); }
         }
       }}>
       <CanvasDots camera={visibleCamera} />
-      {scopeId ? <div className="canvas-scope-dimmer" aria-hidden="true" /> : null}
+      {scopeId && !directSelection ? <div className="canvas-scope-dimmer" aria-hidden="true" /> : null}
       {!canvasDocument ? <div className="loading-state">{error ?? "正在载入画布…"}</div> : <>
         <div className="canvas-world" style={{ transform: `translate(${visibleCamera.x}px, ${visibleCamera.y}px) scale(${visibleCamera.zoom})` }}>
           {(editingId ? renderPage ? [renderPage] : [] : canvasDocument.pages.map(item => applyColorPreview(item, colorPreview))).map((item) => {
             const frame = preview?.kind === "page" && preview.pageId === item.id ? preview.next : item.frame;
-            const geometry = resolvePageLayout(item);
-            const nodes = orderedNodes(item), activeNodes = editingId && scopeId ? descendants(item, scopeId) : null;
+            const projection = projectCanvasReferences(canvasDocument, item, sources), visualPage = projection.page;
+            const geometry = resolvePageLayout(visualPage);
+            const nodes = orderedNodes(visualPage), activeNodes = editingId && scopeId && !directSelection ? descendants(visualPage, scopeId) : null;
             const backgroundNodes = nodes.filter(node => !activeNodes?.has(node.id));
             const foregroundNodes = activeNodes ? nodes.filter(node => activeNodes.has(node.id)) : [];
             return <article key={item.id} className={cn("page-group", !editingId && selectedPageId === item.id && "page-selected", editingId && "page-editing")} data-page-id={item.id} style={{ left: editingId ? 0 : frame.x, top: editingId ? 0 : frame.y, width: frame.width, height: frame.height }}>
               <div className="page-caption"><LayoutPanelTop size={14} /><span>{item.name}</span><small>{Math.round(frame.width)} × {Math.round(frame.height)}</small></div>
               <div className="page-surface" style={{ background: item.background ?? "#ffffff" }}>
-                {backgroundNodes.map(node => <NodeView key={node.id} page={item} node={node} geometry={geometry.nodes.get(node.id)} />)}
-                {showContainerOutlines ? <ContainerOutlines page={item} nodes={backgroundNodes} geometry={geometry} /> : null}
+                {backgroundNodes.map(node => <NodeView key={node.id} page={visualPage} node={node} hitId={projection.owners.get(node.id)} referenceError={projection.errors.get(node.id)} geometry={geometry.nodes.get(node.id)} />)}
+                {showContainerOutlines ? <ContainerOutlines page={visualPage} nodes={backgroundNodes} geometry={geometry} /> : null}
                 {activeNodes ? <div className="canvas-scope-dimmer" aria-hidden="true" /> : null}
-                {foregroundNodes.map(node => <NodeView key={node.id} page={item} node={node} geometry={geometry.nodes.get(node.id)} />)}
-                {showContainerOutlines && activeNodes ? <ContainerOutlines page={item} nodes={foregroundNodes} geometry={geometry} /> : null}
+                {foregroundNodes.map(node => <NodeView key={node.id} page={visualPage} node={node} hitId={projection.owners.get(node.id)} referenceError={projection.errors.get(node.id)} geometry={geometry.nodes.get(node.id)} />)}
+                {showContainerOutlines && activeNodes ? <ContainerOutlines page={visualPage} nodes={foregroundNodes} geometry={geometry} /> : null}
               </div>
             </article>;
           })}
@@ -428,15 +481,17 @@ export function App() {
         </div> : null}
         {selectedGeometry?.inverse && selectionAnchor ? <span className="selection-anchor" aria-hidden="true" style={{ left: visibleCamera.x+selectionAnchor.x*visibleCamera.zoom, top: visibleCamera.y+selectionAnchor.y*visibleCamera.zoom }} /> : null}
         {editingId && page ? <LayerTree key={page.id} panelRef={panels.leftRef} panelStyle={panels.leftStyle} page={page} scopeId={scopeId} selectedIds={selectedNodeIds} selectedId={selectedNode?.id ?? null} reveal={canvasSelection} onSelect={selectNode} onPatch={patchNode} onBack={back} onAdd={addLayer} onDelete={deleteLayer} onMove={moveLayer}
-          hasClipboard={!!clipboard} onCopy={copyLayer} onPaste={pasteLayer} onDuplicate={duplicateLayer} onConvert={convertLayer} /> : null}
-        {page && inspectorOpen ? <Inspector onColorPreview={setColorPreview} selectedNodes={page.nodes.filter(node => selectedNodeIds.includes(node.id))} onCreateParts={() => { if (editingId && selectedNodeId) { const makeId = newIds(); updatePage(editingId, item => createControlParts(item, selectedNodeId, makeId)); } }} panelRef={panels.rightRef} panelStyle={panels.rightStyle} page={page} node={selectedNode} editingPage={!!editingId} onNode={patchNode} onPage={(transform) => updatePage(page.id, transform)} onClose={() => setInspectorOpen(false)} onEnter={() => enter(page)} onImport={requestImport} /> : null}
-        <div className="canvas-context">{editingId ? scopePath.at(-1) ? `编辑 ${scopePath.at(-1)!.name} 的子节点` : "页面编辑" : `${canvasDocument.pages.length} 个页面`}<span>{tool === "select" ? editingId ? "双击容器进入 · 双击空白退一级" : "双击页面进入编辑" : tool === "hand" || spaceHand ? "拖动画布" : `点击页面放置${NODE_LABELS[tool]}`}</span></div>
+          hasClipboard={!!clipboard} onCopy={copyLayer} onPaste={pasteLayer} onDuplicate={duplicateLayer} onConvert={convertLayer} onSaveToCanvas={saveToCanvas} onOpenSource={openSource} /> : null}
+        {page && inspectorOpen ? <Inspector onOpenSource={() => { if (selectedNode) openSource(selectedNode.id); }} referenceError={selectedNode?.prefab ? projectCanvasReferences(canvasDocument, page, sources).errors.get(selectedNode.id) : undefined} onColorPreview={setColorPreview} selectedNodes={page.nodes.filter(node => selectedNodeIds.includes(node.id))} onCreateParts={() => { if (editingId && selectedNodeId) { const makeId = newIds(); updatePage(editingId, item => createControlParts(item, selectedNodeId, makeId)); } }} panelRef={panels.rightRef} panelStyle={panels.rightStyle} page={page} node={selectedNode} editingPage={!!editingId} onNode={patchNode} onPage={(transform) => updatePage(page.id, transform)} onClose={() => setInspectorOpen(false)} onEnter={() => enter(page)} onImport={requestImport} /> : null}
+        <div className="canvas-context">{editingId ? scopePath.at(-1) ? `编辑 ${scopePath.at(-1)!.name} 的子节点` : "页面编辑" : `${canvasDocument.pages.length} 个页面`}<span>{tool === "select" ? editingId ? directSelection ? "点击直接选择子节点 · 双击容器进入" : "双击容器进入 · 双击空白退一级" : "双击页面进入编辑" : tool === "hand" || spaceHand ? "拖动画布" : `点击页面放置${NODE_LABELS[tool]}`}</span></div>
         {canvasDocument.pages.length === 0 ? <div className="empty-canvas"><LayoutPanelTop size={32} /><strong>从第一个页面开始</strong><p>用底部 + 添加游戏界面</p><Button onClick={() => addPage()}><Plus size={15} />添加页面</Button></div> : null}
         <div className="canvas-toolbar floating-panel" onPointerDown={(event) => event.stopPropagation()}>
+          <IconTool label="直选模式" active={directSelection} onClick={() => setDirectSelection(value => !value)}><MousePointerClick size={19} /></IconTool>
           <IconTool label="虚线框" active={showContainerOutlines} onClick={() => setShowContainerOutlines(value => !value)}><SquareDashed size={19} /></IconTool>
           <Separator orientation="vertical" /><Popover open={insertOpen} onOpenChange={setInsertOpen}><PopoverTrigger asChild><Button size="icon" variant="ghost" className="toolbar-button insert-trigger" aria-label="添加页面或控件"><Plus size={20} /><ChevronDown size={9} /></Button></PopoverTrigger><PopoverContent side="top" align="start" collisionPadding={12} className="insert-menu" aria-label="添加页面或控件菜单">
             <div className="menu-heading">添加到画布</div>
-            <div className="insert-grid" role="group" aria-label="添加到画布">{PAGE_ROOT_TYPES.map((type) => { const Icon = type === "UIBox" ? Box : LayoutPanelTop; return <button key={type} onClick={() => addPage(type)}><Icon size={16} /><span>{PAGE_ROOTS[type].label} <small className="menu-class">({type})</small></span></button>; })}</div>
+            <div className="insert-grid" role="group" aria-label="添加到画布">{PAGE_ROOT_TYPES.map((type) => { const Icon = type === "UIBox" ? LayoutDashboard : LayoutPanelTop; return <button key={type} onClick={() => addPage(type)}><Icon size={16} /><span>{PAGE_ROOTS[type].label} <small className="menu-class">({type})</small></span></button>; })}</div>
+            <Separator /><div className="insert-grid"><button disabled={!editingId} onClick={() => { setInsertOpen(false); setPickerSource(""); }}><Box size={16} /><span>引用画布组件…</span></button></div>
             <Separator /><div className="menu-heading">{editingId ? "选择工具后点击页面放置" : "双击进入页面后添加控件"}</div>
             <div className="insert-grid" role="group" aria-label="添加控件">{TOOLS.map(({ type, icon: Icon }) => <button key={type} disabled={!editingId} onClick={() => chooseInsertTool(type)}><Icon size={16} /><span>{NODE_LABELS[type]} <small className="menu-class">({COMPONENTS[type].laya})</small></span></button>)}</div>
           </PopoverContent></Popover>
@@ -446,6 +501,7 @@ export function App() {
       </>}
       {notice || (canvasDocument && error) ? <div className="editor-notice" role="status">{notice || error}</div> : null}
       <input ref={fileInput} className="hidden" type="file" accept="image/png,image/jpeg,image/webp,image/gif" aria-label="导入控件图片" onChange={(event) => { void importImage(event.target.files?.[0]); event.target.value = ""; }} />
+      {canvasDocument && pickerSource !== null ? <CanvasReferencePicker document={canvasDocument} sources={sources} source={pickerSource} currentPageId={editingId ?? undefined} onSource={setPickerSource} onPick={insertReference} onClose={() => setPickerSource(null)} /> : null}
     </div>
     <PsdWorkspace mode="merge" active={mode === "merge"} />
     <PsdWorkspace mode="slice" active={mode === "slice"} />

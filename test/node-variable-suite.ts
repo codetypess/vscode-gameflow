@@ -1,3 +1,4 @@
+import { GAMEFLOW_SCHEMA_VERSION } from "../shared/model";
 import assert from "node:assert/strict";
 import type { GameFlowDocument, GameFlowPage } from "../shared/model";
 import { createDefaultGameFlowDocument, parseGameFlowDocument, serializeGameFlowDocument, validateGameFlowDocument } from "../shared/model";
@@ -112,7 +113,7 @@ test("adding a variable upgrades v1 in one undoable edit and clearing removes th
   session.receive({ type: "init", document: original, documentVersion: 1, resourceName: "test", dirty: false });
   session.edit((document) => ({ ...document, pages: document.pages.map((page) => ({ ...page, nodes: page.nodes.map((node, i) => i === 0 ? { ...node, variableName: "bottomBar" } : node) })) }));
   const changed = session.state.document!;
-  assert.equal(changed.schemaVersion, 3); assert.equal(changed.pages[0].nodes[0].variableName, "bottomBar");
+  assert.equal(changed.schemaVersion, GAMEFLOW_SCHEMA_VERSION); assert.equal(changed.pages[0].nodes[0].variableName, "bottomBar");
   assert.equal(changed.pages[0].nodes[0].id, "root0001"); assert.equal(changed.pages[0].nodes[0].name, "底栏");
   assert.equal(messages.length, 1); assert.ok(isWebviewToHostMessage(messages[0]));
   session.receive({ type: "documentChanged", document: changed, documentVersion: 2, dirty: true });

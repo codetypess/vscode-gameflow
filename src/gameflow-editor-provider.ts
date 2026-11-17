@@ -11,6 +11,7 @@ import {
 } from "../shared/protocol";
 import { configureGameFlowWebview } from "./webview-html";
 import { parsePsdBinary } from "../shared/psd-binary";
+import { CanvasReferenceController } from "./canvas-reference-controller";
 
 export const GAMEFLOW_EDITOR_VIEW_TYPE = "gameflow.canvasEditor";
 
@@ -29,6 +30,7 @@ export class GameFlowEditorProvider
       document.fileName
     );
 
+    const references = new CanvasReferenceController(document, webviewPanel.webview);
     const sendSnapshot = async (kind: "init" | "documentChanged") => {
       try {
         const gameFlowDocument = parseGameFlowDocument(document.getText());
@@ -48,6 +50,7 @@ export class GameFlowEditorProvider
                 dirty: document.isDirty
               };
         await webviewPanel.webview.postMessage(message);
+        void references.refresh(gameFlowDocument);
       } catch (error) {
         const details =
           error instanceof GameFlowValidationError
@@ -105,6 +108,8 @@ export class GameFlowEditorProvider
           await sendSnapshot("init");
           return;
         }
+        if (rawMessage.type === "chooseCanvasSource") { await references.choose(); return; }
+        if (rawMessage.type === "openCanvasSource") { await references.open(rawMessage.source); return; }
         if (rawMessage.type === "save") {
           try {
             if (!await document.save()) throw new Error("文档保存失败，请检查文件权限。");
@@ -178,6 +183,7 @@ export class GameFlowEditorProvider
       changeSubscription.dispose();
       messageSubscription.dispose();
       saveSubscription.dispose();
+      references.dispose();
     });
   }
 }
