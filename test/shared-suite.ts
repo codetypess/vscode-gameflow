@@ -17,6 +17,7 @@ import { allocateElementId, reserveDocumentElementIds } from "../shared/element-
 import { migrateDocumentElementIds } from "../shared/document-id-migration";
 import { psdTests } from "./psd-suite";
 import { psdExportTests } from "./psd-export-suite";
+import { psdRegionTests } from "./psd-region-suite";
 import { psdDocumentTests } from "./psd-document-suite";
 import { uiLayoutTests } from "./ui-layout-suite";
 import { nodeVariableTests } from "./node-variable-suite";
@@ -33,6 +34,7 @@ import { canvasInstanceTests } from "./canvas-instance-suite";
 import { canvasReferenceTests } from "./canvas-references-suite";
 import { canvasReferenceHostTests } from "./canvas-reference-host-suite";
 import { workbenchSettingsTests } from "./workbench-settings-suite";
+import { fileExportDirectoryTests } from "./file-export-directory-suite";
 
 type TestCase = { name: string; run: () => void | Promise<void> };
 const tests: TestCase[] = [];
@@ -635,8 +637,10 @@ test("invalid source blocks editing and a rejected transaction reloads host auth
 
 tests.push(...psdTests);
 tests.push(...psdExportTests);
+tests.push(...psdRegionTests);
 tests.push(...psdDocumentTests);
 tests.push(...workbenchSettingsTests);
+tests.push(...fileExportDirectoryTests);
 tests.push(...canvasReferenceTests, ...canvasInstanceTests);
 tests.push(...canvasReferenceHostTests);
 tests.push(...uiLayoutTests);

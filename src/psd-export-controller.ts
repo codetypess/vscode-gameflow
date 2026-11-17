@@ -3,17 +3,22 @@ import { createHash } from "node:crypto";
 import { exportSlicesToDirectory, type ResourceDirectory } from "../shared/psd-export-directory";
 import type { SliceExportBatch } from "../shared/psd-export";
 import { WorkbenchSettingsController } from "./workbench-settings-controller";
+import { exportDirectorySegments } from "../shared/export-directory";
 
 const inProgress = new Set<string>();
 export class PsdExportController {
-  constructor(private readonly settings: WorkbenchSettingsController, private readonly document: Pick<vscode.TextDocument, "uri">) {}
-  get directoryLabel(): string | undefined { return this.settings.directory("resources")?.fsPath; }
+  constructor(private readonly settings: WorkbenchSettingsController, private readonly document: Pick<vscode.TextDocument, "uri">, private readonly relativeDirectory: () => string | undefined = () => undefined) {}
+  private targetDirectory(): vscode.Uri | undefined {
+    const root = this.settings.directory("resources"), segments = exportDirectorySegments(this.relativeDirectory());
+    return root && (segments.length ? vscode.Uri.joinPath(root, ...segments) : root);
+  }
+  get directoryLabel(): string | undefined { return this.targetDirectory()?.fsPath; }
   async choose(): Promise<boolean> {
     return this.settings.choose("resources", this.document.uri);
   }
   async export(batch: SliceExportBatch): Promise<number | null> {
-    const root = this.settings.directory("resources");
-    if (!root) throw new Error("请先在工作台设置中选择资源导出目录。");
+    const root = this.targetDirectory();
+    if (!root) throw new Error("请先在工作台设置中选择资源导出根目录。");
     const key = root.toString();
     if (inProgress.has(key)) throw new Error("该目录正在导出，请稍后重试。");
     inProgress.add(key);
@@ -35,7 +40,10 @@ export class PsdExportController {
       write: async (name, bytes) => { ensureClean(name); await vscode.workspace.fs.writeFile(target(name), bytes); },
       remove: async name => { try { await vscode.workspace.fs.delete(target(name)); } catch (e) { if (!(e instanceof vscode.FileSystemError && e.code === "FileNotFound")) throw e; } }
     };
-    try { return await exportSlicesToDirectory(adapter, batch, { decode: value => Buffer.from(value, "base64"), hash: async bytes => createHash("sha256").update(bytes).digest("hex") }); }
+    try {
+      await vscode.workspace.fs.createDirectory(root);
+      return await exportSlicesToDirectory(adapter, batch, { decode: value => Buffer.from(value, "base64"), hash: async bytes => createHash("sha256").update(bytes).digest("hex") });
+    }
     finally { inProgress.delete(key); }
   }
 }

@@ -1,7 +1,8 @@
 import { allocateElementId } from "./element-id";
 
 export type NineGrid = { top: number; right: number; bottom: number; left: number; repeat: boolean };
-export type SliceConfig = { enabled: boolean; name: string; exportName?: string; shared?: boolean; nineGrid: NineGrid | null };
+export type SliceRegion = { x: number; y: number; width: number; height: number };
+export type SliceConfig = { enabled: boolean; name: string; exportName?: string; shared?: boolean; region?: SliceRegion; nineGrid: NineGrid | null };
 export type PsdLayerMeta = Record<string, unknown> & { namespace: "com.codetypes.gameflow"; version: 1; documentId: string; layerId: string; slicing?: SliceConfig };
 export type PsdLayer = { key: number; nativeId: number | null; parentKey: number | null; name: string; group: boolean; left: number; top: number; width: number; height: number; hidden: boolean; identityOrigin: "embedded" | "new"; metadata: PsdLayerMeta; config: SliceConfig; image?: string; text?: boolean; limitation?: string };
 export type PsdAsset = { name: string; sourceHash: string; documentId: string; hasEmbeddedIdentity: boolean; width: number; height: number; layers: PsdLayer[]; preview: string };
@@ -10,6 +11,24 @@ export const EMPTY_GRID: NineGrid = { top: 0, right: 0, bottom: 0, left: 0, repe
 export const sidecarName = (name: string) => name.replace(/\.psd$/i, "") + ".meta.json";
 const record = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
 
+export const MAX_SLICE_SIZE = 4096;
+export function validSliceRegion(value: unknown): value is SliceRegion {
+  return record(value) && [value.x, value.y, value.width, value.height].every(Number.isInteger) &&
+    Math.abs(Number(value.x)) <= MAX_SLICE_SIZE && Math.abs(Number(value.y)) <= MAX_SLICE_SIZE &&
+    Number(value.width) > 0 && Number(value.width) <= MAX_SLICE_SIZE && Number(value.height) > 0 && Number(value.height) <= MAX_SLICE_SIZE &&
+    Number(value.width) * Number(value.height) <= 8_000_000;
+}
+export function sliceRegion(layer: Pick<PsdLayer, "config" | "width" | "height">): SliceRegion {
+  return layer.config.region ?? { x: 0, y: 0, width: layer.width, height: layer.height };
+}
+export function centerSliceRegion(region: SliceRegion, content: { width: number; height: number }): SliceRegion {
+  return { ...region, x: -Math.floor((region.width - content.width) / 2), y: -Math.floor((region.height - content.height) / 2) };
+}
+/** Moving content right/down moves the source-space export rectangle left/up. */
+export function moveSliceContent(region: SliceRegion, dx: number, dy: number): SliceRegion {
+  const clamp = (n: number) => Math.max(-MAX_SLICE_SIZE, Math.min(MAX_SLICE_SIZE, n));
+  return { ...region, x: clamp(region.x - Math.round(dx)), y: clamp(region.y - Math.round(dy)) };
+}
 export function validGrid(value: unknown, width: number, height: number): value is NineGrid {
   if (!record(value) || typeof value.repeat !== "boolean") return false;
   for (const k of ["top", "right", "bottom", "left"] as const) if (!Number.isInteger(value[k]) || (value[k] as number) < 0) return false;
@@ -21,7 +40,9 @@ export function setGridEdge(grid: NineGrid, edge: "top" | "right" | "bottom" | "
   return { ...grid, [edge]: Math.max(0, Math.min(Math.max(0, limit), Math.round(Number.isFinite(value) ? value : 0))) };
 }
 export function validConfig(value: unknown, width: number, height: number): value is SliceConfig {
-  return record(value) && typeof value.enabled === "boolean" && typeof value.name === "string" && value.name.length <= 120 && (value.exportName === undefined || typeof value.exportName === "string" && value.exportName.length <= 120) && (value.shared === undefined || typeof value.shared === "boolean") && (value.nineGrid === null || validGrid(value.nineGrid, width, height));
+  if (!record(value) || (value.region !== undefined && !validSliceRegion(value.region))) return false;
+  const region = value.region as SliceRegion | undefined;
+  return typeof value.enabled === "boolean" && typeof value.name === "string" && value.name.length <= 120 && (value.exportName === undefined || typeof value.exportName === "string" && value.exportName.length <= 120) && (value.shared === undefined || typeof value.shared === "boolean") && (value.nineGrid === null || validGrid(value.nineGrid, region?.width ?? width, region?.height ?? height));
 }
 export function identityProblems(asset: PsdAsset): string[] {
   const counts = new Map<string, number>();
@@ -75,7 +96,7 @@ export function selectedMergeTree(sources: { A: PsdAsset | null; B: PsdAsset | n
 }
 export function makeSidecar(asset: PsdAsset): PsdSidecar {
   if (identityProblems(asset).length) throw new Error("存在重复 ID，请选中副本并点击“作为新节点”后保存。");
-  for (const l of asset.layers) if (!validConfig(l.config, l.width, l.height)) throw new Error(`${l.name} 的九宫格范围无效，请重新编辑。`);
+  for (const l of asset.layers) if (!validConfig(l.config, l.width, l.height)) throw new Error(`${l.name} 的切图区域或九宫格范围无效，请重新编辑。`);
   return { schema: "gameflow.psd-meta", version: 1, documentId: asset.documentId, source: { name: asset.name, sha256: asset.sourceHash, width: asset.width, height: asset.height }, layers: asset.layers.map(l => ({ id: l.metadata.layerId, sourceKey: l.key, nativeId: l.nativeId, name: l.name, config: l.config, metadata: { ...l.metadata, slicing: l.config } })) };
 }
 export function applySidecar(asset: PsdAsset, raw: unknown): PsdAsset {
@@ -95,7 +116,7 @@ export function applySidecar(asset: PsdAsset, raw: unknown): PsdAsset {
   const layers = asset.layers.map(l => {
     const item = exactSource ? [...imported.values()].find(i => i.sourceKey === l.key && i.nativeId === l.nativeId) : imported.get(l.metadata.layerId); if (!item) return l;
     consumed.add(item.id as string);
-    if (!validConfig(item.config, l.width, l.height)) throw new Error(`${l.name} 的九宫格超出当前图片，请重新编辑配置。`);
+    if (!validConfig(item.config, l.width, l.height)) throw new Error(`${l.name} 的切图区域或九宫格无效，请重新编辑配置。`);
     return { ...l, config: item.config, metadata: { ...l.metadata, ...item.metadata as PsdLayerMeta, slicing: item.config } };
   });
   if ([...imported.keys()].some(id => !consumed.has(id))) throw new Error("配置包含当前 PSD 不存在的图层 ID，请使用对应版本的 PSD。");

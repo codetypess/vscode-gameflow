@@ -144,7 +144,7 @@ export class GameFlowEditorProvider implements vscode.CustomEditorProvider<Workb
     finally { cancellation.dispose(); }
     if (doc.disposed) { psd.dispose(); return; }
     doc.attachment?.dispose(); doc.psds.set(source, psd); doc.currentPsd = psd;
-    for (const panel of doc.panels) { doc.attachment = this.psd.attach(psd, panel, () => this.openPsd(doc)); await this.psd.initialize(psd, panel); }
+    for (const panel of doc.panels) { doc.attachment = this.psd.attach(psd, panel, () => this.openPsd(doc), () => parseGameFlowDocument(doc.getText()).exportDirectory); await this.psd.initialize(psd, panel); }
     await this.context.workspaceState.update(this.stateKey(doc.uri), source); this.checkpoint(doc);
   }
   async resolveCustomEditor(doc: WorkbenchDocument, panel: vscode.WebviewPanel): Promise<void> {
@@ -160,7 +160,7 @@ export class GameFlowEditorProvider implements vscode.CustomEditorProvider<Workb
       } catch (error) { await panel.webview.postMessage({ type: "documentError", message: "当前文档不是有效的 GameFlow 文档。", details: [explain(error)] } satisfies HostToWebviewMessage); }
     };
     doc.refreshers.add(snapshot);
-    if (doc.currentPsd) doc.attachment = this.psd.attach(doc.currentPsd, panel, () => this.openPsd(doc));
+    if (doc.currentPsd) doc.attachment = this.psd.attach(doc.currentPsd, panel, () => this.openPsd(doc), () => parseGameFlowDocument(doc.getText()).exportDirectory);
     const subscription = panel.webview.onDidReceiveMessage(async (raw: unknown) => {
       if (isPsdEditorRequest(raw) || !isWebviewToHostMessage(raw)) return;
       try {

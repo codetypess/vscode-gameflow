@@ -3,6 +3,7 @@ import { canHaveChildren, COMPONENT_TYPES, PAGE_ROOT_TYPES } from "./ui-componen
 import { validateRootLayout, validateUIConfig } from "./ui-config";
 import type { ConstraintLayout, NodeLayout, WidgetProps } from "./ui-config";
 import { variableNameError } from "./node-variable";
+import { exportDirectoryError } from "./export-directory";
 import { validateControlReferences } from "./ui-parts";
 import { validateNodeTransform, type NodeTransform } from "./ui-transform";
 import { isCanvasProperty, readProperty, targetKey, ownedCanvasNodes, validCanvasTarget, writeProperty, type CanvasInstanceEdits } from "./canvas-instance-data";
@@ -124,6 +125,8 @@ export interface GameFlowDocument {
   elementIdScheme?: typeof ELEMENT_ID_SCHEME;
   documentId: string;
   title: string;
+  /** Shared relative path under each user's locally configured export roots. */
+  exportDirectory?: string;
   requirements: GameFlowRequirement[];
   pages: GameFlowPage[];
   interactions: GameFlowInteraction[];
@@ -450,6 +453,8 @@ export function validateGameFlowDocument(value: unknown): ValidationResult {
   }
   validateString(value.documentId, "documentId", errors);
   validateString(value.title, "title", errors);
+  const directoryIssue = exportDirectoryError(value.exportDirectory);
+  if (directoryIssue) errors.push(`exportDirectory: ${directoryIssue}`);
 
   const requirementsValue = value.requirements;
   let requirementsValid = true;

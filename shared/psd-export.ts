@@ -1,5 +1,5 @@
 import { pinyin } from "pinyin-pro";
-import { identityProblems, validGrid, type NineGrid, type PsdAsset } from "./psd-meta";
+import { identityProblems, sliceRegion, validConfig, validGrid, type NineGrid, type PsdAsset } from "./psd-meta";
 
 export const RESOURCE_MANIFEST = "gameflow-resources.json";
 export const MAX_EXPORT_BYTES = 48 * 1024 * 1024;
@@ -54,7 +54,7 @@ export function sliceExportIssues(asset: PsdAsset): ExportIssue[] {
     if (error) issues.push({ keys: [l.key], message: `${l.name}：${error}` });
     if (l.group || !l.image || l.limitation) issues.push({ keys: [l.key], message: `${l.name}：当前图层无法独立导出。` });
     if (identities.includes(l.metadata.layerId)) issues.push({ keys: [l.key], message: `${l.name}：图层 ID 重复，请先分配新身份。` });
-    if (l.config.nineGrid && !validGrid(l.config.nineGrid, l.width, l.height)) issues.push({ keys: [l.key], message: `${l.name}：九宫格超出图片范围。` });
+    if (!validConfig(l.config, l.width, l.height)) issues.push({ keys: [l.key], message: `${l.name}：切图区域或九宫格范围无效。` });
   }
   for (const [label, keyOf] of [["同名图层", (l: typeof layers[number]) => layerNameKey(l.name)], ["导出名称", (l: typeof layers[number]) => effectiveExportName(asset, l)]] as const) {
     const groups = new Map<string, typeof layers>();
@@ -64,13 +64,16 @@ export function sliceExportIssues(asset: PsdAsset): ExportIssue[] {
   return issues;
 }
 
-export function makeSliceExportBatch(asset: PsdAsset): SliceExportBatch {
+export function makeSliceExportBatch(asset: PsdAsset, renderedImages?: ReadonlyMap<number, string>): SliceExportBatch {
   const issues = sliceExportIssues(asset); if (issues.length) throw new Error(issues.map(i => i.message).join("\n"));
   const batch: SliceExportBatch = {
     source: { documentId: asset.documentId, psdName: asset.name, sourceHash: asset.sourceHash },
     items: asset.layers.filter(l => l.config.enabled).map(l => {
-      if (!l.image?.startsWith("data:image/png;base64,")) throw new Error(`${l.name}：没有有效的 PNG 切图。`);
-      return { name: effectiveExportName(asset, l), layerId: l.metadata.layerId, layerName: l.name, shared: l.config.shared === true, width: l.width, height: l.height, nineGrid: l.config.nineGrid, base64: l.image.slice("data:image/png;base64,".length) };
+      if (l.config.region && !renderedImages?.has(l.key)) throw new Error(`${l.name}：需先生成自定义区域的 PNG 切图。`);
+      const image = l.config.region ? renderedImages!.get(l.key) : l.image;
+      if (!image?.startsWith("data:image/png;base64,")) throw new Error(`${l.name}：没有有效的 PNG 切图。`);
+      const { width, height } = sliceRegion(l);
+      return { name: effectiveExportName(asset, l), layerId: l.metadata.layerId, layerName: l.name, shared: l.config.shared === true, width, height, nineGrid: l.config.nineGrid, base64: image.slice("data:image/png;base64,".length) };
     })
   };
   if (!isSliceExportBatch(batch)) throw new Error("没有可导出的图片，或切图总数据超过 48 MB / 配置无效。");

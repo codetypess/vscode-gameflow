@@ -1,0 +1,58 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>PSD region pixel checks</title>
+<style>body { background: #181818; color: #ddd; font: 16px/1.7 monospace; padding: 24px; } canvas { border: 1px solid #777; image-rendering: pixelated; }</style>
+<h1>PSD region pixel checks</h1>
+<p>Open this file through the repository Vite server's /@fs/ route to run real browser Canvas and PNG checks.</p>
+<pre id="results"></pre>
+<script type="module">
+  import { loadSliceImage, renderSliceExportBatch, sliceImageCanvas } from "../webview/psd/slice-render.ts";
+  import { exportSlicesToDirectory } from "../shared/psd-export-directory.ts";
+  const output = document.querySelector("#results");
+  const check = (condition, message) => { if (!condition) throw new Error(message); };
+  const pixel = (canvas, x, y) => Array.from(canvas.getContext("2d").getImageData(x, y, 1, 1).data).join(",");
+  const tests = [];
+  const source = document.createElement("canvas"); source.width = 217; source.height = 77;
+  const ctx = source.getContext("2d"); ctx.fillStyle = "red"; ctx.fillRect(0, 0, 217, 77);
+  ctx.fillStyle = "lime"; ctx.fillRect(1, 0, 1, 1); ctx.fillStyle = "blue"; ctx.fillRect(0, 1, 1, 1);
+  const image = await loadSliceImage(source.toDataURL("image/png"));
+  const region = { x: -41, y: -11, width: 300, height: 100 };
+  tests.push(["217×77 pixels keep their size in a transparent 300×100 PNG", async () => {
+    const rendered = sliceImageCanvas(image, region), png = await loadSliceImage(rendered.toDataURL("image/png"));
+    check(png.naturalWidth === 300 && png.naturalHeight === 100, "PNG dimensions");
+    for (const [x, y] of [[0,0], [299,99], [40,11], [258,11], [41,10], [41,88]]) check(pixel(rendered,x,y) === "0,0,0,0", `transparent ${x},${y}`);
+    for (let y = 0; y < 77; y++) for (let x = 0; x < 217; x++) check(pixel(rendered, x+41, y+11) === pixel(source,x,y), `unchanged pixel ${x},${y}`);
+  }]);
+  tests.push(["positive offsets crop only the selected layer without scaling", () => {
+    const rendered = sliceImageCanvas(image, { x: 1, y: 0, width: 2, height: 2 });
+    check(pixel(rendered,0,0) === "0,255,0,255", "first cropped pixel");
+    check(pixel(rendered,1,0) === "255,0,0,255", "next cropped pixel");
+    const outside = sliceImageCanvas(image, { x: -1, y: -1, width: 2, height: 2 });
+    check(pixel(outside,0,0) === "0,0,0,0", "padding is transparent");
+    check(pixel(outside,1,1) === "255,0,0,255", "content shifts one pixel");
+  }]);
+  tests.push(["actual export batch writes matching PNG dimensions, pixels and provenance", async () => {
+    const layer = { key: 0, nativeId: 1, parentKey: null, name: "image", group: false, left: 12, top: 34, width: 217, height: 77, hidden: false, identityOrigin: "embedded", metadata: { namespace: "com.codetypes.gameflow", version: 1, documentId: "pixel-check", layerId: "layer" }, config: { enabled: true, name: "image", region, nineGrid: { top: 20, right: 30, bottom: 20, left: 30, repeat: false } }, image: source.toDataURL("image/png") };
+    const asset = { name: "pixel-check.psd", sourceHash: "a".repeat(64), documentId: "pixel-check", hasEmbeddedIdentity: true, width: 960, height: 640, layers: [layer], preview: "" };
+    const batch = await renderSliceExportBatch(asset);
+    const files = new Map();
+    const directory = { list: async () => [...files.keys()], read: async name => files.get(name) ?? null, write: async (name, bytes) => { files.set(name, bytes.slice()); }, remove: async name => { files.delete(name); } };
+    const codec = { decode: value => Uint8Array.from(atob(value), c => c.charCodeAt(0)), hash: async bytes => Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)), x => x.toString(16).padStart(2,"0")).join("") };
+    check(await exportSlicesToDirectory(directory, batch, codec) === 1, "directory count");
+    const record = JSON.parse(new TextDecoder().decode(files.get("gameflow-resources.json"))).resources[0];
+    check(record.width === 300 && record.height === 100 && record.nineGrid.left === 30, "manifest dimensions/grid");
+    const decoded = await loadSliceImage("data:image/png;base64," + batch.items[0].base64);
+    check(decoded.naturalWidth === 300 && decoded.naturalHeight === 100, "exported dimensions");
+    const pixels = sliceImageCanvas(decoded, { x: 0, y: 0, width: 300, height: 100 });
+    check(pixel(pixels,42,11) === "0,255,0,255" && pixel(pixels,41,12) === "0,0,255,255", "exported pixel positions");
+    check(pixel(pixels,0,0) === "0,0,0,0", "exported transparent border");
+    check(layer.width === 217 && layer.left === 12 && layer.top === 34, "source geometry preserved");
+    document.body.append(pixels);
+  }]);
+  let passed = 0;
+  for (const [name, run] of tests) {
+    try { await run(); output.textContent += `PASS ${name}\n`; passed++; }
+    catch (error) { output.textContent += `FAIL ${name}: ${error.message}\n`; }
+  }
+  output.textContent += `${passed}/${tests.length} browser pixel checks passed.`;
+</script>

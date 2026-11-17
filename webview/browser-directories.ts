@@ -7,6 +7,7 @@ export interface BrowserFile {
 export interface BrowserDirectory {
   name: string; keys(): AsyncIterableIterator<string>;
   getFileHandle(name: string, options?: { create: boolean }): Promise<BrowserFile>;
+  getDirectoryHandle(name: string, options?: { create: boolean }): Promise<BrowserDirectory>;
   removeEntry(name: string): Promise<void>;
 }
 const directories: Partial<Record<ExportDirectoryKind, BrowserDirectory>> = {};

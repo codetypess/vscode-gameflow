@@ -159,9 +159,9 @@ export class PsdEditorProvider implements vscode.CustomEditorProvider<PsdDocumen
   announce(doc: PsdDocument) {
     if (doc.model.dirty && !doc.announced) { doc.announced = true; this.editEvent(doc, doc.model.baseline, makePsdDraft(doc.model.asset), "打开未保存 PSD 配置", true); this.backupSoon(doc); }
   }
-  attach(doc: PsdDocument, panel: vscode.WebviewPanel, open: () => Promise<unknown>): vscode.Disposable {
+  attach(doc: PsdDocument, panel: vscode.WebviewPanel, open: () => Promise<unknown>, exportDirectory?: () => string | undefined): vscode.Disposable {
     doc.panels.add(panel);
-    const exports = new PsdExportController(this.settings, { uri: doc.uri });
+    const exports = new PsdExportController(this.settings, { uri: doc.uri }, exportDirectory);
     const subscription = panel.webview.onDidReceiveMessage(async (raw: unknown) => {
       if (isPsdEditorRequest(raw)) {
         if (raw.type === "psdEditorReady") {

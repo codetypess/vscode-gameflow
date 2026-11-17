@@ -6,6 +6,9 @@
 .workbench-settings-body { display: flex; flex-direction: column; gap: 20px; padding: 18px 16px; overflow-y: auto; }
 .workbench-setting { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
 .workbench-setting > label { font-size: 12px; font-weight: 500; }
+.workbench-file-setting { padding-top: 16px; border-top: 1px solid var(--border); }
+.workbench-file-setting > strong { font-size: 12px; }
+.workbench-export-destination { overflow-wrap: anywhere; }
 .workbench-directory { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .workbench-directory input { flex: 1; min-width: 0; font-size: 11px; text-overflow: ellipsis; }
 .workbench-directory button { flex-shrink: 0; gap: 6px; }

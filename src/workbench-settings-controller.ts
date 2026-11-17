@@ -26,7 +26,7 @@ export class WorkbenchSettingsController implements vscode.Disposable {
     this.operations = operation.catch(() => {}); return operation;
   }
   async choose(kind: ExportDirectoryKind, source: vscode.Uri): Promise<boolean> {
-    const selected = await this.pickDirectory({ canSelectFiles: false, canSelectFolders: true, canSelectMany: false, openLabel: kind === "resources" ? "选择资源导出目录" : "选择预制体导出目录", defaultUri: this.directory(kind) ?? vscode.Uri.joinPath(source, "..") });
+    const selected = await this.pickDirectory({ canSelectFiles: false, canSelectFolders: true, canSelectMany: false, openLabel: kind === "resources" ? "选择资源导出根目录" : "选择预制体导出根目录", defaultUri: this.directory(kind) ?? vscode.Uri.joinPath(source, "..") });
     if (!selected?.[0]) return false;
     await this.set(kind, selected[0]); return true;
   }

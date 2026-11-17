@@ -33,7 +33,11 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 
 ## Active Work Items
 
-- [page-export-name.md](page-export-name.md) — Implementing：页面名称下方新增独立“导出名称”，保存可选页面元数据，供后续 Prefab 生成使用。
+- [psd-slice-region.md](psd-slice-region.md) — Done：独立导出尺寸、弹窗拖动图片和方向键微调、居中/透明留白/裁剪、九宫格区域适配及配置持久化；293 项共享测试、3 项浏览器像素检查、生产构建及真实 PSD/360px 窄窗口/草稿重载验收通过。
+
+- [file-export-directory.md](file-export-directory.md) — Done：本机资源/预制体根目录与 GameFlow 顶层 exportDirectory 分离；设置面板按文件编辑相对目录，资源按 root/dir 实际输出。293 项共享测试、33 项宿主检查、生产构建及浏览器输入/取消/重载/小窗口验收通过。
+
+- [page-export-name.md](page-export-name.md) — Done：页面名称下方新增独立“导出名称”，保存可选页面元数据，供后续 Prefab 生成使用；283 项测试、生产构建及浏览器提交/取消/历史/清空/保存重载验收通过。
 
 - [inspector-property-rows.md](inspector-property-rows.md) — Done：普通属性一行一个，范围及外观属性拆行，标签列/操作区统一对齐，组合控件保留分组；280 项测试、生产构建及普通/窄窗口浏览器验收通过。
 

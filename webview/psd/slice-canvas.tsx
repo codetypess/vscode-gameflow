@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent, type ReactNode } from "react";
 import { Focus, Minus, Plus } from "lucide-react";
 import type { PsdAsset, PsdLayer } from "../../shared/psd-meta";
+import { sliceRegion } from "../../shared/psd-meta";
 import { Button } from "../components/ui/button";
 import { CanvasDots } from "../components/canvas-dots";
 import { fitPsdCamera, placePsdPanels, zoomPsdCamera, type CanvasSize, type PsdCamera } from "./canvas-layout";
@@ -99,6 +100,7 @@ export function PsdSliceCanvas({ asset, selected, onSelect, active, tree, proper
   };
   const zoom = (factor: number | "actual") => { selectionRequest.current++; setView(old => ({ ...old, camera: zoomPsdCamera(old.camera, { x: old.size.width / 2, y: old.size.height / 2 }, factor === "actual" ? 1 : old.camera.zoom * factor) })); };
   const panels = placePsdPanels(view.size, asset, view.camera, heights), camera = view.camera;
+  const region = selected?.config.region ? sliceRegion(selected) : null;
 
   return <div ref={stage} className={`psd-slice-canvas ${dragging ? "is-dragging" : ""}`} role="region" aria-label="PSD 画布"
     onPointerDown={begin} onPointerMove={move} onPointerUp={e => finish(e)} onPointerCancel={e => finish(e, "cancel")} onLostPointerCapture={e => finish(e, "lost")}
@@ -111,6 +113,7 @@ export function PsdSliceCanvas({ asset, selected, onSelect, active, tree, proper
         {selected && !selected.group ? <div className="psd-selected-outline" style={{ left: selected.left, top: selected.top, width: selected.width, height: selected.height, borderWidth: 1 / camera.zoom }} /> : null}
       </div>
     </div>
+    {selected && !selected.group && region ? <div className="psd-export-outline" aria-label="自定义导出区域" style={{ left: camera.x + (selected.left + region.x) * camera.zoom, top: camera.y + (selected.top + region.y) * camera.zoom, width: region.width * camera.zoom, height: region.height * camera.zoom, visibility: view.ready ? "visible" : "hidden" }} /> : null}
     <aside ref={leftPanel} aria-label="PSD 图层面板" className="psd-tree-panel psd-follow-panel floating-panel" style={{ ...panels.left, visibility: view.ready ? "visible" : "hidden" }}>{tree}</aside>
     <aside ref={rightPanel} aria-label="PSD 切图属性面板" className="psd-properties psd-follow-panel floating-panel" style={{ ...panels.right, visibility: view.ready ? "visible" : "hidden" }}>{properties}</aside>
     <div className="psd-canvas-controls floating-panel" aria-label="PSD 视图控制">

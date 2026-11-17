@@ -1,6 +1,6 @@
 # Page Export Name
 
-Status: Implementing
+Status: Done
 Date: 2026-11-17
 Scope: 页面导出名称的编辑、保存及后续 Prefab 生成元数据
 
@@ -52,3 +52,9 @@ Scope: 页面导出名称的编辑、保存及后续 Prefab 生成元数据
 ## 10. Risks and Rollback
 
 未来导出器需单独定义文件命名及冲突规则。本次仅增加可选元数据，可通过移除字段及对应属性行回退，不修改既有页面身份。
+
+## Verification Results
+
+2026-11-17：283 项共享测试通过（新增 3 项覆盖四种根类及 v2–v5 往返、复制保留、旧文档缺省、非法值/v1 边界、真实 editCanvasPage 路径设置和清空）。生产构建及两组 TypeScript 检查通过，git diff --check 通过。
+
+独立本地浏览器预览验证：导出名称位于页面名称下方、基础属性上方，两输入左边缘及宽度一致；输入 `  MainMenu  ` 后 Enter 保存为 `MainMenu`，Escape 丢弃草稿，撤销恢复空值，重做恢复名称。空白输入失焦、保存重载后保持空白；重新填写并保存重载后保留大小写。选择 UILabel 时导出名称输入数量为 0，返回页面根后恢复。控制台无错误。截图保存为 `page-export-name.jpg`。未运行真实 VS Code 宿主或 Laya 预制体生成。
