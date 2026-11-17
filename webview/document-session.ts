@@ -2,9 +2,10 @@ import type { GameFlowDocument } from "../shared/model";
 import { GAMEFLOW_SCHEMA_VERSION } from "../shared/model";
 import { migrateDocumentElementIds } from "../shared/document-id-migration";
 import type { HostToWebviewMessage, WebviewToHostMessage } from "../shared/protocol";
+import type { CanvasApplyRequest } from "../shared/canvas-instances";
 
 type Transform = (document: GameFlowDocument) => GameFlowDocument;
-type Action = "save" | "undo" | "redo";
+type Action = "save" | "undo" | "redo" | { type: "applyCanvas"; requestId: string; request: CanvasApplyRequest; expectedSources: Record<string,string> };
 export interface DocumentState {
   document: GameFlowDocument | null;
   resourceName: string;
@@ -39,12 +40,12 @@ export class DocumentSession {
     if (!action) { this.publish({ pending: false }); return; }
     this.action = action;
     this.publish({ pending: true });
-    this.post(action === "save" ? { type: "save" } : { type: "history", action });
+    this.post(typeof action === "object" ? { ...action, type: "applyCanvasOverrides", baseVersion: this.version } : action === "save" ? { type: "save" } : { type: "history", action });
   }
   private reset() { this.inFlight = null; this.queued = null; this.action = null; this.actions = []; this.deferred = []; }
 
   receive(message: HostToWebviewMessage) {
-    if (message.type === "psdOutputResult" || message.type === "canvasSources") return;
+    if (message.type === "psdOutputResult" || message.type === "psdResourceExportResult" || message.type === "canvasSources") return;
     if (message.type === "documentError") {
       this.reset(); this.refreshing = true;
       this.publish({ document: null, pending: false, error: [message.message, ...message.details].join("\n") });
@@ -55,7 +56,7 @@ export class DocumentSession {
       this.publish({ pending: false, error: message.reason }); this.post({ type: "ready" }); return;
     }
     if (message.type === "commandCompleted") {
-      if (message.action !== this.action) return;
+      if (typeof this.action === "object" && this.action ? message.action !== "applyCanvas" || message.requestId !== this.action.requestId : message.action !== this.action) return;
       this.action = null;
       const deferred = this.deferred; this.deferred = [];
       if (this.state.document && deferred.length) this.edit((document) => deferred.reduce((next, transform) => transform(next), document));
@@ -97,4 +98,8 @@ export class DocumentSession {
     if (!this.state.document || this.refreshing) return;
     this.actions.push(action); this.nextAction();
   }
+  applyCanvas(request: CanvasApplyRequest, expectedSources: Record<string,string>) {
+    this.command({ type: "applyCanvas", requestId: `canvas-${Date.now()}-${++applySerial}`, request, expectedSources });
+  }
 }
+let applySerial = 0;

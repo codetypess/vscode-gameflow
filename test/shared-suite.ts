@@ -16,6 +16,8 @@ import { DocumentSession } from "../webview/document-session";
 import { allocateElementId, reserveDocumentElementIds } from "../shared/element-id";
 import { migrateDocumentElementIds } from "../shared/document-id-migration";
 import { psdTests } from "./psd-suite";
+import { psdExportTests } from "./psd-export-suite";
+import { psdDocumentTests } from "./psd-document-suite";
 import { uiLayoutTests } from "./ui-layout-suite";
 import { nodeVariableTests } from "./node-variable-suite";
 import { uiTransformTests } from "./ui-transform-suite";
@@ -26,6 +28,7 @@ import { canvasScopeTests } from "./canvas-scope-suite";
 import { nodeSelectionTests } from "./node-selection-suite";
 import { colorEditTests } from "./color-edit-suite";
 import { textFormattingTests } from "./text-formatting-suite";
+import { canvasInstanceTests } from "./canvas-instance-suite";
 import { canvasReferenceTests } from "./canvas-references-suite";
 import { canvasReferenceHostTests } from "./canvas-reference-host-suite";
 
@@ -583,6 +586,21 @@ test("save waits for edits and history completes explicitly before subsequent ed
   assert.equal((sent[3] as { baseVersion: number }).baseVersion, 5);
 });
 
+test("canvas apply waits for pending edits and matching completion before replaying deferred work",()=>{
+  const {session,sent,document,snapshot}=sessionFixture();
+  session.edit(doc=>({...doc,title:"先编辑"}));
+  session.applyCanvas({pageId:document.pages[0].id,ownerId:document.pages[0].nodes[0].id},{});
+  assert.equal(sent.length,1);snapshot({...document,title:"先编辑"},4);
+  const action=sent.at(-1)!;assert.equal(action.type,"applyCanvasOverrides");if(action.type!=="applyCanvasOverrides")throw new Error("expected apply");
+  assert.equal(action.baseVersion,4);
+  session.edit(doc=>({...doc,title:doc.title+"后编辑"}));
+  session.receive({type:"canvasSources",sources:{}});
+  session.receive({type:"commandCompleted",action:"applyCanvas",requestId:"stale"});assert.equal(sent.length,2);
+  snapshot({...document,title:"应用后的文档"},5);assert.equal(session.state.pending,true);
+  session.receive({type:"commandCompleted",action:"applyCanvas",requestId:action.requestId});
+  assert.equal(sent.at(-1)!.type,"replaceDocument");assert.equal(session.state.document!.title,"应用后的文档后编辑");
+});
+
 test("invalid source blocks editing and a rejected transaction reloads host authority", () => {
   const { session, sent, document } = sessionFixture();
   session.receive({ type: "documentError", message: "Invalid JSON", details: [] });
@@ -597,7 +615,9 @@ test("invalid source blocks editing and a rejected transaction reloads host auth
 });
 
 tests.push(...psdTests);
-tests.push(...canvasReferenceTests);
+tests.push(...psdExportTests);
+tests.push(...psdDocumentTests);
+tests.push(...canvasReferenceTests, ...canvasInstanceTests);
 tests.push(...canvasReferenceHostTests);
 tests.push(...uiLayoutTests);
 tests.push(...nodeVariableTests);

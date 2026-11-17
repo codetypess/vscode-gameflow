@@ -1,5 +1,6 @@
 import { customAlphabet } from "nanoid";
 import type { GameFlowDocument } from "./model";
+import { ownedCanvasNodes } from "./canvas-instance-data";
 
 export const ELEMENT_ID_SCHEME = "nanoid-8" as const;
 const ELEMENT_ID = /^[a-z0-9]{8}$/;
@@ -24,6 +25,6 @@ export function allocateElementId(
 export function reserveDocumentElementIds(document: GameFlowDocument, reserved: Set<string>): void {
   for (const page of document.pages) {
     reserved.add(page.id);
-    for (const node of page.nodes) reserved.add(node.id);
+    for (const node of ownedCanvasNodes(page.nodes)) reserved.add(node.id);
   }
 }

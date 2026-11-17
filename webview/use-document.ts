@@ -16,5 +16,6 @@ export function useDocument() {
     return () => window.removeEventListener("message", listener);
   }, [controller]);
   return { ...state, edit: controller.edit.bind(controller), read: () => controller.state.document,
+    applyCanvas: controller.applyCanvas.bind(controller),
     history: (action: "undo" | "redo") => controller.command(action), save: () => controller.command("save") };
 }

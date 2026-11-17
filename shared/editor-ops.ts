@@ -1,3 +1,4 @@
+import { ownedCanvasNodes, remapCanvasEdits } from "./canvas-instance-data";
 import type { Frame, GameFlowDocument, GameFlowNode, GameFlowPage, NodeStyle, NodeType } from "./model";
 import { canHaveChildren, COMPONENTS } from "./ui-components";
 import { resolvePageLayout } from "./ui-layout";
@@ -146,7 +147,7 @@ export function moveNode(page: GameFlowPage, id: string, drop: LayerDrop): GameF
 
 export function duplicateNode(page: GameFlowPage, id: string, makeId: () => string): { page: GameFlowPage; id: string } {
   const ids = descendants(page, id);
-  const mapping = new Map([...ids].map((key) => [key, makeId()]));
+  const mapping = new Map(ownedCanvasNodes(page.nodes.filter(node=>ids.has(node.id))).map(node=>[node.id, makeId()]));
   const variableNames = new Set(page.nodes.flatMap((node) => node.variableName ? [node.variableName] : []));
   const copies = page.nodes.filter((node) => ids.has(node.id)).map((node) => remapControlReferences({
     ...structuredClone(node),
@@ -158,20 +159,21 @@ export function duplicateNode(page: GameFlowPage, id: string, makeId: () => stri
     ...(node.id === page.componentRootId ? { parentId: page.componentRootId } : {}),
     ...(node.style ? { style: { ...node.style } } : {}),
     ...(node.type === "radio" ? { widget: { ...node.widget, selected: controlSelected(page, node) } } : {})
-  }, mapping));
+  }, mapping)).map(node=>remapCanvasEdits(node,mapping));
   return { page: { ...page, nodes: [...page.nodes, ...copies] }, id: mapping.get(id)! };
 }
 
 export function duplicatePage(page: GameFlowPage, makeId: () => string): GameFlowPage {
-  const mapping = new Map(page.nodes.map((node) => [node.id, makeId()]));
+  const mapping = new Map(ownedCanvasNodes(page.nodes).map((node) => [node.id, makeId()]));
+  const pageId = makeId();
   return {
-    ...page, id: makeId(), name: `${page.name} 副本`,
+    ...page, id: pageId, name: `${page.name} 副本`,
     ...(page.componentRootId ? { componentRootId: mapping.get(page.componentRootId) ?? page.componentRootId } : {}),
     ...(page.layout ? { layout: { ...page.layout } } : {}),
     frame: { ...page.frame, x: page.frame.x + page.frame.width + 80 },
     nodes: page.nodes.map((node) => remapControlReferences({ ...structuredClone(node), id: mapping.get(node.id)!, frame: { ...node.frame },
       ...(node.parentId ? { parentId: mapping.get(node.parentId)! } : {}),
-      ...(node.style ? { style: { ...node.style } } : {}) }, mapping))
+      ...(node.style ? { style: { ...node.style } } : {}) }, mapping)).map(node=>remapCanvasEdits(node,mapping,{pageId}))
   };
 }
 

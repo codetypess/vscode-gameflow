@@ -14,7 +14,8 @@ function escapeHtml(value: string): string {
 export function configureGameFlowWebview(
   webview: vscode.Webview,
   extensionUri: vscode.Uri,
-  title: string
+  title: string,
+  editor: "prototype" | "psd" = "prototype"
 ): void {
   const webviewRoot = vscode.Uri.joinPath(extensionUri, "dist", "webview");
   webview.options = {
@@ -44,7 +45,7 @@ export function configureGameFlowWebview(
     .replace(/<title>.*?<\/title>/, `<title>${escapeHtml(title)}</title>`)
     .replace(
       "<head>",
-      `<head>\n    <meta http-equiv="Content-Security-Policy" content="${csp}">`
+      `<head>\n    <meta name="gameflow-editor" content="${editor}">\n    <meta http-equiv="Content-Security-Policy" content="${csp}">`
     );
 
   webview.html = html;

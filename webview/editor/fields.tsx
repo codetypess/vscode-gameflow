@@ -2,12 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import { Input } from "../components/ui/input";
 import { Slider } from "../components/ui/slider";
 import { ColorEditSession } from "../lib/color-edit";
+import { useOverrideAttributes } from "./override-properties";
 
 export function Field({ label, ariaLabel, value, onCommit, type = "text", min, max, integer = false, precision, step, disabled = false, readOnly = false, validate }: {
   label: string; value: string | number; onCommit: (value: string) => void;
   ariaLabel?: string;
   type?: string; min?: number; max?: number; integer?: boolean; precision?: number; step?: number; disabled?: boolean; readOnly?: boolean; validate?: (value: string) => boolean;
 }) {
+  const override = useOverrideAttributes(ariaLabel ?? label);
   const displayed = integer ? String(Math.round(Number(value))) : precision !== undefined ? String(Number(Number(value).toFixed(precision))) : String(value);
   const [draft, setDraft] = useState(displayed);
   const edited = useRef(false);
@@ -23,7 +25,7 @@ export function Field({ label, ariaLabel, value, onCommit, type = "text", min, m
     setDraft(precision !== undefined ? String(Number(Number(next).toFixed(precision))) : next);
     if (changed) onCommit(next);
   };
-  return <label className="property-field" title={ariaLabel}><span>{label}</span><Input aria-label={ariaLabel ?? label} type={type} value={draft} min={min} max={max} step={integer ? 1 : step ?? (precision !== undefined ? 10 ** -precision : undefined)} disabled={disabled} readOnly={readOnly}
+  return <label className="property-field" {...override}><span>{label}</span><Input aria-label={ariaLabel ?? label} type={type} value={draft} min={min} max={max} step={integer ? 1 : step ?? (precision !== undefined ? 10 ** -precision : undefined)} disabled={disabled} readOnly={readOnly}
     onFocus={(event) => { if (type === "number") event.currentTarget.select(); }}
     onChange={(event) => { edited.current = true; setDraft(event.target.value); }} onBlur={commit}
     onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); if (event.key === "Escape") { setDraft(displayed); edited.current = false; event.stopPropagation(); } }} /></label>;
@@ -38,7 +40,8 @@ export interface NumericProperty {
 export function NumericPropertyRow({ label, fields, disabled, integer, precision }: {
   label: string; fields: readonly NumericProperty[]; disabled?: boolean; integer?: boolean; precision?: number;
 }) {
-  return <div className="numeric-property-row" role="group" aria-label={label}><span>{label}</span>
+  const override = useOverrideAttributes(label);
+  return <div className="numeric-property-row" {...override} role="group" aria-label={label}><span>{label}</span>
     <div className="numeric-property-values" style={{ gridTemplateColumns: `repeat(${fields.length}, minmax(0, 1fr))` }}>
       {fields.map(field => <Field key={field.ariaLabel} label={field.axis} ariaLabel={field.ariaLabel} type="number" value={field.value} integer={integer} precision={precision} min={field.min} max={field.max} disabled={disabled || field.disabled} readOnly={field.readOnly} onCommit={value => field.onCommit(Number(value))} />)}
     </div>
@@ -49,7 +52,8 @@ export function SliderPropertyRow({ label, value, onCommit, min = 0, max = 1, st
   label: string; value: number; onCommit: (value: number) => void;
   min?: number; max?: number; step?: number; precision?: number; disabled?: boolean;
 }) {
-  return <div className="slider-property-row" role="group" aria-label={label}><span>{label}</span>
+  const override = useOverrideAttributes(label);
+  return <div className="slider-property-row" {...override} role="group" aria-label={label}><span>{label}</span>
     <Slider aria-label={`${label}滑块`} value={[value]} min={min} max={max} step={step} disabled={disabled} onValueChange={([next]) => onCommit(next)} />
     <Field label="" ariaLabel={label} type="number" value={value} min={min} max={max} step={step} precision={precision} disabled={disabled} onCommit={next => onCommit(Number(next))} />
   </div>;

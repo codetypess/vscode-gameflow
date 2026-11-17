@@ -4,11 +4,17 @@ import {
 } from "./model";
 import { isCanvasReferenceSource } from "./model";
 import type { CanvasSources } from "./canvas-references";
+import type { CanvasApplyRequest } from "./canvas-instances";
+import { validCanvasTarget, validCanvasSelections, isCanvasProperty } from "./canvas-instance-data";
+import { isSliceExportBatch, type ResourceConflict, type SliceExportBatch } from "./psd-export";
 
 export type WebviewToHostMessage =
+  | { type: "openPsdEditor" }
+  | { type: "psdResourceExport"; requestId: string; action: "choose" | "export"; batch?: SliceExportBatch }
   | { type: "ready" }
   | { type: "history"; action: "undo" | "redo" }
   | { type: "save" }
+  | { type: "applyCanvasOverrides"; requestId: string; baseVersion: number; request: CanvasApplyRequest; expectedSources: Record<string, string> }
   | { type: "chooseCanvasSource" }
   | { type: "openCanvasSource"; source: string }
   | { type: "psdOutput"; requestId: string; name: string; kind: "psd" | "meta"; base64: string }
@@ -19,9 +25,10 @@ export type WebviewToHostMessage =
     };
 
 export type HostToWebviewMessage =
+  | { type: "psdResourceExportResult"; requestId: string; directory?: string; count?: number; cancelled?: boolean; error?: string; conflicts?: ResourceConflict[] }
   | { type: "canvasSources"; sources: CanvasSources; pickedSource?: string; error?: string }
   | { type: "psdOutputResult"; requestId: string; saved: boolean; error?: string }
-  | { type: "commandCompleted"; action: "save" | "undo" | "redo" }
+  | { type: "commandCompleted"; action: "save" | "undo" | "redo" | "applyCanvas"; requestId?: string }
   | {
       type: "init";
       document: GameFlowDocument;
@@ -55,7 +62,13 @@ export function isWebviewToHostMessage(
   if (value.type === "ready") {
     return true;
   }
-  if (value.type === "save") return true;
+  if (value.type === "save" || value.type === "openPsdEditor") return true;
+  if (value.type === "psdResourceExport") return typeof value.requestId === "string" && value.requestId.length > 0 && value.requestId.length <= 80 && (value.action === "choose" ? value.batch === undefined : value.action === "export" && isSliceExportBatch(value.batch));
+  if (value.type === "applyCanvasOverrides") {
+    const request = value.request;
+    if (isRecord(request) && request.selections !== undefined && (!validCanvasSelections(request.selections) || request.target !== undefined || request.fields !== undefined)) return false;
+    return typeof value.requestId === "string" && value.requestId.length <= 80 && Number.isInteger(value.baseVersion) && isRecord(request) && typeof request.pageId === "string" && typeof request.ownerId === "string" && (request.target === undefined || validCanvasTarget(request.target)) && (request.fields === undefined || Array.isArray(request.fields) && request.fields.length <= 200 && request.fields.every(field => typeof field === "string" && isCanvasProperty(field))) && isRecord(value.expectedSources) && Object.keys(value.expectedSources).length <= 64 && Object.entries(value.expectedSources).every(([source, stamp]) => isCanvasReferenceSource(source) && typeof stamp === "string" && stamp.length <= 100);
+  }
   if (value.type === "chooseCanvasSource") return true;
   if (value.type === "openCanvasSource") return isCanvasReferenceSource(value.source) && value.source !== "";
   if (value.type === "psdOutput") {

@@ -4,6 +4,7 @@ import { isCanvasReferenceSource, parseGameFlowDocument, serializeGameFlowDocume
 import { loadCanvasSources, type CanvasSources } from "../shared/canvas-references";
 import { migrateDocumentElementIds } from "../shared/document-id-migration";
 import type { HostToWebviewMessage } from "../shared/protocol";
+import { canvasFingerprint, findOwnedCanvasNode, planCanvasApply, type CanvasApplyRequest } from "../shared/canvas-instances";
 
 /** Per-editor dependency lifecycle; source refreshes never replace the edited document. */
 export class CanvasReferenceController implements vscode.Disposable {
@@ -37,6 +38,7 @@ export class CanvasReferenceController implements vscode.Disposable {
         const text = opened?.isDirty ? opened.getText() : Buffer.from(await vscode.workspace.fs.readFile(uri)).toString("utf8");
         return parseGameFlowDocument(text);
       }, [...this.extra]);
+      await Promise.all(Object.entries(sources).map(async ([source,entry])=>{try {const stat=await vscode.workspace.fs.stat(this.uri(source));entry.readOnly=!!(stat.permissions && stat.permissions & vscode.FilePermission.Readonly) || vscode.workspace.fs.isWritableFileSystem(this.document.uri.scheme) === false;} catch { /* Unavailable sources already carry their read diagnostic. */ }}));
       if (this.disposed || epoch !== this.epoch) return;
       this.sources = sources;
       for (const [source, watcher] of this.watchers) if (!sources[source]) { watcher.dispose(); this.watchers.delete(source); }
@@ -77,6 +79,37 @@ export class CanvasReferenceController implements vscode.Disposable {
     if (!Object.hasOwn(this.sources, source)) return;
     try { await vscode.commands.executeCommand("vscode.openWith", this.uri(source), "gameflow.canvasEditor"); }
     catch (error) { this.post({ type: "canvasSources", sources: this.sources, error: String(error) }); }
+  }
+  async apply(request: CanvasApplyRequest, expectedSources: Record<string,string>, baseVersion: number): Promise<void> {
+    if (baseVersion !== this.document.version) throw new Error("实例文档已变化，请刷新后重新应用。");
+    const current = parseGameFlowDocument(this.document.getText());
+    const page = current.pages.find(page => page.id === request.pageId);
+    if (!page || !findOwnedCanvasNode({ ...current, pages: [page] }, request.ownerId)?.prefab) throw new Error("引用实例不属于当前页面。");
+    const opened = new Map<string, { document: vscode.TextDocument; version: number }>();
+    const sources = await loadCanvasSources(current, async source => {
+      if (!Object.hasOwn(this.sources, source)) throw new Error("来源不在已登记依赖中，请刷新后重试。");
+      const document = await vscode.workspace.openTextDocument(this.uri(source));
+      opened.set(source, { document, version: document.version });
+      return parseGameFlowDocument(document.getText());
+    });
+    for (const [source, entry] of Object.entries(sources)) if (entry.document && expectedSources[source] !== canvasFingerprint(entry.document)) throw new Error("源组件已变化，请查看最新源值后重新应用。");
+    const plan = planCanvasApply(current, sources, request);
+    for (const uri of [this.document.uri,...plan.source?[this.uri(plan.source)]:[]]) {
+      const stat=await vscode.workspace.fs.stat(uri);
+      if (stat.permissions && stat.permissions & vscode.FilePermission.Readonly || vscode.workspace.fs.isWritableFileSystem(uri.scheme) === false) throw new Error("源或实例文件只读，属性覆盖已保留。");
+    }
+    const edit = new vscode.WorkspaceEdit();
+    const replace = (document: vscode.TextDocument, candidate: GameFlowDocument) => edit.replace(document.uri, new vscode.Range(document.positionAt(0), document.positionAt(document.getText().length)), serializeGameFlowDocument(candidate));
+    replace(this.document, plan.document);
+    if (plan.source) {
+      const source = opened.get(plan.source);
+      if (!source) throw new Error("源文档尚未就绪。");
+      replace(source.document, plan.sourceDocument);
+    }
+    if (this.document.version !== baseVersion || [...opened.values()].some(item => item.document.version !== item.version)) throw new Error("文档在应用期间变化，请重试。");
+    // A text-only WorkspaceEdit is applied as one native all-or-nothing undo unit.
+    if (!await vscode.workspace.applyEdit(edit)) throw new Error("未能应用到源组件，本地覆盖已保留。请检查源文件是否只读。");
+    await this.refresh();
   }
   dispose() {
     this.disposed = true; ++this.epoch;

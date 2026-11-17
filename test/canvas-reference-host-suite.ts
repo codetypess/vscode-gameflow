@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import type * as vscode from "vscode";
 import { readFileSync } from "node:fs";
 import { CanvasReferenceController } from "../src/canvas-reference-controller";
+import { canvasFingerprint, composeCanvasPage, editCanvasPage } from "../shared/canvas-instances";
 import { parseGameFlowDocument } from "../shared/model";
 import type { HostToWebviewMessage } from "../shared/protocol";
 import { referenceHost, TestTextDocument, Uri, workspace } from "./vscode-reference-host";
@@ -93,4 +94,37 @@ test("host invalid dependency JSON reports an error and recovers when the file i
     const next = f.nextMessage(); referenceHost.watchers[0].change.fire(); await next;
     assert.ok(f.messages.at(-1)!.sources["shared-components.gameflow.json"].document);
   } finally { f.controller.dispose(); }
+});
+
+test("host apply preserves dirty source text and submits source and cleanup in one edit",async()=>{
+  const f=fixture();try {
+    await f.controller.refresh();const sources=f.messages.at(-1)!.sources, current=parseGameFlowDocument(f.document.text);
+    const c=composeCanvasPage(current,current.pages[0],sources), id=[...c.info].find(([,m])=>m.ownerId==="demoref1"&&m.target.path.at(-1)?.nodeId==="cardtext")![0];
+    const edited=editCanvasPage(current,current.pages[0].id,sources,page=>({...page,nodes:page.nodes.map(n=>n.id===id?{...n,text:"应用文案"}:n)}));
+    f.document.text=JSON.stringify(edited);++f.document.version;
+    const source=await workspace.openTextDocument(new Uri("/workspace/modules/shared-components.gameflow.json"));
+    const dirty=parseGameFlowDocument(source.text);dirty.title="源未保存的其他修改";source.text=JSON.stringify(dirty);source.isDirty=true;++source.version;
+    await f.controller.refresh();const expected=Object.fromEntries(Object.entries(f.messages.at(-1)!.sources).map(([key,entry])=>[key,canvasFingerprint(entry.document!)]));
+    await f.controller.apply({pageId:current.pages[0].id,ownerId:"demoref1",selections:edited.pages[0].nodes.find(n=>n.id==="demoref1")!.instanceEdits!.overrides.map(patch=>({target:patch.target,fields:["text"]}))},expected,f.document.version);
+    assert.equal(referenceHost.edits.length,1);assert.equal(referenceHost.edits[0].edits.length,2);
+    const result=parseGameFlowDocument(source.text);assert.equal(result.title,dirty.title);assert.equal(result.pages[0].nodes[1].text,"应用文案");assert.equal(source.isDirty,true);
+    assert.equal(parseGameFlowDocument(f.document.text).pages[0].nodes.find(n=>n.id==="demoref1")!.instanceEdits!.overrides.length,0);
+  } finally {f.controller.dispose();}
+});
+test("host rejects stale sources, stale instance versions and refused edits without losing either document",async()=>{
+  const f=fixture();try {
+    await f.controller.refresh();const current=parseGameFlowDocument(f.document.text),sources=f.messages.at(-1)!.sources;
+    const c=composeCanvasPage(current,current.pages[0],sources),id=[...c.info].find(([,m])=>m.ownerId==="demoref1"&&m.target.path.at(-1)?.nodeId==="cardtext")![0];
+    f.document.text=JSON.stringify(editCanvasPage(current,current.pages[0].id,sources,page=>({...page,nodes:page.nodes.map(n=>n.id===id?{...n,text:"局部"}:n)})));
+    const before=f.document.text, sourceBefore=f.source, request={pageId:current.pages[0].id,ownerId:"demoref1"};
+    await assert.rejects(f.controller.apply(request,{},f.document.version),/源组件已变化/);
+    await assert.rejects(f.controller.apply(request,{},99),/实例文档已变化/);
+    referenceHost.readOnly.add("/workspace/modules/shared-components.gameflow.json");
+    await assert.rejects(f.controller.apply(request,{"shared-components.gameflow.json":canvasFingerprint(sources["shared-components.gameflow.json"].document!)},f.document.version),/只读/);
+    referenceHost.readOnly.clear();
+    referenceHost.rejectApply=true;
+    await assert.rejects(f.controller.apply(request,{"shared-components.gameflow.json":canvasFingerprint(sources["shared-components.gameflow.json"].document!)},f.document.version),/未能应用/);
+    assert.equal(f.document.text,before);assert.equal(workspace.textDocuments.find(d=>d!==f.document)!.text,sourceBefore);
+    assert.equal(referenceHost.edits.length,1);
+  } finally {f.controller.dispose();}
 });

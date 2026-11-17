@@ -5,10 +5,11 @@ import type { ConstraintLayout, NodeLayout, WidgetProps } from "./ui-config";
 import { variableNameError } from "./node-variable";
 import { validateControlReferences } from "./ui-parts";
 import { validateNodeTransform, type NodeTransform } from "./ui-transform";
+import { isCanvasProperty, readProperty, targetKey, ownedCanvasNodes, validCanvasTarget, writeProperty, type CanvasInstanceEdits } from "./canvas-instance-data";
 export type { NodeTransform } from "./ui-transform";
 export type { ConstraintLayout, NodeLayout, WidgetProps } from "./ui-config";
 
-export const GAMEFLOW_SCHEMA_VERSION = 4 as const;
+export const GAMEFLOW_SCHEMA_VERSION = 5 as const;
 export const CANVAS_INSTANCE_LAYOUT_KEYS: readonly string[] = ["left", "right", "centerX", "top", "bottom", "centerY", "layoutUnit", "widthMode", "heightMode", "crossAxisMode", "positionOffsetX", "positionOffsetY"];
 
 export interface CanvasReference {
@@ -66,6 +67,7 @@ export interface GameFlowNode {
   widget?: WidgetProps;
   transform?: NodeTransform;
   prefab?: CanvasReference;
+  instanceEdits?: CanvasInstanceEdits;
 }
 
 export interface NodeStyle {
@@ -116,7 +118,7 @@ export interface GameFlowInteraction {
 }
 
 export interface GameFlowDocument {
-  schemaVersion: 1 | 2 | 3 | typeof GAMEFLOW_SCHEMA_VERSION;
+  schemaVersion: 1 | 2 | 3 | 4 | typeof GAMEFLOW_SCHEMA_VERSION;
   elementIdScheme?: typeof ELEMENT_ID_SCHEME;
   documentId: string;
   title: string;
@@ -199,8 +201,9 @@ function validateRequirement(
 function validateNode(
   value: unknown,
   path: string,
-  errors: string[]
+  errors: string[], depth = 0
 ): value is GameFlowNode {
+  if (depth > 24) { errors.push(`${path} nesting exceeds 24 levels`); return false; }
   if (!isRecord(value)) {
     errors.push(`${path} must be an object`);
     return false;
@@ -213,6 +216,50 @@ function validateNode(
   }
   const frameValid = validateFrame(value.frame, `${path}.frame`, errors);
   let optionalValid = true;
+  if (value.instanceEdits !== undefined) {
+    const edits = value.instanceEdits;
+    if (!value.prefab || !isRecord(edits) || Object.keys(edits).some(k => !["overrides", "additions"].includes(k)) || !Array.isArray(edits.overrides) || !Array.isArray(edits.additions) || edits.overrides.length > 5000 || edits.additions.length > 5000) {
+      errors.push(`${path}.instanceEdits must contain bounded overrides and additions on a reference`); optionalValid = false;
+    } else {
+      const targets = new Set<string>();
+      for (const [i, patch] of edits.overrides.entries()) {
+        const at = `${path}.instanceEdits.overrides[${i}]`;
+        if (!isRecord(patch) || Object.keys(patch).some(k => !["target", "set", "unset"].includes(k)) || !validCanvasTarget(patch.target) || !isRecord(patch.set) || !Array.isArray(patch.unset) || patch.unset.some(k => typeof k !== "string" || !isCanvasProperty(k) || k === "name" || k.startsWith("frame.")) || Object.keys(patch.set).some(k => !isCanvasProperty(k) || (patch.unset as unknown[]).includes(k))) {
+          errors.push(`${at} has invalid target or property paths`); optionalValid = false; continue;
+        }
+        const key = targetKey(patch.target);
+        if (targets.has(key)) { errors.push(`${at} duplicates an override target`); optionalValid = false; } targets.add(key);
+        if (!patch.target.path.length && [...Object.keys(patch.set), ...patch.unset].some(field => ["name", "variableName", "hidden", "style.opacity"].includes(field) || field.startsWith("frame.") || field.startsWith("transform.") || field.startsWith("layout.") && CANVAS_INSTANCE_LAYOUT_KEYS.includes(field.slice(7)))) {
+          errors.push(`${at} contains an independently owned root property`); optionalValid = false;
+        }
+        // Validate values independently of external source availability. Full target compatibility is composed later.
+        for (const [field, v] of Object.entries(patch.set)) {
+          if (field === "widget.skinNodeId" && isRecord(v) && Object.keys(v).length === 1 && validCanvasTarget(v.canvasTarget)) continue;
+          if (field === "widget.optionNodeIds" && Array.isArray(v) && v.length <= 1000 && v.every(item => item === null || isRecord(item) && Object.keys(item).length === 1 && validCanvasTarget(item.canvasTarget))) continue;
+          if (["widget.skinNodeId", "widget.optionNodeIds"].includes(field) && v !== null) { errors.push(`${at}.set.${field} must use scoped canvas targets`); optionalValid = false; continue; }
+          const test = writeProperty({ id: "validate", name: "validate", type: "container", frame: { x: 0, y: 0, width: 1, height: 1 } }, field, v);
+          if (field.startsWith("widget.")) test.type = field === "widget.optionNodeIds" ? "radioGroup" : field === "widget.skinNodeId" ? "slider" : "text";
+          if (field.startsWith("widget.") && typeof v === "number" && Number.isFinite(v)) {
+            if (field === "widget.min") test.widget = {min:v,max:v+1,value:v};
+            if (field === "widget.max") test.widget = {min:v-1,max:v,value:v};
+            if (field === "widget.value") test.widget = {min:v-1,max:v+1,value:v};
+            if (field === "widget.selectedIndex" && v >= 0 && v < 1000) test.widget = {selectedIndex:v,options:Array(v+1).fill("")};
+          }
+          optionalValid = validateNode(test, `${at}.set`, errors) && optionalValid;
+        }
+      }
+      for (const [i, addition] of edits.additions.entries()) {
+        const at = `${path}.instanceEdits.additions[${i}]`;
+        if (!isRecord(addition) || Object.keys(addition).some(k => !["node", "parent", "before", "references"].includes(k)) || !validCanvasTarget(addition.parent) || (addition.before !== undefined && !validCanvasTarget(addition.before)) || !isRecord(addition.node) || addition.node.parentId !== undefined) {
+          errors.push(`${at} has invalid addition or parent`); optionalValid = false; continue;
+        }
+        optionalValid = validateNode(addition.node, `${at}.node`, errors, depth + 1) && optionalValid;
+        if (typeof readProperty(addition.node,"widget.skinNodeId") === "string" || Array.isArray(readProperty(addition.node,"widget.optionNodeIds")) && (readProperty(addition.node,"widget.optionNodeIds") as unknown[]).some(id=>id!==null)) { errors.push(`${at} control references must use scoped targets`); optionalValid = false; }
+        if (isRecord(addition.references) && Object.keys(addition.references).some(field=>readProperty(addition.node,field)!==undefined)) {errors.push(`${at} duplicates a scoped control reference`); optionalValid=false;}
+        if (addition.references !== undefined && (!isRecord(addition.references) || Object.entries(addition.references).some(([k,v]) => (k === "widget.skinNodeId" ? !validCanvasTarget(v) : k === "widget.optionNodeIds" ? !(Array.isArray(v) && v.length <= 1000 && v.every(item => item === null || validCanvasTarget(item))) : true)))) { errors.push(`${at}.references is invalid`); optionalValid = false; }
+      }
+    }
+  }
   if (value.prefab !== undefined) {
     if (!isRecord(value.prefab) || !isCanvasReferenceSource(value.prefab.source)) {
       errors.push(`${path}.prefab.source must be empty or a relative .gameflow.json path`);
@@ -380,7 +427,7 @@ function validateElementIds(pages: readonly GameFlowPage[], errors: string[]): v
   };
   pages.forEach((page, pageIndex) => {
     check(page.id, `pages[${pageIndex}].id`);
-    page.nodes.forEach((node, nodeIndex) => {
+    ownedCanvasNodes(page.nodes).forEach((node, nodeIndex) => {
       check(node.id, `pages[${pageIndex}].nodes[${nodeIndex}].id`);
     });
   });
@@ -392,7 +439,7 @@ export function validateGameFlowDocument(value: unknown): ValidationResult {
     return { ok: false, errors: ["document must be an object"] };
   }
 
-  if (value.schemaVersion !== 1 && value.schemaVersion !== 2 && value.schemaVersion !== 3 && value.schemaVersion !== GAMEFLOW_SCHEMA_VERSION) {
+  if (![1, 2, 3, 4, GAMEFLOW_SCHEMA_VERSION].includes(value.schemaVersion as number)) {
     errors.push(`schemaVersion must be 1, 2, 3 or ${GAMEFLOW_SCHEMA_VERSION}`);
   }
   if (value.elementIdScheme !== undefined && value.elementIdScheme !== ELEMENT_ID_SCHEME) {
@@ -456,7 +503,7 @@ export function validateGameFlowDocument(value: unknown): ValidationResult {
       }
     }
     for (const page of pages) {
-      if (page.componentRootId !== undefined && value.schemaVersion !== 4) errors.push(`page ${page.id} componentRootId requires schemaVersion 4`);
+      if (page.componentRootId !== undefined && Number(value.schemaVersion) < 4) errors.push(`page ${page.id} componentRootId requires schemaVersion 4`);
       validateControlReferences(page, errors);
       if (value.schemaVersion === 1 && page.rootType !== undefined) {
         errors.push(`page ${page.id} rootType requires schemaVersion 2`);
@@ -464,7 +511,8 @@ export function validateGameFlowDocument(value: unknown): ValidationResult {
       if (value.schemaVersion === 1 && page.layout !== undefined) errors.push(`page ${page.id} layout requires schemaVersion 2`);
       const nodeIds = new Set(page.nodes.map((node) => node.id));
       for (const node of page.nodes) {
-        if (node.prefab && value.schemaVersion !== 4) errors.push(`node ${node.id} prefab requires schemaVersion 4`);
+        if (node.prefab && Number(value.schemaVersion) < 4) errors.push(`node ${node.id} prefab requires schemaVersion 4`);
+        if (node.instanceEdits && Number(value.schemaVersion) < 5) errors.push(`node ${node.id} instanceEdits requires schemaVersion 5`);
         if (Number(value.schemaVersion) < 3 && (node.type === "radioGroup" || node.widget?.skinNodeId !== undefined || node.widget?.optionNodeIds !== undefined)) errors.push(`node ${node.id} control references require schemaVersion 3`);
         if (value.schemaVersion === 1 && (node.transform !== undefined || node.variableName !== undefined || node.layout || node.widget || !["container", "rectangle", "text", "button", "image", "list", "input"].includes(node.type))) {
           errors.push(`node ${node.id} UI configuration requires schemaVersion 2`);

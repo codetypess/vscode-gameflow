@@ -1,7 +1,7 @@
 import { allocateElementId } from "./element-id";
 
 export type NineGrid = { top: number; right: number; bottom: number; left: number; repeat: boolean };
-export type SliceConfig = { enabled: boolean; name: string; nineGrid: NineGrid | null };
+export type SliceConfig = { enabled: boolean; name: string; exportName?: string; shared?: boolean; nineGrid: NineGrid | null };
 export type PsdLayerMeta = Record<string, unknown> & { namespace: "com.codetypes.gameflow"; version: 1; documentId: string; layerId: string; slicing?: SliceConfig };
 export type PsdLayer = { key: number; nativeId: number | null; parentKey: number | null; name: string; group: boolean; left: number; top: number; width: number; height: number; hidden: boolean; identityOrigin: "embedded" | "new"; metadata: PsdLayerMeta; config: SliceConfig; image?: string; text?: boolean; limitation?: string };
 export type PsdAsset = { name: string; sourceHash: string; documentId: string; hasEmbeddedIdentity: boolean; width: number; height: number; layers: PsdLayer[]; preview: string };
@@ -21,7 +21,7 @@ export function setGridEdge(grid: NineGrid, edge: "top" | "right" | "bottom" | "
   return { ...grid, [edge]: Math.max(0, Math.min(Math.max(0, limit), Math.round(Number.isFinite(value) ? value : 0))) };
 }
 export function validConfig(value: unknown, width: number, height: number): value is SliceConfig {
-  return record(value) && typeof value.enabled === "boolean" && typeof value.name === "string" && value.name.length <= 120 && (value.nineGrid === null || validGrid(value.nineGrid, width, height));
+  return record(value) && typeof value.enabled === "boolean" && typeof value.name === "string" && value.name.length <= 120 && (value.exportName === undefined || typeof value.exportName === "string" && value.exportName.length <= 120) && (value.shared === undefined || typeof value.shared === "boolean") && (value.nineGrid === null || validGrid(value.nineGrid, width, height));
 }
 export function identityProblems(asset: PsdAsset): string[] {
   const counts = new Map<string, number>();

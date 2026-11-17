@@ -5,6 +5,7 @@ import { CONSTRAINTS } from "./ui-config";
 import { resolvePageLayout } from "./ui-layout";
 import { allocateVariableName } from "./node-variable";
 import { controlSelected, remapControlReferences } from "./ui-parts";
+import { ownedCanvasNodes, remapCanvasEdits } from "./canvas-instance-data";
 
 export interface NodeClipboard { rootId: string; rootIds?: string[]; nodes: GameFlowNode[] }
 
@@ -26,7 +27,7 @@ export function pasteNode(page: GameFlowPage, clipboard: NodeClipboard, makeId: 
   const anchor = page.nodes.find((node) => node.id === afterId);
   if ((parentId && (!parent || !canHaveChildren(parent) || inheritedFlag(page, parent, "locked"))) ||
     (afterId && (!anchor || anchor.parentId !== parentId))) return { page, id: null };
-  const mapping = new Map(clipboard.nodes.map((node) => [node.id, makeId()]));
+  const mapping = new Map(ownedCanvasNodes(clipboard.nodes).map((node) => [node.id, makeId()]));
   const rootIds = clipboard.rootIds ?? [clipboard.rootId];
   const variableNames = new Set(page.nodes.flatMap((node) => node.variableName ? [node.variableName] : []));
   const copies = structuredClone(clipboard.nodes).map((node) => {
@@ -40,7 +41,7 @@ export function pasteNode(page: GameFlowPage, clipboard: NodeClipboard, makeId: 
       delete next.layout.positionOffsetX; delete next.layout.positionOffsetY;
       if (parentId) next.parentId = parentId; else delete next.parentId;
     } else next.parentId = mapping.get(node.parentId!)!;
-    return remapControlReferences(next, mapping);
+    return remapControlReferences(remapCanvasEdits(next, mapping), mapping);
   });
   const ids = rootIds.map(id => mapping.get(id)!);
   let inserted = page, anchorId = afterId;

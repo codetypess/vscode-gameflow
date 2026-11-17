@@ -69,6 +69,8 @@ CheckBox/Radio 的普通背景和文字不会随 selected 自动换图；disable
 
 首次关联现有 PSD/Prefab 时建立对应关系；无历史绑定时让用户指定目标。PSD 图层名和 Prefab 节点名可以提供搜索便利，身份以持久 ID 与作用域为准。
 
+资源按用户确定的统一目录名称识别，中文图层名用于策划/美术。未自定义时以 placeholder 显示拼音首字母默认名：包含“按钮”的图层用 btn_，其他用 img_；非共享包含 PSD 文件名和图层名，共享仅包含图层名。自定义优先且不随共享开关改变。同名图层同时导出冲突，异源同名资源未共享则拒绝、共享且导出则覆盖并更新来源。目录清单记录生成 PSD 和图层身份，控件 variableName 与文件名独立。详见 [PSD 命名与目录导出](psd-export-names.md)。
+
 ### 5.2 插入即带部件，属性面板允许指定引用
 
 工作台的“容器能力”表示可以组织和编辑子节点，与节点是否自身绘制、是否带交互行为分别描述。UIButton、UICheckBox、UIRadio、UISlider 均按容器处理；具体布局和测量仍按各自目标类契约，不能仅根据 `extends UIBox` 判定是否允许子节点，也不能把 UIBox 的全部属性统一施加到所有容器控件。
@@ -125,7 +127,7 @@ PSD 不提供 Slider 的 min/max/value、节点引用或运行时布局语义，
 
 CheckBox/Radio 先提供底框与选中覆盖层，和现有引擎契约一致；若需求是选中时整套背景、文案颜色和动效一起变化，应另定目标库能力，不能仅增加 PSD 状态组就承诺运行时自动支持。
 
-资源复用应显式选择同一资源身份。不能仅因图片同名或像素相同就合并绑定；PSD 图层复制/合并的身份仍遵循既有元数据规则。美术修改只产生待采用资源，不直接改原型结构或 Prefab。
+导出资源在统一目录内按同名识别，冲突与共享覆盖遵循 [PSD 命名规则](psd-export-names.md)；像素相同不自动去重。PSD 图层复制/合并仍遵循来源元数据身份规则。图片更新不直接改变原型结构或 Prefab。
 
 ## 6. Design
 
@@ -135,8 +137,8 @@ CheckBox/Radio 先提供底框与选中覆盖层，和现有引擎契约一致�
 
 ```text
 Slider.skin ──节点引用──> 滑块 UIImage
-滑块 UIImage ──资源引用──> 图片 assetId
-图片 assetId ──来源绑定──> PSD documentId + layerId / 导出组
+滑块 UIImage ──资源引用──> 统一目录中的图片资源名
+图片资源名 ──来源清单──> PSD documentId + layerId / 导出组
 
 原型 nodeId ──目标映射──> Prefab 资源 UUID + 节点 _$id + 实例作用域
 RadioGroup.options ──有序节点引用──> Radio A、Radio B、……

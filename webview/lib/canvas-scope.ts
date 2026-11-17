@@ -31,6 +31,14 @@ export function canvasHitNode(page: GameFlowPage, scopeId: string | null, hitId?
   return null;
 }
 
+/** Right-click follows normal hit testing, preserving an already selected group member. */
+export function canvasContextTarget(page: GameFlowPage, scopeId: string | null, hitId: string | undefined, selectedIds: string[], direct = false) {
+  const member = selectedIds.length > 1 && selectedIds.includes(hitId ?? "") ? page.nodes.find(node => node.id === hitId && !inheritedFlag(page, node, "hidden")) : undefined;
+  const node = member ?? canvasHitNode(page, scopeId, hitId, direct);
+  const root = page.nodes.find(node => node.id === page.componentRootId);
+  return { id: node?.id ?? null, backgroundParentId: scopeId ?? root?.id };
+}
+
 /** Follow a reparented selection, or retreat to a surviving scope after deletion/undo. */
 export function reconcileCanvasScope(page: GameFlowPage, previousPath: string[], selectedId: string | null) {
   const selected = page.nodes.find(node => node.id === selectedId);
@@ -59,12 +67,12 @@ export function canvasPlacementPoint(page: GameFlowPage, scopeId: string | null,
   return inv ? mapPoint(inv, point) : null;
 }
 
-export function placeCanvasComponent(page: GameFlowPage, scopeId: string | null, type: InsertType, point: Point, makeId: () => string): { page: GameFlowPage; id: string | null } {
+export function placeCanvasComponent(page: GameFlowPage, scopeId: string | null, type: InsertType, point: Point, makeId: () => string, afterId?: string): { page: GameFlowPage; id: string | null } {
   if (!scopeId && page.nodes.some(node => node.id === page.componentRootId)) scopeId = page.componentRootId!;
   const local = canvasPlacementPoint(page, scopeId, point);
   if (!local) return { page, id: null };
   const nodes = makeComponent(type, makeId(), local.x, local.y, makeId);
-  const inserted = insertNode(page, nodes[0], scopeId ?? undefined);
+  const inserted = insertNode(page, nodes[0], scopeId ?? undefined, afterId);
   if (inserted === page) return { page, id: null };
   return { page: { ...inserted, nodes: [...inserted.nodes, ...nodes.slice(1)] }, id: nodes[0].id };
 }

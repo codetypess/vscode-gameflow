@@ -6,7 +6,7 @@
   "additionalProperties": false,
   "required": ["schemaVersion","documentId","title","requirements","pages","interactions"],
   "properties": {
-    "schemaVersion": { "enum": [1,2,3,4] },
+    "schemaVersion": { "enum": [1,2,3,4,5] },
     "elementIdScheme": { "const": "nanoid-8" },
     "documentId": { "type": "string", "minLength": 1 },
     "title": { "type": "string", "minLength": 1 },
@@ -62,6 +62,319 @@
     }
   },
   "$defs": {
+    "canvasTarget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path"],
+      "properties": {
+        "path": {
+          "type": "array",
+          "maxItems": 24,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["documentId","pageId","kind","nodeId"],
+            "properties": {
+              "documentId": {"type": "string","minLength": 1},
+              "pageId": {"type": "string","minLength": 1},
+              "kind": {"enum": ["node","addition"]},
+              "nodeId": {"type": "string","minLength": 1,"pattern": "^[^@]"}
+            }
+          }
+        }
+      }
+    },
+    "instanceEdits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["overrides","additions"],
+      "properties": {
+        "overrides": {
+          "type": "array",
+          "maxItems": 5000,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["target","set","unset"],
+            "properties": {
+              "target": {"$ref": "#/$defs/canvasTarget"},
+              "set": {"$ref": "#/$defs/canvasProperties"},
+              "unset": {
+                "type": "array",
+                "uniqueItems": true,
+                "items": {
+                  "enum": [
+                    "variableName",
+                    "text",
+                    "imageData",
+                    "hidden",
+                    "style.fill",
+                    "style.color",
+                    "style.borderColor",
+                    "style.borderWidth",
+                    "style.radius",
+                    "style.fontSize",
+                    "style.fontWeight",
+                    "style.italic",
+                    "style.underline",
+                    "style.strikethrough",
+                    "style.opacity",
+                    "style.textAlign",
+                    "layout.left",
+                    "layout.right",
+                    "layout.centerX",
+                    "layout.top",
+                    "layout.bottom",
+                    "layout.centerY",
+                    "layout.paddingLeft",
+                    "layout.paddingRight",
+                    "layout.paddingTop",
+                    "layout.paddingBottom",
+                    "layout.scrollX",
+                    "layout.scrollY",
+                    "layout.gap",
+                    "layout.gapX",
+                    "layout.gapY",
+                    "layout.wrapCount",
+                    "layout.clipContent",
+                    "layout.layoutUnit",
+                    "layout.widthMode",
+                    "layout.heightMode",
+                    "layout.crossAxisMode",
+                    "layout.positionOffsetX",
+                    "layout.positionOffsetY",
+                    "layout.align",
+                    "layout.valign",
+                    "layout.direction",
+                    "widget.skinNodeId",
+                    "widget.optionNodeIds",
+                    "widget.selected",
+                    "widget.disabled",
+                    "widget.password",
+                    "widget.wordWrap",
+                    "widget.min",
+                    "widget.max",
+                    "widget.value",
+                    "widget.maxChars",
+                    "widget.selectedIndex",
+                    "widget.options",
+                    "widget.placeholder",
+                    "widget.direction",
+                    "widget.overflow",
+                    "widget.valign",
+                    "widget.imageFit",
+                    "transform.anchorX",
+                    "transform.anchorY",
+                    "transform.scaleX",
+                    "transform.scaleY",
+                    "transform.skewX",
+                    "transform.skewY",
+                    "transform.rotation"
+                  ]
+                }
+              }
+            },
+            "allOf": [
+              {
+                "if": {"properties": {"target": {"properties": {"path": {"maxItems": 0}}}}},
+                "then": {
+                  "properties": {
+                    "set": {
+                      "propertyNames": {
+                        "not": {
+                          "enum": [
+                            "name",
+                            "variableName",
+                            "hidden",
+                            "style.opacity",
+                            "frame.x",
+                            "frame.y",
+                            "frame.width",
+                            "frame.height",
+                            "layout.left",
+                            "layout.right",
+                            "layout.centerX",
+                            "layout.top",
+                            "layout.bottom",
+                            "layout.centerY",
+                            "layout.layoutUnit",
+                            "layout.widthMode",
+                            "layout.heightMode",
+                            "layout.crossAxisMode",
+                            "layout.positionOffsetX",
+                            "layout.positionOffsetY",
+                            "transform.anchorX",
+                            "transform.anchorY",
+                            "transform.scaleX",
+                            "transform.scaleY",
+                            "transform.skewX",
+                            "transform.skewY",
+                            "transform.rotation"
+                          ]
+                        }
+                      }
+                    },
+                    "unset": {
+                      "items": {
+                        "not": {
+                          "enum": [
+                            "name",
+                            "variableName",
+                            "hidden",
+                            "style.opacity",
+                            "frame.x",
+                            "frame.y",
+                            "frame.width",
+                            "frame.height",
+                            "layout.left",
+                            "layout.right",
+                            "layout.centerX",
+                            "layout.top",
+                            "layout.bottom",
+                            "layout.centerY",
+                            "layout.layoutUnit",
+                            "layout.widthMode",
+                            "layout.heightMode",
+                            "layout.crossAxisMode",
+                            "layout.positionOffsetX",
+                            "layout.positionOffsetY",
+                            "transform.anchorX",
+                            "transform.anchorY",
+                            "transform.scaleX",
+                            "transform.scaleY",
+                            "transform.skewX",
+                            "transform.skewY",
+                            "transform.rotation"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "additions": {
+          "type": "array",
+          "maxItems": 5000,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["node","parent"],
+            "properties": {
+              "node": {"allOf": [{"$ref": "#/$defs/node"},{"properties": {"parentId": false}}]},
+              "parent": {"$ref": "#/$defs/canvasTarget"},
+              "before": {"$ref": "#/$defs/canvasTarget"},
+              "references": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "widget.skinNodeId": {"$ref": "#/$defs/canvasTarget"},
+                  "widget.optionNodeIds": {"type": "array","items": {"anyOf": [{"type": "null"},{"$ref": "#/$defs/canvasTarget"}]}}
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "canvasProperties": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {"type": "string","minLength": 1},
+        "variableName": {"$ref": "#/$defs/variableName"},
+        "text": {"type": "string"},
+        "imageData": {"type": "string","maxLength": 7000000,"pattern": "^data:image/(png|jpeg|webp|gif);base64,[a-zA-Z0-9+/]+=*$"},
+        "hidden": {"type": "boolean"},
+        "frame.x": {"type": "number"},
+        "frame.y": {"type": "number"},
+        "frame.width": {"type": "number","exclusiveMinimum": 0},
+        "frame.height": {"type": "number","exclusiveMinimum": 0},
+        "style.fill": {"$ref": "#/$defs/color"},
+        "style.color": {"$ref": "#/$defs/color"},
+        "style.borderColor": {"$ref": "#/$defs/color"},
+        "style.borderWidth": {"type": "number","minimum": 0},
+        "style.radius": {"type": "number","minimum": 0},
+        "style.fontSize": {"type": "number","minimum": 1},
+        "style.fontWeight": {"type": "number","minimum": 0},
+        "style.italic": {"type": "boolean"},
+        "style.underline": {"type": "boolean"},
+        "style.strikethrough": {"type": "boolean"},
+        "style.opacity": {"type": "number","minimum": 0,"maximum": 1},
+        "style.textAlign": {"enum": ["left","center","right"]},
+        "layout.left": {"anyOf": [{"type": "number"},{"type": "null"}]},
+        "layout.right": {"anyOf": [{"type": "number"},{"type": "null"}]},
+        "layout.centerX": {"anyOf": [{"type": "number"},{"type": "null"}]},
+        "layout.top": {"anyOf": [{"type": "number"},{"type": "null"}]},
+        "layout.bottom": {"anyOf": [{"type": "number"},{"type": "null"}]},
+        "layout.centerY": {"anyOf": [{"type": "number"},{"type": "null"}]},
+        "layout.paddingLeft": {"type": "number","minimum": 0},
+        "layout.paddingRight": {"type": "number","minimum": 0},
+        "layout.paddingTop": {"type": "number","minimum": 0},
+        "layout.paddingBottom": {"type": "number","minimum": 0},
+        "layout.scrollX": {"type": "number","minimum": 0},
+        "layout.scrollY": {"type": "number","minimum": 0},
+        "layout.gap": {"type": "number"},
+        "layout.gapX": {"type": "number"},
+        "layout.gapY": {"type": "number"},
+        "layout.wrapCount": {"type": "integer","minimum": 1},
+        "layout.clipContent": {"type": "boolean"},
+        "layout.layoutUnit": {"enum": ["absolute","percent"]},
+        "layout.widthMode": {"enum": ["explicit","measured"]},
+        "layout.heightMode": {"enum": ["explicit","measured"]},
+        "layout.crossAxisMode": {"enum": ["aligned","explicit"]},
+        "layout.positionOffsetX": {"type": "number"},
+        "layout.positionOffsetY": {"type": "number"},
+        "layout.align": {"enum": ["left","center","right","justify"]},
+        "layout.valign": {"enum": ["top","middle","bottom","justify"]},
+        "layout.direction": {"enum": ["horizontal","vertical"]},
+        "widget.skinNodeId": {
+          "anyOf": [
+            {"type": "null"},
+            {"type": "object","additionalProperties": false,"required": ["canvasTarget"],"properties": {"canvasTarget": {"$ref": "#/$defs/canvasTarget"}}}
+          ]
+        },
+        "widget.optionNodeIds": {
+          "type": "array",
+          "maxItems": 1000,
+          "items": {
+            "anyOf": [
+              {"type": "null"},
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["canvasTarget"],
+                "properties": {"canvasTarget": {"$ref": "#/$defs/canvasTarget"}}
+              }
+            ]
+          }
+        },
+        "widget.selected": {"type": "boolean"},
+        "widget.disabled": {"type": "boolean"},
+        "widget.password": {"type": "boolean"},
+        "widget.wordWrap": {"type": "boolean"},
+        "widget.min": {"type": "number"},
+        "widget.max": {"type": "number"},
+        "widget.value": {"type": "number"},
+        "widget.maxChars": {"type": "integer","minimum": 0},
+        "widget.selectedIndex": {"type": "integer","minimum": -1},
+        "widget.options": {"type": "array","maxItems": 1000,"items": {"type": "string"}},
+        "widget.placeholder": {"type": "string"},
+        "widget.direction": {"enum": ["horizontal","vertical"]},
+        "widget.overflow": {"enum": ["visible","hidden"]},
+        "widget.valign": {"enum": ["top","middle","bottom"]},
+        "widget.imageFit": {"enum": ["contain","cover","fill"]},
+        "transform.anchorX": {"type": "number","minimum": 0,"maximum": 1},
+        "transform.anchorY": {"type": "number","minimum": 0,"maximum": 1},
+        "transform.scaleX": {"type": "number"},
+        "transform.scaleY": {"type": "number"},
+        "transform.skewX": {"type": "number"},
+        "transform.skewY": {"type": "number"},
+        "transform.rotation": {"type": "number"}
+      }
+    },
     "rootLayout": {
       "type": "object", "additionalProperties": false,
       "properties": {
@@ -108,6 +421,7 @@
     },
     "node": {
       "allOf": [
+        { "if": { "not": { "required": ["prefab"] } }, "then": { "properties": { "instanceEdits": false } } },
         { "if": { "required": ["prefab"] }, "then": { "properties": { "type": { "const": "container" }, "text": false, "imageData": false, "widget": false, "style": { "propertyNames": { "const": "opacity" } }, "layout": { "propertyNames": { "enum": ["left","right","centerX","top","bottom","centerY","layoutUnit","widthMode","heightMode","crossAxisMode","positionOffsetX","positionOffsetY"] }, "properties": { "widthMode": { "const": "explicit" }, "heightMode": { "const": "explicit" } } } } } },
         { "if": { "properties": { "type": { "not": { "enum": ["checkbox","radio","slider"] } } } }, "then": { "properties": { "widget": { "not": { "required": ["skinNodeId"] } } } } },
         { "if": { "properties": { "type": { "not": { "const": "radioGroup" } } } }, "then": { "properties": { "widget": { "not": { "required": ["optionNodeIds"] } } } } }
@@ -121,6 +435,7 @@
         "variableName": { "$ref": "#/$defs/variableName" },
         "type": { "enum": ["container","rectangle","text","button","image","list","input","hbox","vbox","grid","panel","checkbox","radio","radioGroup","progress","slider","combo"] },
         "parentId": { "type": "string", "minLength": 1 },
+        "instanceEdits": { "$ref": "#/$defs/instanceEdits" },
         "prefab": {
           "type": "object", "additionalProperties": false, "required": ["source","documentId","pageId"],
           "properties": {
@@ -275,6 +590,7 @@
       }
     },
     { "if": { "properties": { "schemaVersion": { "enum": [1,2] } } }, "then": { "properties": { "pages": { "items": { "properties": { "nodes": { "items": { "properties": { "type": { "not": { "const": "radioGroup" } }, "widget": { "not": { "anyOf": [{ "required": ["skinNodeId"] }, { "required": ["optionNodeIds"] }] } } } } } } } } } } },
-    { "if": { "properties": { "schemaVersion": { "enum": [1,2,3] } } }, "then": { "properties": { "pages": { "items": { "properties": { "componentRootId": false, "nodes": { "items": { "properties": { "prefab": false } } } } } } } } }
+    { "if": { "properties": { "schemaVersion": { "enum": [1,2,3] } } }, "then": { "properties": { "pages": { "items": { "properties": { "componentRootId": false, "nodes": { "items": { "properties": { "prefab": false } } } } } } } } },
+    { "if": { "properties": { "schemaVersion": { "enum": [1,2,3,4] } } }, "then": { "properties": { "pages": { "items": { "properties": { "nodes": { "items": { "properties": { "instanceEdits": false } } } } } } } } }
   ]
 }

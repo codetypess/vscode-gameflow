@@ -1,11 +1,13 @@
 import { useEffect, useId, useState } from "react";
 import type { GameFlowNode, GameFlowPage } from "../../shared/model";
 import { nodeVariableNameError } from "../../shared/node-variable";
+import { useOverrideAttributes } from "./override-properties";
 import { Input } from "../components/ui/input";
 
 export function VariableField({ page, node, disabled, onCommit }: {
   page: GameFlowPage; node: GameFlowNode; disabled: boolean; onCommit: (value: string | undefined) => void;
 }) {
+  const override=useOverrideAttributes("变量");
   const value = node.variableName ?? "";
   const [draft, setDraft] = useState(value);
   const errorId = useId();
@@ -18,7 +20,7 @@ export function VariableField({ page, node, disabled, onCommit }: {
     if (normalized !== value) onCommit(normalized || undefined);
   };
   return <div className="variable-field">
-    <label className="property-field"><span>变量</span><Input aria-label="变量" value={draft} placeholder="例如 bottomBar" autoComplete="off" spellCheck={false}
+    <label {...override} className="property-field"><span>变量</span><Input aria-label="变量" value={draft} placeholder="例如 bottomBar" autoComplete="off" spellCheck={false}
       disabled={disabled} aria-invalid={!!error} aria-describedby={error ? errorId : undefined}
       onChange={(event) => setDraft(event.target.value)} onBlur={commit}
       onKeyDown={(event) => {

@@ -1,9 +1,10 @@
 import { CANVAS_INSTANCE_LAYOUT_KEYS, GAMEFLOW_SCHEMA_VERSION, type CanvasReference, type GameFlowDocument, type GameFlowNode, type GameFlowPage } from "./model";
+import { ownedCanvasNodes, remapCanvasEdits } from "./canvas-instance-data";
 import { descendants, inheritedFlag } from "./editor-ops";
 import { resolvePageLayout } from "./ui-layout";
 import { remapControlReferences } from "./ui-parts";
 
-export interface CanvasSource { source: string; document?: GameFlowDocument; error?: string }
+export interface CanvasSource { source: string; document?: GameFlowDocument; error?: string; readOnly?: boolean }
 export type CanvasSources = Record<string, CanvasSource>;
 export const MAX_CANVAS_SOURCES = 64;
 
@@ -35,7 +36,7 @@ export async function loadCanvasSources(document: GameFlowDocument, read: (sourc
       catch (error) { sources[item.source] = { source: item.source, error: `无法读取源画布：${error instanceof Error ? error.message : String(error)}` }; }
     }
     if (!current) continue;
-    for (const page of current.pages) for (const node of page.nodes) if (node.prefab) {
+    for (const page of current.pages) for (const node of ownedCanvasNodes(page.nodes)) if (node.prefab) {
       const source = resolveCanvasSource(item.source, node.prefab.source);
       if (source && !seen.has(source)) queue.push({ source });
     }
@@ -64,14 +65,14 @@ export function extractCanvasComponent(document: GameFlowDocument, pageId: strin
   const issue = canvasExtractionIssue(page, id);
   if (issue) throw new Error(issue);
   const root = page.nodes.find(node => node.id === id)!;
-  const ids = descendants(page, id), remap = new Map([...ids].map(id => [id, makeId()]));
+  const ids = descendants(page, id), remap = new Map(ownedCanvasNodes(page.nodes.filter(node=>ids.has(node.id))).map(node => [node.id, makeId()]));
   const local = resolvePageLayout(page).nodes.get(id)!.local;
-  const sourceRoot = remap.get(id)!;
+  const sourceRoot = remap.get(id)!, componentId = makeId();
   const component: GameFlowPage = {
-    id: makeId(), name: `${root.name} 组件`, kind: "screen", rootType: "UIBox", componentRootId: sourceRoot,
+    id: componentId, name: `${root.name} 组件`, kind: "screen", rootType: "UIBox", componentRootId: sourceRoot,
     background: "transparent", frame: { x: Math.max(...document.pages.map(p => p.frame.x + p.frame.width)) + 80, y: page.frame.y, width: local.width, height: local.height },
     nodes: page.nodes.filter(node => ids.has(node.id)).map(node => {
-      const next = remapControlReferences(structuredClone(node), remap);
+      const next = remapControlReferences(remapCanvasEdits(structuredClone(node), remap, {documentId:document.documentId,pageId:componentId}), remap);
       next.id = remap.get(node.id)!;
       if (node.id === id) {
         delete next.parentId; delete next.transform; delete next.hidden; delete next.locked;

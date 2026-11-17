@@ -15,6 +15,11 @@
 .psd-commandbar { height: 42px; min-height: 42px; display: flex; align-items: center; gap: 8px; padding: 5px 16px; border-bottom: 1px solid var(--vscode-panel-border, #303030); }
 .psd-commandbar button { gap: 6px; height: 27px; font-size: 11px; }
 .psd-commandbar strong { font-size: 12px; }
+.psd-exportbar { display: flex; align-items: center; gap: 8px; padding: 4px 16px; border-bottom: 1px solid var(--border); min-width: 0; }
+.psd-exportbar > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: var(--muted-foreground); }
+.psd-exportbar button { height: 25px; gap: 6px; font-size: 11px; flex-shrink: 0; }
+.psd-tree-label .psd-conflict-marker { flex: 0 0 auto; display: inline-flex; color: var(--vscode-editorWarning-foreground, #cca700); overflow: visible; }
+.psd-status { white-space: pre-wrap; max-height: 35%; overflow: auto; }
 .psd-filename { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; color: var(--muted-foreground); font-size: 12px; }
 .psd-hint { margin: 0; color: var(--muted-foreground); font-size: 11px; line-height: 1.7; }
 .psd-slice-canvas { position: relative; flex: 1; min-height: 0; overflow: hidden; touch-action: none; user-select: none; }
@@ -110,3 +115,6 @@
 .psd-merge-pane-content { display: flex; flex: 1; min-height: 0; }.psd-merge-pane-content > .psd-layer-tree { flex: 0 0 185px; border-right: 1px solid var(--border); background: var(--muted); }.psd-merge-empty { font-size: 12px; }
 @media(max-width: 1000px) { .psd-merge-pane-content { flex-direction: column; }.psd-merge-pane-content > .psd-layer-tree { flex: 0 0 120px; border-right: 0; border-bottom: 1px solid var(--border); }.psd-commandbar > .psd-hint { display: none; } }
 @media(max-width: 720px) { .topbar .document-title, .topbar .sync-status { display: none; }.mode-switcher { position: static; transform: none; margin-left: auto; align-self: flex-start; margin-top: 9px; }.psd-commandbar { flex-wrap: wrap; height: auto; padding: 6px; }.psd-commandbar .psd-filename { display: none; }.psd-merge-layout { grid-template-columns: 1fr; overflow-y: auto; }.psd-merge-sources { min-height: 480px; }.psd-merge-result { min-height: 350px; }.nine-inputs { gap: 9px; }.nine-inputs input[type=number] { width: 48px; } }
+.psd-config-status { display: flex; gap: 16px; padding: 5px 16px; color: var(--muted-foreground); font-size: 11px; }
+.psd-config-status > span:first-child { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.psd-config-notice { margin: 0; padding: 5px 16px; font-size: 12px; }

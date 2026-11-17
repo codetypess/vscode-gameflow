@@ -1,4 +1,6 @@
 import * as vscode from "vscode";
+import { PsdExportController } from "./psd-export-controller";
+import { SliceExportConflict } from "../shared/psd-export";
 import {
   GameFlowValidationError,
   parseGameFlowDocument,
@@ -31,6 +33,7 @@ export class GameFlowEditorProvider
     );
 
     const references = new CanvasReferenceController(document, webviewPanel.webview);
+    const psdExports = new PsdExportController(this.context, document);
     const sendSnapshot = async (kind: "init" | "documentChanged") => {
       try {
         const gameFlowDocument = parseGameFlowDocument(document.getText());
@@ -85,6 +88,21 @@ export class GameFlowEditorProvider
           return;
         }
 
+        if (rawMessage.type === "openPsdEditor") {
+          try { await vscode.commands.executeCommand("gameflow.openPsd"); }
+          catch (error) { void vscode.window.showErrorMessage(error instanceof Error ? error.message : String(error)); }
+          return;
+        }
+        if (rawMessage.type === "psdResourceExport") {
+          try {
+            const count = rawMessage.action === "export" ? await psdExports.export(rawMessage.batch!) : undefined;
+            const cancelled = rawMessage.action === "choose" ? !await psdExports.choose() : count === null;
+            await webviewPanel.webview.postMessage({ type: "psdResourceExportResult", requestId: rawMessage.requestId, directory: psdExports.directoryLabel, ...(typeof count === "number" ? { count } : {}), cancelled } satisfies HostToWebviewMessage);
+          } catch (error) {
+            await webviewPanel.webview.postMessage({ type: "psdResourceExportResult", requestId: rawMessage.requestId, directory: psdExports.directoryLabel, error: error instanceof Error ? error.message : String(error), ...(error instanceof SliceExportConflict ? { conflicts: error.conflicts } : {}) } satisfies HostToWebviewMessage);
+          }
+          return;
+        }
         if (rawMessage.type === "psdOutput") {
           try {
             const bytes = Buffer.from(rawMessage.base64, "base64");
@@ -110,6 +128,16 @@ export class GameFlowEditorProvider
         }
         if (rawMessage.type === "chooseCanvasSource") { await references.choose(); return; }
         if (rawMessage.type === "openCanvasSource") { await references.open(rawMessage.source); return; }
+        if (rawMessage.type === "applyCanvasOverrides") {
+          try {
+            await references.apply(rawMessage.request, rawMessage.expectedSources, rawMessage.baseVersion);
+            await sendSnapshot("documentChanged");
+            await webviewPanel.webview.postMessage({ type: "commandCompleted", action: "applyCanvas", requestId: rawMessage.requestId } satisfies HostToWebviewMessage);
+          } catch (error) {
+            await webviewPanel.webview.postMessage({ type: "updateRejected", reason: error instanceof Error ? error.message : String(error), currentVersion: document.version } satisfies HostToWebviewMessage);
+          }
+          return;
+        }
         if (rawMessage.type === "save") {
           try {
             if (!await document.save()) throw new Error("文档保存失败，请检查文件权限。");

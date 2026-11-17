@@ -1,3 +1,4 @@
+import { remapCanvasEdits, rekeyCanvasTargets } from "./canvas-instance-data";
 import { allocateElementId, ELEMENT_ID_SCHEME, reserveDocumentElementIds } from "./element-id";
 import { GameFlowValidationError, validateGameFlowDocument, type GameFlowDocument } from "./model";
 import { remapControlReferences } from "./ui-parts";
@@ -27,12 +28,12 @@ export function migrateDocumentElementIds(
       ...page,
       id: remap(page.id),
       ...(page.componentRootId ? { componentRootId: remap(page.componentRootId) } : {}),
-      nodes: page.nodes.map(node => remapControlReferences({
+      nodes: page.nodes.map(node => rekeyCanvasTargets(remapCanvasEdits(remapControlReferences({
         ...node,
         id: remap(node.id),
         ...(node.prefab?.source === "" && node.prefab.documentId === document.documentId ? { prefab: { ...node.prefab, pageId: remap(node.prefab.pageId) } } : {}),
         ...(node.parentId !== undefined ? { parentId: remap(node.parentId) } : {})
-      }, replacements))
+      }, replacements), replacements), document.documentId, replacements))
     })),
     interactions: document.interactions.map(interaction => ({
       ...interaction,

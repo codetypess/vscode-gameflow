@@ -57,7 +57,41 @@ button svg { flex-shrink: 0; }
 .canvas-reference-options button:disabled { opacity: .45; }
 .canvas-reference-options button > span { display: flex; flex-direction: column; gap: 4px; overflow-wrap: anywhere; }
 .canvas-reference-options small { color: var(--muted-foreground); font-size: 11px; }
-.canvas-reference-info { display: flex; flex-direction: column; gap: 8px; padding: 10px; border: 1px solid var(--border); border-radius: 4px; font-size: 11px; overflow-wrap: anywhere; }
+.canvas-reference-section { display:flex; flex-direction:column; gap:6px; padding-bottom:8px; border-bottom:1px solid var(--border); }
+.canvas-reference-bar { display:flex; align-items:center; gap:5px; min-width:0; height:24px; }
+.canvas-reference-link { min-width:0; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-align:left; font-size:11px; color:var(--vscode-textLink-foreground,#75beff); text-decoration:underline; text-underline-offset:2px; }
+.canvas-reference-link:hover { color:var(--vscode-textLink-activeForeground,var(--vscode-textLink-foreground,#75beff)); }
+.canvas-reference-link:focus-visible { outline:1px solid var(--ring); outline-offset:2px; }
+.canvas-reference-bar .canvas-reference-edit, .canvas-reference-bar .canvas-reference-overrides { flex:none; height:22px; min-height:22px; padding:0 7px; gap:4px; border-radius:2px; font-size:11px; }
+.canvas-reference-error { display:flex; align-items:center; gap:4px; margin:0; color:var(--vscode-editorWarning-foreground,#d7b45a); font-size:11px; }
+.canvas-overrides-panel { width:min(640px,calc(100vw - 16px)); height:min(420px,calc(100vh - 24px),var(--radix-popover-content-available-height,420px)); padding:0; display:flex; flex-direction:column; font-size:12px; }
+.override-panel-heading { display:flex; align-items:center; gap:10px; padding:7px 10px; border-bottom:1px solid var(--border); }
+.override-panel-heading strong { font-weight:500; flex:none; }
+.override-panel-heading > span { min-width:0; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--muted-foreground); }
+.override-panel-heading button { width:22px; height:22px; flex:none; }
+.override-panel-columns { display:grid; grid-template-columns:minmax(120px,34%) minmax(0,1fr); flex:1; min-height:0; }
+.override-node-list { min-width:0; overflow:auto; padding:5px; border-right:1px solid var(--border); }
+.override-select-all, .override-node-row { display:flex; align-items:center; gap:6px; padding:0 5px; min-height:30px; border-radius:2px; }
+.override-node-row.is-active { background:var(--vscode-list-activeSelectionBackground,#04395e); color:var(--vscode-list-activeSelectionForeground,#fff); }
+.override-select-all > span, .override-node-row button > span { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.override-node-row button { display:flex; align-items:center; gap:4px; flex:1; min-width:0; text-align:left; min-height:30px; }
+.override-node-list small { opacity:.65; flex:none; }
+.canvas-overrides-panel input[type=checkbox] { width:13px; height:13px; flex:none; accent-color:var(--vscode-checkbox-selectBackground,#007acc); }
+.canvas-overrides-panel input:focus-visible, .override-node-row button:focus-visible { outline:1px solid var(--ring); outline-offset:1px; }
+.override-property-list { min-width:0; overflow:auto; padding:8px 12px; }
+.override-property-heading { display:block; font-weight:500; margin-bottom:8px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.override-property-row { display:flex; gap:8px; align-items:flex-start; padding:7px 0; }
+.override-property-row > input { margin-top:3px; }
+.override-property-row > span { display:flex; flex-direction:column; gap:4px; min-width:0; flex:1; }
+.override-property-name { display:flex; align-items:center; gap:6px; }
+.override-property-name small { font-size:10px; color:var(--muted-foreground); }
+.override-property-values { display:flex; align-items:center; gap:7px; color:var(--muted-foreground); font-size:11px; }
+.override-property-values > span:not([aria-hidden]) { min-width:0; max-width:48%; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+.override-panel-empty { color:var(--muted-foreground); margin:12px 0; }
+.override-panel-reason { padding:6px 12px; font-size:11px; color:var(--vscode-editorWarning-foreground,#d7b45a); overflow-wrap:anywhere; border-top:1px solid var(--border); max-height:70px; overflow:auto; flex:none; }
+.override-panel-footer { display:flex; align-items:center; justify-content:flex-end; flex:none; gap:6px; padding:8px 10px; border-top:1px solid var(--border); }
+.override-panel-footer > span { margin-right:auto; font-size:11px; color:var(--muted-foreground); }
+.override-panel-footer button { height:26px; padding:0 10px; font-size:11px; }
 .reference-broken { outline: 1px dashed var(--destructive); }
 .reference-error-label { position: absolute; inset: 0; z-index: 1; display: grid; place-content: center; padding: 6px; color: #ffb4b4; background: #321e26e8; text-align: center; font-size: 12px; line-height: 1.6; pointer-events: none; }
 .canvas-scope-dimmer { position: absolute; inset: 0; background: rgb(0 0 0 / 40%); pointer-events: none; }
@@ -383,3 +417,32 @@ button svg { flex-shrink: 0; }
 .node-picker-footer > span { flex: 1; font-size: 10px; color: var(--muted-foreground); }
 .node-picker-footer button { height: 28px; }
 @media (max-width: 480px) { .node-picker-footer > span { display: none; } .node-picker-context > span { line-height: 1.5; overflow-wrap: anywhere; } }
+
+/* Reference ownership and overrides are editor indicators, never authored node styles. */
+.layer-reference { color: var(--gameflow-reference-foreground, #52d6c7); }
+body.vscode-light .layer-reference { --gameflow-reference-foreground: #08776f; }
+body.vscode-high-contrast .layer-reference, body.vscode-high-contrast-light .layer-reference { --gameflow-reference-foreground: var(--vscode-textLink-foreground, LinkText); text-decoration: underline dotted; }
+.layer-reference .layer-variable { color: inherit; opacity: .8; }
+.layer-override-dot { color: var(--vscode-editorWarning-foreground, #d7b45a); font-size: 9px; flex: none; }
+[data-override-fields] { position: relative; }
+[data-override-fields]::before { content: ""; position: absolute; left: -7px; top: 4px; bottom: 4px; width: 2px; border-radius: 1px; background: var(--vscode-editorWarning-foreground, #d7b45a); pointer-events: none; }
+.numeric-property-values [data-override-fields]::before { left: -3px; width: 1px; }
+.reference-override-actions { display: flex; flex-wrap: wrap; gap: 4px; }
+.reference-override-actions button { font-size: 10px; height: auto; min-height: 24px; white-space: normal; }
+.property-override-menu { max-width: min(440px, calc(100vw - 24px)); }
+.property-override-menu .menu-hint { overflow-wrap: anywhere; }
+.canvas-orphans { padding: 8px; border-top: 1px solid var(--vscode-panel-border, #39434f); max-height: 180px; overflow: auto; font-size: 11px; }
+.canvas-orphans > div { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 4px; }
+.canvas-orphans span { width: 100%; color: var(--vscode-editorWarning-foreground, #d7b45a); }
+.canvas-orphans select { max-width: 100%; }
+
+.canvas-apply-backdrop { position:fixed; inset:0; z-index:100; display:grid; place-items:center; background:#0006; }
+.canvas-apply-dialog { width:min(680px,calc(100vw - 32px)); max-height:80vh; padding:18px; display:flex; flex-direction:column; gap:12px; }
+.canvas-rename-dialog { width:min(360px,calc(100vw - 32px)); }
+.canvas-apply-dialog p { font-size:12px; color:var(--muted-foreground); overflow-wrap:anywhere; }
+.canvas-apply-fields { overflow:auto; min-height:0; }
+.canvas-apply-fields table { width:100%; border-collapse:collapse; font-size:12px; }
+.canvas-apply-fields th,.canvas-apply-fields td { padding:6px; text-align:left; border-bottom:1px solid var(--border); overflow-wrap:anywhere; max-width:260px; }
+
+.layer-name .layer-node-icon { overflow:visible; position:relative; width:14px; height:14px; display:inline-flex; flex:none; }
+.layer-addition-badge { position:absolute; right:-4px; bottom:-3px; width:10px; height:10px; display:grid; place-items:center; border-radius:50%; background:var(--vscode-editor-background,#1e1e1e); color:var(--vscode-textLink-foreground,#75beff); box-shadow:0 0 0 1px currentColor; }

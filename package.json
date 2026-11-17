@@ -20,12 +20,20 @@
     "canvas"
   ],
   "activationEvents": [
+    "onCustomEditor:gameflow.psdEditor",
+    "onCommand:gameflow.openPsd",
     "onCustomEditor:gameflow.canvasEditor",
     "onCommand:gameflow.createCanvas"
   ],
   "main": "./dist/extension.js",
   "contributes": {
     "commands": [
+      {
+        "command": "gameflow.openPsd",
+        "title": "打开 PSD 切图配置",
+        "category": "GameFlow",
+        "icon": "$(file-media)"
+      },
       {
         "command": "gameflow.createCanvas",
         "title": "新建策划画布",
@@ -34,6 +42,12 @@
       }
     ],
     "customEditors": [
+      {
+        "viewType": "gameflow.psdEditor",
+        "displayName": "GameFlow PSD 切图配置",
+        "selector": [{ "filenamePattern": "*.psd" }, { "filenamePattern": "*.PSD" }],
+        "priority": "option"
+      },
       {
         "viewType": "gameflow.canvasEditor",
         "displayName": "GameFlow 策划画布",
@@ -56,6 +70,8 @@
     "vscode:prepublish": "npm run build",
     "check": "tsc --noEmit && tsc --project tsconfig.webview.json --noEmit",
     "test": "node test/run-tests.cjs",
+    "test:instance-host": "node test/run-instance-host.cjs",
+    "test:psd-host": "node test/run-psd-host.cjs",
     "build": "npm run check && node esbuild.js && vite build",
     "build:dev": "node esbuild.js --dev && vite build --mode development",
     "dev:webview": "vite --host 127.0.0.1",
@@ -75,6 +91,7 @@
     "clsx": "^2.1.1",
     "lucide-react": "^0.468.0",
     "nanoid": "^5.1.16",
+    "pinyin-pro": "3.29.5",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "tailwind-merge": "^2.5.5"

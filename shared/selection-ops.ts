@@ -1,3 +1,4 @@
+import { ownedCanvasNodes, remapCanvasEdits } from "./canvas-instance-data";
 import type { GameFlowNode, GameFlowPage } from "./model";
 import { descendants, inheritedFlag, moveNode, orderedNodes, type LayerDrop } from "./editor-ops";
 import { editNodeFrame, nodeDragFrame } from "./ui-edit";
@@ -107,7 +108,7 @@ export function duplicateSelection(page: GameFlowPage, ids: string[], makeId: ()
   const roots = selectionRoots(page, ids);
   if (!roots.length || roots.some(node => inheritedFlag(page, node, "locked"))) return { page, ids: [] };
   const rootIds = new Set(roots.map(node => node.id)), selected = new Set(roots.flatMap(node => [...descendants(page, node.id)]));
-  const source = orderedNodes(page).filter(node => selected.has(node.id)), mapping = new Map(source.map(node => [node.id, makeId()]));
+  const source = orderedNodes(page).filter(node => selected.has(node.id)), mapping = new Map(ownedCanvasNodes(source).map(node => [node.id, makeId()]));
   const variables = new Set(page.nodes.flatMap(node => node.variableName ? [node.variableName] : []));
   const copies = source.map(original => {
     const node = structuredClone(original), root = rootIds.has(node.id);
@@ -117,7 +118,7 @@ export function duplicateSelection(page: GameFlowPage, ids: string[], makeId: ()
     if (node.parentId) node.parentId = mapping.get(node.parentId) ?? node.parentId;
     else if (original.id === page.componentRootId) node.parentId = page.componentRootId;
     if (root) { node.name += " 副本"; node.frame.x += 16; node.frame.y += 16; }
-    return remapControlReferences(node, mapping);
+    return remapControlReferences(remapCanvasEdits(node, mapping), mapping);
   });
   return { page: { ...page, nodes: [...page.nodes, ...copies] }, ids: roots.map(node => mapping.get(node.id)!) };
 }

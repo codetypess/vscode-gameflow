@@ -1,3 +1,4 @@
+export const FilePermission = { Readonly: 1 };
 /** Minimal VS Code test adapter for the file-reference controller's host lifecycle. */
 import { posix } from "node:path";
 export class Uri {
@@ -39,16 +40,17 @@ const change = new Event();
 export const referenceHost = {
   files: new Map<string, string>(), watchers: [] as Watcher[], picked: undefined as Uri | undefined,
   reads: [] as string[], commands: [] as { command: string; uri: Uri }[],
+  readOnly: new Set<string>(), rejectApply: false, edits: [] as WorkspaceEdit[],
   readOverride: undefined as undefined | ((uri: Uri) => Promise<Uint8Array>),
   fireText(document: TestTextDocument) { change.fire({ document }); },
   reset() {
-    this.files.clear(); this.watchers = []; this.picked = undefined; this.reads = []; this.commands = []; this.readOverride = undefined;
+    this.files.clear(); this.watchers = []; this.picked = undefined; this.reads = []; this.commands = []; this.readOverride = undefined; this.readOnly.clear(); this.rejectApply = false; this.edits=[];
     workspace.textDocuments = []; change.listeners.clear();
   }
 };
 export const workspace = {
   textDocuments: [] as TestTextDocument[], onDidChangeTextDocument: change.subscribe,
-  fs: { async readFile(uri: Uri) {
+  fs: { isWritableFileSystem: (_scheme: string) => true, async stat(uri: Uri) { return {permissions:referenceHost.readOnly.has(uri.path)?1:0}; }, async readFile(uri: Uri) {
     referenceHost.reads.push(uri.path);
     if (referenceHost.readOverride) return referenceHost.readOverride(uri);
     const text = referenceHost.files.get(uri.path);
@@ -62,6 +64,8 @@ export const workspace = {
     return document;
   },
   async applyEdit(edit: WorkspaceEdit) {
+    referenceHost.edits.push(edit);
+    if(referenceHost.rejectApply)return false;
     for (const item of edit.edits) {
       const document = workspace.textDocuments.find(d => d.uri.path === item.uri.path)!;
       document.text = item.text; document.isDirty = true; ++document.version; referenceHost.fireText(document);

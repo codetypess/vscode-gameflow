@@ -1,0 +1,175 @@
+{
+  "schemaVersion": 5,
+  "elementIdScheme": "nanoid-8",
+  "documentId": "gameflow-local-instance-demo",
+  "title": "同文件实例应用示例",
+  "requirements": [],
+  "pages": [
+    {
+      "id": "66ht4ruz",
+      "name": "业务模块",
+      "kind": "screen",
+      "rootType": "UIStack",
+      "background": "#eff3f6",
+      "frame": {
+        "x": 0,
+        "y": 0,
+        "width": 640,
+        "height": 360
+      },
+      "nodes": [
+        {
+          "id": "demotext",
+          "name": "说明",
+          "type": "text",
+          "text": "A 局部覆盖和附加按钮；B 继承公共源",
+          "frame": {
+            "x": 32,
+            "y": 26,
+            "width": 576,
+            "height": 40
+          },
+          "style": {
+            "fontSize": 20
+          }
+        },
+        {
+          "id": "demoref1",
+          "name": "公共提示卡 A",
+          "type": "container",
+          "frame": {
+            "x": 32,
+            "y": 112,
+            "width": 280,
+            "height": 96
+          },
+          "prefab": {
+            "source": "",
+            "documentId": "gameflow-local-instance-demo",
+            "pageId": "7x5404qh"
+          },
+          "instanceEdits": {
+            "overrides": [
+              {
+                "target": {
+                  "path": [
+                    {
+                      "documentId": "gameflow-local-instance-demo",
+                      "pageId": "7x5404qh",
+                      "kind": "node",
+                      "nodeId": "cardtext"
+                    }
+                  ]
+                },
+                "set": {
+                  "text": "A 的本地提示文案"
+                },
+                "unset": []
+              }
+            ],
+            "additions": [
+              {
+                "node": {
+                  "id": "closebtn",
+                  "name": "关闭按钮（本地附加）",
+                  "type": "button",
+                  "text": "×",
+                  "frame": {
+                    "x": 238,
+                    "y": 8,
+                    "width": 32,
+                    "height": 24
+                  },
+                  "style": {
+                    "fill": "#28566f",
+                    "color": "#ffffff",
+                    "radius": 4,
+                    "fontSize": 18
+                  }
+                },
+                "parent": {
+                  "path": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "demoref2",
+          "name": "公共提示卡 B",
+          "type": "container",
+          "frame": {
+            "x": 328,
+            "y": 208,
+            "width": 280,
+            "height": 96
+          },
+          "prefab": {
+            "source": "",
+            "documentId": "gameflow-local-instance-demo",
+            "pageId": "7x5404qh"
+          }
+        }
+      ]
+    },
+    {
+      "id": "7x5404qh",
+      "name": "公共提示卡",
+      "kind": "screen",
+      "rootType": "UIBox",
+      "componentRootId": "cardroot",
+      "background": "transparent",
+      "frame": {
+        "x": 760,
+        "y": 0,
+        "width": 280,
+        "height": 96
+      },
+      "nodes": [
+        {
+          "id": "cardroot",
+          "name": "提示卡",
+          "type": "container",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 280,
+            "height": 96
+          },
+          "style": {
+            "fill": "#163b53",
+            "borderColor": "#4395b7",
+            "borderWidth": 1,
+            "radius": 10
+          }
+        },
+        {
+          "id": "cardtext",
+          "name": "提示文案",
+          "parentId": "cardroot",
+          "type": "text",
+          "text": "来自公共模块的组件",
+          "frame": {
+            "x": 20,
+            "y": 24,
+            "width": 240,
+            "height": 48
+          },
+          "layout": {
+            "left": 20,
+            "right": 20,
+            "centerY": 0
+          },
+          "style": {
+            "color": "#e1f6ff",
+            "fontSize": 18
+          },
+          "widget": {
+            "valign": "middle"
+          }
+        }
+      ]
+    }
+  ],
+  "interactions": []
+}

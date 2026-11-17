@@ -1,6 +1,7 @@
+import type { CanvasComposition, CanvasOrphan } from "../../shared/canvas-instances";
 import { skinOwner } from "../../shared/ui-parts";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type MouseEvent, type PointerEvent as ReactPointerEvent } from "react";
-import { ChevronDown, ChevronRight, Eye, EyeOff, LockKeyhole, UnlockKeyhole, Box, Search, X } from "lucide-react";
+import { ChevronDown, ChevronRight, Eye, EyeOff, LockKeyhole, UnlockKeyhole, Package, Plus, Box, Search, X } from "lucide-react";
 import type { GameFlowNode, GameFlowPage } from "../../shared/model";
 import { inheritedFlag, type InsertType, type LayerDrop } from "../../shared/editor-ops";
 import { moveSelection } from "../../shared/selection-ops";
@@ -19,7 +20,8 @@ export function NodeIcon({ type }: { type: string }) {
 
 interface TreeDrag { id: string; pointerId: number; x: number; y: number; active: boolean; drop: LayerDrop | null }
 
-export function LayerTree({ page, scopeId, selectedId, selectedIds, reveal, onSelect, onPatch, onBack, onAdd, onDelete, onMove, panelRef, panelStyle, hasClipboard, onCopy, onPaste, onDuplicate, onConvert, onSaveToCanvas, onOpenSource }: {
+export function LayerTree({ page, scopeId, selectedId, selectedIds, reveal, onSelect, onPatch, onBack, onAdd, onDelete, onMove, panelRef, panelStyle, hasClipboard, onCopy, onPaste, onDuplicate, onConvert, onSaveToCanvas, onOpenSource, composition, onRepair, onCopyOrphan }: {
+  composition?: CanvasComposition; onRepair?: (orphan: CanvasOrphan, parentId?: string) => void; onCopyOrphan?: (orphan: CanvasOrphan) => void;
   page: GameFlowPage; selectedId: string | null; selectedIds: string[]; reveal: number; onSelect: (id: string | null, intent?: SelectionIntent) => void;
   scopeId: string | null;
   panelRef?: (element: HTMLElement | null) => void; panelStyle?: CSSProperties;
@@ -162,6 +164,8 @@ export function LayerTree({ page, scopeId, selectedId, selectedIds, reveal, onSe
   const branch = (parentId: string | undefined, depth: number): React.ReactNode => page.nodes.filter((node) => node.parentId === parentId && visible.has(node.id)).map((node) => {
     const hasChildren = page.nodes.some((item) => item.parentId === node.id && visible.has(item.id));
     const locked = inheritedFlag(page, node, "locked");
+    const meta = composition?.info.get(node.id);
+    const protectedStructure = !!meta?.inherited;
     const owner = skinOwner(page, node), controlledVisibility = owner?.type === "checkbox" || owner?.type === "radio";
     const hidden = controlledVisibility ? inheritedFlag(page, node, "hidden") : node.hidden;
     return <div key={node.id}>
@@ -177,7 +181,7 @@ export function LayerTree({ page, scopeId, selectedId, selectedIds, reveal, onSe
             event.stopPropagation();
             if (event.key === "Enter") { event.preventDefault(); event.currentTarget.blur(); }
             else if (event.key === "Escape") { event.preventDefault(); renameCancelled.current = true; event.currentTarget.blur(); }
-          }} /> : <button className={cn("layer-name", !locked && !filtering && "layer-draggable")} aria-haspopup="menu" title={`${node.name}${node.variableName ? ` · 变量：${node.variableName}` : ""}${locked ? " · 已锁定" : filtering ? " · 右键编辑，清除搜索后可拖动排序" : " · 拖动排序或移入容器，右键编辑"}`}
+          }} /> : <button className={cn("layer-name", (meta?.inherited || meta?.reference) && "layer-reference", !locked && !filtering && !protectedStructure && "layer-draggable")} aria-haspopup="menu" title={`${node.name}${meta?.inherited ? ` · 来自源组件：${meta.source || "当前文件"}` : meta?.reference ? " · 画布组件引用" : meta?.localId ? " · 本实例附加" : ""}${node.variableName ? ` · 变量：${node.variableName}` : ""}${locked ? " · 已锁定" : filtering ? " · 右键编辑，清除搜索后可拖动排序" : " · 拖动排序或移入容器，右键编辑"}`}
           onPointerDown={(event) => {
             suppressClick.current = false;
             if (event.button !== 0 || menu) return;
@@ -185,15 +189,16 @@ export function LayerTree({ page, scopeId, selectedId, selectedIds, reveal, onSe
             const modified = event.ctrlKey || event.metaKey || event.shiftKey;
             onSelect(node.id, { toggle: event.ctrlKey || event.metaKey, range: event.shiftKey, order: selectionOrder, preserve: !modified });
             if (modified) { suppressClick.current = true; return; }
-            if (!locked && !filtering) drag.current = { id: node.id, pointerId: event.pointerId, x: event.clientX, y: event.clientY, active: false, drop: null };
-          }} onClick={() => { if (!suppressClick.current) onSelect(node.id); }}><NodeIcon type={node.type} /><span>{node.name}</span>{node.variableName ? <code className="layer-variable" title={`变量：${node.variableName}`}>{node.variableName}</code> : null}</button>}
+            if (!locked && !filtering && !protectedStructure) drag.current = { id: node.id, pointerId: event.pointerId, x: event.clientX, y: event.clientY, active: false, drop: null };
+          }} onClick={() => { if (!suppressClick.current) onSelect(node.id); }}><span className="layer-node-icon">{meta?.reference ? <Package size={14} /> : <NodeIcon type={node.type} />}{meta?.added ? <span className="layer-addition-badge" aria-label="本地附加节点" title="本实例附加节点"><Plus size={8} strokeWidth={3} /></span> : null}</span><span>{node.name}</span>{meta?.overrides.length ? <span className="layer-override-dot" title="此节点有本地属性覆盖" aria-label="有本地属性覆盖">●</span> : null}{node.variableName ? <code className="layer-variable" title={`变量：${node.variableName}`}>{node.variableName}</code> : null}</button>}
         <button className="layer-action" disabled={controlledVisibility} title={controlledVisibility ? "显示状态由所属控件的选中状态控制" : undefined} aria-label={`${hidden ? "显示" : "隐藏"}${node.name}`} onClick={() => onPatch(node.id, { hidden: !node.hidden })}>{hidden ? <EyeOff size={12} /> : <Eye size={12} />}</button>
-        <button className="layer-action" aria-label={`${node.locked ? "解锁" : "锁定"}${node.name}`} onClick={() => onPatch(node.id, { locked: !node.locked })}>{node.locked ? <LockKeyhole size={12} /> : <UnlockKeyhole size={12} />}</button>
+        <button className="layer-action" disabled={protectedStructure} title={protectedStructure ? "源节点锁定状态请在源组件中修改" : undefined} aria-label={`${node.locked ? "解锁" : "锁定"}${node.name}`} onClick={() => onPatch(node.id, { locked: !node.locked })}>{node.locked ? <LockKeyhole size={12} /> : <UnlockKeyhole size={12} />}</button>
       </div>
       {hasChildren && !activeCollapsed.has(node.id) ? <div role="group">{branch(node.id, depth + 1)}</div> : null}
     </div>;
   });
   return <aside ref={attachPanel} style={panelStyle} tabIndex={-1} className={cn("layer-panel floating-panel", dragging && "layer-dragging")} aria-label="控件层级树"
+    onContextMenu={event=>{event.preventDefault();event.stopPropagation();}}
     onKeyDown={(event) => { if (event.key === "F2" && selectedIds.length === 1 && selectedId && !renaming && !menu && !(event.target instanceof HTMLInputElement)) { event.preventDefault(); event.stopPropagation(); beginRename(selectedId); } }}
     onPointerDownCapture={() => { if (!drag.current?.active) suppressClick.current = false; }}
     onPointerDown={(event) => event.stopPropagation()} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={cancelDrag} onLostPointerCapture={cancelDrag}
@@ -209,7 +214,8 @@ export function LayerTree({ page, scopeId, selectedId, selectedIds, reveal, onSe
       <div className={cn("tree-root-drop", drop && !drop.targetId && "layer-drop-inside")} data-layer-root>{dragging ? "移到页面根节点" : ""}</div>
     </div>
     <div className="layer-footer">{filtering ? "搜索中 · 清除搜索后可拖动排序" : "右键编辑节点 · 拖动调整层级"}</div>
-    <LayerMenu page={page} selectedIds={selectedIds} target={menu} onClose={() => setMenu(null)} onAdd={(type, parentId, afterId) => { expand(parentId); onAdd(type, parentId, afterId); }} onDelete={onDelete}
+    {composition?.orphans.length ? <div className="canvas-orphans"><strong>待修复的实例编辑</strong>{composition.orphans.map((orphan,index) => <div key={`${orphan.ownerId}-${index}`} title={orphan.message}><span>{orphan.name} · {orphan.message}</span>{orphan.additionId ? <><select aria-label={`重新挂接${orphan.name}`} value="" onChange={event => { if(event.target.value) onRepair?.(orphan,event.target.value); }}><option value="">重新挂接…</option>{page.nodes.filter(node => canHaveChildren(node) && !inheritedFlag(page,node,"locked") && composition.info.get(node.id)?.ownerId === orphan.ownerId && node.id !== orphan.additionId).map(node => <option key={node.id} value={node.id}>{node.name}</option>)}</select><Button size="sm" variant="ghost" onClick={() => onCopyOrphan?.(orphan)}>复制</Button></> : null}<Button size="sm" variant="ghost" onClick={() => onRepair?.(orphan)}>{orphan.additionId ? "删除附加内容" : "清除失效覆盖"}</Button></div>)}</div> : null}
+    <LayerMenu composition={composition} page={page} selectedIds={selectedIds} target={menu} onClose={() => setMenu(null)} onAdd={(type, parentId, afterId) => { expand(parentId); onAdd(type, parentId, afterId); }} onDelete={onDelete}
       hasClipboard={hasClipboard} onCopy={onCopy} onPaste={(parentId, afterId) => { expand(parentId); onPaste(parentId, afterId); }} onRename={beginRename} onDuplicate={onDuplicate} onConvert={onConvert} onSaveToCanvas={onSaveToCanvas} onOpenSource={onOpenSource}
       onRestoreFocus={() => { if (renameInput.current) { renameInput.current.focus(); renameInput.current.select(); } else if (returnFocus.current?.isConnected) returnFocus.current.focus(); else panel.current?.focus(); }} />
   </aside>;

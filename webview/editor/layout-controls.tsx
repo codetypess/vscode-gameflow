@@ -3,6 +3,7 @@ import type { ConstraintLayout, NodeLayout } from "../../shared/model";
 import type { Constraint } from "../../shared/ui-config";
 import { Button } from "../components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../components/ui/tooltip";
+import { useOverrideAttributes } from "./override-properties";
 import { Field } from "./fields";
 
 const CONSTRAINT_CONTROLS = [
@@ -22,7 +23,8 @@ export function ConstraintControl({ layout, disabledX, disabledY, onChange, onTo
   const position = (item: typeof CONSTRAINT_CONTROLS[number]) => item.axis === "x"
     ? { left: `${item.position / 180 * 100}%` }
     : { top: `${item.position / 112 * 100}%` };
-  return <div className="constraint-control" role="group" aria-label="布局约束">
+  const override=useOverrideAttributes("布局约束", ["layout.left","layout.right","layout.centerX","layout.top","layout.bottom","layout.centerY"]);
+  return <div {...override} className="constraint-control" role="group" aria-label="布局约束">
     <div className="constraint-title">布局约束<small>{layout.layoutUnit === "percent" ? "%" : "px"}</small></div>
     <div className="constraint-map-scroll"><div className="constraint-map">
       {(["x", "y"] as const).map(axis => <div key={axis} className={`constraint-toggles constraint-${axis}`}>
@@ -47,7 +49,8 @@ export function ConstraintControl({ layout, disabledX, disabledY, onChange, onTo
 }
 
 export function PaddingControl({ layout, disabled, onChange }: { layout: NodeLayout; disabled: boolean; onChange: (patch: Partial<NodeLayout>) => void }) {
-  return <div className="padding-control" role="group" aria-label="内边距">
+  const override=useOverrideAttributes("内边距");
+  return <div {...override} className="padding-control" role="group" aria-label="内边距">
     <span title="内边距（像素）">Padding</span><div className="padding-values">
       {([ ["paddingTop", "U", "上"], ["paddingRight", "R", "右"], ["paddingBottom", "D", "下"], ["paddingLeft", "L", "左"] ] as const).map(([key, short, label]) => <Field key={key} label={short} ariaLabel={`内边距${label}`} type="number" integer min={0} max={1e7} disabled={disabled} value={layout[key] ?? 0} onCommit={value => onChange({ [key]: Number(value) })} />)}
     </div>
@@ -65,7 +68,8 @@ const VERTICAL: readonly (readonly [NonNullable<NodeLayout["valign"]>, string, L
 export function ContainerAlignment({ layout, flow, disabled, onChange }: {
   layout: NodeLayout; flow: "hbox" | "vbox" | "grid"; disabled: boolean; onChange: (patch: Partial<NodeLayout>) => void;
 }) {
-  return <div className="container-alignment"><span>对齐</span><div className="container-alignment-groups">
+  const override=useOverrideAttributes("容器对齐",["layout.align","layout.valign"]);
+  return <div {...override} className="container-alignment"><span>对齐</span><div className="container-alignment-groups">
     {(["x", "y"] as const).map(axis => <div className="container-alignment-axis" role="group" aria-label={axis === "x" ? "水平对齐" : "垂直对齐"} key={axis}>
       {(axis === "x" ? HORIZONTAL : VERTICAL).filter(([value]) => value !== "justify" || flow === (axis === "x" ? "hbox" : "vbox")).map(([value, label, Icon]) => {
         const active = (axis === "x" ? layout.align ?? "left" : layout.valign ?? "top") === value;

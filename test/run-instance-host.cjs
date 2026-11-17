@@ -1,0 +1,25 @@
+const esbuild = require("esbuild");
+const { spawn } = require("node:child_process");
+const fs = require("node:fs");
+const os = require("node:os");
+const path = require("node:path");
+
+async function main() {
+  const root = path.resolve(__dirname, "..");
+  const code = process.env.GAMEFLOW_VSCODE_PATH || path.join(process.env.LOCALAPPDATA || "", "Programs", "Microsoft VS Code", "Code.exe");
+  if (!fs.existsSync(code)) throw new Error("Set GAMEFLOW_VSCODE_PATH to an installed VS Code executable.");
+  const output = path.join(root, "dist", "extension-instance-smoke.cjs");
+  const report = path.join(root, "dist", "instance-native-report.json");
+  const profile = fs.mkdtempSync(path.join(os.tmpdir(), "gameflow-instance-profile-"));
+  await esbuild.build({ entryPoints: [path.join(__dirname, "extension-instance-smoke.ts")], outfile: output, bundle: true, platform: "node", format: "cjs", external: ["vscode"], target: "node20" });
+  if (fs.existsSync(report)) fs.unlinkSync(report);
+  const child = spawn(code, ["--new-window", "--disable-extensions", "--skip-welcome", "--skip-release-notes", "--user-data-dir", profile, "--extensionDevelopmentPath", root, "--extensionTestsPath", output], {
+    windowsHide: true, stdio: "ignore", env: { ...process.env, GAMEFLOW_INSTANCE_TEST_ROOT: root, GAMEFLOW_INSTANCE_TEST_REPORT: report }
+  });
+  await new Promise((resolve, reject) => { child.once("error", reject); child.once("exit", resolve); });
+  if (!fs.existsSync(report)) throw new Error(`VS Code did not produce a report. Test profile: ${profile}`);
+  const result = JSON.parse(fs.readFileSync(report, "utf8"));
+  if (!result.ok) throw new Error(result.stack || result.error);
+  console.log(`PASS native VS Code: ${result.checks.join(", ")}`);
+}
+main().catch(error => { console.error(error); process.exitCode = 1; });

@@ -5,12 +5,15 @@ import { changeContainerType, setNodeConstraint } from "../../shared/ui-edit";
 import { Field, NumericPropertyRow, ReadOnlyPropertyRow } from "./fields";
 import { ConstraintControl, ContainerAlignment, PaddingControl } from "./layout-controls";
 import { sliderOwner } from "../../shared/ui-parts";
+import { useOverrideAttributes } from "./override-properties";
 
 function Select({ label, value, options, disabled, compact, onChange }: { label: string; value: string; options: readonly (readonly [string, string])[]; disabled?: boolean; compact?: boolean; onChange: (value: string) => void }) {
-  return <label className={`property-field${compact ? " compact-property-field" : ""}`}><span>{label}</span><select aria-label={label} value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)}>{options.map(([key, name]) => <option key={key} value={key}>{name}</option>)}</select></label>;
+  const override=useOverrideAttributes(label);
+  return <label {...override} className={`property-field${compact ? " compact-property-field" : ""}`}><span>{label}</span><select aria-label={label} value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)}>{options.map(([key, name]) => <option key={key} value={key}>{name}</option>)}</select></label>;
 }
 function Toggle({ label, value, disabled, onChange }: { label: string; value: boolean; disabled?: boolean; onChange: (value: boolean) => void }) {
-  return <label className="property-toggle"><input type="checkbox" checked={value} disabled={disabled} onChange={(e) => onChange(e.target.checked)} /><span>{label}</span></label>;
+  const override=useOverrideAttributes(label);
+  return <label {...override} className="property-toggle"><input type="checkbox" checked={value} disabled={disabled} onChange={(e) => onChange(e.target.checked)} /><span>{label}</span></label>;
 }
 
 export function PageLayoutProperties({ page, onPage }: {
@@ -25,8 +28,8 @@ export function PageLayoutProperties({ page, onPage }: {
   </details>;
 }
 
-export function LayoutProperties({ page, node, locked, onNode, onPage }: {
-  page: GameFlowPage; node: GameFlowNode; locked: boolean;
+export function LayoutProperties({ page, node, locked, onNode, onPage, structureProtected }: {
+  page: GameFlowPage; node: GameFlowNode; locked: boolean; structureProtected?: boolean;
   onNode: (id: string, patch: Partial<GameFlowNode>) => void; onPage: (transform: (page: GameFlowPage) => GameFlowPage) => void;
 }) {
   const layout = node.layout ?? {}, parent = page.nodes.find((n) => n.id === node.parentId), flow = flowType(node);
@@ -53,7 +56,7 @@ export function LayoutProperties({ page, node, locked, onNode, onPage }: {
       {node.type === "text" && (layout.widthMode === "measured" || layout.heightMode === "measured") ? <p className="property-hint">文字内容尺寸为原型估算，实际以游戏字体为准。</p> : null}
     </details>
     {canHaveChildren(node) ? <details className="property-details" open><summary>容器布局</summary>
-      {["container", "hbox", "vbox", "grid"].includes(node.type) ? <Select label="排布方式" value={node.type} disabled={locked || page.componentRootId === node.id || page.nodes.some((n) => n.parentId === node.id && n.locked)} options={[["container", "自由布局"], ["hbox", "横向排列"], ["vbox", "纵向排列"], ["grid", "网格排列"]]} onChange={(value) => onPage((p) => changeContainerType(p, node.id, value as NodeType))} /> : null}
+      {["container", "hbox", "vbox", "grid"].includes(node.type) ? <Select label="排布方式" value={node.type} disabled={locked || structureProtected || page.componentRootId === node.id || page.nodes.some((n) => n.parentId === node.id && n.locked)} options={[["container", "自由布局"], ["hbox", "横向排列"], ["vbox", "纵向排列"], ["grid", "网格排列"]]} onChange={(value) => onPage((p) => changeContainerType(p, node.id, value as NodeType))} /> : null}
       <PaddingControl layout={layout} disabled={locked} onChange={set} />
       {flow === "hbox" || flow === "vbox" ? <Field label="间距" type="number" integer value={layout.gap ?? 0} disabled={locked || (flow === "hbox" ? layout.align === "justify" : layout.valign === "justify")} onCommit={(v) => set({ gap: Number(v) })} /> : null}
       {flow === "grid" ? <>

@@ -3,7 +3,7 @@ import type { GameFlowNode, GameFlowPage } from "../shared/model";
 import { makeComponent, removeNode, reparentNode } from "../shared/editor-ops";
 import { resolvePageLayout } from "../shared/ui-layout";
 import { mapPoint } from "../shared/ui-transform";
-import { canvasHitNode, canvasPasteTarget, canvasPlacementPoint, canvasScopePath, placeCanvasComponent, reconcileCanvasScope } from "../webview/lib/canvas-scope";
+import { canvasContextTarget, canvasHitNode, canvasPasteTarget, canvasPlacementPoint, canvasScopePath, placeCanvasComponent, reconcileCanvasScope } from "../webview/lib/canvas-scope";
 import { copyNode, pasteNode } from "../shared/node-clipboard";
 
 export const canvasScopeTests: { name: string; run: () => void }[] = [];
@@ -11,6 +11,32 @@ const test = (name: string, run: () => void) => canvasScopeTests.push({ name, ru
 const node = (id: string, type: GameFlowNode["type"], parentId?: string): GameFlowNode => ({ id, name: id, type, ...(parentId ? { parentId } : {}), frame: { x: 40, y: 30, width: 200, height: 80 } });
 const page = (...nodes: GameFlowNode[]): GameFlowPage => ({ id: "page", name: "设置", kind: "screen", frame: { x: 0, y: 0, width: 640, height: 500 }, nodes });
 const ids = (path: GameFlowNode[]) => path.map(item => item.id);
+
+test("canvas context target follows scoped and direct picking and preserves selected group members", () => {
+  const p=page(node("group","container"),node("nested","container","group"),node("label","text","nested"),node("other","text"));
+  assert.equal(canvasContextTarget(p,null,"label",[]).id,"group");
+  assert.equal(canvasContextTarget(p,null,"label",[],true).id,"label");
+  assert.equal(canvasContextTarget(p,"group","label",["label","other"]).id,"label");
+  assert.equal(canvasContextTarget(p,"group","other",[]).id,null,"out-of-scope artwork behaves as background");
+  assert.deepEqual(canvasContextTarget(p,"nested",undefined,["label"]),{id:null,backgroundParentId:"nested"});
+  assert.deepEqual(canvasContextTarget({...p,componentRootId:"group"},null,undefined,[]),{id:null,backgroundParentId:"group"});
+});
+
+test("context insertion keeps clicked parent coordinates and inserts after the chosen sibling", () => {
+  const parent={...node("group","container"),transform:{scaleX:2,scaleY:2},layout:{scrollX:12,scrollY:8}};
+  const p=page(parent,node("first","text","group"),node("last","text","group"));
+  const point={x:160,y:110},local=canvasPlacementPoint(p,"group",point)!;
+  const added=placeCanvasComponent(p,"group","text",point,()=>"added","first");
+  assert.equal(added.id,"added");
+  assert.deepEqual(added.page.nodes.filter(node=>node.parentId==="group").map(node=>node.id),["first","added","last"]);
+  const positioned=added.page.nodes.find(node=>node.id==="added")!;
+  const geometry=resolvePageLayout(added.page).nodes.get("added")!;
+  const center=mapPoint(geometry.matrix,{x:positioned.frame.width/2,y:positioned.frame.height/2});
+  assert.ok(Math.abs(center.x-point.x)<1 && Math.abs(center.y-point.y)<1);
+  assert.ok(local.x>0 && local.y>0);
+  const locked={...p,nodes:p.nodes.map(node=>node.id==="group" ? {...node,locked:true} : node)};
+  assert.equal(placeCanvasComponent(locked,"group","text",point,()=>"blocked","first").id,null);
+});
 
 test("canvas picks composite controls before their parts, one editing level at a time", () => {
   let serial = 0;

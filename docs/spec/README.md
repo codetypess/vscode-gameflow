@@ -11,7 +11,7 @@ The complete workflow is defined in [../spec-driven-development.md](../spec-driv
 
 ## Current Baseline
 
-The repository now includes a runnable VS Code extension scaffold, a low-fidelity game UI prototype editor, PSD slice/nine-grid configuration and manual PSD selection previews. The baseline records document authority, the host/Webview boundary, canvas and layer editing, PSD metadata-only output and VS Code-themed controls; Agent integration, automatic planning-document analysis, complete PSD merging and Laya image export remain future work.
+The repository now includes a runnable VS Code extension scaffold, a low-fidelity game UI prototype editor, PSD slice/nine-grid configuration, unified-directory PNG/provenance export and manual PSD selection previews. The baseline records document authority, the host/Webview boundary, canvas and layer editing, PSD metadata output and VS Code-themed controls; Agent integration, automatic planning-document analysis, complete PSD merging, assembled slice preview and Laya-specific resource import remain future work.
 
 When the first non-trivial work item establishes a lasting rule, create the smallest relevant numbered baseline spec and add it to the baseline map below. Suggested numbers are conventions, not requirements:
 
@@ -29,9 +29,17 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 | --- | --- |
 | [01-product-workspace.md](01-product-workspace.md) | Planning workspace, infinite canvas, page groups and editing scope |
 | [10-extension-architecture.md](10-extension-architecture.md) | Extension host, Webview, shared contracts, document authority and evolution boundary |
-| [11-prototype-ui-layout.md](11-prototype-ui-layout.md) | Prototype UI components, shared layout geometry, control references and v1/v2/v3/v4 persistence |
+| [11-prototype-ui-layout.md](11-prototype-ui-layout.md) | Prototype UI components, shared layout geometry, control references and v1/v2/v3/v4/v5 persistence |
 
 ## Active Work Items
+
+- [psd-document-lifecycle.md](psd-document-lifecycle.md) — Verifying：PSD 切图独立配置标签、原生 dirty/save/history/backup、同目录配置自动读取与草稿恢复；实现及共享/真实 Extension Host 测试通过，关闭对话框的逐按钮人工验收待完成。
+
+- [canvas-context-menu.md](canvas-context-menu.md) — Done：总览画板/空白、页内节点/当前层空白右键菜单，复用图层命令及保护；含右键位置新增、重命名对话框和键盘菜单。244 项测试、生产构建及总览/页内/多选/保护/窄窗口浏览器验收通过。
+
+- [psd-export-names.md](psd-export-names.md) — Done：按图层名选择 btn/img 前缀，非共享默认名包含 PSD 缩写、共享默认名仅含图层缩写；自定义优先，图层树标记冲突，统一目录输出 PNG 及来源清单，共享导出覆盖并更新来源。246 项测试和生产构建通过；此前真实目录服务及浏览器配置/冲突验收通过，原生目录选择器端到端联调未覆盖。
+
+- [canvas-instance-editing.md](canvas-instance-editing.md) — Done：v5 引用实例展开、局部覆盖/附加节点、专色与“+”标记、属性右键还原/应用到源及继承结构保护；引用区简化为单行，覆盖属性默认双栏，支持跨节点逐字段勾选还原/应用。261 项回归、生产构建、浏览器交互及真实 VS Code 跨文件关联撤销/保存验收通过，保留 v1–v4 读取。
 
 - [workspace-mode-icons.md](workspace-mode-icons.md) — Done：恢复原有三模式纯图标和紧凑按钮，移除整组外层框，保留当前模式高亮；生产构建、模式切换及宽/窄窗口浏览器检查通过。
 

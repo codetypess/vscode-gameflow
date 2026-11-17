@@ -14,9 +14,14 @@ import { editNodeFrame, setNodeAnchor } from "../../shared/ui-edit";
 import { hasNodeSkin, sliderOwner } from "../../shared/ui-parts";
 import { ControlPartsProperties } from "./control-parts";
 import type { ColorPreview } from "../lib/color-edit";
+import { CanvasPropertyProvider, type OverrideActions } from "./override-properties";
+import type { CanvasNodeInfo } from "../../shared/canvas-instances";
 import { TextControls } from "./text-controls";
+import { ReferenceBar } from "./reference-bar";
+import type { CanvasOverrideManager } from "./override-panel";
 
-export function Inspector({ page, node, selectedNodes = [], editingPage, onNode, onPage, onColorPreview, onClose, onEnter, onImport, onCreateParts, panelRef, panelStyle, referenceError, onOpenSource }: {
+export function Inspector({ page, variablePage = page, node, selectedNodes = [], editingPage, onNode, onPage, onColorPreview, onClose, onEnter, onImport, onCreateParts, panelRef, panelStyle, referenceError, referenceName, overrideManager, onOpenSource, referenceMeta, overrideActions }: {
+  variablePage?: GameFlowPage;
   page: GameFlowPage; node: GameFlowNode | null; editingPage: boolean;
   selectedNodes?: GameFlowNode[];
   panelRef?: (element: HTMLElement | null) => void; panelStyle?: CSSProperties;
@@ -26,6 +31,8 @@ export function Inspector({ page, node, selectedNodes = [], editingPage, onNode,
   onClose: () => void; onEnter: () => void; onImport: () => void;
   onCreateParts: () => void;
   referenceError?: string; onOpenSource: () => void;
+  referenceName?: string; overrideManager?: CanvasOverrideManager;
+  referenceMeta?: CanvasNodeInfo; overrideActions?: OverrideActions;
 }) {
   const [collapsed, setCollapsed] = useState(false);
   const locked = node ? inheritedFlag(page, node, "locked") : false;
@@ -40,7 +47,7 @@ export function Inspector({ page, node, selectedNodes = [], editingPage, onNode,
   };
   const setStyle = (patch: Partial<NodeStyle>) => { if (node) onNode(node.id, { style: { ...node.style, ...patch } }); };
   const previewColor = (property: ColorPreview["property"], value: string | null) => onColorPreview(value === null ? null : { pageId: page.id, nodeId: node?.id, property, value });
-  return <aside ref={panelRef} className="inspector floating-panel" aria-label="悬浮属性面板" style={panelStyle} onPointerDown={(event) => event.stopPropagation()}>
+  return <CanvasPropertyProvider actions={overrideActions}><aside ref={panelRef} className="inspector floating-panel" aria-label="悬浮属性面板" style={panelStyle} onContextMenu={event=>{event.preventDefault();event.stopPropagation();}} onPointerDown={(event) => event.stopPropagation()}>
     <div className="floating-heading">
       <strong>{selectedNodes.length > 1 ? `已选择 ${selectedNodes.length} 个控件` : node ? "控件属性" : "页面属性"}</strong>
       <Button variant="ghost" size="icon" aria-label={collapsed ? "展开属性面板" : "收起属性面板"} onClick={() => setCollapsed(!collapsed)}>{collapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}</Button>
@@ -52,15 +59,15 @@ export function Inspector({ page, node, selectedNodes = [], editingPage, onNode,
       <ul>{selectedNodes.map(item => <li key={item.id}><span>{item.name}</span><small>{COMPONENTS[item.type].laya}</small></li>)}</ul>
       <p className="property-hint">方向键移动整组 · Delete / Backspace 删除<br />单击控件可编辑它的属性</p>
     </div> : <div className="inspector-content">
-      <div className="component-identity"><span title={identityLabel}>{identityLabel}</span><code title="稳定节点 ID">{node?.id ?? page.id}</code></div>
-      {node?.prefab ? <div className="canvas-reference-info"><strong>画布组件引用</strong><span title={node.prefab.source}>{node.prefab.source || "当前文件"}</span><code>{node.prefab.pageId}</code>{referenceError ? <p className="layout-diagnostics" role="status">{referenceError}</p> : null}<Button size="sm" variant="outline" onClick={onOpenSource}>编辑源组件</Button><p className="property-hint">内容与外观跟随源组件，位置和尺寸独立。</p></div> : null}
-      {node?.id === page.componentRootId ? <p className="property-hint">组件根节点：内容与外观同步到引用，根的位置、尺寸和变换由各实例独立保存。</p> : null}
+      <div className="component-identity"><span title={identityLabel}>{identityLabel}</span><code title="稳定节点 ID">{referenceMeta?.target.path.at(-1)?.nodeId ?? node?.id ?? page.id}</code></div>
+      {referenceMeta?.ownerId ? <ReferenceBar key={node?.id} meta={referenceMeta} name={referenceName} error={referenceError} manager={overrideManager} onOpenSource={onOpenSource} /> : null}
+      {node && node.id === page.componentRootId ? <p className="property-hint">组件根节点：内容与外观同步到引用，根的位置、尺寸和变换由各实例独立保存。</p> : null}
       {geometry.issues.length ? <div className="layout-diagnostics" role="status"><strong>布局需要调整</strong>{geometry.issues.slice(0, 4).map((issue, i) => <p key={i}>{issue.message}</p>)}<p>暂用原始位置/尺寸显示，可继续修改。</p></div> : null}
       <Field label={node ? "名称" : "页面名称"} value={node?.name ?? page.name} disabled={locked} validate={(name) => !!name.trim()} onCommit={(name) => {
         if (!name.trim()) return;
         if (node) onNode(node.id, { name: name.trim() }); else onPage((item) => ({ ...item, name: name.trim() }));
       }} />
-      {node ? <VariableField page={page} node={node} disabled={locked} onCommit={(variableName) => onNode(node.id, { variableName })} /> : null}
+      {node ? <VariableField page={variablePage} node={node} disabled={locked} onCommit={(variableName) => onNode(node.id, { variableName })} /> : null}
       <div className="property-section-title">基础属性</div>
       <NumericPropertyRow label="位置" integer disabled={locked} fields={(["x", "y"] as const).map(key => ({ axis: key.toUpperCase(), ariaLabel: key.toUpperCase(), value: !node && editingPage ? 0 : frame[key], readOnly: !node && editingPage, disabled: !!node && (!!sliderOwner(page, node) || managedAxis(parent, key) || (flowType(parent) !== "free" && node.layout?.crossAxisMode !== "explicit" && !constraintsFor(key).some(k => node.layout?.[k] != null))), onCommit: value => setFrame(key, String(value)) }))} />
       <NumericPropertyRow label="尺寸" integer disabled={locked} fields={(["width", "height"] as const).map(key => ({ axis: key === "width" ? "W" : "H", ariaLabel: key === "width" ? "W" : "H", value: frame[key], min: 8, onCommit: value => setFrame(key, String(value)) }))} />
@@ -69,7 +76,7 @@ export function Inspector({ page, node, selectedNodes = [], editingPage, onNode,
         <SliderPropertyRow label="不透明度" value={appearance.opacity} disabled={locked} onCommit={opacity => setStyle({ opacity })} />
         {!geometry.nodes.get(node.id)!.inverse ? <p className="property-hint">变换使控件压扁，画布拖动暂不可用；调整缩放或倾斜可恢复。</p> : null}
         {locked ? <div className="locked-message"><LockKeyhole size={13} />控件已锁定，请在图层树中解锁</div> : null}
-        <LayoutProperties page={page} node={node} locked={locked} onNode={onNode} onPage={onPage} />
+        <LayoutProperties page={page} node={node} locked={locked} structureProtected={!!referenceMeta?.inherited || !!referenceMeta?.reference} onNode={onNode} onPage={onPage} />
         {!node.prefab ? <><ControlPartsProperties page={page} node={node} locked={locked} onNode={onNode} onPage={onPage} onCreateParts={onCreateParts} />
         <WidgetProperties node={node} locked={locked} onNode={onNode} /></> : null}
         {(["text", "input"].includes(node.type) || (["checkbox", "radio"].includes(node.type) && !hasNodeSkin(node)) || (node.type === "button" && node.text !== undefined)) ? <>
@@ -97,5 +104,5 @@ export function Inspector({ page, node, selectedNodes = [], editingPage, onNode,
       </>}
     </div>}
     </ScrollArea> : null}
-  </aside>;
+  </aside></CanvasPropertyProvider>;
 }
