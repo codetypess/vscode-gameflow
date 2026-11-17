@@ -33,6 +33,8 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 
 ## Active Work Items
 
+- [workspace-mode-icons.md](workspace-mode-icons.md) — Done：恢复原有三模式纯图标和紧凑按钮，移除整组外层框，保留当前模式高亮；生产构建、模式切换及宽/窄窗口浏览器检查通过。
+
 - [canvas-component-references.md](canvas-component-references.md) — Done：UIBox 存到画布并保留关联实例、同文件及跨模块画布引用、源更新和失效诊断；200 项测试、生产构建、宿主适配器文件监听测试和浏览器保存刷新验收通过，真实 Extension Host 人工联调未覆盖。
 
 - [runtime-slice-preview.md](runtime-slice-preview.md) — Draft：运行预览复用工作台已有布局和控件，聚焦切图装载；与项目 Laya UI 的已支持行为差异按 BUG 修正，预览不依赖启动游戏引擎。

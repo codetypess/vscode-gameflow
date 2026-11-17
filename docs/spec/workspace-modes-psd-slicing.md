@@ -8,7 +8,7 @@ Scope: 顶部原型/PSD 合并/PSD 切图模式、真实 PSD 读取及图层切�
 
 用户希望在顶栏中央切换三种工作模式。PSD 切图模式选择图层图片，参考 Laya 拖动四条虚线或输入上/右/下/左边距，配置可保存在 `登录.psd` 同目录的 `登录.meta.json`，也能内嵌于 PSD。原型编辑及未保存状态在切换时保留。
 
-最新 UI 调整：模式切换仅保留图标（LayoutPanelTop / GitMerge / Scissors），按钮 30×22px，外框约 26px 高，保留悬停提示和无障碍名称。
+最新 UI 调整：模式切换恢复原有纯图标（LayoutPanelTop / GitMerge / Scissors）及 30×22px 按钮，移除整组外层边框和背景，仅当前按钮高亮，保留悬停提示和无障碍名称。详见 [模式切换图标](workspace-mode-icons.md)。
 
 ## 2. Scope
 
