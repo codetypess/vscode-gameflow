@@ -1,7 +1,6 @@
 import type { GameFlowNode } from "../../shared/model";
 import { createContext, useContext, useState, type ReactNode } from "react";
 import * as Menu from "@radix-ui/react-dropdown-menu";
-import { readProperty } from "../../shared/canvas-instance-data";
 import type { CanvasNodeInfo } from "../../shared/canvas-instances";
 
 export interface OverrideActions {
@@ -30,7 +29,6 @@ export function useOverrideAttributes(label:string, paths?:string[]) {
   const context=useContext(Context), fields=paths??labels[label.replace(/偏移$|约束$/, "").replace(/^内边距([上下左右])$/, "$1内边距")]?.split(" ")??[], changed=fields.filter(field=>context?.actions.meta.overrides.includes(field));
   return {
     "data-override-fields": changed.length?changed.join(" "):undefined,
-    title: changed.length?`本地覆盖：${changed.map(field=>`${field}；本地值 ${JSON.stringify(readProperty(context!.actions.current,field))??"未设置"}；源值 ${JSON.stringify(readProperty(context!.actions.meta.base,field))??"未设置"}`).join("；")} · ${context!.actions.targetName ?? "源组件"} / ${context!.actions.targetSource || "当前文件"} · 右键还原或应用到源`:undefined,
     onContextMenu:(event:React.MouseEvent)=>{if(!context||!fields.length)return;event.preventDefault();event.stopPropagation();context.open(event.clientX,event.clientY,fields,label);},
     onKeyDown:(event:React.KeyboardEvent)=>{if(!context||!fields.length||!(event.key==="ContextMenu"||event.shiftKey&&event.key==="F10"))return;event.preventDefault();event.stopPropagation();const rect=event.currentTarget.getBoundingClientRect();context.open(rect.left,rect.bottom,fields,label);}
   };

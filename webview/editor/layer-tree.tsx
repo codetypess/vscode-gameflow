@@ -181,7 +181,7 @@ export function LayerTree({ page, scopeId, selectedId, selectedIds, reveal, onSe
             event.stopPropagation();
             if (event.key === "Enter") { event.preventDefault(); event.currentTarget.blur(); }
             else if (event.key === "Escape") { event.preventDefault(); renameCancelled.current = true; event.currentTarget.blur(); }
-          }} /> : <button className={cn("layer-name", (meta?.inherited || meta?.reference) && "layer-reference", !locked && !filtering && !protectedStructure && "layer-draggable")} aria-haspopup="menu" title={`${node.name}${meta?.inherited ? ` · 来自源组件：${meta.source || "当前文件"}` : meta?.reference ? " · 画布组件引用" : meta?.localId ? " · 本实例附加" : ""}${node.variableName ? ` · 变量：${node.variableName}` : ""}${locked ? " · 已锁定" : filtering ? " · 右键编辑，清除搜索后可拖动排序" : " · 拖动排序或移入容器，右键编辑"}`}
+          }} /> : <button className={cn("layer-name", (meta?.inherited || meta?.reference) && "layer-reference", !locked && !filtering && !protectedStructure && "layer-draggable")} aria-haspopup="menu"
           onPointerDown={(event) => {
             suppressClick.current = false;
             if (event.button !== 0 || menu) return;

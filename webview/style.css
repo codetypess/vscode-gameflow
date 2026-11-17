@@ -265,7 +265,7 @@ button svg { flex-shrink: 0; }
 .empty-layers { padding: 18px; text-align: center; font-size: 11px; line-height: 1.8; color: var(--muted-foreground); }
 .canvas-toolbar { position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%); z-index: 30; display: flex; gap: 2px; align-items: center; padding: 5px; white-space: nowrap; }
 .toolbar-button { width: 32px; height: 32px; flex-shrink: 0; border-radius: 3px; }
-.tool-active { background: var(--vscode-toolbar-activeBackground, #094771) !important; color: var(--vscode-list-activeSelectionForeground, #ffffff); }
+.tool-active { background: var(--primary) !important; color: var(--primary-foreground); }
 .canvas-toolbar [data-orientation=vertical], .canvas-zoom [data-orientation=vertical] { height: 20px; margin: 0 4px; background: var(--border); }
 .direct-tools { display: flex; gap: 2px; }
 .insert-trigger { position: relative; }.insert-trigger svg:last-child { position: absolute; right: 0; bottom: 3px; }
