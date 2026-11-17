@@ -13,8 +13,9 @@ async function main() {
   fs.writeFileSync(path.join(profile, "User", "settings.json"), JSON.stringify({ "files.autoSave": "off", "workbench.startupEditor": "none" }));
   await esbuild.build({ entryPoints: [path.join(__dirname, "extension-psd-smoke.ts")], outfile: output, bundle: true, platform: "node", format: "cjs", external: ["vscode"], target: "node20" });
   if (fs.existsSync(report)) fs.unlinkSync(report);
-  const child = spawn(code, ["--new-window", "--disable-extensions", "--skip-welcome", "--skip-release-notes", "--user-data-dir", profile, "--extensionDevelopmentPath", root, "--extensionTestsPath", output], { windowsHide: true, stdio: "ignore", env: { ...process.env, GAMEFLOW_PSD_TEST_ROOT: root, GAMEFLOW_PSD_TEST_REPORT: report } });
-  const timeout = setTimeout(() => { child.kill(); }, 120000);
+  const interactive = process.env.GAMEFLOW_PSD_CLOSE_UI === "1";
+  const child = spawn(code, ["--new-window", "--disable-extensions", "--skip-welcome", "--skip-release-notes", "--user-data-dir", profile, "--extensionDevelopmentPath", root, "--extensionTestsPath", output], { windowsHide: !interactive, stdio: "ignore", env: { ...process.env, GAMEFLOW_PSD_TEST_ROOT: root, GAMEFLOW_PSD_TEST_REPORT: report } });
+  const timeout = setTimeout(() => { child.kill(); }, interactive ? 300000 : 120000);
   await new Promise((resolve, reject) => { child.once("error", reject); child.once("exit", resolve); }); clearTimeout(timeout);
   if (!fs.existsSync(report)) throw new Error(`VS Code did not produce a report. Test profile: ${profile}`);
   const result = JSON.parse(fs.readFileSync(report, "utf8"));

@@ -2,25 +2,19 @@ import * as vscode from "vscode";
 import { createHash } from "node:crypto";
 import { exportSlicesToDirectory, type ResourceDirectory } from "../shared/psd-export-directory";
 import type { SliceExportBatch } from "../shared/psd-export";
+import { WorkbenchSettingsController } from "./workbench-settings-controller";
 
 const inProgress = new Set<string>();
 export class PsdExportController {
-  private directory?: vscode.Uri;
-  constructor(private readonly context: vscode.ExtensionContext, private readonly document: Pick<vscode.TextDocument, "uri">) {
-    const saved = context.workspaceState.get<string>("gameflow.psdExportDirectory");
-    if (saved) this.directory = vscode.Uri.parse(saved);
-  }
-  get directoryLabel(): string | undefined { return this.directory?.fsPath; }
+  constructor(private readonly settings: WorkbenchSettingsController, private readonly document: Pick<vscode.TextDocument, "uri">) {}
+  get directoryLabel(): string | undefined { return this.settings.directory("resources")?.fsPath; }
   async choose(): Promise<boolean> {
-    const selected = await vscode.window.showOpenDialog({ canSelectFiles: false, canSelectFolders: true, canSelectMany: false, openLabel: "选择资源导出目录", defaultUri: this.directory ?? vscode.Uri.joinPath(this.document.uri, "..") });
-    if (!selected?.[0]) return false;
-    this.directory = selected[0];
-    await this.context.workspaceState.update("gameflow.psdExportDirectory", this.directory.toString());
-    return true;
+    return this.settings.choose("resources", this.document.uri);
   }
   async export(batch: SliceExportBatch): Promise<number | null> {
-    if (!this.directory && !await this.choose()) return null;
-    const root = this.directory!, key = root.toString();
+    const root = this.settings.directory("resources");
+    if (!root) throw new Error("请先在工作台设置中选择资源导出目录。");
+    const key = root.toString();
     if (inProgress.has(key)) throw new Error("该目录正在导出，请稍后重试。");
     inProgress.add(key);
     const target = (name: string) => vscode.Uri.joinPath(root, name);

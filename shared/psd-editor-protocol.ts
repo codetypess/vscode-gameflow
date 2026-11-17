@@ -7,7 +7,7 @@ export type PsdEditorRequest =
   | { type: "psdEditorCommand"; requestId: string; action: "save" | "undo" | "redo" | "copy" };
 export interface PsdEditorState {
   type: "psdEditorState"; version: number; draft: PsdDraft; dirty: boolean;
-  backup: "pending" | "saved" | "error" | "none"; error?: string;
+  backup: "pending" | "saved" | "error" | "none"; error?: string; warning?: string;
   requestId?: string; rejected?: boolean;
 }
 export type PsdEditorMessage = PsdEditorState

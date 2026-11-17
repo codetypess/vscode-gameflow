@@ -5,6 +5,8 @@ Status: Implemented prototype subset
 
 ## Components
 
+页面属性在“页面名称”与“基础属性”之间提供独立的“导出名称”一行，与其他输入对齐，保存为可选 v2 `page.exportName`，供后续生成预制体使用。Enter/失焦提交时去除首尾空白，保留大小写，Escape 恢复，留空移除字段；旧文档不自动填充。修改显示名称、根类型或几何不联动导出名，整页复制保留；支持普通保存、重载及撤销/重做。本阶段仅存储名称，详见 [页面导出名称](page-export-name.md)。
+
 底部添加菜单和层级树右键提供 16 种原型节点：自由容器、横排、竖排、网格、面板容器、文字、图片、按钮、输入框、列表、复选框、单选框、单选组、进度条、滑块、下拉框。旧矩形节点继续兼容读写和渲染。菜单显示中文名与括号内的 LayaUI 类名，底部菜单不显示快捷键列。`shared/ui-components.ts` 定义类型、中文名、目标 LayaUI 类及能否包含子节点。新 UIButton 默认只有按钮根，UILabel 可通过添加子节点按需创建、删除；无 text 时不显示节点名，旧按钮显式保存的 text 原样显示。容器能力与是否自身绘制分别描述，不根据 UIBox 继承关系推断。
 
 画布根类型包括堆叠界面 (UIStack)、顶层界面 (UITop)、场景界面 (UIScene)，三种界面新建默认尺寸均为 750×1334；组件画板 (UIBox) 初始为 320×240。添加菜单上方“添加到画布”包含四种根类；下方控件区另保留自由容器，仅在页面内启用并添加子容器。UIBox 画板可用于 ItemRender 设计，双击编辑内部节点。UIView 是基础类，不作为可选根类型；默认新建 UIStack。页面属性可改根类型，与 screen/modal 页面形式独立；改类型保留 ID、内容和几何，复制保留类型并生成新 ID。层级树根和属性身份显示实际根类。运行时层级管理、ItemRender 绑定与 Prefab 导出仍为后续工作。
@@ -30,6 +32,10 @@ RadioGroup 为可含子节点的容器，`widget.optionNodeIds` 保存同页 Rad
 底部工具条的选中按钮（包括直选模式、虚线框、添加工具及属性面板开关）使用主题主按钮亮色背景及对应前景色，悬停仍保留选中色，使开启状态与普通按钮清楚区分。
 
 ## Geometry
+
+属性面板默认一个独立属性一行，最小值/最大值、描边宽度/圆角分别独占一行。普通输入、布尔属性、文字按钮、数值组合、滑块、padding 和容器对齐统一使用 60px 标签列及 7px 列间距，布尔属性为左标签、右复选框。坐标/尺寸/变换等轴分量、padding 四边、布局约束图、样式/对齐/语法等具有组合语义的控件保留成组呈现，窄面板按组换行。详见 [属性面板行与列统一](inspector-property-rows.md)。
+
+UILabel 的文字区支持可选 `widget.leading/letterSpacing`（有限正负数，默认 0）、wordWrap、五种 overflow（visible/hidden/scroll/shrink/ellipsis）及 HTML/UBB/模板开关。保留已有原型缺省 wordWrap=true、overflow=hidden。语法按项目 UILabel 源码顺序处理：模板变量替换，再 UBB 转 HTML，再解析文本段；UBB 单独开启即解释 HTML。模板变量为 JSON 标量映射，null/缺省关闭；`{name=default}`、缺失值及反斜杠转义与目标一致。行距、字距、富文本换行和溢出共用目标纯排版算法；shrink/ellipsis 同时考虑宽高，scroll 通过 widget.scrollX/Y 静态偏移。普通文字可多行编辑，Enter 换行、失焦或 Ctrl/Cmd+Enter 一次提交、Escape 恢复。新增字段支持保存、历史与引用实例覆盖/还原。HTML 只生成受控绘制元素，链接不跳转，内联图片在资产路径解析接入前使用尺寸占位。详见 [UILabel 文字属性与语法](label-text-properties.md)。
 
 所有支持子节点的控件，其属性面板“容器布局”分区默认展开，并允许手动收起；复合控件与普通容器采用相同默认状态。
 

@@ -1,0 +1,20 @@
+.workbench-settings-dialog { width: min(520px, calc(100vw - 32px)); max-height: calc(100vh - 40px); padding: 0; border: 1px solid var(--border); border-radius: 6px; color: var(--foreground); background: var(--background); box-shadow: 0 16px 48px #0007; }
+.workbench-settings-dialog::backdrop { background: #0007; }
+.workbench-settings-dialog > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; border-bottom: 1px solid var(--border); }
+.workbench-settings-dialog > header strong { font-size: 13px; }
+.workbench-settings-dialog > header button { width: 28px; height: 28px; }
+.workbench-settings-body { display: flex; flex-direction: column; gap: 20px; padding: 18px 16px; overflow-y: auto; }
+.workbench-setting { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+.workbench-setting > label { font-size: 12px; font-weight: 500; }
+.workbench-directory { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.workbench-directory input { flex: 1; min-width: 0; font-size: 11px; text-overflow: ellipsis; }
+.workbench-directory button { flex-shrink: 0; gap: 6px; }
+.workbench-setting small, .workbench-settings-note { margin: 0; font-size: 11px; line-height: 1.6; color: var(--muted-foreground); }
+.workbench-settings-dialog > footer { display: flex; justify-content: flex-end; padding: 10px 16px; border-top: 1px solid var(--border); }
+.workbench-document-actions, .workbench-export-actions, .workbench-right { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
+.workbench-right { margin-left: auto; gap: 6px; }
+.topbar .workbench-icon { width: 28px; height: 28px; padding: 0; }
+.topbar .workbench-export-button { padding: 0 10px; gap: 6px; }
+.topbar .document-title { min-width: 0; }
+@media (max-width: 800px) { .topbar { gap: 5px; }.topbar .document-title { display: none; }.topbar .mode-switcher { position: static; transform: none; margin-left: auto; align-self: center; margin-top: 0; }.workbench-right { margin-left: 4px; } }
+@media (max-width: 520px) { .topbar .workbench-history { display: none; }.topbar .brand-mark, .topbar > strong, .topbar .topbar-separator { display: none; }.topbar .workbench-export-button { padding: 0 7px; } }

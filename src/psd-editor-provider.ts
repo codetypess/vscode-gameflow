@@ -9,6 +9,7 @@ import { SliceExportConflict } from "../shared/psd-export";
 import { PsdDocumentModel, bytesHash } from "./psd-document-model";
 import { PsdExportController } from "./psd-export-controller";
 import { configureGameFlowWebview } from "./webview-html";
+import { WorkbenchSettingsController } from "./workbench-settings-controller";
 
 export const PSD_EDITOR_VIEW_TYPE = "gameflow.psdEditor";
 const message = (error: unknown) => error instanceof Error ? error.message : String(error);
@@ -43,22 +44,23 @@ export class PsdDocument implements vscode.CustomDocument {
   readonly panels = new Set<vscode.WebviewPanel>();
   readonly flushes = new Map<string, () => void>();
   backup: PsdEditorState["backup"] = "none";
-  error?: string; notice?: string; configReadIssue?: string; disposed = false; announced = false;
+  error?: string; notice?: string; warning?: string; configReadIssue?: string; disposed = false; announced = false;
   onDispose?: () => void;
   private operations: Promise<unknown> = Promise.resolve();
   constructor(readonly uri: vscode.Uri, public bytes: Uint8Array, readonly model: PsdDocumentModel, readonly cache: vscode.Uri) {}
   enqueue<T>(operation: () => Promise<T>): Promise<T> { const result = this.operations.then(operation); this.operations = result.catch(() => {}); return result; }
-  state(extra: Partial<PsdEditorState> = {}): PsdEditorState { return { type: "psdEditorState", version: this.model.version, draft: makePsdDraft(this.model.asset), dirty: this.model.dirty, backup: this.backup, error: this.error, ...extra }; }
+  state(extra: Partial<PsdEditorState> = {}): PsdEditorState { return { type: "psdEditorState", version: this.model.version, draft: makePsdDraft(this.model.asset), dirty: this.model.dirty, backup: this.backup, error: this.error, warning: this.warning ?? (this.configReadIssue ? `已有配置未能自动读取：${this.configReadIssue}。原文件已保留，请修复后保存或导出 PSD 副本。` : undefined), ...extra }; }
   async broadcast(extra: Partial<PsdEditorState> = {}) { await Promise.all([...this.panels].map(panel => panel.webview.postMessage(this.state(extra)))); }
   envelope(): Backup { return { schema: "gameflow.psd-draft", version: 1, source: this.uri.toString(), sourceHash: this.model.asset.sourceHash, draft: makePsdDraft(this.model.asset), baseline: this.model.baseline, configHash: this.model.configHash, needsSave: this.model.needsSave, configReadIssue: this.configReadIssue }; }
   dispose() { this.disposed = true; this.panels.clear(); this.onDispose?.(); }
 }
 
 export class PsdEditorProvider implements vscode.CustomEditorProvider<PsdDocument> {
+  readonly settings: WorkbenchSettingsController;
   readonly documents = new Map<string, PsdDocument>();
   private readonly changes = new vscode.EventEmitter<vscode.CustomDocumentEditEvent<PsdDocument>>();
   readonly onDidChangeCustomDocument = this.changes.event;
-  constructor(private readonly context: vscode.ExtensionContext) { context.subscriptions.push(this.changes); }
+  constructor(private readonly context: vscode.ExtensionContext) { this.settings = new WorkbenchSettingsController(context); context.subscriptions.push(this.changes, this.settings); }
   async open(uri?: vscode.Uri) {
     if (!uri) uri = (await vscode.window.showOpenDialog({ canSelectMany: false, filters: { Photoshop: ["psd"] }, openLabel: "打开 PSD 配置" }))?.[0];
     if (!uri) return;
@@ -66,6 +68,7 @@ export class PsdEditorProvider implements vscode.CustomEditorProvider<PsdDocumen
     await vscode.commands.executeCommand("vscode.openWith", uri, PSD_EDITOR_VIEW_TYPE, { preview: false });
   }
   async openCustomDocument(uri: vscode.Uri, context: vscode.CustomDocumentOpenContext, token: vscode.CancellationToken): Promise<PsdDocument> {
+    if (this.documents.has(uri.toString())) throw new Error("此 PSD 已在工作台或配置编辑器中打开，请先关闭原会话。");
     const cache = vscode.Uri.joinPath(this.context.globalStorageUri, "psd-drafts", bytesHash(new TextEncoder().encode(uri.toString())));
     let backup: Backup | undefined;
     if (context.backupId) {
@@ -112,10 +115,11 @@ export class PsdEditorProvider implements vscode.CustomEditorProvider<PsdDocumen
     doc.onDispose = () => { if (this.documents.get(uri.toString()) === doc) this.documents.delete(uri.toString()); };
     return doc;
   }
-  private editEvent(doc: PsdDocument, before: PsdDraft, after: PsdDraft, label = "修改 PSD 配置") {
+  private editEvent(doc: PsdDocument, before: PsdDraft, after: PsdDraft, label = "修改 PSD 配置", initial = false) {
+    const needsSave = doc.model.needsSave;
     this.changes.fire({ document: doc, label,
-      undo: async () => { doc.model.restore(before); await doc.broadcast(); this.backupSoon(doc); },
-      redo: async () => { doc.model.restore(after); await doc.broadcast(); this.backupSoon(doc); }
+      undo: async () => { doc.model.restore(before); if (initial) doc.model.needsSave = false; await doc.broadcast(); this.backupSoon(doc); },
+      redo: async () => { doc.model.restore(after); if (initial) doc.model.needsSave = needsSave; await doc.broadcast(); this.backupSoon(doc); }
     });
   }
   private backupSoon(doc: PsdDocument) {
@@ -144,13 +148,24 @@ export class PsdEditorProvider implements vscode.CustomEditorProvider<PsdDocumen
   }
   async resolveCustomEditor(doc: PsdDocument, panel: vscode.WebviewPanel): Promise<void> {
     configureGameFlowWebview(panel.webview, this.context.extensionUri, `${nameOf(doc.uri)} · 切图配置`, "psd");
+    const attachment = this.attach(doc, panel, () => this.open());
+    const settings = this.settings.attach(panel, doc.uri);
+    panel.onDidDispose(() => { attachment.dispose(); settings.dispose(); });
+  }
+  async initialize(doc: PsdDocument, panel: vscode.WebviewPanel) {
+    await panel.webview.postMessage({ type: "psdEditorInit", name: nameOf(doc.uri), base64: Buffer.from(doc.bytes).toString("base64"), state: doc.state(), configPath: configUri(doc.uri).fsPath, notice: doc.notice } satisfies PsdEditorMessage);
+    this.announce(doc);
+  }
+  announce(doc: PsdDocument) {
+    if (doc.model.dirty && !doc.announced) { doc.announced = true; this.editEvent(doc, doc.model.baseline, makePsdDraft(doc.model.asset), "打开未保存 PSD 配置", true); this.backupSoon(doc); }
+  }
+  attach(doc: PsdDocument, panel: vscode.WebviewPanel, open: () => Promise<unknown>): vscode.Disposable {
     doc.panels.add(panel);
-    const exports = new PsdExportController(this.context, { uri: doc.uri });
+    const exports = new PsdExportController(this.settings, { uri: doc.uri });
     const subscription = panel.webview.onDidReceiveMessage(async (raw: unknown) => {
       if (isPsdEditorRequest(raw)) {
         if (raw.type === "psdEditorReady") {
-          await panel.webview.postMessage({ type: "psdEditorInit", name: nameOf(doc.uri), base64: Buffer.from(doc.bytes).toString("base64"), state: doc.state(), configPath: configUri(doc.uri).fsPath, notice: doc.notice } satisfies PsdEditorMessage);
-          if (doc.model.dirty && !doc.announced) { doc.announced = true; this.editEvent(doc, doc.model.baseline, makePsdDraft(doc.model.asset), "打开未保存 PSD 配置"); this.backupSoon(doc); }
+          await this.initialize(doc, panel);
         } else if (raw.type === "psdEditorFlushed") { doc.flushes.get(raw.requestId)?.(); }
         else if (raw.type === "psdEditorEdit") {
           try {
@@ -165,7 +180,7 @@ export class PsdEditorProvider implements vscode.CustomEditorProvider<PsdDocumen
             await panel.webview.postMessage({ type: "psdEditorCommandResult", requestId: raw.requestId, ...(raw.action === "save" && doc.error ? { error: doc.error } : {}) } satisfies PsdEditorMessage);
           } catch (error) { await panel.webview.postMessage({ type: "psdEditorCommandResult", requestId: raw.requestId, error: message(error) } satisfies PsdEditorMessage); }
         }
-      } else if (isWebviewToHostMessage(raw) && raw.type === "openPsdEditor") { try { await this.open(); } catch (error) { void vscode.window.showErrorMessage(message(error)); } }
+      } else if (isWebviewToHostMessage(raw) && raw.type === "openPsdEditor") { try { await open(); } catch (error) { void vscode.window.showErrorMessage(message(error)); } }
       else if (isWebviewToHostMessage(raw) && raw.type === "psdResourceExport") {
         try {
           const count = raw.action === "export" ? await exports.export(raw.batch!) : undefined;
@@ -174,9 +189,9 @@ export class PsdEditorProvider implements vscode.CustomEditorProvider<PsdDocumen
         } catch (error) { await panel.webview.postMessage({ type: "psdResourceExportResult", requestId: raw.requestId, error: message(error), ...(error instanceof SliceExportConflict ? { conflicts: error.conflicts } : {}) } satisfies HostToWebviewMessage); }
       }
     });
-    panel.onDidDispose(() => { subscription.dispose(); doc.panels.delete(panel); });
+    return new vscode.Disposable(() => { subscription.dispose(); doc.panels.delete(panel); });
   }
-  private async flush(doc: PsdDocument) {
+  async flush(doc: PsdDocument) {
     if (!doc.panels.size) return;
     const requestId = crypto.randomUUID();
     let timeout: ReturnType<typeof setTimeout> | undefined;
@@ -206,7 +221,7 @@ export class PsdEditorProvider implements vscode.CustomEditorProvider<PsdDocumen
           },
           writeConfig: async bytes => { cancelled(token); await atomicWrite(configUri(doc.uri), bytes); }
         });
-        doc.error = undefined; doc.configReadIssue = undefined; doc.notice = undefined;
+        doc.error = undefined; doc.configReadIssue = undefined; doc.notice = undefined; doc.warning = undefined;
         if (!doc.model.dirty) { await this.clearDraft(doc); doc.backup = "none"; }
         await doc.broadcast();
       } catch (error) { doc.error = message(error); await doc.broadcast(); throw error; }
@@ -222,11 +237,11 @@ export class PsdEditorProvider implements vscode.CustomEditorProvider<PsdDocumen
         let asset = createPsdStructure(parsePsdBinary(bytes), nameOf(doc.uri), bytesHash(bytes));
         if (config) asset = applySidecar(asset, JSON.parse(new TextDecoder().decode(config)));
         else if (asset.sourceHash === doc.model.asset.sourceHash) asset = applyPsdDraft(asset, doc.model.baseline, true);
-        doc.bytes = bytes; doc.model.reset(asset, config ? bytesHash(config) : null); doc.notice = undefined;
+        doc.bytes = bytes; doc.model.reset(asset, config ? bytesHash(config) : null); doc.notice = undefined; doc.warning = undefined; doc.configReadIssue = undefined;
       } catch (error) {
         // Explicit discard must remain possible even if an external file was removed/damaged.
         doc.model.reset(applyPsdDraft(doc.model.asset, doc.model.baseline), doc.model.configHash);
-        doc.notice = `已放弃本次修改；外部文件暂时无法读取：${message(error)}。请重新打开后核对。`;
+        doc.warning = `已放弃本次修改；外部文件暂时无法读取：${message(error)}。请重新打开后核对。`;
       }
       doc.error = undefined; doc.backup = "none"; await this.clearDraft(doc);
       for (const panel of doc.panels) await panel.webview.postMessage({ type: "psdEditorInit", name: nameOf(doc.uri), base64: Buffer.from(doc.bytes).toString("base64"), state: doc.state(), configPath: configUri(doc.uri).fsPath, notice: doc.notice } satisfies PsdEditorMessage);

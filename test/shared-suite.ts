@@ -24,6 +24,7 @@ import { uiTransformTests } from "./ui-transform-suite";
 import { uiPartsTests } from "./ui-parts-suite";
 import { nodeReferenceTests } from "./node-reference-suite";
 import { pageRootLayoutTests } from "./page-root-layout-suite";
+import { pageExportNameTests } from "./page-export-name-suite";
 import { canvasScopeTests } from "./canvas-scope-suite";
 import { nodeSelectionTests } from "./node-selection-suite";
 import { colorEditTests } from "./color-edit-suite";
@@ -31,6 +32,7 @@ import { textFormattingTests } from "./text-formatting-suite";
 import { canvasInstanceTests } from "./canvas-instance-suite";
 import { canvasReferenceTests } from "./canvas-references-suite";
 import { canvasReferenceHostTests } from "./canvas-reference-host-suite";
+import { workbenchSettingsTests } from "./workbench-settings-suite";
 
 type TestCase = { name: string; run: () => void | Promise<void> };
 const tests: TestCase[] = [];
@@ -497,6 +499,23 @@ function sessionFixture() {
   return { session, sent, document, snapshot };
 }
 
+test("workbench native flush waits for all queued prototype edits", () => {
+  const { session, sent, document, snapshot } = sessionFixture();
+  session.edit(doc => ({ ...doc, title: "A" })); session.edit(doc => ({ ...doc, title: "B" }));
+  session.receive({ type: "workbenchFlush", requestId: "native-save" });
+  assert.equal(sent.some(message => message.type === "workbenchFlushed"), false);
+  snapshot({ ...document, title: "A" }, 4); assert.equal(sent.some(message => message.type === "workbenchFlushed"), false);
+  snapshot({ ...document, title: "B" }, 5);
+  assert.deepEqual(sent.at(-1), { type: "workbenchFlushed", requestId: "native-save" });
+});
+
+test("workbench flush can acknowledge the currently executing save command", () => {
+  const { session, sent } = sessionFixture(); session.command("save");
+  session.receive({ type: "workbenchFlush", requestId: "save-command" });
+  assert.deepEqual(sent.at(-1), { type: "workbenchFlushed", requestId: "save-command" });
+  assert.equal(session.state.pending, true);
+});
+
 test("editor initialization migrates legacy IDs once in a save-ordered, undoable transaction", () => {
   const sent: WebviewToHostMessage[] = [];
   const session = new DocumentSession(message => sent.push(message), () => {});
@@ -617,12 +636,14 @@ test("invalid source blocks editing and a rejected transaction reloads host auth
 tests.push(...psdTests);
 tests.push(...psdExportTests);
 tests.push(...psdDocumentTests);
+tests.push(...workbenchSettingsTests);
 tests.push(...canvasReferenceTests, ...canvasInstanceTests);
 tests.push(...canvasReferenceHostTests);
 tests.push(...uiLayoutTests);
 tests.push(...nodeVariableTests);
 tests.push(...uiTransformTests);
 tests.push(...pageRootLayoutTests, ...uiPartsTests, ...nodeReferenceTests, ...canvasScopeTests, ...nodeSelectionTests, ...colorEditTests, ...textFormattingTests);
+tests.push(...pageExportNameTests);
 export const testsCompleted = (async () => {
   let failed = 0;
   for (const item of tests) {

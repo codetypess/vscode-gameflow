@@ -7,8 +7,11 @@ import type { CanvasSources } from "./canvas-references";
 import type { CanvasApplyRequest } from "./canvas-instances";
 import { validCanvasTarget, validCanvasSelections, isCanvasProperty } from "./canvas-instance-data";
 import { isSliceExportBatch, type ResourceConflict, type SliceExportBatch } from "./psd-export";
+import { isWorkbenchSettingsRequest, type WorkbenchSettingsRequest, type WorkbenchSettingsResult } from "./workbench-settings";
 
 export type WebviewToHostMessage =
+  | WorkbenchSettingsRequest
+  | { type: "workbenchFlushed"; requestId: string }
   | { type: "openPsdEditor" }
   | { type: "psdResourceExport"; requestId: string; action: "choose" | "export"; batch?: SliceExportBatch }
   | { type: "ready" }
@@ -25,6 +28,8 @@ export type WebviewToHostMessage =
     };
 
 export type HostToWebviewMessage =
+  | WorkbenchSettingsResult
+  | { type: "workbenchFlush"; requestId: string }
   | { type: "psdResourceExportResult"; requestId: string; directory?: string; count?: number; cancelled?: boolean; error?: string; conflicts?: ResourceConflict[] }
   | { type: "canvasSources"; sources: CanvasSources; pickedSource?: string; error?: string }
   | { type: "psdOutputResult"; requestId: string; saved: boolean; error?: string }
@@ -59,9 +64,11 @@ export function isWebviewToHostMessage(
   if (!isRecord(value) || typeof value.type !== "string") {
     return false;
   }
+  if (value.type === "workbenchSettings") return isWorkbenchSettingsRequest(value);
   if (value.type === "ready") {
     return true;
   }
+  if (value.type === "workbenchFlushed") return typeof value.requestId === "string" && value.requestId.length > 0 && value.requestId.length <= 80;
   if (value.type === "save" || value.type === "openPsdEditor") return true;
   if (value.type === "psdResourceExport") return typeof value.requestId === "string" && value.requestId.length > 0 && value.requestId.length <= 80 && (value.action === "choose" ? value.batch === undefined : value.action === "export" && isSliceExportBatch(value.batch));
   if (value.type === "applyCanvasOverrides") {

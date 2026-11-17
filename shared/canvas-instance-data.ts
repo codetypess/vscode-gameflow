@@ -30,7 +30,7 @@ const PROPERTY_GROUPS: Record<string, readonly string[]> = {
   frame: ["x", "y", "width", "height"],
   style: ["fill", "color", "borderColor", "borderWidth", "radius", "fontSize", "fontWeight", "italic", "underline", "strikethrough", "textAlign", "opacity"],
   layout: ["left", "right", "centerX", "top", "bottom", "centerY", "layoutUnit", "widthMode", "heightMode", "crossAxisMode", "positionOffsetX", "positionOffsetY", "paddingLeft", "paddingRight", "paddingTop", "paddingBottom", "gap", "gapX", "gapY", "align", "valign", "direction", "wrapCount", "clipContent", "scrollX", "scrollY"],
-  widget: ["skinNodeId", "optionNodeIds", "selected", "disabled", "min", "max", "value", "direction", "placeholder", "password", "maxChars", "options", "selectedIndex", "wordWrap", "overflow", "valign", "imageFit"],
+  widget: ["skinNodeId", "optionNodeIds", "selected", "disabled", "min", "max", "value", "direction", "placeholder", "password", "maxChars", "options", "selectedIndex", "wordWrap", "overflow", "valign", "imageFit", "leading", "letterSpacing", "html", "ubb", "templateVars", "scrollX", "scrollY"],
   transform: ["anchorX", "anchorY", "scaleX", "scaleY", "skewX", "skewY", "rotation"]
 };
 export function isCanvasProperty(path: string): boolean {

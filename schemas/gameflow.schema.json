@@ -33,6 +33,7 @@
         "properties": {
           "id": { "type": "string", "minLength": 1 },
           "name": { "type": "string", "minLength": 1 },
+          "exportName": { "type": "string", "minLength": 1, "pattern": "\\S" },
           "kind": { "enum": ["screen","modal"] },
           "rootType": { "enum": ["UIStack","UITop","UIScene","UIBox"] },
           "componentRootId": { "type": "string", "minLength": 1 },
@@ -163,6 +164,13 @@
                     "widget.overflow",
                     "widget.valign",
                     "widget.imageFit",
+                    "widget.leading",
+                    "widget.letterSpacing",
+                    "widget.html",
+                    "widget.ubb",
+                    "widget.templateVars",
+                    "widget.scrollX",
+                    "widget.scrollY",
                     "transform.anchorX",
                     "transform.anchorY",
                     "transform.scaleX",
@@ -355,6 +363,13 @@
         "widget.disabled": {"type": "boolean"},
         "widget.password": {"type": "boolean"},
         "widget.wordWrap": {"type": "boolean"},
+        "widget.leading": {"type":"number"},
+        "widget.letterSpacing": {"type":"number"},
+        "widget.html": {"type":"boolean"},
+        "widget.ubb": {"type":"boolean"},
+        "widget.templateVars": {"type":["object","null"],"additionalProperties":{"type":["string","number","boolean","null"]}},
+        "widget.scrollX": {"type":"number","minimum":0},
+        "widget.scrollY": {"type":"number","minimum":0},
         "widget.min": {"type": "number"},
         "widget.max": {"type": "number"},
         "widget.value": {"type": "number"},
@@ -363,7 +378,7 @@
         "widget.options": {"type": "array","maxItems": 1000,"items": {"type": "string"}},
         "widget.placeholder": {"type": "string"},
         "widget.direction": {"enum": ["horizontal","vertical"]},
-        "widget.overflow": {"enum": ["visible","hidden"]},
+        "widget.overflow": {"enum": ["visible","hidden","scroll","shrink","ellipsis"]},
         "widget.valign": {"enum": ["top","middle","bottom"]},
         "widget.imageFit": {"enum": ["contain","cover","fill"]},
         "transform.anchorX": {"type": "number","minimum": 0,"maximum": 1},
@@ -537,6 +552,13 @@
         "disabled": { "type": "boolean" },
         "password": { "type": "boolean" },
         "wordWrap": { "type": "boolean" },
+        "leading": {"type":"number"},
+        "letterSpacing": {"type":"number"},
+        "html": {"type":"boolean"},
+        "ubb": {"type":"boolean"},
+        "templateVars": {"type":["object","null"],"additionalProperties":{"type":["string","number","boolean","null"]}},
+        "scrollX": {"type":"number","minimum":0},
+        "scrollY": {"type":"number","minimum":0},
         "min": { "type": "number" },
         "max": { "type": "number" },
         "value": { "type": "number" },
@@ -549,7 +571,7 @@
         },
         "placeholder": { "type": "string" },
         "direction": { "enum": ["horizontal","vertical"] },
-        "overflow": { "enum": ["visible","hidden"] },
+        "overflow": { "enum": ["visible","hidden","scroll","shrink","ellipsis"] },
         "valign": { "enum": ["top","middle","bottom"] },
         "imageFit": { "enum": ["contain","cover","fill"] }
       }
@@ -566,7 +588,7 @@
         "properties": {
           "pages": {
             "items": {
-              "not": { "anyOf": [{ "required": ["rootType"] }, { "required": ["layout"] }] },
+              "not": { "anyOf": [{ "required": ["rootType"] }, { "required": ["layout"] }, { "required": ["exportName"] }] },
               "properties": {
                 "nodes": {
                   "items": {

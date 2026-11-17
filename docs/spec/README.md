@@ -33,7 +33,19 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 
 ## Active Work Items
 
-- [psd-document-lifecycle.md](psd-document-lifecycle.md) — Verifying：PSD 切图独立配置标签、原生 dirty/save/history/backup、同目录配置自动读取与草稿恢复；实现及共享/真实 Extension Host 测试通过，关闭对话框的逐按钮人工验收待完成。
+- [page-export-name.md](page-export-name.md) — Implementing：页面名称下方新增独立“导出名称”，保存可选页面元数据，供后续 Prefab 生成使用。
+
+- [inspector-property-rows.md](inspector-property-rows.md) — Done：普通属性一行一个，范围及外观属性拆行，标签列/操作区统一对齐，组合控件保留分组；280 项测试、生产构建及普通/窄窗口浏览器验收通过。
+
+- [workbench-toolbar-settings.md](workbench-toolbar-settings.md) — Done：PSD 操作集中顶栏，独立“导出”按钮及工作台设置面板；资源/预制体目录保存在本机 workspaceState，沿用旧目录并在下次导出使用新设置。280 项共享测试、生产构建、29 项真实宿主检查及浏览器真实 PSD/模式切换/520px 窄窗口验收通过。Prefab 导出未接通。
+
+- [psd-in-workbench.md](psd-in-workbench.md) — Verifying：PSD 在当前工作台内打开，聚合原型与 PSD 的原生保存/历史/关闭保护/恢复。10 项真实工作台检查通过，基线同步完成；原生 × 对话框逐按钮点击仍待人工验收。
+
+- [label-text-properties.md](label-text-properties.md) — Done：UILabel 行距、字距、换行、五种溢出、HTML/UBB/模板及多行编辑；目标源码算法适配，保存、历史和实例覆盖联通，277 项测试、生产构建及浏览器交互验收通过，内联图片资产暂为占位。
+
+- [f5-extension-host-startup.md](f5-extension-host-startup.md) — Verifying：复现 F5 开发宿主启动 code 134 崩溃；恢复原配置后启动、重启、激活断点及画布显示通过，保留可用窗口。尚未确认具体触发原因，无业务/启动配置修复声明。
+
+- [psd-document-lifecycle.md](psd-document-lifecycle.md) — Verifying：PSD 原生 dirty/save/history/backup、同目录配置自动读取与草稿恢复；独立标签作为工作台默认入口的规则已被 psd-in-workbench 替代，Explorer 可选编辑器保留。关闭对话框逐按钮人工验收待完成。
 
 - [canvas-context-menu.md](canvas-context-menu.md) — Done：总览画板/空白、页内节点/当前层空白右键菜单，复用图层命令及保护；含右键位置新增、重命名对话框和键盘菜单。244 项测试、生产构建及总览/页内/多选/保护/窄窗口浏览器验收通过。
 

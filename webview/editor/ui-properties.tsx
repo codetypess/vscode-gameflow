@@ -6,6 +6,7 @@ import { Field, NumericPropertyRow, ReadOnlyPropertyRow } from "./fields";
 import { ConstraintControl, ContainerAlignment, PaddingControl } from "./layout-controls";
 import { sliderOwner } from "../../shared/ui-parts";
 import { useOverrideAttributes } from "./override-properties";
+import { isTemplateVars } from "../../shared/ui-config";
 
 function Select({ label, value, options, disabled, compact, onChange }: { label: string; value: string; options: readonly (readonly [string, string])[]; disabled?: boolean; compact?: boolean; onChange: (value: string) => void }) {
   const override=useOverrideAttributes(label);
@@ -76,17 +77,36 @@ export function WidgetProperties({ node, locked, onNode }: { node: GameFlowNode;
   const w = node.widget ?? {};
   const set = (patch: Partial<WidgetProps>) => onNode(node.id, { widget: { ...w, ...patch } });
   const interactive = ["button", "input", "checkbox", "radio", "slider", "combo"].includes(node.type);
-  if (!interactive && !["text", "progress", "image"].includes(node.type)) return null;
+  if (!interactive && !["progress", "image"].includes(node.type)) return null;
   return <details className="property-details" open><summary>组件设置 <small>{COMPONENTS[node.type].laya}</small></summary>
     {interactive && node.type !== "slider" ? <Toggle label="禁用状态" value={w.disabled ?? false} disabled={locked} onChange={(v) => set({ disabled: v })} /> : null}
     {["progress", "slider"].includes(node.type) ? <>
-      <div className="property-grid">{(["min", "max"] as const).map((key) => <Field key={key} label={key === "min" ? "最小值" : "最大值"} type="number" value={w[key] ?? (key === "min" ? 0 : 1)} disabled={locked} validate={(v) => key === "min" ? Number(v) < (w.max ?? 1) : Number(v) > (w.min ?? 0)} onCommit={(v) => { const min = key === "min" ? Number(v) : w.min ?? 0, max = key === "max" ? Number(v) : w.max ?? 1; set({ [key]: Number(v), value: Math.min(max, Math.max(min, w.value ?? min)) }); }} />)}</div>
+      {(["min", "max"] as const).map((key) => <Field key={key} label={key === "min" ? "最小值" : "最大值"} type="number" value={w[key] ?? (key === "min" ? 0 : 1)} disabled={locked} validate={(v) => key === "min" ? Number(v) < (w.max ?? 1) : Number(v) > (w.min ?? 0)} onCommit={(v) => { const min = key === "min" ? Number(v) : w.min ?? 0, max = key === "max" ? Number(v) : w.max ?? 1; set({ [key]: Number(v), value: Math.min(max, Math.max(min, w.value ?? min)) }); }} />)}
       <Field label="当前值" type="number" min={w.min ?? 0} max={w.max ?? 1} value={w.value ?? w.min ?? 0} disabled={locked} onCommit={(v) => set({ value: Number(v) })} />
       <Select label="控件方向" value={w.direction ?? "horizontal"} disabled={locked} options={[["horizontal", "水平"], ["vertical", "垂直"]]} onChange={(v) => set({ direction: v as WidgetProps["direction"] })} />
     </> : null}
     {node.type === "input" ? <><Field label="占位文字" value={w.placeholder ?? "请输入内容"} disabled={locked} onCommit={(v) => set({ placeholder: v })} /><Field label="最大字数（0不限）" type="number" min={0} value={w.maxChars ?? 0} disabled={locked} onCommit={(v) => set({ maxChars: Math.round(Number(v)) })} /><Toggle label="密码显示" value={w.password ?? false} disabled={locked} onChange={(v) => set({ password: v })} /></> : null}
     {node.type === "combo" ? <><Field label="选项（用 | 分隔）" value={(w.options ?? ["选项一", "选项二", "选项三"]).join(" | ")} disabled={locked} onCommit={(v) => { const options = v.split("|").map((s) => s.trim()).filter(Boolean).slice(0, 1000); set({ options, selectedIndex: options.length ? 0 : -1 }); }} /><Select label="当前选项" value={String(w.selectedIndex ?? 0)} disabled={locked} options={[["-1", "未选中"], ...(w.options ?? ["选项一", "选项二", "选项三"]).map((s, i) => [String(i), s] as const)]} onChange={(v) => set({ selectedIndex: Number(v) })} /></> : null}
-    {node.type === "text" ? <><Toggle label="自动换行" value={w.wordWrap ?? true} disabled={locked} onChange={(v) => set({ wordWrap: v })} /><Select label="文字溢出" value={w.overflow ?? "hidden"} disabled={locked} options={[["hidden", "裁剪"], ["visible", "显示"]]} onChange={(v) => set({ overflow: v as WidgetProps["overflow"] })} /></> : null}
     {node.type === "image" ? <Select label="图片填充" value={w.imageFit ?? "contain"} disabled={locked} options={[["contain", "完整显示"], ["cover", "覆盖裁剪"], ["fill", "拉伸"]]} onChange={(v) => set({ imageFit: v as WidgetProps["imageFit"] })} /> : null}
   </details>;
+}
+
+export function LabelProperties({ node, locked, onNode }: { node: GameFlowNode; locked: boolean; onNode: (id: string, patch: Partial<GameFlowNode>) => void }) {
+  const w = node.widget ?? {};
+  const set = (patch: Partial<WidgetProps>) => onNode(node.id, { widget: { ...w, ...patch } });
+  const syntaxOverride = useOverrideAttributes("文字语法");
+  if (node.type !== "text") return null;
+  return <>
+    <Field label="行距" type="number" step={1} value={w.leading ?? 0} disabled={locked} onCommit={value => set({ leading: Number(value) })} />
+    <Field label="字距" type="number" step={1} value={w.letterSpacing ?? 0} disabled={locked} onCommit={value => set({ letterSpacing: Number(value) })} />
+    <Toggle label="自动换行" value={w.wordWrap ?? true} disabled={locked} onChange={wordWrap => set({ wordWrap })} />
+    <Select label="文字溢出" value={w.overflow ?? "hidden"} disabled={locked} options={[["visible", "显示溢出"], ["hidden", "裁剪"], ["scroll", "滚动"], ["shrink", "缩小字体"], ["ellipsis", "省略号"]]} onChange={overflow => set({ overflow: overflow as WidgetProps["overflow"] })} />
+    {w.overflow === "scroll" ? <NumericPropertyRow label="文字滚动" disabled={locked} fields={[{ axis: "X", ariaLabel: "文字滚动 X", min: 0, value: w.scrollX ?? 0, onCommit: scrollX => set({ scrollX }) }, { axis: "Y", ariaLabel: "文字滚动 Y", min: 0, value: w.scrollY ?? 0, onCommit: scrollY => set({ scrollY }) }]} /> : null}
+    <div className="label-syntax-row" {...syntaxOverride}><span>语法</span><div>
+      <Toggle label="HTML" value={w.html ?? false} disabled={locked} onChange={html => set({ html })} />
+      <Toggle label="UBB" value={w.ubb ?? false} disabled={locked} onChange={ubb => set({ ubb })} />
+      <Toggle label="模板" value={w.templateVars != null} disabled={locked} onChange={enabled => set({ templateVars: enabled ? {} : null })} />
+    </div></div>
+    {w.templateVars != null ? <Field label="模板变量" value={JSON.stringify(w.templateVars)} disabled={locked} validate={value => { try { const vars: unknown = JSON.parse(value); return vars !== null && isTemplateVars(vars); } catch { return false; } }} onCommit={value => set({ templateVars: JSON.parse(value) as WidgetProps["templateVars"] })} /> : null}
+  </>;
 }

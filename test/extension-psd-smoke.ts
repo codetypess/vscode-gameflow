@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { settingsChecks } from "./workbench-settings-smoke";
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, writeFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -6,6 +7,8 @@ import { join } from "node:path";
 import type { PsdEditorProvider, PsdDocument } from "../src/psd-editor-provider";
 import { makePsdDraft } from "../shared/psd-draft";
 import { parsePsdBinary, patchPsdMetadata } from "../shared/psd-binary";
+import type { GameFlowEditorProvider } from "../src/gameflow-editor-provider";
+import { workbenchChecks, closeUiChecks } from "./workbench-psd-smoke";
 
 async function until(predicate: () => boolean, label: string) {
   const end = Date.now() + 20000;
@@ -21,7 +24,7 @@ export async function run() {
     const original = readFileSync(join(root, "examples/psd-metadata/GameFlow-PSD-Metadata-Sample.psd"));
     writeFileSync(file, original);
     const uri = vscode.Uri.file(file);
-    const api = await vscode.extensions.getExtension<{ psd: PsdEditorProvider }>("codetypes.vscode-gameflow")!.activate();
+    const api = await vscode.extensions.getExtension<{ psd: PsdEditorProvider; workbench: GameFlowEditorProvider }>("codetypes.vscode-gameflow")!.activate();
     await api.psd.open(uri);
     await until(() => !!api.psd.documents.get(uri.toString())?.announced, "PSD editor initialization");
     doc = api.psd.documents.get(uri.toString())!;
@@ -78,6 +81,9 @@ export async function run() {
     await assert.rejects(api.psd.saveCustomDocument(repairable, cancel.token), /重复 ID/);
     assert.equal(JSON.parse(readFileSync(meta, "utf8")).layers[0].config.exportName, "native_saved");
     repairable.dispose(); checks.push("incompatible sidecar preserves editable identity repair and original config");
+    checks.push(...await settingsChecks(api, root, directory));
+    checks.push(...await workbenchChecks(api, root, directory));
+    if (process.env.GAMEFLOW_PSD_CLOSE_UI === "1") checks.push(...await closeUiChecks(api, root, directory));
     writeFileSync(report, JSON.stringify({ ok: true, directory, checks }, null, 2));
   } catch (error) { writeFileSync(report, JSON.stringify({ ok: false, directory, checks, error: String(error), stack: error instanceof Error ? error.stack : undefined }, null, 2)); throw error; }
   finally { cancel.dispose(); }

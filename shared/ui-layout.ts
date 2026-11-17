@@ -1,6 +1,7 @@
 import type { Frame, GameFlowNode, GameFlowPage } from "./model";
 import { canHaveChildren, flowType } from "./ui-components";
 import type { Constraint } from "./ui-config";
+import { layoutLabel } from "./label-text";
 import { sliderOwner } from "./ui-parts";
 import { axisAnchor, axisScale, framePolygon, IDENTITY, intersectPolygons, inverse, multiply, nodeMatrix, polygonBounds, translation, type Matrix, type Point } from "./ui-transform";
 
@@ -80,8 +81,12 @@ export function resolvePageLayout(page: GameFlowPage): LayoutResult {
             return (child.layout?.[a.leading] ?? child.frame[axis]) + lengths[i];
           }));
           value += start + end;
-        } else if (n.type === "text" || n.type === "input") {
-          const font = n.style?.fontSize ?? (n.type === "text" ? 16 : 14);
+        } else if (n.type === "text") {
+          const measured = layoutLabel(n, source(n, "x") === "measured" ? null : size(n, "x").value,
+            source(n, "y") === "measured" ? null : size(n, "y").value);
+          value = measured[axis === "x" ? "width" : "height"];
+        } else if (n.type === "input") {
+          const font = n.style?.fontSize ?? 14;
           const lines = (n.text || n.widget?.placeholder || "").split("\n");
           const widths = lines.map((line) => [...line].reduce((sum, char) => sum + (char.codePointAt(0)! > 255 ? 1 : 0.56) * font, 0));
           if (axis === "x") value = Math.max(0, ...widths);

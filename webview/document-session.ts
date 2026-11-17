@@ -26,6 +26,7 @@ export class DocumentSession {
   private deferred: Transform[] = [];
   private refreshing = false;
   private initialized = false;
+  private flushRequests: string[] = [];
   constructor(private post: (message: WebviewToHostMessage) => void, private changed: (state: DocumentState) => void) {}
 
   private publish(patch: Partial<DocumentState>) { this.state = { ...this.state, ...patch }; this.changed(this.state); }
@@ -35,6 +36,7 @@ export class DocumentSession {
     this.post({ type: "replaceDocument", baseVersion: this.version, document });
   }
   private nextAction() {
+    if (!this.inFlight && !this.queued) for (const requestId of this.flushRequests.splice(0)) this.post({ type: "workbenchFlushed", requestId });
     if (this.inFlight || this.action || this.refreshing) return;
     const action = this.actions.shift();
     if (!action) { this.publish({ pending: false }); return; }
@@ -45,6 +47,7 @@ export class DocumentSession {
   private reset() { this.inFlight = null; this.queued = null; this.action = null; this.actions = []; this.deferred = []; }
 
   receive(message: HostToWebviewMessage) {
+    if (message.type === "workbenchFlush") { this.flushRequests.push(message.requestId); this.nextAction(); return; }
     if (message.type === "psdOutputResult" || message.type === "psdResourceExportResult" || message.type === "canvasSources") return;
     if (message.type === "documentError") {
       this.reset(); this.refreshing = true;
@@ -62,6 +65,7 @@ export class DocumentSession {
       if (this.state.document && deferred.length) this.edit((document) => deferred.reduce((next, transform) => transform(next), document));
       this.nextAction(); return;
     }
+    if (message.type !== "init" && message.type !== "documentChanged") return;
     if (message.type !== "init" && message.documentVersion < this.version) return;
     const ownAck = this.inFlight !== null && same(message.document, this.inFlight);
     if (message.type !== "init" && message.documentVersion === this.version && this.inFlight && !ownAck) return;

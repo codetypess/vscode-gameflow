@@ -7,7 +7,7 @@ import { Separator } from "../components/ui/separator";
 import { ScrollArea } from "../components/ui/scroll-area";
 import { Field, ColorField, NumericPropertyRow, SliderPropertyRow } from "./fields";
 import { VariableField } from "./variable-field";
-import { LayoutProperties, PageLayoutProperties, WidgetProperties } from "./ui-properties";
+import { LabelProperties, LayoutProperties, PageLayoutProperties, WidgetProperties } from "./ui-properties";
 import { COMPONENTS, flowType, PAGE_ROOTS, PAGE_ROOT_TYPES, pageRootType } from "../../shared/ui-components";
 import { resolvePageLayout, constraintsFor, managedAxis } from "../../shared/ui-layout";
 import { editNodeFrame, setNodeAnchor } from "../../shared/ui-edit";
@@ -67,7 +67,8 @@ export function Inspector({ page, variablePage = page, node, selectedNodes = [],
         if (!name.trim()) return;
         if (node) onNode(node.id, { name: name.trim() }); else onPage((item) => ({ ...item, name: name.trim() }));
       }} />
-      {node ? <VariableField page={variablePage} node={node} disabled={locked} onCommit={(variableName) => onNode(node.id, { variableName })} /> : null}
+      {node ? <VariableField page={variablePage} node={node} disabled={locked} onCommit={(variableName) => onNode(node.id, { variableName })} /> :
+        <Field label="导出名称" value={page.exportName ?? ""} onCommit={value => onPage(item => ({ ...item, exportName: value.trim() || undefined }))} />}
       <div className="property-section-title">基础属性</div>
       <NumericPropertyRow label="位置" integer disabled={locked} fields={(["x", "y"] as const).map(key => ({ axis: key.toUpperCase(), ariaLabel: key.toUpperCase(), value: !node && editingPage ? 0 : frame[key], readOnly: !node && editingPage, disabled: !!node && (!!sliderOwner(page, node) || managedAxis(parent, key) || (flowType(parent) !== "free" && node.layout?.crossAxisMode !== "explicit" && !constraintsFor(key).some(k => node.layout?.[k] != null))), onCommit: value => setFrame(key, String(value)) }))} />
       <NumericPropertyRow label="尺寸" integer disabled={locked} fields={(["width", "height"] as const).map(key => ({ axis: key === "width" ? "W" : "H", ariaLabel: key === "width" ? "W" : "H", value: frame[key], min: 8, onCommit: value => setFrame(key, String(value)) }))} />
@@ -81,18 +82,19 @@ export function Inspector({ page, variablePage = page, node, selectedNodes = [],
         <WidgetProperties node={node} locked={locked} onNode={onNode} /></> : null}
         {(["text", "input"].includes(node.type) || (["checkbox", "radio"].includes(node.type) && !hasNodeSkin(node)) || (node.type === "button" && node.text !== undefined)) ? <>
           <div className="property-section-title">文字</div>
-          <Field label="文字内容" value={node.text ?? node.name} disabled={locked} onCommit={(text) => onNode(node.id, { text })} />
+          <Field label="文字内容" multiline={node.type === "text"} value={node.text ?? node.name} disabled={locked} onCommit={(text) => onNode(node.id, { text })} />
           <Field label="字号" type="number" min={1} max={300} value={appearance.fontSize} disabled={locked} onCommit={(fontSize) => setStyle({ fontSize: Number(fontSize) })} />
           <ColorField label="文字颜色" value={appearance.color} disabled={locked} onPreview={value => previewColor("color", value)} onCommit={(color) => setStyle({ color })} />
-          <TextControls style={appearance} valign={node.widget?.valign ?? (node.type === "text" ? "top" : "middle")} disabled={locked} onStyle={setStyle} onVertical={valign => onNode(node.id, { widget: { ...node.widget, valign } })} /><Separator />
+          <TextControls style={appearance} valign={node.widget?.valign ?? (node.type === "text" ? "top" : "middle")} disabled={locked} onStyle={setStyle} onVertical={valign => onNode(node.id, { widget: { ...node.widget, valign } })} />
+          <LabelProperties node={node} locked={locked} onNode={onNode} /><Separator />
         </> : null}
         {node.type === "image" ? <Button variant="outline" size="sm" disabled={locked} onClick={onImport}><ImagePlus size={14} />{node.imageData ? "替换图片" : "导入图片"}</Button> : null}
         {!node.prefab ? <><div className="property-section-title">外观</div>
         <ColorField label="填充" value={appearance.fill} disabled={locked} onPreview={value => previewColor("fill", value)} onCommit={(fill) => setStyle({ fill })} />
         <Button variant="ghost" size="sm" className="transparent-button" disabled={locked} onClick={() => setStyle({ fill: "transparent" })}>设为透明</Button>
         <ColorField label="描边" value={appearance.borderColor} disabled={locked} onPreview={value => previewColor("borderColor", value)} onCommit={(borderColor) => setStyle({ borderColor })} />
-        <div className="property-grid"><Field label="描边宽度" type="number" min={0} max={40} value={appearance.borderWidth} disabled={locked} onCommit={(value) => setStyle({ borderWidth: Number(value) })} />
-          <Field label="圆角" type="number" min={0} value={appearance.radius} disabled={locked} onCommit={(value) => setStyle({ radius: Number(value) })} /></div></> : null}
+        <Field label="描边宽度" type="number" min={0} max={40} value={appearance.borderWidth} disabled={locked} onCommit={(value) => setStyle({ borderWidth: Number(value) })} />
+        <Field label="圆角" type="number" min={0} value={appearance.radius} disabled={locked} onCommit={(value) => setStyle({ radius: Number(value) })} /></> : null}
       </> : <>
         <label className="property-field"><span>页面类型</span><select aria-label="页面类型" value={pageRootType(page)} onChange={(event) => { const rootType = event.target.value as PageRootType; onPage((item) => ({ ...item, rootType })); }}>
           {PAGE_ROOT_TYPES.map((type) => <option key={type} value={type}>{PAGE_ROOTS[type].label} ({type})</option>)}

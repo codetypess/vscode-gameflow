@@ -32,6 +32,8 @@ import { useDocument } from "./use-document";
 import { isBrowserPreview, postHostMessage } from "./vscode-api";
 import { cn } from "./lib/utils";
 import { PsdWorkspace, type WorkspaceMode } from "./psd/workspace";
+import { usePsdEditor } from "./psd/use-psd-editor";
+import { useWorkbenchSettings, WorkbenchSettingsButton, WorkbenchSettingsPanel } from "./workbench-settings";
 import { PROTOTYPE_PANELS, useFollowingPanels } from "./editor/use-following-panels";
 import { canvasPanelMetrics } from "./lib/canvas-panels";
 import { canvasContextTarget, canvasHitNode, canvasPasteTarget, canvasScopePath, placeCanvasComponent, reconcileCanvasScope } from "./lib/canvas-scope";
@@ -56,6 +58,10 @@ function IconTool({ label, active, disabled, onClick, children }: { label: strin
 
 export function App() {
   const [mode, setMode] = useState<WorkspaceMode>("prototype");
+  const psdEditor = usePsdEditor(() => setMode("slice"));
+  const settings = useWorkbenchSettings();
+  const [documentActions, setDocumentActions] = useState<HTMLDivElement | null>(null);
+  const [exportActions, setExportActions] = useState<HTMLDivElement | null>(null);
   const { document: canvasDocument, resourceName, dirty, pending, error, edit, read, history, save, applyCanvas } = useDocument();
   const viewport = useRef<HTMLDivElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -562,17 +568,18 @@ export function App() {
 
   return <TooltipProvider delayDuration={300}><main className="app-shell">
     <header className="topbar"><span className="brand-mark"><Layers3 size={18} /></span><strong>工作台</strong><Separator orientation="vertical" className="topbar-separator" />
-      {mode === "prototype" ? <div className="topbar-actions" role="group" aria-label="文档操作">
+      <div ref={setDocumentActions} className="workbench-document-actions" role="group" aria-label="文档操作">{mode === "prototype" ? <>
         <IconTool label="撤销 (Ctrl+Z)" disabled={pending || !canvasDocument} onClick={() => history("undo")}><Undo2 size={15} /></IconTool>
         <IconTool label="重做 (Ctrl+Shift+Z)" disabled={pending || !canvasDocument} onClick={() => history("redo")}><Redo2 size={15} /></IconTool>
         <IconTool label="保存 (Ctrl+S)" disabled={pending || !canvasDocument} onClick={save}><Save size={15} /></IconTool>
-      </div> : null}
+      </> : null}</div>
       {mode === "prototype" ? <Separator orientation="vertical" className="topbar-separator" /> : null}
       {mode === "prototype" && editingId && page ? <><Button size="sm" variant="ghost" onClick={back}><ArrowLeft size={14} />总览</Button><span className="breadcrumb">/</span></> : null}
       <span className="document-title">{mode === "prototype" ? editingId ? page?.name : canvasDocument?.title ?? "正在打开画布" : "美术工作区"}</span>
       <nav className="mode-switcher" aria-label="工作模式">{([{ id: "prototype", label: "原型", icon: LayoutPanelTop }, { id: "merge", label: "PSD 合并", icon: GitMerge }, { id: "slice", label: "PSD 切图", icon: Scissors }] as const).map(({ icon: Icon, ...item }) => <Tooltip key={item.id}><TooltipTrigger asChild><Button size="icon" variant="ghost" aria-label={item.label} aria-pressed={mode === item.id} className={mode === item.id ? "mode-active" : ""} onClick={() => switchMode(item.id)}><Icon size={16} aria-hidden="true" /></Button></TooltipTrigger><TooltipContent side="bottom">{item.label}</TooltipContent></Tooltip>)}</nav>
-      {mode === "prototype" ? pending || dirty || !isBrowserPreview ? <span className="sync-status" title={resourceName}>{pending ? "同步中…" : dirty ? "未保存" : <><Check size={12} />已保存</>}</span> : null : <span className="sync-status">PSD 与原型独立保存</span>}
+      <div className="workbench-right"><div ref={setExportActions} className="workbench-export-actions" /><WorkbenchSettingsButton settings={settings} /></div>
     </header>
+    <WorkbenchSettingsPanel settings={settings} />
     <div ref={viewport} tabIndex={-1} hidden={mode !== "prototype"} className={cn("canvas-viewport", (tool === "hand" || spaceHand) && "hand-tool", preview?.kind === "pan" && "is-panning", (preview?.kind === "node" || preview?.kind === "page") && "is-moving")} aria-label={editingId ? "页面编辑画布" : "页面总览画布"}
       onContextMenu={canvasContextMenu}
       onPointerDown={startGesture} onPointerMove={moveGesture} onPointerUp={(event) => finishGesture(event)} onPointerCancel={(event) => finishGesture(event, true)}
@@ -663,7 +670,8 @@ export function App() {
       </section></div> : null}
       {canvasDocument && pickerSource !== null ? <CanvasReferencePicker document={canvasDocument} sources={sources} source={pickerSource} currentPageId={editingId ?? undefined} onSource={setPickerSource} onPick={insertReference} onClose={() => setPickerSource(null)} /> : null}
     </div>
-    <PsdWorkspace mode="merge" active={mode === "merge"} />
-    <PsdWorkspace mode="slice" active={mode === "slice"} />
+    <PsdWorkspace mode="merge" active={mode === "merge"} settings={settings} />
+    <PsdWorkspace mode="slice" active={mode === "slice"} binding={psdEditor.binding} documentActions={documentActions} exportActions={exportActions} settings={settings} />
+    {psdEditor.initialError && mode === "slice" ? <div className="psd-status psd-warning" role="alert">{psdEditor.initialError}</div> : null}
   </main></TooltipProvider>;
 }

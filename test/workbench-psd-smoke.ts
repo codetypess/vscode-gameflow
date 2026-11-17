@@ -1,0 +1,119 @@
+import * as vscode from "vscode";
+import assert from "node:assert/strict";
+import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { join } from "node:path";
+import type { GameFlowEditorProvider } from "../src/gameflow-editor-provider";
+import type { PsdEditorProvider } from "../src/psd-editor-provider";
+import { createDefaultGameFlowDocument, parseGameFlowDocument, serializeGameFlowDocument } from "../shared/model";
+import { makePsdDraft } from "../shared/psd-draft";
+
+async function until(predicate: () => boolean, label: string) {
+  const end = Date.now() + 20000;
+  while (!predicate()) { if (Date.now() > end) throw new Error(`Timeout: ${label}`); await new Promise(resolve => setTimeout(resolve, 50)); }
+}
+export async function workbenchChecks(api: { workbench: GameFlowEditorProvider; psd: PsdEditorProvider }, root: string, directory: string): Promise<string[]> {
+  const checks: string[] = [], cancellation = new vscode.CancellationTokenSource();
+  const file = join(directory, "工作台.gameflow.json"), psdFile = join(directory, "工作台切图.psd"), meta = join(directory, "工作台切图.meta.json");
+  const original = readFileSync(join(root, "examples/psd-metadata/GameFlow-PSD-Metadata-Sample.psd"));
+  const canvasText = serializeGameFlowDocument(createDefaultGameFlowDocument("workbench-native"));
+  writeFileSync(file, canvasText); writeFileSync(psdFile, original);
+  const uri = vscode.Uri.file(file), psdUri = vscode.Uri.file(psdFile);
+  const tab = () => vscode.window.tabGroups.all.flatMap(group => group.tabs).find(item => item.input instanceof vscode.TabInputCustom && item.input.uri.toString() === uri.toString());
+  await vscode.commands.executeCommand("vscode.openWith", uri, "gameflow.canvasEditor", { preview: false });
+  await until(() => !!api.workbench.documents.get(uri.toString())?.panels.size, "workbench initialization");
+  let doc = api.workbench.documents.get(uri.toString())!;
+  const tabsBefore = vscode.window.tabGroups.all.flatMap(group => group.tabs).length;
+  await vscode.commands.executeCommand("gameflow.openPsd", psdUri);
+  await until(() => !!doc.currentPsd?.announced, "embedded PSD initialization");
+  assert.equal(vscode.window.tabGroups.all.flatMap(group => group.tabs).length, tabsBefore);
+  assert.equal(vscode.window.tabGroups.all.flatMap(group => group.tabs).some(item => item.input instanceof vscode.TabInputCustom && item.input.uri.toString() === psdUri.toString()), false);
+  await until(() => !!tab()?.isDirty, "embedded PSD marks workbench dirty");
+  checks.push("PSD opens inside current workbench without a new tab", "PSD edits protect the native workbench tab");
+  await vscode.commands.executeCommand("workbench.action.files.save");
+  await until(() => existsSync(meta) && !tab()?.isDirty, "workbench saves embedded PSD");
+  assert.equal(readFileSync(file, "utf8"), canvasText); assert.deepEqual(readFileSync(psdFile), original);
+  checks.push("native workbench save writes sidecar without changing prototype or PSD");
+  let psd = doc.currentPsd!;
+  const saved = makePsdDraft(psd.model.asset), draft = structuredClone(saved); draft.layers[0].config.exportName = "embedded_saved";
+  await api.psd.edit(psd, draft, psd.model.version);
+  await until(() => !!tab()?.isDirty, "workbench edit dirty");
+  await vscode.commands.executeCommand("undo"); await until(() => psd.model.asset.layers[0].config.exportName !== "embedded_saved", "workbench undo PSD");
+  await vscode.commands.executeCommand("redo"); await until(() => psd.model.asset.layers[0].config.exportName === "embedded_saved", "workbench redo PSD");
+  checks.push("embedded PSD uses native workbench undo and redo");
+  const canvas = parseGameFlowDocument(doc.getText());
+  await api.workbench.apply(doc, [{ document: doc, version: doc.version, text: serializeGameFlowDocument({ ...canvas, title: "统一工作台" }) }]);
+  await vscode.commands.executeCommand("undo"); await until(() => JSON.parse(doc.getText()).title === canvas.title, "workbench prototype undo");
+  await vscode.commands.executeCommand("redo"); await until(() => JSON.parse(doc.getText()).title === "统一工作台", "workbench prototype redo");
+  checks.push("prototype edits retain native undo and redo in unified workbench");
+  await vscode.commands.executeCommand("workbench.action.files.save");
+  try { await until(() => !tab()?.isDirty, "aggregate save"); }
+  catch (error) { throw new Error(`${error}; ${JSON.stringify({ nativeDirty: tab()?.isDirty, canvasDirty: doc.canvasDirty, psdDirty: psd.model.dirty, disposed: doc.disposed, replaced: api.workbench.documents.get(uri.toString()) !== doc, psdError: psd.error, text: doc.getText().slice(0, 150), baseline: doc.baseline.slice(0, 150), flushes: doc.flushes.size, psdFlushes: psd.flushes.size })}`); }
+  assert.equal(JSON.parse(readFileSync(file, "utf8")).title, "统一工作台");
+  assert.equal(JSON.parse(readFileSync(meta, "utf8")).layers[0].config.exportName, "embedded_saved");
+  checks.push("one native save persists prototype and PSD independently");
+  const next = makePsdDraft(psd.model.asset); next.layers[0].config.exportName = "recover_embedded";
+  await api.psd.edit(psd, next, psd.model.version);
+  const backup = await api.workbench.backupCustomDocument(doc, { destination: vscode.Uri.file(join(directory, "workbench-backup.json")) }, cancellation.token);
+  await vscode.commands.executeCommand("workbench.action.files.revert");
+  await until(() => !tab()?.isDirty && !doc.dirty && psd.model.asset.layers[0].config.exportName === "embedded_saved", "native workbench discard");
+  await doc.enqueue(async () => {});
+  assert.equal(psd.model.asset.layers[0].config.exportName, "embedded_saved");
+  assert.equal(existsSync(doc.cache.fsPath), false);
+  checks.push("native workbench discard restores PSD and clears draft");
+  await vscode.window.tabGroups.close(tab()!); await until(() => doc.disposed, "close workbench");
+  const recovered = await api.workbench.openCustomDocument(uri, { backupId: backup.id, untitledDocumentData: undefined }, cancellation.token);
+  assert.equal(recovered.currentPsd!.model.asset.layers[0].config.exportName, "recover_embedded");
+  assert.equal(recovered.dirty, true); assert.equal(JSON.parse(recovered.getText()).title, "统一工作台");
+  await api.workbench.revertCustomDocument(recovered, cancellation.token); recovered.dispose(); await backup.delete();
+  checks.push("workbench hot-exit backup restores embedded PSD and prototype");
+  await vscode.commands.executeCommand("vscode.openWith", uri, "gameflow.canvasEditor", { preview: false });
+  await until(() => !!api.workbench.documents.get(uri.toString())?.currentPsd?.panels.size, "reopen workbench PSD");
+  doc = api.workbench.documents.get(uri.toString())!; psd = doc.currentPsd!;
+  assert.equal(psd.model.asset.layers[0].config.exportName, "embedded_saved");
+  checks.push("reopening workbench restores last PSD in the same tab");
+  const conflict = makePsdDraft(psd.model.asset); conflict.layers[0].config.exportName = "must_not_overwrite";
+  await api.psd.edit(psd, conflict, psd.model.version);
+  const originalMeta = readFileSync(meta, "utf8"); writeFileSync(meta, originalMeta + "\n");
+  await assert.rejects(api.workbench.saveCustomDocument(doc, cancellation.token), /外部修改/);
+  assert.equal(psd.model.dirty, true); assert.equal(tab()?.isDirty, true);
+  await vscode.commands.executeCommand("workbench.action.files.revert"); await until(() => !tab()?.isDirty && !doc.dirty, "discard after failed save");
+  await doc.enqueue(async () => {});
+  checks.push("failed embedded PSD save retains native dirty and external data");
+  await vscode.window.tabGroups.close(tab()!); await until(() => doc.disposed, "close final workbench");
+  cancellation.dispose();
+  return checks;
+}
+
+/** Optional visible fixture: the computer-use tool clicks the actual tab × and dialog buttons. */
+export async function closeUiChecks(api: { workbench: GameFlowEditorProvider; psd: PsdEditorProvider }, root: string, directory: string): Promise<string[]> {
+  const file = join(directory, "关闭保护验收.gameflow.json"), source = join(directory, "关闭验收.psd"), meta = join(directory, "关闭验收.meta.json");
+  writeFileSync(file, serializeGameFlowDocument(createDefaultGameFlowDocument("close-ui")));
+  writeFileSync(source, readFileSync(join(root, "examples/psd-metadata/GameFlow-PSD-Metadata-Sample.psd")));
+  const uri = vscode.Uri.file(file), status = process.env.GAMEFLOW_PSD_TEST_REPORT! + ".close-ui.json";
+  const announce = (stage: string) => writeFileSync(status, JSON.stringify({ stage, file, source, meta }));
+  const open = async () => {
+    await vscode.commands.executeCommand("vscode.openWith", uri, "gameflow.canvasEditor", { preview: false });
+    await until(() => !!api.workbench.documents.get(uri.toString())?.panels.size, "visible close fixture");
+    return api.workbench.documents.get(uri.toString())!;
+  };
+  const waitClosed = async (doc: { disposed: boolean }) => {
+    const end = Date.now() + 180000;
+    while (!doc.disposed) { if (Date.now() > end) throw new Error("Manual close fixture timed out"); await new Promise(resolve => setTimeout(resolve, 100)); }
+  };
+  let doc = await open(); await api.workbench.openPsd(doc, vscode.Uri.file(source));
+  await vscode.commands.executeCommand("workbench.action.files.save");
+  await until(() => !doc.dirty, "visible fixture initial save");
+  const draft = makePsdDraft(doc.currentPsd!.model.asset);
+  const layer = doc.currentPsd!.model.asset.layers.find(item => !!item.config.nineGrid)!;
+  draft.layers.find(item => item.key === layer.key)!.config.exportName = "close_keep_then_save";
+  await api.psd.edit(doc.currentPsd!, draft, doc.currentPsd!.model.version);
+  announce("cancel_then_save"); await waitClosed(doc);
+  assert.equal(JSON.parse(readFileSync(meta, "utf8")).layers.find((item: { sourceKey: number }) => item.sourceKey === layer.key).config.exportName, "close_keep_then_save");
+  doc = await open(); await until(() => !!doc.currentPsd?.panels.size, "visible reopen PSD");
+  const discarded = makePsdDraft(doc.currentPsd!.model.asset); discarded.layers.find(item => item.key === layer.key)!.config.exportName = "close_discard_this";
+  await api.psd.edit(doc.currentPsd!, discarded, doc.currentPsd!.model.version);
+  announce("discard"); await waitClosed(doc); await doc.enqueue(async () => {});
+  assert.equal(JSON.parse(readFileSync(meta, "utf8")).layers.find((item: { sourceKey: number }) => item.sourceKey === layer.key).config.exportName, "close_keep_then_save");
+  announce("complete");
+  return ["native tab close Save and Don't Save verified through visible UI"];
+}

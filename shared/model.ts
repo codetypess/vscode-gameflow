@@ -88,6 +88,8 @@ export interface NodeStyle {
 export interface GameFlowPage {
   id: string;
   name: string;
+  /** Optional authored name for future Prefab generation, independent of the display name. */
+  exportName?: string;
   kind: PageKind;
   rootType?: PageRootType;
   frame: Frame;
@@ -358,6 +360,7 @@ function validatePage(
   }
   const rootTypeValid = value.rootType === undefined || PAGE_ROOT_TYPES.includes(value.rootType as PageRootType);
   if (!rootTypeValid) errors.push(`${path}.rootType must be UIStack, UITop, UIScene, or UIBox`);
+  const exportNameValid = value.exportName === undefined || validateString(value.exportName, `${path}.exportName`, errors);
   const layoutValid = validateRootLayout(value.layout, `${path}.layout`, errors);
   const componentValid = value.componentRootId === undefined || validateString(value.componentRootId, `${path}.componentRootId`, errors);
   const frameValid = validateFrame(value.frame, `${path}.frame`, errors);
@@ -381,7 +384,7 @@ function validatePage(
       }
     });
   }
-  return idValid && nameValid && kindValid && rootTypeValid && layoutValid && componentValid && frameValid && nodesValid && backgroundValid;
+  return idValid && nameValid && kindValid && rootTypeValid && exportNameValid && layoutValid && componentValid && frameValid && nodesValid && backgroundValid;
 }
 
 function validateInteraction(
@@ -509,6 +512,7 @@ export function validateGameFlowDocument(value: unknown): ValidationResult {
         errors.push(`page ${page.id} rootType requires schemaVersion 2`);
       }
       if (value.schemaVersion === 1 && page.layout !== undefined) errors.push(`page ${page.id} layout requires schemaVersion 2`);
+      if (value.schemaVersion === 1 && page.exportName !== undefined) errors.push(`page ${page.id} exportName requires schemaVersion 2`);
       const nodeIds = new Set(page.nodes.map((node) => node.id));
       for (const node of page.nodes) {
         if (node.prefab && Number(value.schemaVersion) < 4) errors.push(`node ${node.id} prefab requires schemaVersion 4`);

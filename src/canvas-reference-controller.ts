@@ -6,6 +6,13 @@ import { migrateDocumentElementIds } from "../shared/document-id-migration";
 import type { HostToWebviewMessage } from "../shared/protocol";
 import { canvasFingerprint, findOwnedCanvasNode, planCanvasApply, type CanvasApplyRequest } from "../shared/canvas-instances";
 
+export type CanvasText = Pick<vscode.TextDocument, "uri" | "version" | "getText">;
+export interface CanvasDocumentAccess {
+  open(uri: vscode.Uri): Promise<CanvasText>;
+  apply(updates: { document: CanvasText; version: number; text: string }[]): Promise<void>;
+  onDidChange: vscode.Event<vscode.Uri>;
+}
+
 /** Per-editor dependency lifecycle; source refreshes never replace the edited document. */
 export class CanvasReferenceController implements vscode.Disposable {
   private epoch = 0;
@@ -16,10 +23,11 @@ export class CanvasReferenceController implements vscode.Disposable {
   private picked: string | undefined;
   private subscription: vscode.Disposable;
   private timer: ReturnType<typeof setTimeout> | undefined;
-  constructor(private document: vscode.TextDocument, private webview: vscode.Webview) {
-    this.subscription = vscode.workspace.onDidChangeTextDocument(event => {
+  constructor(private document: CanvasText, private webview: vscode.Webview, private access?: CanvasDocumentAccess) {
+    const textSubscription = vscode.workspace.onDidChangeTextDocument(event => {
       if (Object.keys(this.sources).some(source => this.uri(source).toString() === event.document.uri.toString())) this.schedule();
     });
+    this.subscription = access ? vscode.Disposable.from(textSubscription, access.onDidChange(uri => { if (Object.keys(this.sources).some(source => this.uri(source).toString() === uri.toString())) this.schedule(); })) : textSubscription;
   }
   private uri(source: string) { return vscode.Uri.joinPath(this.document.uri, "..", source); }
   private post(message: HostToWebviewMessage) { if (!this.disposed) void this.webview.postMessage(message); }
@@ -34,6 +42,7 @@ export class CanvasReferenceController implements vscode.Disposable {
       const root = current ?? parseGameFlowDocument(this.document.getText());
       const sources = await loadCanvasSources(root, async source => {
         const uri = this.uri(source);
+        if (this.access) return parseGameFlowDocument((await this.access.open(uri)).getText());
         const opened = vscode.workspace.textDocuments.find(d => d.uri.toString() === uri.toString());
         const text = opened?.isDirty ? opened.getText() : Buffer.from(await vscode.workspace.fs.readFile(uri)).toString("utf8");
         return parseGameFlowDocument(text);
@@ -62,13 +71,17 @@ export class CanvasReferenceController implements vscode.Disposable {
       if (!isCanvasReferenceSource(source)) throw new Error("无法保存此相对引用路径；请使用同一磁盘中名称不含特殊字符的 .gameflow.json 文件。");
       if (this.extra.size >= 64 && !this.extra.has(source)) throw new Error("本次会话已载入 64 个源画布文件，请重新打开编辑器后再选择。");
       // Complete the existing one-time identity migration before issuing references to a legacy source.
-      const text = await vscode.workspace.openTextDocument(uri);
+      const text = this.access ? await this.access.open(uri) : await vscode.workspace.openTextDocument(uri);
       const original = parseGameFlowDocument(text.getText());
       const migrated = migrateDocumentElementIds(original);
       if (migrated !== original) {
+        if (this.access) await this.access.apply([{ document: text, version: text.version, text: serializeGameFlowDocument(migrated) }]);
+        else {
         const edit = new vscode.WorkspaceEdit();
-        edit.replace(uri, new vscode.Range(text.positionAt(0), text.positionAt(text.getText().length)), serializeGameFlowDocument(migrated));
+        const sourceText = text as vscode.TextDocument;
+        edit.replace(uri, new vscode.Range(sourceText.positionAt(0), sourceText.positionAt(text.getText().length)), serializeGameFlowDocument(migrated));
         if (!await vscode.workspace.applyEdit(edit)) throw new Error("源画布的节点身份迁移未能完成。");
+        }
       }
       if (source) this.extra.add(source);
       this.picked = source;
@@ -85,10 +98,10 @@ export class CanvasReferenceController implements vscode.Disposable {
     const current = parseGameFlowDocument(this.document.getText());
     const page = current.pages.find(page => page.id === request.pageId);
     if (!page || !findOwnedCanvasNode({ ...current, pages: [page] }, request.ownerId)?.prefab) throw new Error("引用实例不属于当前页面。");
-    const opened = new Map<string, { document: vscode.TextDocument; version: number }>();
+    const opened = new Map<string, { document: CanvasText; version: number }>();
     const sources = await loadCanvasSources(current, async source => {
       if (!Object.hasOwn(this.sources, source)) throw new Error("来源不在已登记依赖中，请刷新后重试。");
-      const document = await vscode.workspace.openTextDocument(this.uri(source));
+      const document = this.access ? await this.access.open(this.uri(source)) : await vscode.workspace.openTextDocument(this.uri(source));
       opened.set(source, { document, version: document.version });
       return parseGameFlowDocument(document.getText());
     });
@@ -98,13 +111,18 @@ export class CanvasReferenceController implements vscode.Disposable {
       const stat=await vscode.workspace.fs.stat(uri);
       if (stat.permissions && stat.permissions & vscode.FilePermission.Readonly || vscode.workspace.fs.isWritableFileSystem(uri.scheme) === false) throw new Error("源或实例文件只读，属性覆盖已保留。");
     }
+    if (this.access) {
+      const updates = [{ document: this.document, version: baseVersion, text: serializeGameFlowDocument(plan.document) }];
+      if (plan.source) { const source = opened.get(plan.source); if (!source) throw new Error("源文档尚未就绪。"); updates.push({ ...source, text: serializeGameFlowDocument(plan.sourceDocument) }); }
+      await this.access.apply(updates); await this.refresh(); return;
+    }
     const edit = new vscode.WorkspaceEdit();
     const replace = (document: vscode.TextDocument, candidate: GameFlowDocument) => edit.replace(document.uri, new vscode.Range(document.positionAt(0), document.positionAt(document.getText().length)), serializeGameFlowDocument(candidate));
-    replace(this.document, plan.document);
+    replace(this.document as vscode.TextDocument, plan.document);
     if (plan.source) {
       const source = opened.get(plan.source);
       if (!source) throw new Error("源文档尚未就绪。");
-      replace(source.document, plan.sourceDocument);
+      replace(source.document as vscode.TextDocument, plan.sourceDocument);
     }
     if (this.document.version !== baseVersion || [...opened.values()].some(item => item.document.version !== item.version)) throw new Error("文档在应用期间变化，请重试。");
     // A text-only WorkspaceEdit is applied as one native all-or-nothing undo unit.

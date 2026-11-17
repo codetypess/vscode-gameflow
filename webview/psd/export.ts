@@ -2,19 +2,9 @@ import { exportSlicesToDirectory, type ResourceDirectory } from "../../shared/ps
 import { SliceExportConflict, type SliceExportBatch } from "../../shared/psd-export";
 import { isBrowserPreview, postHostMessage } from "../vscode-api";
 import type { HostToWebviewMessage } from "../../shared/protocol";
+import { browserDirectory, browserSettings } from "../browser-directories";
 
-interface BrowserFile {
-  getFile(): Promise<File>;
-  createWritable(): Promise<{ write(bytes: Uint8Array): Promise<void>; close(): Promise<void>; abort(): Promise<void> }>;
-}
-interface BrowserDirectory {
-  name: string;
-  keys(): AsyncIterableIterator<string>;
-  getFileHandle(name: string, options?: { create: boolean }): Promise<BrowserFile>;
-  removeEntry(name: string): Promise<void>;
-}
 type ExportResult = Extract<HostToWebviewMessage, { type: "psdResourceExportResult" }>;
-let browserDirectory: BrowserDirectory | undefined;
 let exporting = false;
 
 export async function resourceExport(action: "choose" | "export", batch?: SliceExportBatch): Promise<ExportResult> {
@@ -32,14 +22,13 @@ export async function resourceExport(action: "choose" | "export", batch?: SliceE
   if (exporting) throw new Error("正在导出资源，请稍后重试。");
   exporting = true;
   try {
-    if (action === "choose" || !browserDirectory) {
-      const picker = (window as unknown as { showDirectoryPicker?: (options: { mode: "readwrite" }) => Promise<BrowserDirectory> }).showDirectoryPicker;
-      if (!picker) throw new Error("当前浏览器不支持选择导出目录，请在 VS Code 中导出资源。");
-      try { browserDirectory = await picker.call(window, { mode: "readwrite" }); }
-      catch (e) { if (e instanceof DOMException && e.name === "AbortError") return { type: "psdResourceExportResult", requestId, cancelled: true, directory: browserDirectory?.name }; throw e; }
+    if (action === "choose") {
+      const result = await browserSettings({ type: "workbenchSettings", requestId, action: "choose", directory: "resources" });
+      if (result.error) throw new Error(result.error);
+      return { type: "psdResourceExportResult", requestId, cancelled: result.cancelled, directory: result.settings.resourceDirectory };
     }
-    const root = browserDirectory;
-    if (action === "choose") return { type: "psdResourceExportResult", requestId, directory: root.name };
+    const root = browserDirectory("resources");
+    if (!root) throw new Error("请先在工作台设置中选择资源导出目录。");
     if (!batch) throw new Error("没有切图数据。");
     const adapter: ResourceDirectory = {
       list: async () => { const names: string[] = []; for await (const key of root.keys()) names.push(key); return names; },

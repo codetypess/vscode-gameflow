@@ -4,6 +4,8 @@ Status: Verifying
 Date: 2026-11-17
 Scope: VS Code PSD 切图独立文档、原生 dirty/save/undo/close/backup、同目录配置自动读取；浏览器保留文件导入并备份配置草稿。
 
+2026-11-17 更新：工作台默认打开独立 PSD 标签的规则由 [工作台内 PSD 会话](psd-in-workbench.md) 替代，原型与 PSD 聚合为当前工作台的原生生命周期；本规格保留独立 Explorer 编辑器及底层 PSD 保存/恢复规则与历史验证记录。操作呈现及本机导出目录遵循 [顶部操作与设置](workbench-toolbar-settings.md)。
+
 ## 1. Context
 
 用户确认需要原生关闭提醒、Ctrl+S 保存、自动恢复草稿以及重开 PSD 自动读取配置。当前 PSD 切图暂存于原型的 CustomTextEditor 内，修改只更新 PsdWorkspace 的 React state 和 dirty；宿主只知道原型 TextDocument 的 dirty。beforeunload 无法作为 VS Code 标签关闭的可取消事件，onDidDispose 发生在销毁后。因此 PSD 未保存修改不会触发原生关闭保护，源 bytes/config 均丢失。

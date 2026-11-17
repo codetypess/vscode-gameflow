@@ -9,6 +9,7 @@ import starSeaSample from "../sample/star-sea-login.gameflow.json";
 import { loadCanvasSources, type CanvasSources } from "../shared/canvas-references";
 import { planCanvasApply } from "../shared/canvas-instances";
 import type { PsdEditorRequest } from "../shared/psd-editor-protocol";
+import { browserSettings } from "./browser-directories";
 
 export const isBrowserPreview = typeof acquireVsCodeApi !== "function";
 const api = isBrowserPreview ? createBrowserPreviewApi() : acquireVsCodeApi();
@@ -75,7 +76,9 @@ function createBrowserPreviewApi(): VsCodeApi {
   return {
     postMessage(raw: unknown) {
       if (!isWebviewToHostMessage(raw)) return;
-      if (raw.type === "ready") {
+      if (raw.type === "workbenchSettings") {
+        void browserSettings(raw).then(send);
+      } else if (raw.type === "ready") {
         send({ type: "init", document, documentVersion: version, resourceName: "策划原型.gameflow.json", dirty: false });
         void refreshSources();
       } else if (raw.type === "chooseCanvasSource") {

@@ -8,12 +8,13 @@ import {
 
 export function activate(context: vscode.ExtensionContext) {
   const psd = new PsdEditorProvider(context);
+  const workbench = new GameFlowEditorProvider(context, psd);
   context.subscriptions.push(
     vscode.window.registerCustomEditorProvider(PSD_EDITOR_VIEW_TYPE, psd, { supportsMultipleEditorsPerDocument: false, webviewOptions: { retainContextWhenHidden: true } }),
-    vscode.commands.registerCommand("gameflow.openPsd", (uri?: vscode.Uri) => psd.open(uri)),
+    vscode.commands.registerCommand("gameflow.openPsd", (uri?: vscode.Uri) => workbench.activeDocument ? workbench.openPsd(workbench.activeDocument, uri) : psd.open(uri)),
     vscode.window.registerCustomEditorProvider(
       GAMEFLOW_EDITOR_VIEW_TYPE,
-      new GameFlowEditorProvider(context),
+      workbench,
       {
         supportsMultipleEditorsPerDocument: false,
         webviewOptions: { retainContextWhenHidden: true }
@@ -23,7 +24,7 @@ export function activate(context: vscode.ExtensionContext) {
       createGameFlowDocument()
     )
   );
-  return { psd };
+  return { psd, workbench };
 }
 
 export function deactivate(): void {

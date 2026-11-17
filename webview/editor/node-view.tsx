@@ -5,6 +5,7 @@ import { defaultStyle, inheritedFlag } from "../../shared/editor-ops";
 import { resolvePageLayout, type ResolvedNode } from "../../shared/ui-layout";
 import { intersectPolygons, mapPoint } from "../../shared/ui-transform";
 import { controlSelected, hasNodeSkin } from "../../shared/ui-parts";
+import { LabelView } from "./label-view";
 
 export { orderedNodes } from "../../shared/editor-ops";
 
@@ -55,6 +56,7 @@ export function NodeView({ page, node, geometry, hitId, referenceError }: { page
       : node.type === "slider" ? <div className={`widget-slider ${widget.direction === "vertical" ? "is-vertical" : ""}`}><span className="widget-track" /><span className="widget-thumb" style={widget.direction === "vertical" ? { top: `${(1 - ratio) * 100}%` } : { left: `${ratio * 100}%` }} /></div>
       : node.type === "combo" ? <div className="widget-combo"><span>{(widget.options ?? ["选项一", "选项二", "选项三"])[widget.selectedIndex ?? 0] ?? "请选择"}</span><span>⌄</span></div>
       : node.type === "input" ? <span className="widget-input" style={{ opacity: node.text ? 1 : 0.55 }}>{node.text ? widget.password ? "•".repeat(Math.min(node.text.length, widget.maxChars || Infinity)) : node.text.slice(0, widget.maxChars || undefined) : widget.placeholder ?? "请输入内容"}</span>
+      : node.type === "text" ? <LabelView node={node} width={bounds.width} height={bounds.height} />
       : <span className="node-content" style={{ whiteSpace: widget.wordWrap === false ? "pre" : "pre-wrap", overflowWrap: widget.wordWrap === false ? "normal" : "anywhere" }}>{node.text ?? node.name}</span>}
   </div>;
 }

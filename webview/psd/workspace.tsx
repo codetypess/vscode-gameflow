@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { AlertTriangle, Check, ChevronDown, ChevronRight, FileImage, FolderOpen, Grid3X3, ImageIcon, Layers3, Save, Scissors, Upload, X } from "lucide-react";
-import { applySidecar, identityProblems, makeSidecar, newLayerIdentity, selectedMergeTree, sidecarName, type PsdAsset, type PsdLayer, type PsdLayerMeta, type SliceConfig } from "../../shared/psd-meta";
+import { createPortal } from "react-dom";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import { AlertTriangle, Check, ChevronDown, ChevronRight, Download, Ellipsis, FileImage, FolderOpen, Grid3X3, ImageIcon, Layers3, Redo2, Save, Scissors, Undo2, X } from "lucide-react";
+import { identityProblems, makeSidecar, newLayerIdentity, selectedMergeTree, sidecarName, type PsdAsset, type PsdLayer, type PsdLayerMeta, type SliceConfig } from "../../shared/psd-meta";
+import type { WorkbenchSettingsUI } from "../workbench-settings";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { isBrowserPreview, postHostMessage } from "../vscode-api";
@@ -73,9 +76,9 @@ function PsdPreview({ asset, selected, children }: { asset: PsdAsset; selected?:
   </div>;
 }
 
-function ConfirmImport({ onAccept, onCancel, replacing = false }: { onAccept: () => void; onCancel: () => void; replacing?: boolean }) {
+function ConfirmReplacement({ onAccept, onCancel }: { onAccept: () => void; onCancel: () => void }) {
   const ref = useRef<HTMLDialogElement>(null); useEffect(() => { ref.current?.showModal(); }, []);
-  return <dialog ref={ref} className="psd-dialog confirm-dialog" onCancel={e => { e.preventDefault(); onCancel(); }}><header><strong>{replacing ? "当前配置尚未保存" : "配置与 PSD 版本不同"}</strong></header><p>{replacing ? "打开另一份 PSD 会替换当前配置。可以取消并先保存 .meta.json，或继续打开新文件。" : "这份配置记录的源文件已发生变化。继续将按有效图层 ID 采用配置，并校验九宫格范围；无法对应的图层会报错。"}</p><footer><Button onClick={onAccept}>{replacing ? "继续打开" : "采用配置"}</Button><Button variant="secondary" onClick={onCancel}>取消</Button></footer></dialog>;
+  return <dialog ref={ref} className="psd-dialog confirm-dialog" onCancel={e => { e.preventDefault(); onCancel(); }}><header><strong>当前配置尚未保存</strong></header><p>打开另一份 PSD 会替换当前配置。可以取消并先保存，或继续打开新文件。</p><footer><Button onClick={onAccept}>继续打开</Button><Button variant="secondary" onClick={onCancel}>取消</Button></footer></dialog>;
 }
 
 function DropHint({ label }: { label: string }) {
@@ -89,19 +92,18 @@ function MergeSourceDrop({ side, disabled, onFile, onError, children }: {
   return <section className="psd-merge-pane psd-drop-target" aria-label={`合并来源 ${side}`} {...drop.handlers}>{children}{drop.dragging ? <DropHint label={`松开以打开来源 ${side}`} /> : null}</section>;
 }
 
-export function PsdWorkspace({ mode, active, binding }: { mode: "slice" | "merge"; active: boolean; binding?: PsdWorkspaceBinding }) {
+export function PsdWorkspace({ mode, active, binding, documentActions, exportActions, settings }: { mode: "slice" | "merge"; active: boolean; binding?: PsdWorkspaceBinding; documentActions?: HTMLElement | null; exportActions?: HTMLElement | null; settings: WorkbenchSettingsUI }) {
   const [localLoaded, setLoaded] = useState<Loaded | null>(null), [selectedKey, setSelectedKey] = useState<number | null>(null);
   const loaded = binding?.loaded ?? localLoaded;
   const [canvasSelection, setCanvasSelection] = useState(0);
-  const [exportDirectory, setExportDirectory] = useState<string>();
   const [directoryIssues, setDirectoryIssues] = useState<ExportIssue[]>([]);
   const [editingGrid, setEditingGrid] = useState<number | null>(null), [working, setBusy] = useState(false), [message, setMessage] = useState("");
   const busy = working || !!binding?.busy;
-  const [localDirty, setDirty] = useState(false), [pendingImport, setPendingImport] = useState<unknown>(null);
+  const [localDirty, setDirty] = useState(false);
   const dirty = binding?.dirty ?? localDirty;
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [past, setPast] = useState<PsdAsset[]>([]), [future, setFuture] = useState<PsdAsset[]>([]);
-  const input = useRef<HTMLInputElement>(null), configInput = useRef<HTMLInputElement>(null);
+  const input = useRef<HTMLInputElement>(null);
   const loading = useRef(false);
   const asset = loaded?.asset, selected = asset?.layers.find(l => l.key === selectedKey) ?? null;
   useEffect(() => { if (binding) setSelectedKey(binding.loaded.asset.layers.find(l => l.config.nineGrid)?.key ?? binding.loaded.asset.layers.find(l => !l.group)?.key ?? null); }, [binding?.loaded.asset.sourceHash]);
@@ -111,17 +113,15 @@ export function PsdWorkspace({ mode, active, binding }: { mode: "slice" | "merge
   const undo = (redo = false) => { if (!loaded || busy) return; if (binding) { void binding.history(redo).catch(error => setMessage(String(error))); return; } const source = redo ? future : past, item = source.at(-1); if (!item) return; setDirectoryIssues([]); if (redo) { setFuture(source.slice(0, -1)); setPast([...past, loaded.asset]); } else { setPast(source.slice(0, -1)); setFuture([...future, loaded.asset]); } backupBrowser(item); setLoaded({ ...loaded, asset: item }); setDirty(true); };
   const openSource = () => { if (isBrowserPreview) input.current?.click(); else postHostMessage({ type: "openPsdEditor" }); };
   const readFile = async (file?: File, discard = false) => {
-    if (file && !isBrowserPreview) { setMessage("请在文件选择器中定位此 PSD，将在独立标签中打开并保护未保存修改。"); openSource(); return; }
+    if (file && !isBrowserPreview) { setMessage("请在文件选择器中定位此 PSD，将在当前工作台内打开。"); openSource(); return; }
     if (!file || busy || loading.current) return; if (dirty && !discard) { setPendingFile(file); return; } loading.current = true; setBusy(true); setMessage("正在读取 PSD…");
     try { const result = await openPsd(file); let restored = false; let restoreError = ""; try { const draft = restoreBrowserDraft(result.asset); if (draft) { result.asset = draft; restored = true; } } catch (error) { restoreError = `草稿恢复失败，备份已保留：${String(error)}`; } setDirectoryIssues([]); setLoaded(result); setSelectedKey(result.asset.layers.find(l => l.config.nineGrid)?.key ?? result.asset.layers.find(l => !l.group)?.key ?? null); setPast([]); setFuture([]); setDirty(restored); setMessage(restoreError || (restored ? "已恢复本地草稿，请保存配置文件。" : identityProblems(result.asset).length ? "存在重复 ID：选中副本后，点击“作为新节点”。" : "")); }
     catch (e) { setMessage(String(e instanceof Error ? e.message : e)); } finally { loading.current = false; setBusy(false); }
   };
-  const adopt = (raw: unknown) => { if (!asset) return; try { change(applySidecar(asset, raw)); setMessage("已读取配置。保存后可保留本次设置。"); } catch (e) { setMessage(e instanceof Error ? e.message : String(e)); } setPendingImport(null); };
-  const readConfig = async (file?: File) => { if (!file || !asset) return; try { if (file.size > 1024 * 1024) throw new Error("配置文件不能超过 1 MB。"); const raw = JSON.parse(await file.text()); if (raw?.schema !== "gameflow.psd-meta") throw new Error("不是 GameFlow PSD 配置。"); if (raw.source?.sha256 !== asset.sourceHash) setPendingImport(raw); else adopt(raw); } catch (e) { setMessage(e instanceof Error ? e.message : String(e)); } };
   const save = async (embedded: boolean) => {
     if (!loaded || busy) return; setBusy(true); setMessage(embedded ? "正在写入 PSD 副本…" : "正在保存配置…");
     try {
-      if (binding) { await binding.save(embedded); setMessage(embedded ? "PSD 副本操作完成，配置保存状态见上方。" : ""); return; }
+      if (binding) { await binding.save(embedded); setMessage(""); return; }
       const meta = makeSidecar(loaded.asset);
       const bytes = embedded ? new Uint8Array(await psdTask<ArrayBuffer>("patch", loaded.bytes, asset!.name, loaded.asset.layers.map(l => [l.key, meta.layers.find(m => m.id === l.metadata.layerId)!.metadata] as [number, PsdLayerMeta]))) : new TextEncoder().encode(JSON.stringify(meta, null, 2) + "\n");
       const name = embedded ? asset!.name.replace(/\.psd$/i, "") + "-configured.psd" : sidecarName(asset!.name);
@@ -131,23 +131,22 @@ export function PsdWorkspace({ mode, active, binding }: { mode: "slice" | "merge
   };
   useEffect(() => {
     if (!active || mode !== "slice") return;
-    const keydown = (e: KeyboardEvent) => { if (editingGrid !== null || pendingImport || pendingFile || busy) return; if (!(e.ctrlKey || e.metaKey)) return; if (e.key.toLowerCase() === "s") { e.preventDefault(); (document.activeElement as HTMLElement)?.blur(); void save(false); } else if (!(e.target as Element).closest("input,textarea") && ["z", "y"].includes(e.key.toLowerCase())) { e.preventDefault(); undo(e.shiftKey || e.key.toLowerCase() === "y"); } };
+    const keydown = (e: KeyboardEvent) => { if (editingGrid !== null || pendingFile || busy || settings.open) return; if (!(e.ctrlKey || e.metaKey)) return; if (e.key.toLowerCase() === "s") { e.preventDefault(); (document.activeElement as HTMLElement)?.blur(); void save(false); } else if (!(e.target as Element).closest("input,textarea") && ["z", "y"].includes(e.key.toLowerCase())) { e.preventDefault(); undo(e.shiftKey || e.key.toLowerCase() === "y"); } };
     window.addEventListener("keydown", keydown); return () => window.removeEventListener("keydown", keydown);
   });
   useEffect(() => { if (!dirty || !isBrowserPreview) return; const unload = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ""; }; window.addEventListener("beforeunload", unload); return () => window.removeEventListener("beforeunload", unload); }, [dirty]);
-  const drop = usePsdFileDrop({ disabled: !active || mode !== "slice" || busy || editingGrid !== null || !!pendingImport || !!pendingFile, onFile: file => { void readFile(file); }, onError: setMessage });
+  const drop = usePsdFileDrop({ disabled: !active || mode !== "slice" || busy || editingGrid !== null || !!pendingFile || settings.open, onFile: file => { void readFile(file); }, onError: setMessage });
   const duplicates = asset ? identityProblems(asset) : [];
   const exportIssues = asset ? sliceExportIssues(asset) : [];
   const allExportIssues = [...exportIssues, ...directoryIssues];
   const selectedNameError = asset && selected ? exportNameError(effectiveExportName(asset, selected)) : null;
-  const exportResources = async (choose = false) => {
-    if (busy || (!choose && !asset)) return;
-    setBusy(true); setMessage(choose ? "请选择资源导出目录…" : "正在检查并导出切图…");
+  const exportResources = async () => {
+    if (busy || !asset || !settings.ensureResources()) return;
+    setBusy(true); setMessage("正在检查并导出切图…");
     try {
-      const result = await resourceExport(choose ? "choose" : "export", choose ? undefined : makeSliceExportBatch(asset!));
-      if (result.directory) setExportDirectory(result.directory);
+      const result = await resourceExport("export", makeSliceExportBatch(asset));
       if (!result.cancelled) setDirectoryIssues([]);
-      setMessage(result.cancelled ? "已取消。" : result.count !== undefined ? `已导出 ${result.count} 张图片及来源清单：${result.directory}` : `导出目录：${result.directory}`);
+      setMessage(result.cancelled ? "" : `已导出 ${result.count} 张图片及来源清单：${result.directory}`);
     } catch (e) {
       if (e instanceof SliceExportConflict && asset) {
         setDirectoryIssues(e.conflicts.map(conflict => ({ keys: asset.layers.filter(l => l.config.enabled && effectiveExportName(asset, l) === conflict.name).map(l => l.key), message: conflict.message })));
@@ -158,11 +157,16 @@ export function PsdWorkspace({ mode, active, binding }: { mode: "slice" | "merge
   };
   return <section className="psd-workspace" hidden={!active} aria-label={mode === "slice" ? "PSD 切图工作区" : "PSD 合并工作区"} {...(mode === "slice" ? drop.handlers : {})}>
     {mode === "merge" ? <MergeWorkspace active={active} /> : <>
-      <div className="psd-commandbar"><Button size="sm" variant="secondary" disabled={busy} onClick={openSource}><FolderOpen size={14} />打开 PSD</Button><span className="psd-filename">{asset?.name ?? "PSD 切图"}{dirty ? " · 未保存配置" : ""}</span><Button size="sm" variant="ghost" disabled={!asset || busy} onClick={() => configInput.current?.click()}><Upload size={14} />读取配置</Button><Button size="sm" variant="ghost" disabled={!asset || busy} onClick={() => void save(false)}><Save size={14} />保存 .meta.json</Button><Button size="sm" variant="secondary" disabled={!asset || busy} onClick={() => void save(true)}>写入 PSD 副本</Button></div>
-      {binding ? <div className="psd-config-status" role="status"><span title={binding.configPath}>配置：{binding.configPath}</span><span>{binding.status}</span></div> : null}
+      {active && documentActions ? createPortal(<>
+        <Button size="icon" variant="ghost" className="workbench-icon" disabled={busy} aria-label="打开 PSD" title="打开 PSD" onClick={openSource}><FolderOpen size={15} /></Button>
+        <Button size="icon" variant="ghost" className="workbench-icon workbench-history" disabled={!asset || busy || (!binding && !past.length)} aria-label="撤销 (Ctrl+Z)" title="撤销 (Ctrl+Z)" onClick={() => undo()}><Undo2 size={15} /></Button>
+        <Button size="icon" variant="ghost" className="workbench-icon workbench-history" disabled={!asset || busy || (!binding && !future.length)} aria-label="重做 (Ctrl+Shift+Z)" title="重做 (Ctrl+Shift+Z)" onClick={() => undo(true)}><Redo2 size={15} /></Button>
+        <Button size="icon" variant="ghost" className="workbench-icon" disabled={!asset || busy} aria-label="保存 (Ctrl+S)" title={`保存 (Ctrl+S)${binding?.configPath ? `\n配置：${binding.configPath}` : ""}`} onClick={() => void save(false)}><Save size={15} /></Button>
+        <DropdownMenu.Root><DropdownMenu.Trigger asChild><Button size="icon" variant="ghost" className="workbench-icon" aria-label="更多操作" title="更多操作"><Ellipsis size={15} /></Button></DropdownMenu.Trigger><DropdownMenu.Portal><DropdownMenu.Content className="layer-context-menu" align="start" sideOffset={5}><DropdownMenu.Item disabled={!asset || busy} onSelect={() => void save(true)}>导出带配置的 PSD…</DropdownMenu.Item></DropdownMenu.Content></DropdownMenu.Portal></DropdownMenu.Root>
+      </>, documentActions) : null}
+      {active && exportActions ? createPortal(<Button size="sm" variant="secondary" className="workbench-export-button" disabled={!asset || busy || !!exportIssues.length || !asset.layers.some(l => l.config.enabled)} title="导出标记的切图" onClick={() => void exportResources()}><Download size={14} />导出</Button>, exportActions) : null}
       {binding?.notice ? <p className="psd-config-notice">{binding.notice}</p> : null}
       {binding?.error ? <div className="psd-config-notice psd-warning" role="alert">{binding.error}<Button size="sm" variant="ghost" onClick={binding.retry}>重新提交修改</Button></div> : null}
-      {asset ? <div className="psd-exportbar"><Button size="sm" variant="ghost" disabled={busy} onClick={() => void exportResources(true)}><FolderOpen size={13} />导出目录</Button><span title={exportDirectory}>{exportDirectory ?? "导出时选择统一目录"}</span><Button size="sm" variant="secondary" disabled={busy || !!exportIssues.length || !asset.layers.some(l => l.config.enabled)} onClick={() => void exportResources()}><Save size={13} />导出切图</Button></div> : null}
       {asset ? <PsdSliceCanvas key={`${asset.sourceHash}:${asset.name}`} asset={asset} selected={selected} active={active} onSelect={key => { setSelectedKey(key); setCanvasSelection(n => n + 1); }}
         tree={<><div className="floating-heading"><Layers3 size={14} /><strong>图层</strong><span>{asset.layers.length}</span></div><div className="psd-hint">勾选需要切图的图层{allExportIssues.length ? <span className="psd-warning" role="status"> · {allExportIssues.length} 项导出冲突</span> : null}</div><Tree asset={asset} selected={selectedKey} reveal={canvasSelection} issues={allExportIssues} onSelect={setSelectedKey} checked={l => l.config.enabled} toggle={(layer, enabled) => { const keys = new Set(getChildren(asset, layer.key).filter(l => !l.group && l.image && !l.limitation && !duplicates.includes(l.metadata.layerId)).map(l => l.key)); change({ ...asset, layers: asset.layers.map(l => keys.has(l.key) ? { ...l, config: { ...l.config, enabled } } : l) }); }} /></>}
         properties={<><div className="floating-heading"><Scissors size={14} /><strong>切图属性</strong></div>{selected ? <div className="psd-properties-content"><div className="psd-section-heading"><strong>{selected.name}</strong><small>{selected.group ? "分组" : `${selected.width} × ${selected.height}`}</small></div><label className="psd-property"><span>图层 ID</span><code>{selected.metadata.layerId}</code></label><label className="psd-property"><span>原生 ID</span><code>{selected.nativeId ?? "无"}</code></label>
@@ -181,13 +185,12 @@ export function PsdWorkspace({ mode, active, binding }: { mode: "slice" | "merge
           {selected.image && selected.config.nineGrid ? <NineGridPreview image={selected.image} width={selected.width} height={selected.height} grid={selected.config.nineGrid} /> : null}
           <p className="psd-hint">{binding ? "Ctrl+S 保存配置；重新打开 PSD 时自动读取。PNG 导出和 PSD 副本独立操作。" : "导出 PNG 和来源清单，九宫格随清单保存。浏览器本地草稿可在重新选择同一 PSD 后恢复。"}</p>
         </div> : <p className="psd-hint">点击画布元素或左侧图层查看属性。</p>}</>}
-      /> : <div className="psd-empty"><FileImage size={40} /><h2>从 PSD 开始切图</h2><p>{isBrowserPreview ? "拖入 PSD 文件，或点击打开。选择图层后可标记切图并设置九宫格。" : "打开独立的 PSD 配置标签，修改后支持保存、关闭提醒及草稿恢复。"}</p><Button disabled={busy} onClick={openSource}><FolderOpen size={16} />打开 PSD</Button><small>支持 8 位 RGB · 最大 32 MB</small></div>}
+      /> : <div className="psd-empty"><FileImage size={40} /><h2>从 PSD 开始切图</h2><p>{isBrowserPreview ? "拖入 PSD 文件，或点击打开。选择图层后可标记切图并设置九宫格。" : "在当前工作台打开 PSD。修改后支持保存，关闭工作台时提醒保存。"}</p><Button disabled={busy} onClick={openSource}><FolderOpen size={16} />打开 PSD</Button><small>支持 8 位 RGB · 最大 32 MB</small></div>}
       {drop.dragging ? <DropHint label="松开以打开 PSD" /> : null}
       {message ? <div className="psd-status" role="status">{busy ? null : <Check size={13} />}{message}<button aria-label="关闭提示" onClick={() => setMessage("")}><X size={13} /></button></div> : null}
-      <input ref={input} type="file" accept=".psd" className="hidden" aria-label="打开切图 PSD" onChange={e => { void readFile(e.target.files?.[0]); e.target.value = ""; }} /><input ref={configInput} type="file" accept=".json" className="hidden" aria-label="读取 PSD 配置" onChange={e => { void readConfig(e.target.files?.[0]); e.target.value = ""; }} />
+      <input ref={input} type="file" accept=".psd" className="hidden" aria-label="打开切图 PSD" onChange={e => { void readFile(e.target.files?.[0]); e.target.value = ""; }} />
       {editingGrid !== null && asset?.layers.find(l => l.key === editingGrid) ? <NineGridEditor layer={asset.layers.find(l => l.key === editingGrid)!} onSave={nineGrid => { patchConfig(editingGrid, { nineGrid, enabled: true }); setEditingGrid(null); }} onCancel={() => setEditingGrid(null)} /> : null}
-      {pendingImport ? <ConfirmImport onAccept={() => adopt(pendingImport)} onCancel={() => setPendingImport(null)} /> : null}
-      {pendingFile ? <ConfirmImport replacing onAccept={() => { const file = pendingFile; setPendingFile(null); void readFile(file, true); }} onCancel={() => setPendingFile(null)} /> : null}
+      {pendingFile ? <ConfirmReplacement onAccept={() => { const file = pendingFile; setPendingFile(null); void readFile(file, true); }} onCancel={() => setPendingFile(null)} /> : null}
     </>}
   </section>;
 }
