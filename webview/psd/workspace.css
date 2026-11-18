@@ -108,9 +108,17 @@
 .nine-preview .psd-section-heading > div { display: flex; align-items: center; gap: 5px; }.nine-preview input { width: 50px; height: 23px; font-size: 10px; padding: 2px 4px; border-radius: 2px; }
 .nine-preview-surface { min-height: 76px; max-height: 140px; padding: 12px; display: flex; align-items: center; justify-content: center; border: 1px solid var(--border); overflow: hidden; }
 .confirm-dialog { width: min(460px, 90vw); }.confirm-dialog p { margin: 16px; line-height: 1.8; font-size: 12px; }
-.region-dialog { width: min(760px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow: auto; }
+.region-dialog { width: min(760px, calc(100vw - 32px)); height: min(576px, calc(100vh - 32px)); max-width: none; max-height: none; overflow: auto; }
+.region-dialog[open] { display: flex; flex-direction: column; }
+.region-dialog > header, .region-dialog > .psd-hint, .region-settings, .region-dialog > footer { flex-shrink: 0; }
+.region-dialog > header { cursor: default; touch-action: none; user-select: none; }
+.region-dialog > header strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.region-dialog > header button { flex-shrink: 0; cursor: pointer; }
+.region-dialog > footer { padding-right: 28px; }
+.region-window-resize { position: absolute; right: 0; bottom: 0; display: grid; place-items: center; width: 22px; height: 22px; padding: 0; border: 0; background: transparent; color: var(--muted-foreground); cursor: nwse-resize; touch-action: none; }
+.region-window-resize:hover, .region-window-resize:focus-visible { color: var(--foreground); }
 .region-dialog > .psd-hint { padding: 12px 18px 8px; }
-.region-stage { position: relative; margin: 0 18px; height: min(360px, 40vh); min-height: 140px; overflow: hidden; border: 1px solid var(--border); background: var(--background); touch-action: none; user-select: none; cursor: grab; }
+.region-stage { position: relative; margin: 0 18px; flex: 1 0 140px; min-height: 140px; overflow: hidden; border: 1px solid var(--border); background: var(--background); touch-action: none; user-select: none; cursor: grab; }
 .region-stage:focus { outline: none; }
 .region-stage.is-dragging { cursor: grabbing; }
 .region-artboard { position: absolute; overflow: hidden; box-shadow: 0 2px 14px #0004; pointer-events: none; }

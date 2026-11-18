@@ -30,3 +30,22 @@ export function zoomRegionCamera(camera: RegionCamera, point: { x: number; y: nu
 export function resizedRegionCamera(camera: RegionCamera, before: SliceRegion, after: SliceRegion): RegionCamera {
   return { ...camera, x: camera.x + (after.x - before.x) * camera.zoom, y: camera.y + (after.y - before.y) * camera.zoom };
 }
+
+export type RegionDialogFrame = { x: number; y: number; width: number; height: number };
+type Viewport = { width: number; height: number };
+function dialogLimits(viewport: Viewport) {
+  const gap = Math.max(0, Math.min(16, (viewport.width - 1) / 2, (viewport.height - 1) / 2));
+  return { gap, width: Math.max(1, viewport.width - gap * 2), height: Math.max(1, viewport.height - gap * 2) };
+}
+/** Keep the entire window reachable, including after the viewport becomes smaller. */
+export function fitRegionDialog(frame: RegionDialogFrame, viewport: Viewport): RegionDialogFrame {
+  const limit = dialogLimits(viewport);
+  const width = clamp(frame.width, Math.min(440, limit.width), limit.width);
+  const height = clamp(frame.height, Math.min(420, limit.height), limit.height);
+  return { x: clamp(frame.x, limit.gap, viewport.width - limit.gap - width), y: clamp(frame.y, limit.gap, viewport.height - limit.gap - height), width, height };
+}
+/** Resize from the bottom-right without moving the title bar or crossing the viewport. */
+export function resizeRegionDialog(frame: RegionDialogFrame, delta: { x: number; y: number }, viewport: Viewport): RegionDialogFrame {
+  const start = fitRegionDialog(frame, viewport), limit = dialogLimits(viewport);
+  return { ...start, width: clamp(start.width + delta.x, Math.min(440, limit.width), viewport.width - limit.gap - start.x), height: clamp(start.height + delta.y, Math.min(420, limit.height), viewport.height - limit.gap - start.y) };
+}

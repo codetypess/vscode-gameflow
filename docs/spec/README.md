@@ -33,7 +33,7 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 
 ## Active Work Items
 
-- [psd-slice-region.md](psd-slice-region.md) — Done：独立导出尺寸、拖动图片/四边线、方向键微调、滚轮缩放、居中/透明留白/裁剪、九宫格区域适配及配置持久化；296 项共享测试、3 项浏览器像素检查、生产构建及真实 PSD/360px 窄窗口/草稿重载验收通过；输入框对齐、外侧聚焦框移除。
+- [psd-slice-region.md](psd-slice-region.md) — Done：独立导出尺寸、拖动图片/四边线、方向键微调、滚轮缩放、居中/透明留白/裁剪、九宫格区域适配及配置持久化；313 项共享测试、3 项既有浏览器像素检查、生产构建及真实 PSD/360px 窄窗口/草稿重载验收通过；输入框对齐、外侧聚焦框及方向文字移除，弹窗标题栏普通指针拖动与右下角缩放完成。
 
 - [file-export-directory.md](file-export-directory.md) — Done：本机资源/预制体根目录与 GameFlow 顶层 exportDirectory 分离；设置面板按文件编辑相对目录，资源按 root/dir 实际输出。293 项共享测试、33 项宿主检查、生产构建及浏览器输入/取消/重载/小窗口验收通过。
 

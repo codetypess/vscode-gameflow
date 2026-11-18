@@ -5,6 +5,8 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { fitRegionCamera, REGION_EDGES, resizedRegionCamera, resizeSliceRegion, zoomRegionCamera, type RegionCamera, type RegionEdge } from "./region-geometry";
 
+import { useRegionDialog } from "./use-region-dialog";
+
 export function RegionEditor({ layer, onSave, onCancel }: { layer: PsdLayer; onSave: (region: SliceRegion | undefined) => void; onCancel: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null), stage = useRef<HTMLDivElement>(null);
   const [region, setRegion] = useState(() => ({ ...sliceRegion(layer) }));
@@ -45,6 +47,7 @@ export function RegionEditor({ layer, onSave, onCancel }: { layer: PsdLayer; onS
     };
     element.addEventListener("wheel", wheel, { passive: false }); return () => element.removeEventListener("wheel", wheel);
   }, []);
+  const windowLayout = useRegionDialog(dialog);
   const begin = (event: PointerEvent<HTMLDivElement>) => {
     if (![0, 2].includes(event.button) || gesture.current || !valid || (event.target as HTMLElement).closest(".nine-zoom")) return;
     event.preventDefault(); event.currentTarget.focus(); event.currentTarget.setPointerCapture(event.pointerId);
@@ -68,7 +71,7 @@ export function RegionEditor({ layer, onSave, onCancel }: { layer: PsdLayer; onS
   };
   const keydown = (event: KeyboardEvent<HTMLDialogElement>) => {
     event.stopPropagation();
-    if ((event.target as HTMLElement).closest("input,textarea") || event.ctrlKey || event.metaKey || event.altKey || gesture.current || !valid) return;
+    if ((event.target as HTMLElement).closest("input,textarea") || event.ctrlKey || event.metaKey || event.altKey || gesture.current || windowLayout.active || !valid) return;
     const delta = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[event.key];
     if (!delta) return;
     event.preventDefault(); const step = event.shiftKey ? 10 : 1;
@@ -86,8 +89,8 @@ export function RegionEditor({ layer, onSave, onCancel }: { layer: PsdLayer; onS
     if (error) return;
     onSave(region.x === 0 && region.y === 0 && region.width === layer.width && region.height === layer.height ? undefined : region);
   };
-  return <dialog ref={dialog} className="psd-dialog region-dialog" aria-label={`编辑区域 · ${layer.name}`} onCancel={e => { e.preventDefault(); onCancel(); }} onKeyDown={keydown}>
-    <header><strong>编辑区域 · {layer.name}</strong><Button size="icon" variant="ghost" aria-label="关闭区域编辑" onClick={onCancel}><X size={16} /></Button></header>
+  return <dialog ref={dialog} className="psd-dialog region-dialog" style={windowLayout.style} aria-label={`编辑区域 · ${layer.name}`} onCancel={e => { e.preventDefault(); onCancel(); }} onKeyDown={keydown}>
+    <header {...windowLayout.titleEvents}><strong>编辑区域 · {layer.name}</strong><Button size="icon" variant="ghost" aria-label="关闭区域编辑" onClick={onCancel}><X size={16} /></Button></header>
     <p className="psd-hint">拖动虚线调整区域，拖动图片调整位置 · 滚轮缩放，右键平移 · 方向键微调 1 px，Shift + 方向键 10 px</p>
     <div ref={stage} tabIndex={0} role="region" aria-label="区域预览，拖动图片或使用方向键调整位置" className={`region-stage ${dragging ? "is-dragging" : ""}`}
       onContextMenu={e => e.preventDefault()} onPointerDown={begin} onPointerMove={move} onPointerUp={e => finish(e)} onPointerCancel={e => finish(e, true)} onLostPointerCapture={e => finish(e, true)}>
@@ -96,7 +99,7 @@ export function RegionEditor({ layer, onSave, onCancel }: { layer: PsdLayer; onS
       </div>
       {REGION_EDGES.map(({ edge, label }) => {
         const vertical = edge === "left" || edge === "right";
-        return <div key={edge} className={`region-edge nine-guide ${vertical ? "vertical" : "horizontal"}`} data-region-edge={edge} role="slider" tabIndex={0} aria-label={`导出区域${label}边线`} aria-orientation={vertical ? "horizontal" : "vertical"} aria-valuenow={vertical ? preview.width : preview.height} aria-valuemin={vertical ? minimum.width : minimum.height} aria-valuemax={MAX_SLICE_SIZE} style={vertical ? { left: camera.x + (edge === "right" ? preview.width * zoom : 0) } : { top: camera.y + (edge === "bottom" ? preview.height * zoom : 0) }}><span>{label}</span></div>;
+        return <div key={edge} className={`region-edge nine-guide ${vertical ? "vertical" : "horizontal"}`} data-region-edge={edge} role="slider" tabIndex={0} aria-label={`导出区域${label}边线`} aria-orientation={vertical ? "horizontal" : "vertical"} aria-valuenow={vertical ? preview.width : preview.height} aria-valuemin={vertical ? minimum.width : minimum.height} aria-valuemax={MAX_SLICE_SIZE} style={vertical ? { left: camera.x + (edge === "right" ? preview.width * zoom : 0) } : { top: camera.y + (edge === "bottom" ? preview.height * zoom : 0) }} />;
       })}
       <span className="region-preview-size">{preview.width} × {preview.height} px</span>
       <div className="nine-zoom" role="toolbar" aria-label="区域编辑工具" onPointerDown={e => e.stopPropagation()}>
@@ -114,5 +117,6 @@ export function RegionEditor({ layer, onSave, onCancel }: { layer: PsdLayer; onS
       {error ? <p className="psd-warning" role="alert">{error}</p> : null}
     </div>
     <footer><span>原图 {layer.width} × {layer.height} px</span><Button disabled={!!error} onClick={save}>确认</Button><Button variant="secondary" onClick={onCancel}>取消</Button></footer>
+    <button type="button" className="region-window-resize" aria-label="调整区域编辑窗口大小" title="拖动调整窗口大小；方向键微调" {...windowLayout.resizeEvents} onKeyDown={windowLayout.resizeKeydown}><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" aria-hidden="true"><path d="m4 12 8-8m-4 8 4-4" /></svg></button>
   </dialog>;
 }

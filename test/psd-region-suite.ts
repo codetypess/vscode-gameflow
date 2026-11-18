@@ -7,7 +7,7 @@ import { applyPsdDraft, makePsdDraft } from "../shared/psd-draft";
 import { makeSliceExportBatch, sliceExportIssues } from "../shared/psd-export";
 import { isPsdEditorRequest } from "../shared/psd-editor-protocol";
 import { bytesHash, PsdDocumentModel } from "../src/psd-document-model";
-import { fitRegionCamera, resizedRegionCamera, resizeSliceRegion, zoomRegionCamera, type RegionEdge } from "../webview/psd/region-geometry";
+import { fitRegionDialog, resizeRegionDialog, fitRegionCamera, resizedRegionCamera, resizeSliceRegion, zoomRegionCamera, type RegionEdge } from "../webview/psd/region-geometry";
 
 const bytes = readFileSync("examples/psd-metadata/GameFlow-PSD-Metadata-Sample.psd");
 const structure = () => createPsdStructure(parsePsdBinary(bytes), "sample.psd", bytesHash(bytes));
@@ -15,6 +15,27 @@ const region = { x: -41, y: -11, width: 300, height: 100 };
 const png = "data:image/png;base64," + readFileSync("examples/star-sea-login/assets/status_dot.png").toString("base64");
 function byKey<T extends { key: number }>(layers: T[], key: number): T { const layer = layers.find(l => l.key === key); assert.ok(layer); return layer; }
 export const psdRegionTests = [
+  { name: "PSD region window remains reachable after dragging and viewport shrink", run() {
+    const frame = { x: 240, y: 160, width: 760, height: 576 };
+    assert.deepEqual(fitRegionDialog(frame, { width: 1280, height: 900 }), frame);
+    assert.deepEqual(fitRegionDialog({ ...frame, x: -999, y: 9999 }, { width: 1280, height: 900 }), { ...frame, x: 16, y: 308 });
+    for (const viewport of [{ width: 360, height: 640 }, { width: 320, height: 300 }, { width: 20, height: 20 }]) {
+      const next = fitRegionDialog(frame, viewport);
+      assert.ok(next.x >= 0 && next.y >= 0);
+      assert.ok(next.width > 0 && next.height > 0);
+      assert.ok(next.x + next.width <= viewport.width && next.y + next.height <= viewport.height);
+      assert.deepEqual(fitRegionDialog(next, viewport), next);
+    }
+    assert.deepEqual(frame, { x: 240, y: 160, width: 760, height: 576 });
+  } },
+  { name: "PSD region window corner resize preserves its origin and limits size", run() {
+    const frame = { x: 240, y: 160, width: 760, height: 576 }, viewport = { width: 1280, height: 900 };
+    assert.deepEqual(resizeRegionDialog(frame, { x: 80, y: 40 }, viewport), { ...frame, width: 840, height: 616 });
+    assert.deepEqual(resizeRegionDialog(frame, { x: -9999, y: -9999 }, viewport), { ...frame, width: 440, height: 420 });
+    assert.deepEqual(resizeRegionDialog(frame, { x: 9999, y: 9999 }, viewport), { ...frame, width: 1024, height: 724 });
+    assert.deepEqual(resizeRegionDialog({ x: 16, y: 16, width: 328, height: 608 }, { x: -9999, y: -9999 }, { width: 360, height: 640 }), { x: 16, y: 16, width: 328, height: 420 });
+    assert.deepEqual(frame, { x: 240, y: 160, width: 760, height: 576 });
+  } },
   { name: "PSD region edge resize fixes the opposite edge and source image at every zoom", run() {
     for (const zoom of [.25, .5, 2, 6]) for (const edge of ["left", "right", "top", "bottom"] as RegionEdge[]) {
       const camera = { x: 100, y: 80, zoom }, next = resizeSliceRegion(region, edge, 20 / zoom);
