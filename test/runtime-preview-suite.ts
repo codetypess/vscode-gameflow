@@ -5,7 +5,8 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createDefaultGameFlowDocument, parseGameFlowDocument, serializeGameFlowDocument, validateGameFlowDocument, type GameFlowNode, type GameFlowPage } from "../shared/model";
 import { isSliceResourcePath, isSliceResourceRef, readExportedSlice, resolveSliceResource, sliceResourcePath, sourceKey, type SliceResourceDescription, type SliceResourceRef, type SliceResourceState } from "../shared/slice-resources";
-import { nineGridPatches } from "../shared/nine-grid";
+import { compactNineGrid, nineGridPatches } from "../shared/nine-grid";
+import { isSliceExportBatch, planSliceExport } from "../shared/psd-export";
 import { previewControl } from "../shared/preview-session";
 import { resolvePageLayout } from "../shared/ui-layout";
 import { convertNodeType, editNodeFrame, setNodeAnchor, setNodeConstraint } from "../shared/ui-edit";
@@ -132,6 +133,21 @@ test("nine-grid axes retain leading borders without enlarging tiny target dimens
   assert.equal(Math.max(...patches.map(p => p.x + p.width)), 9);
   assert.equal(Math.max(...patches.map(p => p.y + p.height)), 7);
 });
+test("nine-grid compaction retains full edge strips and a complete repeat cycle", () => {
+  const width = 29, height = 17, grid = { left: 2, right: 3, top: 2, bottom: 3, repeat: false };
+  const pixels = Uint32Array.from({ length: width * height }, (_, i) => {
+    const x = i % width, y = Math.floor(i / width);
+    return y * 64 + (x >= 2 && x < 26 ? 2 : x);
+  });
+  const stretch = compactNineGrid(pixels, width, height, grid);
+  assert.deepEqual([stretch.width, stretch.height, stretch.nineGrid], [13, 17, grid]);
+  assert.deepEqual(stretch.columns, [{ src: 0, dst: 0, length: 10 }, { src: 26, dst: 10, length: 3 }]);
+  pixels[10] = 128; // A detail in the top strip prevents shortening the horizontal axis.
+  assert.equal(compactNineGrid(pixels, width, height, grid).width, 29);
+  const repeatPixels = Uint32Array.from({ length: width * height }, (_, i) => i % width % 12);
+  assert.equal(compactNineGrid(repeatPixels, width, height, { ...grid, repeat: true }).width, 17);
+  assert.equal(compactNineGrid(repeatPixels, width, height, { ...grid, right: 4, repeat: true }).width, 29);
+});
 test("preview checkbox radio and slider states leave design initial values unchanged", () => {
   const checkbox: GameFlowNode = { ...image, id: "check001", type: "checkbox", sliceResource: undefined, widget: { selected: false } };
   const slider: GameFlowNode = { ...image, id: "slider01", type: "slider", sliceResource: undefined, widget: { min: 10, max: 20, value: 12 } };
@@ -148,6 +164,22 @@ test("disk preview verifies provenance PNG bytes dimensions and returns real tex
   const f = exportedFixture(), result = await readExportedSlice(ref.path, f.io);
   assert.equal(result.error, undefined); assert.deepEqual(result.description, description);
   assert.deepEqual(Buffer.from(result.base64!, "base64"), png);
+});
+test("export and disk preview preserve compact texture geometry and the separate layout size", async () => {
+  const f = exportedFixture();
+  const nineGrid = { left: 1, right: 3, top: 1, bottom: 2, repeat: false };
+  const logicalSize = { width: 41, height: 10 }, manifestName = "ui/login/gameflow-resources.json";
+  const { source, file, sha256, ...item } = f.record;
+  const batch = { source, items: [{ ...item, nineGrid, logicalSize, base64: png.toString("base64") }] };
+  const manifest = planSliceExport(batch, { schema: "gameflow.resources", version: 1, resources: [] }, [], new Map([[item.name, sha256]]));
+  assert.equal(manifest.resources[0].file, file);
+  assert.deepEqual(manifest.resources[0].logicalSize, logicalSize);
+  f.files.set(manifestName, Buffer.from(JSON.stringify(manifest)));
+  const result = await readExportedSlice(ref.path, f.io);
+  assert.deepEqual(result.description, { ...description, nineGrid, logicalSize });
+  for (const invalid of [{ logicalSize: { width: 9, height: 10 } }, { nineGrid: { ...nineGrid, right: 9 } }]) {
+    assert.equal(isSliceExportBatch({ ...batch, items: [{ ...batch.items[0], ...invalid }] }), false);
+  }
 });
 test("missing or tampered disk resources produce per-resource errors", async () => {
   const f = exportedFixture(); f.files.delete(ref.path);

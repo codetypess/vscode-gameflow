@@ -63,6 +63,8 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 
 - [runtime-slice-preview.md](runtime-slice-preview.md) — Done：真实内存切图、持久资源绑定、磁盘来源验证及当前工作台运行预览；共用布局/绘制，支持九宫格多尺寸检查和临时控件状态。311 项共享测试、37 项真实宿主检查、6 项浏览器像素验收、真实 PSD 与窄窗口验收及生产构建通过。
 
+- [nine-grid-export-product.md](nine-grid-export-product.md) — Done：无损缩减九宫格中段；预览和导出共用最终纹理尺寸及边距，独立保留布局原尺寸。共享、宿主、浏览器像素及生产构建验证通过。
+
 - [canvas-direct-selection.md](canvas-direct-selection.md) — Done：底部新增默认关闭的直选模式，可直接选择子节点并跨分支多选；180 项测试、生产构建和浏览器选择/拖动/会话验收通过。
 
 - [canvas-zoom-top-left.md](canvas-zoom-top-left.md) — Done：原型缩放条移至画布左上，与层级导航同一行、等高 34px，跟随面板避让；177 项测试、生产构建及总览/页内/窄窗口浏览器验收通过。

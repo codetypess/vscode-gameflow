@@ -4,14 +4,18 @@ import { identityProblems, sliceRegion, validConfig, validGrid, type NineGrid, t
 export const RESOURCE_MANIFEST = "gameflow-resources.json";
 export const MAX_EXPORT_BYTES = 48 * 1024 * 1024;
 export interface ExportSource { documentId: string; psdName: string; sourceHash: string }
-export interface SliceExport {
+export interface SliceProductGeometry {
+  width: number; height: number; nineGrid: NineGrid | null;
+  logicalSize?: { width: number; height: number };
+}
+export interface SliceExport extends SliceProductGeometry {
   name: string; layerId: string; layerName: string; shared: boolean;
-  width: number; height: number; nineGrid: NineGrid | null; base64: string;
+  base64: string;
 }
 export interface SliceExportBatch { source: ExportSource; items: SliceExport[] }
-export interface ResourceRecord {
+export interface ResourceRecord extends SliceProductGeometry {
   name: string; file: string; source: ExportSource; layerId: string; layerName: string;
-  shared: boolean; width: number; height: number; nineGrid: NineGrid | null; sha256: string;
+  shared: boolean; sha256: string;
 }
 export interface ResourceManifest { schema: "gameflow.resources"; version: 1; resources: ResourceRecord[] }
 export interface ExportIssue { keys: number[]; message: string }
@@ -64,26 +68,34 @@ export function sliceExportIssues(asset: PsdAsset): ExportIssue[] {
   return issues;
 }
 
-export function makeSliceExportBatch(asset: PsdAsset, renderedImages?: ReadonlyMap<number, string>): SliceExportBatch {
+export function makeSliceExportBatch(asset: PsdAsset, products?: ReadonlyMap<number, { image: string; geometry: SliceProductGeometry }>): SliceExportBatch {
   const issues = sliceExportIssues(asset); if (issues.length) throw new Error(issues.map(i => i.message).join("\n"));
   const batch: SliceExportBatch = {
     source: { documentId: asset.documentId, psdName: asset.name, sourceHash: asset.sourceHash },
     items: asset.layers.filter(l => l.config.enabled).map(l => {
-      if (l.config.region && !renderedImages?.has(l.key)) throw new Error(`${l.name}：需先生成自定义区域的 PNG 切图。`);
-      const image = renderedImages?.get(l.key) ?? l.image;
+      const product = products?.get(l.key);
+      if (l.config.region && !product) throw new Error(`${l.name}：需先生成自定义区域的 PNG 切图。`);
+      const image = product?.image ?? l.image;
       if (!image?.startsWith("data:image/png;base64,")) throw new Error(`${l.name}：没有有效的 PNG 切图。`);
       const { width, height } = sliceRegion(l);
-      return { name: effectiveExportName(asset, l), layerId: l.metadata.layerId, layerName: l.name, shared: l.config.shared === true, width, height, nineGrid: l.config.nineGrid, base64: image.slice("data:image/png;base64,".length) };
+      const geometry = product?.geometry ?? { width, height, nineGrid: l.config.nineGrid };
+      return { name: effectiveExportName(asset, l), layerId: l.metadata.layerId, layerName: l.name, shared: l.config.shared === true,
+        width: geometry.width, height: geometry.height, nineGrid: geometry.nineGrid,
+        ...(geometry.logicalSize && { logicalSize: geometry.logicalSize }), base64: image.slice("data:image/png;base64,".length) };
     })
   };
   if (!isSliceExportBatch(batch)) throw new Error("没有可导出的图片，或切图总数据超过 48 MB / 配置无效。");
   return batch;
 }
 
+const validSize = (v: Record<string, unknown>) => Number.isInteger(v.width) && Number(v.width) > 0 && Number(v.width) <= 4096 &&
+  Number.isInteger(v.height) && Number(v.height) > 0 && Number(v.height) <= 4096 && Number(v.width) * Number(v.height) <= 8_000_000;
+
 function validItem(v: unknown): v is SliceExport {
   return record(v) && text(v.name, 120) && v.name === v.name.toLowerCase() && !exportNameError(v.name) && text(v.layerId, 128) && text(v.layerName) && typeof v.shared === "boolean" &&
-    Number.isInteger(v.width) && Number(v.width) > 0 && Number(v.width) <= 4096 && Number.isInteger(v.height) && Number(v.height) > 0 && Number(v.height) <= 4096 && Number(v.width) * Number(v.height) <= 8_000_000 &&
-    (v.nineGrid === null || validGrid(v.nineGrid, Number(v.width), Number(v.height)));
+    validSize(v) && (v.nineGrid === null || validGrid(v.nineGrid, Number(v.width), Number(v.height))) &&
+    (v.logicalSize === undefined || v.nineGrid !== null && record(v.logicalSize) && validSize(v.logicalSize) &&
+      Number(v.logicalSize.width) >= Number(v.width) && Number(v.logicalSize.height) >= Number(v.height));
 }
 export function isSliceExportBatch(v: unknown): v is SliceExportBatch {
   if (!record(v) || !sourceValid(v.source) || !Array.isArray(v.items) || !v.items.length || v.items.length > 128) return false;
@@ -116,7 +128,8 @@ export function planSliceExport(batch: SliceExportBatch, manifest: ResourceManif
     if (matches.length && !previous && !item.shared) conflict("已有文件没有来源记录，当前图层未标记为共享资源。");
     if (previous && previous.source.documentId !== batch.source.documentId && !item.shared) conflict(`由 ${previous.source.psdName} 导出，当前图层未标记为共享资源。`);
     const sha256 = generatedHashes.get(item.name); if (!hash(sha256)) conflict("切图数据未通过校验。");
-    records.set(item.name, { name: item.name, file: target, source: { ...batch.source }, layerId: item.layerId, layerName: item.layerName, shared: item.shared, width: item.width, height: item.height, nineGrid: item.nineGrid, sha256: sha256! });
+    records.set(item.name, { name: item.name, file: target, source: { ...batch.source }, layerId: item.layerId, layerName: item.layerName, shared: item.shared, width: item.width, height: item.height, nineGrid: item.nineGrid,
+      ...(item.logicalSize && { logicalSize: item.logicalSize }), sha256: sha256! });
   }
   if (errors.length) throw new SliceExportConflict(errors);
   return { schema: "gameflow.resources", version: 1, resources: [...records.values()].sort((a, b) => a.name.localeCompare(b.name)) };

@@ -4,7 +4,7 @@ import { EMPTY_GRID, setGridEdge, sliceRegion, validGrid, type NineGrid, type Ps
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { SliceImage } from "./slice-image";
-import { sliceImageCanvas } from "./slice-render";
+import { sliceImageProduct } from "./slice-render";
 import { paintSlice } from "../runtime/paint-slice";
 
 type Edge = "top" | "right" | "bottom" | "left";
@@ -14,16 +14,18 @@ const clampZoom = (n: number) => Math.max(0.1, Math.min(16, n));
 export function NineGridPreview({ image, width, height, grid, region }: { image: string; width: number; height: number; grid: NineGrid; region?: SliceRegion }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const [target, setTarget] = useState({ width: 400, height: 100 });
+  const [product, setProduct] = useState<ReturnType<typeof sliceImageProduct>>();
   const dw = target.width, dh = target.height;
   useEffect(() => {
     let cancelled = false; const source = new Image();
     source.onload = () => {
-      const element = canvas.current; if (!element || cancelled) return;
-      const pixels = region ? sliceImageCanvas(source, region) : source;
-      paintSlice(element, pixels, { width, height, nineGrid: grid }, dw, dh);
+      if (!cancelled) setProduct(sliceImageProduct(source, region ?? { x: 0, y: 0, width, height }, grid));
     };
     source.src = image; return () => { cancelled = true; };
-  }, [image, width, height, grid, dw, dh, region?.x, region?.y, region?.width, region?.height]);
+  }, [image, width, height, grid, region?.x, region?.y, region?.width, region?.height]);
+  useEffect(() => {
+    if (canvas.current && product) paintSlice(canvas.current, product.pixels, product.geometry, dw, dh);
+  }, [product, dw, dh]);
   return <section className="nine-preview"><div className="psd-section-heading"><strong>拉伸预览</strong><div><Input aria-label="预览宽度" type="number" min={1} max={800} value={target.width} onChange={e => setTarget({ ...target, width: Math.max(1, Math.min(800, Number(e.target.value))) })} /><span>×</span><Input aria-label="预览高度" type="number" min={1} max={400} value={target.height} onChange={e => setTarget({ ...target, height: Math.max(1, Math.min(400, Number(e.target.value))) })} /></div></div><div className="nine-preview-surface checkerboard"><canvas ref={canvas} style={{ maxWidth: "100%", maxHeight: 120, objectFit: "contain" }} /></div></section>;
 }
 

@@ -149,11 +149,12 @@ export const psdRegionTests = [
     l.config.region = { ...region }; l.config.nineGrid = { top: 30, right: 100, bottom: 30, left: 100, repeat: false };
     assert.equal(sliceExportIssues(a).length, 0);
     assert.throws(() => makeSliceExportBatch(a), /需先生成自定义区域/);
-    const item = makeSliceExportBatch(a, new Map([[l.key, png]])).items[0];
+    const rendered = new Map([[l.key, { image: png, geometry: { width: 300, height: 100, nineGrid: l.config.nineGrid } }]]);
+    const item = makeSliceExportBatch(a, rendered).items[0];
     assert.equal(item.width, 300); assert.equal(item.height, 100); assert.deepEqual(item.nineGrid, l.config.nineGrid);
     assert.equal(l.width, original.width); assert.equal(l.image, png);
     l.config.region = { ...region, width: 200 };
     assert.ok(sliceExportIssues(a).some(issue => issue.keys.includes(l.key) && /区域或九宫格/.test(issue.message)));
-    assert.throws(() => makeSliceExportBatch(a, new Map([[l.key, png]])), /区域或九宫格/);
+    assert.throws(() => makeSliceExportBatch(a, rendered), /区域或九宫格/);
   } }
 ];

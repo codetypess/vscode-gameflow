@@ -18,6 +18,7 @@ export function paintSlice(canvas: HTMLCanvasElement, source: CanvasImageSource,
     }
     return;
   }
+  let stretchPatch: HTMLCanvasElement | undefined;
   for (const p of nineGridPatches(size.width, size.height, width, height, grid)) {
     if (p.repeatX || p.repeatY) {
       const tile = document.createElement("canvas");
@@ -26,6 +27,13 @@ export function paintSlice(canvas: HTMLCanvasElement, source: CanvasImageSource,
       tileContext.drawImage(source, p.sx, p.sy, p.sw, p.sh, 0, 0, tile.width, tile.height);
       const pattern = ctx.createPattern(tile, "repeat"); if (!pattern) throw new Error("九宫格纹理读取失败。");
       ctx.save(); ctx.translate(p.x, p.y); ctx.fillStyle = pattern; ctx.fillRect(0, 0, p.width, p.height); ctx.restore();
+    } else if (p.sw !== p.width || p.sh !== p.height) {
+      // Canvas filtering can sample beyond a source rectangle. Isolate the patch before scaling it.
+      const tile = stretchPatch ??= document.createElement("canvas");
+      tile.width = p.sw; tile.height = p.sh;
+      const tileContext = tile.getContext("2d"); if (!tileContext) throw new Error("无法创建九宫格拉伸纹理。");
+      tileContext.drawImage(source, p.sx, p.sy, p.sw, p.sh, 0, 0, p.sw, p.sh);
+      ctx.drawImage(tile, p.x, p.y, p.width, p.height);
     } else ctx.drawImage(source, p.sx, p.sy, p.sw, p.sh, p.x, p.y, p.width, p.height);
   }
 }

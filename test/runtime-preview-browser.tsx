@@ -43,6 +43,34 @@ async function checkPixels() {
   const decoded = document.createElement("canvas"); decoded.width = exported.width; decoded.height = exported.height; decoded.getContext("2d")!.drawImage(exported, 0, 0);
   equal([...decoded.getContext("2d")!.getImageData(0, 0, 8, 8).data].join(), [...product.pixels.getContext("2d")!.getImageData(0, 0, 8, 8).data].join());
   equal(batch.items[0].nineGrid!.left, 3); results.push("PASS 正式 PNG 与预览共用产物，全部像素和九宫格描述一致");
+  const strip = document.createElement("canvas"); strip.width = 30; strip.height = 14;
+  const stripCtx = strip.getContext("2d")!;
+  for (let y = 0; y < 14; y++) {
+    stripCtx.fillStyle = `rgb(${y * 16}, 32, 64)`; stripCtx.fillRect(0, y, 30, 1);
+  }
+  stripCtx.fillStyle = "#ff0000"; stripCtx.fillRect(1, 0, 2, 14);
+  stripCtx.fillStyle = "#00ff00"; stripCtx.fillRect(27, 0, 3, 14);
+  const compactAsset = { ...asset, documentId: "compact-source", sourceHash: "c".repeat(64), width: 30, height: 14,
+    layers: [{ ...asset.layers[0], width: 30, height: 14, image: strip.toDataURL(), config: { ...asset.layers[0].config,
+      nineGrid: { left: 4, right: 3, top: 2, bottom: 2, repeat: false }, region: { x: -1, y: 0, width: 31, height: 14 } } }] };
+  const compact = (await generateSliceProducts(compactAsset)).get(0)!;
+  if (compact.status !== "ready") throw new Error(compact.status === "error" ? compact.error : "未生成");
+  // The transparent left padding and the entire right strip survive. The gradient only allows horizontal shortening.
+  equal(compact.pixels.width, 15); equal(compact.pixels.height, 14);
+  equal(readPixel(compact.pixels, 0, 4), "0,0,0,0"); equal(readPixel(compact.pixels, 14, 4), "0,255,0,255");
+  for (const width of [31, 51]) {
+    paintSlice(output, compact.pixels, compact.description, width, 14);
+    for (let y = 0; y < 14; y++) for (let x = 0; x < width; x++) {
+      const expected = x === 0 ? "0,0,0,0" : x === 2 || x === 3 ? "255,0,0,255" : x >= width - 3 ? "0,255,0,255" : `${y * 16},32,64,255`;
+      equal(readPixel(output, x, y), expected);
+    }
+  }
+  const compactBatch = (await renderSliceExportBatch(compactAsset)).items[0];
+  const compactPng = new Image(); compactPng.src = `data:image/png;base64,${compactBatch.base64}`; await compactPng.decode();
+  equal(compactPng.width, 15); equal(compactBatch.width, 15); equal(compactBatch.nineGrid!.right, 3); equal(compactBatch.logicalSize!.width, 31);
+  paintSlice(decoded, compactPng, compactBatch, 51, 14);
+  equal(decoded.getContext("2d")!.getImageData(0, 0, 51, 14).data.join(), output.getContext("2d")!.getImageData(0, 0, 51, 14).data.join());
+  results.push("PASS 九宫格单轴缩减，透明边及渐变保留，PNG 重建与内存预览一致");
   const originalToDataURL = HTMLCanvasElement.prototype.toDataURL;
   HTMLCanvasElement.prototype.toDataURL = () => { throw new Error("预览不应编码 PNG"); };
   try { const uncached = await generateSliceProducts({ ...asset, documentId: "no-encode", sourceHash: "b".repeat(64) }); equal(uncached.get(0)!.status, "ready"); } finally { HTMLCanvasElement.prototype.toDataURL = originalToDataURL; }

@@ -1,6 +1,5 @@
 import { exportDirectoryError } from "./export-directory";
-import { exportNameError, parseResourceManifest, RESOURCE_MANIFEST, type ExportSource } from "./psd-export";
-import type { NineGrid } from "./psd-meta";
+import { exportNameError, parseResourceManifest, RESOURCE_MANIFEST, type ExportSource, type SliceProductGeometry } from "./psd-export";
 
 export interface SliceResourceRef {
   /** Portable path relative to the user's resource root, including .png. */
@@ -8,8 +7,8 @@ export interface SliceResourceRef {
   /** Provenance hint for diagnostics; the path remains the resource identity. */
   source?: { documentId: string; layerId: string };
 }
-export interface SliceResourceDescription {
-  path: string; width: number; height: number; nineGrid: NineGrid | null;
+export interface SliceResourceDescription extends SliceProductGeometry {
+  path: string;
   source: ExportSource; layerId: string; layerName: string; shared: boolean;
 }
 export type SliceResourceState<T> =
@@ -69,6 +68,7 @@ export async function readExportedSlice(path: string, io: {
     if (bytes.length < 24 || view.getUint32(0) !== 0x89504e47 || view.getUint32(4) !== 0x0d0a1a0a || view.getUint32(12) !== 0x49484452 ||
         view.getUint32(16) !== item.width || view.getUint32(20) !== item.height) throw new Error("PNG 尺寸与资源描述不一致或图片已损坏。");
     return { path, exists, description: { path, width: item.width, height: item.height, nineGrid: item.nineGrid,
+      ...(item.logicalSize && { logicalSize: item.logicalSize }),
       source: item.source, layerId: item.layerId, layerName: item.layerName, shared: item.shared }, base64: io.encode(bytes) };
   } catch (error) { return { path, exists, error: error instanceof Error ? error.message : String(error) }; }
 }

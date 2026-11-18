@@ -37,7 +37,10 @@ export function useRuntimeResources(assets: PsdAsset[], pages: GameFlowPage[], d
       const entries = new Map<string, RuntimeResource>();
       batches.forEach((batch, index) => { for (const [key, entry] of batch) {
         const layer = assets[index].layers.find(l => l.key === key)!;
-        try { merge(entries, { ...entry, description: description(assets[index], layer, directory) }); } catch { /* Name errors are reported at their source. */ }
+        try {
+          const placeholder = description(assets[index], layer, directory);
+          merge(entries, { ...entry, description: { ...(entry.description ?? placeholder), path: placeholder.path } });
+        } catch { /* Name errors are reported at their source. */ }
       } });
       setGenerated({ stamp, entries });
     });
@@ -95,7 +98,7 @@ export function useRuntimeResources(assets: PsdAsset[], pages: GameFlowPage[], d
     }
     const resolve = (ref: SliceResourceRef) => resolveSliceResource(ref, entries, sources);
     const sizes = new Map<string, { width: number; height: number }>();
-    for (const [path, entry] of entries) if (entry.status === "ready") sizes.set(path, entry.description);
+    for (const [path, entry] of entries) if (entry.status === "ready") sizes.set(path, entry.description.logicalSize ?? entry.description);
     return { entries, sizes, resolve, refresh: () => setRevision(n => n + 1) };
   }, [memory, disk, diskStamp, pathsKey, assets, pages, directory, root]);
 }
