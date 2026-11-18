@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { mkdtemp, readdir, readFile, writeFile, unlink, rmdir } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, writeFile, unlink, rmdir, mkdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { defaultExportName, effectiveExportName, exportNameError, isSliceExportBatch, makeSliceExportBatch, parseResourceManifest, RESOURCE_MANIFEST, sliceExportIssues, SliceExportConflict, type SliceExportBatch } from "../shared/psd-export";
+import { defaultExportName, effectiveExportName, exportNameError, isSliceExportBatch, makeSliceExportBatch, parseResourceManifest, RESOURCE_MANIFEST, sliceExportPath, sliceExportIssues, SliceExportConflict, type SliceExportBatch } from "../shared/psd-export";
 import { exportSlicesToDirectory, type ResourceDirectory } from "../shared/psd-export-directory";
 import { applySidecar, makeSidecar, validConfig, type PsdAsset, type PsdLayer } from "../shared/psd-meta";
 import { isWebviewToHostMessage } from "../shared/protocol";
@@ -21,7 +21,12 @@ function batch(source = "psd-a", shared = false): SliceExportBatch {
 }
 class MemoryDirectory implements ResourceDirectory {
   files = new Map<string, Uint8Array>(); writes: string[] = []; fail?: string;
-  async list() { return [...this.files.keys()]; }
+  folders = new Set<string>();
+  async mkdir(folder: string) { this.folders.add(folder); }
+  async list(folder?: string) {
+    const prefix = folder ? folder + "/" : "";
+    return [...new Set([...this.files.keys(), ...this.folders].filter(path => path.startsWith(prefix)).map(path => path.slice(prefix.length).split("/")[0]).filter(Boolean))];
+  }
   async read(name: string) { return this.files.get(name)?.slice() ?? null; }
   async write(name: string, bytes: Uint8Array) {
     this.writes.push(name);
@@ -41,6 +46,11 @@ export const psdExportTests: { name: string; run: () => void | Promise<void> }[]
     assert.equal(defaultExportName("登录页面.psd", "按钮底图", "Common"), "btn_common_andt");
     assert.equal(defaultExportName("登录页面.psd", "服务器底板", "公共资源"), "img_ggzy_fwqdb");
     assert.equal(defaultExportName(".psd", "按钮", "Common"), "btn_common_an");
+    assert.equal(defaultExportName("登录页面.psd", "按钮底图", undefined, true), "btn_andt");
+    assert.equal(defaultExportName("登录页面.psd", "按钮底图", "Common", true), "btn_andt");
+    assert.equal(defaultExportName("登录页面.psd", "服务器底板", "公共资源", true), "img_fwqdb");
+    assert.equal(defaultExportName(".psd", "按钮", undefined, true), "btn_an");
+    assert.equal(defaultExportName("登录页面.psd", "★", "Common", true), "");
     assert.equal(defaultExportName("登录页面.psd", "★", "Common"), "");
     assert.equal(defaultExportName(".psd", "按钮"), "");
     assert.equal(defaultExportName("登录.psd", "★"), "");
@@ -52,11 +62,16 @@ export const psdExportTests: { name: string; run: () => void | Promise<void> }[]
     assert.equal(effectiveExportName(a, l), "btn_dlym_andt"); assert.equal(l.config.exportName, undefined);
     l.config.exportName = "CUSTOM_01"; assert.equal(effectiveExportName(a, l), "custom_01");
     l.config.exportName = ""; assert.equal(effectiveExportName(a, l), "btn_dlym_andt");
-    l.config.shared = true; assert.equal(effectiveExportName(a, l), "btn_dlym_andt");
-    a.atlasName = "Common"; assert.equal(effectiveExportName(a, l), "btn_common_andt");
+    l.config.shared = true; assert.equal(effectiveExportName(a, l), "btn_andt");
+    a.atlasName = "Common"; assert.equal(effectiveExportName(a, l), "btn_andt");
     l.config.exportName = "CUSTOM_01"; assert.equal(effectiveExportName(a, l), "custom_01");
     l.config.shared = false; assert.equal(effectiveExportName(a, l), "custom_01");
     l.config.exportName = ""; assert.equal(effectiveExportName(a, l), "btn_common_andt");
+    l.config.shared = true; l.config.exportName = "CUSTOM_01";
+    assert.equal(effectiveExportName(a, l), "custom_01");
+    l.config.exportName = ""; assert.equal(effectiveExportName(a, l), "btn_andt");
+    l.config.shared = false; assert.equal(effectiveExportName(a, l), "btn_common_andt");
+    assert.equal(a.atlasName, "Common");
     assert.equal(l.config.name, "按钮底图");
   } },
   { name: "PSD name/shared settings roundtrip through sidecar and empty override remains empty", run() {
@@ -90,7 +105,7 @@ export const psdExportTests: { name: string; run: () => void | Promise<void> }[]
   { name: "PSD export writes actual PNG bytes and traceable nine-grid metadata together", async run() {
     const d = new MemoryDirectory(), b = batch(); b.items[0].nineGrid = { top: 1, right: 2, bottom: 3, left: 4, repeat: true };
     assert.equal(await exportSlicesToDirectory(d, b, codec), 1);
-    assert.deepEqual(d.files.get(`${b.items[0].name}.png`), new Uint8Array(png));
+    assert.deepEqual(d.files.get(sliceExportPath(b, b.items[0])), new Uint8Array(png));
     const entry = d.manifest().resources[0];
     assert.deepEqual(entry.source, b.source); assert.equal(entry.layerId, b.items[0].layerId);
     assert.deepEqual(entry.nineGrid, b.items[0].nineGrid); assert.equal(entry.sha256, sha(png));
@@ -105,30 +120,33 @@ export const psdExportTests: { name: string; run: () => void | Promise<void> }[]
     assert.equal(d.writes.length, count); assert.deepEqual(d.files.get(RESOURCE_MANIFEST), before);
   } },
   { name: "PSD shared export overwrites another source and transfers provenance", async run() {
-    const d = new MemoryDirectory(); await exportSlicesToDirectory(d, batch(), codec);
+    const d = new MemoryDirectory(); await exportSlicesToDirectory(d, batch("psd-a", true), codec);
     const b = batch("psd-b", true); b.items[0] = { ...b.items[0], width: 216, height: 80, base64: otherPng.toString("base64") };
     await exportSlicesToDirectory(d, b, codec);
-    assert.deepEqual(d.files.get(`${b.items[0].name}.png`), new Uint8Array(otherPng));
+    assert.deepEqual(d.files.get(sliceExportPath(b, b.items[0])), new Uint8Array(otherPng));
     assert.equal(d.manifest().resources.length, 1); assert.equal(d.manifest().resources[0].source.documentId, "psd-b");
-    await assert.rejects(exportSlicesToDirectory(d, batch(), codec), /psd-b.psd/);
+    await exportSlicesToDirectory(d, batch(), codec);
+    assert.equal(d.manifest().resources.length, 2);
   } },
-  { name: "PSD shared defaults use the same atlas across PSD names and preserve custom names", async run() {
+  { name: "PSD shared defaults ignore different PSD and atlas names and preserve custom names", async run() {
     const d = new MemoryDirectory(), first = asset(); first.layers[0].config.shared = true;
     const second = asset(); second.name = "设置界面.psd"; second.documentId = "psd-b"; second.layers[0].config.shared = true;
-    first.atlasName = "Common"; second.atlasName = "Common";
+    first.atlasName = "Login UI"; second.atlasName = "Settings UI";
     const a = makeSliceExportBatch(first), b = makeSliceExportBatch(second);
-    assert.equal(a.items[0].name, "btn_common_andt"); assert.equal(b.items[0].name, a.items[0].name);
+    assert.equal(a.items[0].name, "btn_andt"); assert.equal(b.items[0].name, a.items[0].name);
     assert.equal(first.layers[0].config.exportName, undefined);
     await exportSlicesToDirectory(d, a, codec); await exportSlicesToDirectory(d, b, codec);
-    assert.deepEqual([...d.files.keys()].sort(), ["btn_common_andt.png", RESOURCE_MANIFEST].sort());
+    assert.deepEqual([...d.files.keys()].sort(), ["shared/btn_andt.png", RESOURCE_MANIFEST].sort());
     assert.equal(d.manifest().resources[0].source.psdName, "设置界面.psd");
     second.layers[0].config.exportName = "custom_button";
     assert.equal(makeSliceExportBatch(second).items[0].name, "custom_button");
+    second.layers[0].config.exportName = ""; second.layers[0].config.shared = false;
+    assert.equal(makeSliceExportBatch(second).items[0].name, "btn_settings_ui_andt");
   } },
   { name: "PSD unmanaged files require explicit sharing and malformed provenance is rejected", async run() {
-    const d = new MemoryDirectory(), b = batch(); d.files.set(`${b.items[0].name}.png`, png);
+    const d = new MemoryDirectory(), b = batch(); d.files.set(sliceExportPath(b, b.items[0]), png);
     await assert.rejects(exportSlicesToDirectory(d, b, codec), /没有来源/); assert.equal(d.writes.length, 0);
-    b.items[0].shared = true; await exportSlicesToDirectory(d, b, codec); assert.equal(d.manifest().resources.length, 1);
+    b.items[0].shared = true; d.files.set(sliceExportPath(b, b.items[0]), png); await exportSlicesToDirectory(d, b, codec); assert.equal(d.manifest().resources.length, 1);
     const m = d.manifest(); m.resources.push(m.resources[0]);
     assert.throws(() => parseResourceManifest(m), /重复资源/);
     d.files.set(RESOURCE_MANIFEST, new TextEncoder().encode('{"schema":"other"}'));
@@ -137,11 +155,11 @@ export const psdExportTests: { name: string; run: () => void | Promise<void> }[]
   { name: "PSD export rejects PNG mismatch and directory case conflicts before writing", async run() {
     const d = new MemoryDirectory(), b = batch(); b.items[0].width = 9;
     await assert.rejects(exportSlicesToDirectory(d, b, codec), /PNG/); assert.equal(d.writes.length, 0);
-    b.items[0].width = 10; d.files.set(`${b.items[0].name.toUpperCase()}.png`, png);
+    b.items[0].width = 10; d.files.set(`unclassified/${b.items[0].name.toUpperCase()}.png`, png);
     await assert.rejects(exportSlicesToDirectory(d, b, codec), /大小写冲突/); assert.equal(d.writes.length, 0);
   } },
   { name: "PSD export rolls back PNG and manifest if final metadata write fails", async run() {
-    const d = new MemoryDirectory(), b = batch(); await exportSlicesToDirectory(d, b, codec);
+    const d = new MemoryDirectory(), b = batch("psd-a", true); await exportSlicesToDirectory(d, b, codec);
     const before = structuredClone(d.files); d.fail = RESOURCE_MANIFEST;
     const next = batch("psd-b", true); next.items[0] = { ...next.items[0], width: 216, height: 80, base64: otherPng.toString("base64") };
     await assert.rejects(exportSlicesToDirectory(d, next, codec), /已恢复本次写入/);
@@ -156,28 +174,71 @@ export const psdExportTests: { name: string; run: () => void | Promise<void> }[]
     await assert.rejects(exportSlicesToDirectory(d, b, codec), /检查期间被修改/); assert.equal(d.writes.length, count);
   } },
   { name: "PSD files appearing after directory scanning cannot bypass overwrite checks", async run() {
-    const d = new MemoryDirectory(), b = batch(), target = `${b.items[0].name}.png`;
+    const d = new MemoryDirectory(), b = batch(), target = sliceExportPath(b, b.items[0]);
     const list = d.list.bind(d); let scanned = false;
-    d.list = async () => { const names = await list(); if (!scanned) { scanned = true; d.files.set(target, new Uint8Array(otherPng)); } return names; };
+    d.list = async folder => { const names = await list(folder); if (folder && !scanned) { scanned = true; d.files.set(target, new Uint8Array(otherPng)); } return names; };
     await assert.rejects(exportSlicesToDirectory(d, b, codec), /检查期间/);
     assert.equal(d.writes.length, 0); assert.deepEqual(d.files.get(target), new Uint8Array(otherPng));
   } },
   { name: "PSD directory export writes readable PNGs and one manifest to a real folder", async run() {
     const root = await mkdtemp(join(tmpdir(), "gameflow-export-test-")), b = batch();
     const directory: ResourceDirectory = {
-      list: () => readdir(root),
+      list: async folder => { try { return await readdir(join(root, folder ?? "")); } catch (e) { if ((e as NodeJS.ErrnoException).code === "ENOENT") return []; throw e; } },
+      mkdir: async folder => { await mkdir(join(root, folder), { recursive: true }); },
       read: async name => { try { return await readFile(join(root, name)); } catch (e) { if ((e as NodeJS.ErrnoException).code === "ENOENT") return null; throw e; } },
       write: (name, bytes) => writeFile(join(root, name), bytes), remove: name => unlink(join(root, name))
     };
     try {
       await exportSlicesToDirectory(directory, b, codec);
-      assert.deepEqual((await readdir(root)).sort(), [`${b.items[0].name}.png`, RESOURCE_MANIFEST].sort());
-      assert.equal(sha(await readFile(join(root, `${b.items[0].name}.png`))), sha(png));
+      assert.deepEqual((await readdir(root)).sort(), ["builtin", "shared", "unclassified", RESOURCE_MANIFEST].sort());
+      assert.equal(sha(await readFile(join(root, sliceExportPath(b, b.items[0])))), sha(png));
       const metadata = JSON.parse(await readFile(join(root, RESOURCE_MANIFEST), "utf8"));
       assert.equal(metadata.resources[0].source.psdName, "psd-a.psd");
       await assert.rejects(exportSlicesToDirectory(directory, batch("psd-b"), codec), /未标记/);
       await exportSlicesToDirectory(directory, batch("psd-b", true), codec);
-      assert.equal(JSON.parse(await readFile(join(root, RESOURCE_MANIFEST), "utf8")).resources[0].source.psdName, "psd-b.psd");
-    } finally { for (const name of await readdir(root)) await unlink(join(root, name)); await rmdir(root); }
+      assert.equal(JSON.parse(await readFile(join(root, RESOURCE_MANIFEST), "utf8")).resources.find((r: { shared: boolean }) => r.shared).source.psdName, "psd-b.psd");
+    } finally { for (const entry of await readdir(root, { withFileTypes: true })) { if (entry.isDirectory()) { for (const name of await readdir(join(root, entry.name))) await unlink(join(root, entry.name, name)); await rmdir(join(root, entry.name)); } else await unlink(join(root, entry.name)); } await rmdir(root); }
+  } },
+  { name: "PSD root ledger distinguishes equal basenames across shared atlas and unclassified directories", async run() {
+    const one = layer(0, "普通图标"), two = layer(1, "共享图标");
+    one.config.exportName = two.config.exportName = "img_same"; two.config.shared = true;
+    const a: PsdAsset = { ...asset(one, two), independentDirectory: true, atlasName: "Common UI" };
+    const b = makeSliceExportBatch(a), d = new MemoryDirectory();
+    assert.equal(b.directory, "common_ui"); assert.equal(isSliceExportBatch(b), true);
+    await exportSlicesToDirectory(d, b, codec);
+    assert.deepEqual(d.manifest().resources.map(r => r.file), ["common_ui/img_same.png", "shared/img_same.png"]);
+    assert.equal(d.manifest().version, 2);
+    assert.ok(["builtin", "shared", "unclassified", "common_ui"].every(folder => d.folders.has(folder)));
+    delete a.independentDirectory;
+    await exportSlicesToDirectory(d, makeSliceExportBatch(a), codec);
+    assert.deepEqual(d.manifest().resources.map(r => r.file), ["common_ui/img_same.png", "shared/img_same.png", "unclassified/img_same.png"]);
+    assert.deepEqual(d.files.get("common_ui/img_same.png"), new Uint8Array(png));
+  } },
+  { name: "PSD mixed-folder batch restores both folders when an image or root ledger write fails", async run() {
+    for (const failed of ["shared/img_two.png", RESOURCE_MANIFEST]) {
+      const one = layer(0, "图标一"), two = layer(1, "图标二");
+      one.config.exportName = "img_one"; two.config.exportName = "img_two"; two.config.shared = true;
+      const b = makeSliceExportBatch({ ...asset(one, two), atlasName: "common", independentDirectory: true }), d = new MemoryDirectory();
+      await exportSlicesToDirectory(d, b, codec); const before = structuredClone(d.files);
+      b.items = b.items.map(item => ({ ...item, base64: otherPng.toString("base64"), width: 216, height: 80 }));
+      d.fail = failed;
+      await assert.rejects(exportSlicesToDirectory(d, b, codec), /已恢复本次写入/);
+      assert.deepEqual(d.files, before);
+    }
+  } },
+  { name: "PSD export rejects case aliases for category folders and root ledger before writes", async run() {
+    for (const name of ["Shared", "BUILTIN", "Unclassified", "IMAGE-FILES.META.JSON"]) {
+      const d = new MemoryDirectory(); d.files.set(name, new Uint8Array([1]));
+      await assert.rejects(exportSlicesToDirectory(d, batch(), codec), /大小写冲突/);
+      assert.equal(d.writes.length, 0);
+    }
+  } },
+  { name: "PSD root ledger rejects traversal mismatched basenames and case duplicate paths", async run() {
+    const d = new MemoryDirectory(); await exportSlicesToDirectory(d, batch(), codec);
+    const manifest = d.manifest(), entry = manifest.resources[0];
+    for (const file of ["../" + entry.name + ".png", "shared/other.png", "/shared/" + entry.name + ".png", "shared/../" + entry.name + ".png"]) {
+      assert.throws(() => parseResourceManifest({ ...manifest, resources: [{ ...entry, file }] }), /无效或重复/);
+    }
+    assert.throws(() => parseResourceManifest({ ...manifest, resources: [entry, { ...entry, file: entry.file.replace("unclassified/", "Unclassified/") }] }), /重复/);
   } }
 ];

@@ -3,6 +3,7 @@ import { Focus, Minus, Plus } from "lucide-react";
 import type { PsdAsset, PsdLayer } from "../../shared/psd-meta";
 import { sliceRegion } from "../../shared/psd-meta";
 import { Button } from "../components/ui/button";
+import { Separator } from "../components/ui/separator";
 import { CanvasDots } from "../components/canvas-dots";
 import { fitPsdCamera, placePsdPanels, zoomPsdCamera, type CanvasSize, type PsdCamera } from "./canvas-layout";
 import { isCanvasDrag, pickPsdLayer, psdPoint } from "./layer-hit-test";
@@ -116,11 +117,14 @@ export function PsdSliceCanvas({ asset, selected, onSelect, active, tree, proper
     {selected && !selected.group && region ? <div className="psd-export-outline" aria-label="自定义导出区域" style={{ left: camera.x + (selected.left + region.x) * camera.zoom, top: camera.y + (selected.top + region.y) * camera.zoom, width: region.width * camera.zoom, height: region.height * camera.zoom, visibility: view.ready ? "visible" : "hidden" }} /> : null}
     <aside ref={leftPanel} aria-label="PSD 图层面板" className="psd-tree-panel psd-follow-panel floating-panel" style={{ ...panels.left, visibility: view.ready ? "visible" : "hidden" }}>{tree}</aside>
     <aside ref={rightPanel} aria-label="PSD 切图属性面板" className="psd-properties psd-follow-panel floating-panel" style={{ ...panels.right, visibility: view.ready ? "visible" : "hidden" }}>{properties}</aside>
-    <div className="psd-canvas-controls floating-panel" aria-label="PSD 视图控制">
-      <Button size="icon" variant="ghost" aria-label="PSD 缩小" title="缩小" onClick={() => zoom(1 / 1.2)}><Minus size={14} /></Button>
-      <Button variant="ghost" aria-label="PSD 实际大小" title="恢复 100%" onClick={() => zoom("actual")}>{Math.round(camera.zoom * 100)}%</Button>
-      <Button size="icon" variant="ghost" aria-label="PSD 放大" title="放大" onClick={() => zoom(1.2)}><Plus size={14} /></Button>
-      <Button size="icon" variant="ghost" aria-label="PSD 适应窗口" title="适应窗口" onClick={() => { selectionRequest.current++; setView(old => ({ ...old, camera: fitPsdCamera(old.size, asset) })); }}><Focus size={14} /></Button>
+    <div className="canvas-top-controls psd-canvas-controls">
+      <div className="canvas-zoom floating-panel" role="group" aria-label="PSD 视图控制">
+        <Button className="toolbar-button" size="icon" variant="ghost" aria-label="PSD 缩小" title="缩小" onClick={() => zoom(1 / 1.2)}><Minus size={14} /></Button>
+        <Button className="psd-zoom-percentage" size="icon" variant="ghost" aria-label="PSD 实际大小" title="恢复 100%" onClick={() => zoom("actual")}>{Math.round(camera.zoom * 100)}%</Button>
+        <Button className="toolbar-button" size="icon" variant="ghost" aria-label="PSD 放大" title="放大" onClick={() => zoom(1.2)}><Plus size={14} /></Button>
+        <Separator orientation="vertical" />
+        <Button className="toolbar-button" size="icon" variant="ghost" aria-label="PSD 适应窗口" title="适应窗口" onClick={() => { selectionRequest.current++; setView(old => ({ ...old, camera: fitPsdCamera(old.size, asset) })); }}><Focus size={16} /></Button>
+      </div>
     </div>
   </div>;
 }

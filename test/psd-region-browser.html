@@ -36,10 +36,10 @@
     const asset = { name: "pixel-check.psd", sourceHash: "a".repeat(64), documentId: "pixel-check", hasEmbeddedIdentity: true, width: 960, height: 640, layers: [layer], preview: "" };
     const batch = await renderSliceExportBatch(asset);
     const files = new Map();
-    const directory = { list: async () => [...files.keys()], read: async name => files.get(name) ?? null, write: async (name, bytes) => { files.set(name, bytes.slice()); }, remove: async name => { files.delete(name); } };
+    const directory = { mkdir: async () => {}, list: async folder => [...new Set([...files.keys()].filter(path => path.startsWith(folder ? folder + "/" : "")).map(path => path.slice(folder ? folder.length + 1 : 0).split("/")[0]))], read: async name => files.get(name) ?? null, write: async (name, bytes) => { files.set(name, bytes.slice()); }, remove: async name => { files.delete(name); } };
     const codec = { decode: value => Uint8Array.from(atob(value), c => c.charCodeAt(0)), hash: async bytes => Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)), x => x.toString(16).padStart(2,"0")).join("") };
     check(await exportSlicesToDirectory(directory, batch, codec) === 1, "directory count");
-    const record = JSON.parse(new TextDecoder().decode(files.get("gameflow-resources.json"))).resources[0];
+    const record = JSON.parse(new TextDecoder().decode(files.get("image-files.meta.json"))).resources[0];
     check(record.width === 300 && record.height === 100 && record.nineGrid.left === 30, "manifest dimensions/grid");
     const decoded = await loadSliceImage("data:image/png;base64," + batch.items[0].base64);
     check(decoded.naturalWidth === 300 && decoded.naturalHeight === 100, "exported dimensions");

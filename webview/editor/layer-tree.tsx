@@ -7,6 +7,7 @@ import { inheritedFlag, type InsertType, type LayerDrop } from "../../shared/edi
 import { moveSelection } from "../../shared/selection-ops";
 import { visibleLayerOrder, type SelectionIntent } from "../lib/node-selection";
 import { Button } from "../components/ui/button";
+import { ScrollArea } from "../components/ui/scroll-area";
 import { cn } from "../lib/utils";
 import { LayerMenu, type LayerMenuTarget } from "./layer-menu";
 import { COMPONENT_TOOLS } from "./component-tools";
@@ -47,6 +48,7 @@ export function LayerTree({ page, scopeId, selectedId, selectedIds, reveal, onSe
   const renameInput = useRef<HTMLInputElement | null>(null);
   const renameCancelled = useRef(false);
   const panel = useRef<HTMLElement | null>(null);
+  const treeViewport = useRef<HTMLDivElement | null>(null);
   const revealed = useRef(reveal);
   const attachPanel = useCallback((element: HTMLElement | null) => { panel.current = element; panelRef?.(element); }, [panelRef]);
   const drag = useRef<TreeDrag | null>(null);
@@ -61,7 +63,7 @@ export function LayerTree({ page, scopeId, selectedId, selectedIds, reveal, onSe
   };
   const changeQuery = (value: string) => {
     cancelDrag(); setMenu(null); setQuery(value); setSearchCollapsed(new Set());
-    const tree = panel.current?.querySelector<HTMLElement>(".layer-tree");
+    const tree = treeViewport.current;
     if (tree) tree.scrollTop = 0;
   };
   const clearSearch = () => { changeQuery(""); searchInput.current?.focus(); };
@@ -82,7 +84,7 @@ export function LayerTree({ page, scopeId, selectedId, selectedIds, reveal, onSe
       else setExpanded(previous => new Set([...previous, ...ancestors]));
       return;
     }
-    const tree = panel.current?.querySelector<HTMLElement>(".layer-tree");
+    const tree = treeViewport.current;
     const row = tree?.querySelector<HTMLElement>(`[data-layer-id="${CSS.escape(node.id)}"]`);
     if (!tree || !row) return;
     const bounds = tree.getBoundingClientRect(), item = row.getBoundingClientRect();
@@ -140,7 +142,7 @@ export function LayerTree({ page, scopeId, selectedId, selectedIds, reveal, onSe
     if (!current.active && Math.hypot(event.clientX - current.x, event.clientY - current.y) < 5) return;
     event.preventDefault();
     if (!current.active) { current.active = true; suppressClick.current = true; setDragging(current.id); event.currentTarget.setPointerCapture(event.pointerId); }
-    const scrollArea = panel.current?.querySelector<HTMLElement>(".layer-tree");
+    const scrollArea = treeViewport.current;
     const bounds = scrollArea?.getBoundingClientRect();
     if (scrollArea && bounds && event.clientX >= bounds.left && event.clientX <= bounds.right) {
       if (event.clientY < bounds.top + 18) scrollArea.scrollTop -= 8;
@@ -210,9 +212,9 @@ export function LayerTree({ page, scopeId, selectedId, selectedIds, reveal, onSe
     </div>
     <button data-layer-root className={cn("tree-root", !selectedId && !scopeId && "is-selected", dropClass())} aria-haspopup="menu" onContextMenu={(event) => openMenu(event, null)}
       onPointerDown={(event) => { if (event.button === 0) { event.preventDefault(); panel.current?.focus({ preventScroll: true }); } }} onClick={() => onSelect(null)}><Box size={15} /><strong>{page.name}</strong><small>{pageRootType(page)}</small></button>
-    <div role="tree" aria-multiselectable="true" aria-label={page.name} data-layer-root className="layer-tree" onContextMenu={(event) => openMenu(event, null)}>{branch(undefined, 0)}{filtering && !matches.size ? <p className="empty-layers" role="status">没有匹配的图层</p> : page.nodes.length === 0 ? <p className="empty-layers">右键添加节点<br />或用底部工具条点击放置</p> : null}
+    <ScrollArea className="layer-tree-scroll" label="图层内容" viewportRef={treeViewport}><div role="tree" aria-multiselectable="true" aria-label={page.name} data-layer-root className="layer-tree" onContextMenu={(event) => openMenu(event, null)}>{branch(undefined, 0)}{filtering && !matches.size ? <p className="empty-layers" role="status">没有匹配的图层</p> : page.nodes.length === 0 ? <p className="empty-layers">右键添加节点<br />或用底部工具条点击放置</p> : null}
       <div className={cn("tree-root-drop", drop && !drop.targetId && "layer-drop-inside")} data-layer-root>{dragging ? "移到页面根节点" : ""}</div>
-    </div>
+    </div></ScrollArea>
     <div className="layer-footer">{filtering ? "搜索中 · 清除搜索后可拖动排序" : "右键编辑节点 · 拖动调整层级"}</div>
     {composition?.orphans.length ? <div className="canvas-orphans"><strong>待修复的实例编辑</strong>{composition.orphans.map((orphan,index) => <div key={`${orphan.ownerId}-${index}`} title={orphan.message}><span>{orphan.name} · {orphan.message}</span>{orphan.additionId ? <><select aria-label={`重新挂接${orphan.name}`} value="" onChange={event => { if(event.target.value) onRepair?.(orphan,event.target.value); }}><option value="">重新挂接…</option>{page.nodes.filter(node => canHaveChildren(node) && !inheritedFlag(page,node,"locked") && composition.info.get(node.id)?.ownerId === orphan.ownerId && node.id !== orphan.additionId).map(node => <option key={node.id} value={node.id}>{node.name}</option>)}</select><Button size="sm" variant="ghost" onClick={() => onCopyOrphan?.(orphan)}>复制</Button></> : null}<Button size="sm" variant="ghost" onClick={() => onRepair?.(orphan)}>{orphan.additionId ? "删除附加内容" : "清除失效覆盖"}</Button></div>)}</div> : null}
     <LayerMenu composition={composition} page={page} selectedIds={selectedIds} target={menu} onClose={() => setMenu(null)} onAdd={(type, parentId, afterId) => { expand(parentId); onAdd(type, parentId, afterId); }} onDelete={onDelete}

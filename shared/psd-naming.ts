@@ -7,3 +7,10 @@ export function psdNameInitials(value: string): string {
 }
 export const defaultAtlasName = (name: string) => psdNameInitials(name.replace(/\.psd$/i, ""));
 export const normalizeAtlasName = (value?: string): string | undefined => value === undefined ? undefined : psdNameInitials(value) || undefined;
+
+export const RESERVED_ATLAS_NAMES = ["builtin", "shared", "unclassified"] as const;
+export function atlasNameError(value?: string): string | null {
+  const canonical = normalizeAtlasName(value);
+  return canonical && RESERVED_ATLAS_NAMES.some(name => name === canonical)
+    ? "图集名不能使用保留目录名：builtin、shared、unclassified。" : null;
+}

@@ -45,7 +45,7 @@ button svg { flex-shrink: 0; }
 .breadcrumb { color: var(--muted-foreground); }
 .document-title { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 12px; flex: 1; }
 .sync-status { display: flex; align-items: center; gap: 5px; white-space: nowrap; color: var(--muted-foreground); font-size: 11px; }
-.canvas-viewport { position: relative; flex: 1; min-height: 0; overflow: hidden; background: var(--canvas-bg); touch-action: none; user-select: none; cursor: default; }
+.canvas-viewport { position: relative; flex: 1; min-height: 0; overflow: clip; background: var(--canvas-bg); touch-action: none; user-select: none; cursor: default; }
 .canvas-viewport:focus { outline: none; }
 .canvas-reference-backdrop { position: absolute; inset: 0; z-index: 100; display: grid; place-items: center; padding: 16px; background: rgb(0 0 0 / 45%); }
 .canvas-reference-picker { display: flex; flex-direction: column; width: min(440px, 100%); max-height: min(600px, 100%); border: 1px solid var(--border); border-radius: 6px; background: var(--popover); box-shadow: 0 12px 40px #0006; overflow: hidden; }
@@ -232,7 +232,8 @@ button svg { flex-shrink: 0; }
 .tree-root strong { flex: 1; overflow: hidden; text-overflow: ellipsis; text-align: left; white-space: nowrap; font-weight: 500; }
 .tree-root small { font-size: 9px; color: var(--muted-foreground); }
 .is-selected { background: var(--vscode-list-activeSelectionBackground, #04395e); color: var(--vscode-list-activeSelectionForeground, #ffffff); }
-.layer-tree { padding: 4px 0 8px; overflow-y: auto; scrollbar-width: thin; }
+.layer-tree-scroll { flex: 1; }
+.layer-tree { padding: 4px 0 8px; }
 .layer-row { position: relative; display: flex; align-items: center; height: 28px; padding-right: 6px; gap: 4px; font-size: 11px; }
 .layer-row:hover:not(.is-selected) { background: var(--vscode-list-hoverBackground, #2a2d2e); }
 .tree-chevron { width: 12px; flex-shrink: 0; }.tree-chevron:disabled { visibility: hidden; }

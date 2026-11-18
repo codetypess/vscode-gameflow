@@ -105,7 +105,7 @@ export function App() {
     return [...previous.filter(a => a.documentId !== asset.documentId), asset];
   }), []);
   const resourcePages = useMemo(() => canvasDocument?.pages.map(p => composeCanvasPage(canvasDocument, p, sources).page) ?? [], [canvasDocument, sources]);
-  const runtimeResources = useRuntimeResources(psdAssets, resourcePages, canvasDocument?.exportDirectory, settings.settings.resourceDirectory);
+  const runtimeResources = useRuntimeResources(psdAssets, resourcePages, settings.settings.resourceDirectory);
   const pageLayout = (page: GameFlowPage) => resolvePageLayout(page, runtimeResources.sizes);
   const canonicalPage = canvasDocument?.pages.find((item) => item.id === (editingId ?? selectedPageId)) ?? null;
   const composition = useMemo(() => canvasDocument && canonicalPage ? composeCanvasPage(canvasDocument, canonicalPage, sources) : null, [canvasDocument, canonicalPage, sources]);
@@ -686,7 +686,7 @@ export function App() {
       {canvasDocument && pickerSource !== null ? <CanvasReferencePicker document={canvasDocument} sources={sources} source={pickerSource} currentPageId={editingId ?? undefined} onSource={setPickerSource} onPick={insertReference} onClose={() => setPickerSource(null)} /> : null}
     </div>
     <PsdWorkspace mode="merge" active={mode === "merge"} settings={settings} />
-    <PsdWorkspace mode="slice" active={mode === "slice" && !runtimeOpen} binding={psdEditor.binding} documentActions={documentActions} exportActions={exportActions} settings={settings} exportDirectory={canvasDocument?.exportDirectory} exportPending={pending} onAsset={observePsd} />
+    <PsdWorkspace mode="slice" active={mode === "slice" && !runtimeOpen} binding={psdEditor.binding} documentActions={documentActions} exportActions={exportActions} settings={settings} exportPending={pending} onAsset={observePsd} />
     {runtimeOpen ? <RuntimePreview pages={resourcePages} initialPageId={editingId ?? selectedPageId ?? undefined} assets={psdAssets} onClose={() => setRuntimeOpen(false)} /> : null}
     {psdEditor.initialError && mode === "slice" ? <div className="psd-status psd-warning" role="alert">{psdEditor.initialError}</div> : null}
   </main></TooltipProvider></SliceResourcesProvider>;

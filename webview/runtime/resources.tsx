@@ -1,15 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import type { GameFlowPage } from "../../shared/model";
-import { effectiveExportName } from "../../shared/psd-export";
+import { effectiveExportName, psdSliceDirectory } from "../../shared/psd-export";
 import type { PsdAsset } from "../../shared/psd-meta";
 import { resolveSliceResource, sliceResourcePath, sourceKey, type SliceResourceDescription, type SliceResourceRef } from "../../shared/slice-resources";
 import { generateSliceProducts, loadSliceImage, sliceGenerationStamp } from "../psd/slice-render";
 import type { Resources, RuntimeResource } from "./resource-context";
 
 
-function description(asset: PsdAsset, layer: PsdAsset["layers"][number], directory?: string): SliceResourceDescription {
+function description(asset: PsdAsset, layer: PsdAsset["layers"][number]): SliceResourceDescription {
   const region = layer.config.region ?? layer;
-  return { path: sliceResourcePath(directory, effectiveExportName(asset, layer)), width: region.width, height: region.height, nineGrid: layer.config.nineGrid,
+  return { path: sliceResourcePath(psdSliceDirectory(asset, layer.config.shared), effectiveExportName(asset, layer)), width: region.width, height: region.height, nineGrid: layer.config.nineGrid,
     source: { documentId: asset.documentId, psdName: asset.name, sourceHash: asset.sourceHash }, layerId: layer.metadata.layerId, layerName: layer.name, shared: layer.config.shared === true };
 }
 function merge(entries: Map<string, RuntimeResource>, entry: RuntimeResource) {
@@ -19,13 +19,13 @@ function merge(entries: Map<string, RuntimeResource>, entry: RuntimeResource) {
     ? { status: "error", description: d, error: `同名资源由 ${previous.source.psdName} 生成，当前图层未标记共享。` } : entry);
 }
 
-export function useRuntimeResources(assets: PsdAsset[], pages: GameFlowPage[], directory?: string, root?: string) {
+export function useRuntimeResources(assets: PsdAsset[], pages: GameFlowPage[], root?: string) {
   const [revision, setRevision] = useState(0);
-  const stamp = useMemo(() => JSON.stringify([directory, assets.map(sliceGenerationStamp)]), [assets, directory]);
+  const stamp = useMemo(() => JSON.stringify(assets.map(sliceGenerationStamp)), [assets]);
   const pending = useMemo(() => {
     const entries = new Map<string, RuntimeResource>();
     for (const asset of assets) for (const layer of asset.layers.filter(l => l.config.enabled)) {
-      try { merge(entries, { status: "loading", description: description(asset, layer, directory) }); } catch { /* Invalid names have no selectable resource path; PSD tree diagnoses them. */ }
+      try { merge(entries, { status: "loading", description: description(asset, layer) }); } catch { /* Invalid names have no selectable resource path; PSD tree diagnoses them. */ }
     }
     return entries;
   }, [stamp]);
@@ -38,7 +38,7 @@ export function useRuntimeResources(assets: PsdAsset[], pages: GameFlowPage[], d
       batches.forEach((batch, index) => { for (const [key, entry] of batch) {
         const layer = assets[index].layers.find(l => l.key === key)!;
         try {
-          const placeholder = description(assets[index], layer, directory);
+          const placeholder = description(assets[index], layer);
           merge(entries, { ...entry, description: { ...(entry.description ?? placeholder), path: placeholder.path } });
         } catch { /* Name errors are reported at their source. */ }
       } });
@@ -79,7 +79,7 @@ export function useRuntimeResources(assets: PsdAsset[], pages: GameFlowPage[], d
       for (const page of pages) for (const node of page.nodes) if (node.sliceResource?.source?.documentId === asset.documentId) sources.set(sourceKey(node.sliceResource.source), null);
       for (const layer of asset.layers) {
         let path: string | null = null;
-        try { if (layer.config.enabled) path = description(asset, layer, directory).path; } catch { /* Invalid output name remains unavailable. */ }
+        try { if (layer.config.enabled) path = description(asset, layer).path; } catch { /* Invalid output name remains unavailable. */ }
         sources.set(sourceKey({ documentId: asset.documentId, layerId: layer.metadata.layerId }), path);
       }
     }
@@ -100,5 +100,5 @@ export function useRuntimeResources(assets: PsdAsset[], pages: GameFlowPage[], d
     const sizes = new Map<string, { width: number; height: number }>();
     for (const [path, entry] of entries) if (entry.status === "ready") sizes.set(path, entry.description.logicalSize ?? entry.description);
     return { entries, sizes, resolve, refresh: () => setRevision(n => n + 1) };
-  }, [memory, disk, diskStamp, pathsKey, assets, pages, directory, root]);
+  }, [memory, disk, diskStamp, pathsKey, assets, pages, root]);
 }

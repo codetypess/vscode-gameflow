@@ -18,6 +18,7 @@ import { migrateDocumentElementIds } from "../shared/document-id-migration";
 import { psdTests } from "./psd-suite";
 import { psdExportTests } from "./psd-export-suite";
 import { psdAtlasTests } from "./psd-atlas-suite";
+import { psdIndependentDirectoryTests } from "./psd-independent-directory-suite";
 import { psdRegionTests } from "./psd-region-suite";
 import { psdDocumentTests } from "./psd-document-suite";
 import { uiLayoutTests } from "./ui-layout-suite";
@@ -640,6 +641,7 @@ test("invalid source blocks editing and a rejected transaction reloads host auth
 tests.push(...psdTests);
 tests.push(...psdExportTests);
 tests.push(...psdAtlasTests);
+tests.push(...psdIndependentDirectoryTests);
 tests.push(...psdRegionTests);
 tests.push(...psdDocumentTests);
 tests.push(...workbenchSettingsTests);

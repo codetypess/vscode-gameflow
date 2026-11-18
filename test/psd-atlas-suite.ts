@@ -102,9 +102,13 @@ export const psdAtlasTests = [
     assert.notEqual(sliceGenerationStamp(original), sliceGenerationStamp(edited));
     for (const layer of edited.layers.filter(l => !l.group)) {
       assert.equal(effectiveExportName(edited, layer), defaultExportName(edited.name, layer.name, "Common"));
-      assert.equal(effectiveExportName(edited, { ...layer, config: { ...layer.config, shared: true } }), effectiveExportName(edited, layer));
+      const sharedLayer = { ...layer, config: { ...layer.config, shared: true } };
+      assert.equal(effectiveExportName(edited, sharedLayer), defaultExportName(edited.name, layer.name, undefined, true));
+      assert.equal(effectiveExportName(edited, sharedLayer), effectiveExportName(original, sharedLayer));
     }
     const layer = edited.layers.find(l => !l.group)!;
+    const sharedAsset = { ...edited, layers: edited.layers.map(l => l.key === layer.key ? { ...l, config: { ...l.config, shared: true } } : l) };
+    assert.notEqual(sliceGenerationStamp(edited), sliceGenerationStamp(sharedAsset));
     assert.equal(effectiveExportName(edited, { ...layer, config: { ...layer.config, exportName: "CUSTOM" } }), "custom");
     assert.equal(effectiveExportName(edited, { ...layer, config: { ...layer.config, exportName: "" } }), defaultExportName(edited.name, layer.name, "Common"));
   } }

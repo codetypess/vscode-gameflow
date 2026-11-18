@@ -1,7 +1,9 @@
 import { defaultAtlasName, identityProblems, sliceRegion, validConfig, validGrid, type NineGrid, type PsdAsset } from "./psd-meta";
-import { normalizeAtlasName, psdNameInitials } from "./psd-naming";
+import { atlasNameError, normalizeAtlasName, psdNameInitials } from "./psd-naming";
+import { exportDirectoryError } from "./export-directory";
 
-export const RESOURCE_MANIFEST = "gameflow-resources.json";
+export const RESOURCE_MANIFEST = "image-files.meta.json";
+export const LEGACY_RESOURCE_MANIFEST = "gameflow-resources.json";
 export const MAX_EXPORT_BYTES = 48 * 1024 * 1024;
 export interface ExportSource { documentId: string; psdName: string; sourceHash: string }
 export interface SliceProductGeometry {
@@ -12,12 +14,12 @@ export interface SliceExport extends SliceProductGeometry {
   name: string; layerId: string; layerName: string; shared: boolean;
   base64: string;
 }
-export interface SliceExportBatch { source: ExportSource; items: SliceExport[] }
+export interface SliceExportBatch { source: ExportSource; directory?: string; items: SliceExport[] }
 export interface ResourceRecord extends SliceProductGeometry {
   name: string; file: string; source: ExportSource; layerId: string; layerName: string;
   shared: boolean; sha256: string;
 }
-export interface ResourceManifest { schema: "gameflow.resources"; version: 1; resources: ResourceRecord[] }
+export interface ResourceManifest { schema: "gameflow.resources"; version: 1 | 2; resources: ResourceRecord[] }
 export interface ExportIssue { keys: number[]; message: string }
 export interface ResourceConflict { name: string; message: string }
 export class SliceExportConflict extends Error {
@@ -28,9 +30,10 @@ const hash = (v: unknown): v is string => typeof v === "string" && /^[a-f0-9]{64
 const text = (v: unknown, max = 512): v is string => typeof v === "string" && v.length > 0 && v.length <= max;
 const sourceValid = (v: unknown): v is ExportSource => record(v) && text(v.documentId, 128) && text(v.psdName) && !/[\\/]/.test(v.psdName) && /\.psd$/i.test(v.psdName) && hash(v.sourceHash);
 
-export function defaultExportName(psdName: string, layerName: string, atlasName?: string): string {
+export function defaultExportName(psdName: string, layerName: string, atlasName?: string, shared = false): string {
   const prefix = layerName.includes("按钮") ? "btn" : "img", layer = psdNameInitials(layerName);
   if (!layer) return "";
+  if (shared) return `${prefix}_${layer}`;
   const atlas = normalizeAtlasName(atlasName) ?? defaultAtlasName(psdName);
   return atlas ? `${prefix}_${atlas}_${layer}` : "";
 }
@@ -40,12 +43,32 @@ export function exportNameError(value: string): string | null {
   return null;
 }
 export function effectiveExportName(asset: Pick<PsdAsset, "name" | "atlasName">, layer: PsdAsset["layers"][number]): string {
-  return (layer.config.exportName || defaultExportName(asset.name, layer.name, asset.atlasName)).toLowerCase();
+  return (layer.config.exportName || defaultExportName(asset.name, layer.name, asset.atlasName, layer.config.shared)).toLowerCase();
+}
+/** The optional independent atlas directory, always directly below the resource root. */
+export function psdExportDirectory(asset: Pick<PsdAsset, "name" | "atlasName" | "independentDirectory">): string | undefined {
+  const atlas = normalizeAtlasName(asset.atlasName) ?? defaultAtlasName(asset.name);
+  const reserved = atlasNameError(atlas); if (reserved) throw new Error(reserved);
+  if (!asset.independentDirectory) return undefined;
+  if (!atlas || !validAtlasDirectory(atlas)) throw new Error("图集名不能用作独立目录，请使用有效的文件夹名称。");
+  return atlas;
+}
+function validAtlasDirectory(value: unknown): value is string {
+  return typeof value === "string" && /^[a-z0-9_]{1,120}$/.test(value) && !atlasNameError(value) && !exportDirectoryError(value);
+}
+export function sliceExportPath(batch: Pick<SliceExportBatch, "directory">, item: Pick<SliceExport, "name" | "shared">): string {
+  return `${item.shared ? "shared" : batch.directory ?? "unclassified"}/${item.name}.png`;
+}
+export function psdSliceDirectory(asset: Pick<PsdAsset, "name" | "atlasName" | "independentDirectory">, shared = false): string {
+  const atlas = psdExportDirectory(asset);
+  return shared ? "shared" : atlas ?? "unclassified";
 }
 export const layerNameKey = (name: string) => name.trim().normalize("NFC");
 
 export function sliceExportIssues(asset: PsdAsset): ExportIssue[] {
   const issues: ExportIssue[] = [], layers = asset.layers.filter(l => l.config.enabled);
+  let directory = "unclassified";
+  try { directory = psdExportDirectory(asset) ?? directory; } catch (error) { issues.push({ keys: layers.map(l => l.key), message: error instanceof Error ? error.message : String(error) }); }
   const identities = identityProblems(asset);
   for (const l of layers) {
     const name = effectiveExportName(asset, l), error = exportNameError(name);
@@ -54,7 +77,7 @@ export function sliceExportIssues(asset: PsdAsset): ExportIssue[] {
     if (identities.includes(l.metadata.layerId)) issues.push({ keys: [l.key], message: `${l.name}：图层 ID 重复，请先分配新身份。` });
     if (!validConfig(l.config, l.width, l.height)) issues.push({ keys: [l.key], message: `${l.name}：切图区域或九宫格范围无效。` });
   }
-  for (const [label, keyOf] of [["同名图层", (l: typeof layers[number]) => layerNameKey(l.name)], ["导出名称", (l: typeof layers[number]) => effectiveExportName(asset, l)]] as const) {
+  for (const [label, keyOf] of [["同名图层", (l: typeof layers[number]) => layerNameKey(l.name)], ["导出名称", (l: typeof layers[number]) => `${l.config.shared ? "shared" : directory}/${effectiveExportName(asset, l)}`]] as const) {
     const groups = new Map<string, typeof layers>();
     for (const l of layers) { const key = keyOf(l); groups.set(key, [...groups.get(key) ?? [], l]); }
     for (const [key, items] of groups) if (items.length > 1) issues.push({ keys: items.map(l => l.key), message: `${label}“${key}”重复导出：${items.map(l => `${l.name}（${l.nativeId ?? l.key}）`).join("、")}。请只保留一个导出来源。` });
@@ -64,8 +87,10 @@ export function sliceExportIssues(asset: PsdAsset): ExportIssue[] {
 
 export function makeSliceExportBatch(asset: PsdAsset, products?: ReadonlyMap<number, { image: string; geometry: SliceProductGeometry }>): SliceExportBatch {
   const issues = sliceExportIssues(asset); if (issues.length) throw new Error(issues.map(i => i.message).join("\n"));
+  const directory = psdExportDirectory(asset);
   const batch: SliceExportBatch = {
     source: { documentId: asset.documentId, psdName: asset.name, sourceHash: asset.sourceHash },
+    ...(directory ? { directory } : {}),
     items: asset.layers.filter(l => l.config.enabled).map(l => {
       const product = products?.get(l.key);
       if (l.config.region && !product) throw new Error(`${l.name}：需先生成自定义区域的 PNG 切图。`);
@@ -92,39 +117,46 @@ function validItem(v: unknown): v is SliceExport {
       Number(v.logicalSize.width) >= Number(v.width) && Number(v.logicalSize.height) >= Number(v.height));
 }
 export function isSliceExportBatch(v: unknown): v is SliceExportBatch {
-  if (!record(v) || !sourceValid(v.source) || !Array.isArray(v.items) || !v.items.length || v.items.length > 128) return false;
+  if (!record(v) || !sourceValid(v.source) || (v.directory !== undefined && !validAtlasDirectory(v.directory)) || !Array.isArray(v.items) || !v.items.length || v.items.length > 128) return false;
   let size = 0;
   for (const item of v.items) {
     if (!validItem(item) || typeof item.base64 !== "string" || !item.base64.length || item.base64.length % 4 !== 0 || !/^[a-zA-Z0-9+/]+={0,2}$/.test(item.base64)) return false;
     size += item.base64.length * .75; if (size > MAX_EXPORT_BYTES) return false;
   }
-  return new Set(v.items.map(i => i.name)).size === v.items.length && new Set(v.items.map(i => layerNameKey(i.layerName))).size === v.items.length && new Set(v.items.map(i => i.layerId)).size === v.items.length;
+  return new Set(v.items.map(i => sliceExportPath(v as unknown as SliceExportBatch, i))).size === v.items.length && new Set(v.items.map(i => layerNameKey(i.layerName))).size === v.items.length && new Set(v.items.map(i => i.layerId)).size === v.items.length;
+}
+function validResourceFile(file: unknown, name: string): boolean {
+  if (file === name + ".png") return true;
+  if (typeof file !== "string" || file.length > 640 || !file.endsWith("/" + name + ".png")) return false;
+  const directory = file.slice(0, file.lastIndexOf("/"));
+  return !!directory && !exportDirectoryError(directory);
 }
 export function parseResourceManifest(raw: unknown): ResourceManifest {
-  if (!record(raw) || raw.schema !== "gameflow.resources" || raw.version !== 1 || !Array.isArray(raw.resources) || raw.resources.length > 10000) throw new Error("导出目录来源清单格式无效。");
-  const names = new Set<string>();
+  if (!record(raw) || raw.schema !== "gameflow.resources" || (raw.version !== 1 && raw.version !== 2) || !Array.isArray(raw.resources) || raw.resources.length > 10000) throw new Error("导出目录来源清单格式无效。");
+  const files = new Set<string>();
   for (const r of raw.resources) {
-    if (!record(r) || !sourceValid(r.source) || !hash(r.sha256) || !validItem(r) || (r as Record<string, unknown>).file !== `${r.name}.png` || names.has(r.name)) throw new Error("导出目录来源清单含无效或重复资源。");
-    names.add(r.name);
+    if (!record(r) || !sourceValid(r.source) || !hash(r.sha256) || !validItem(r) ||
+        !(raw.version === 1 ? r.file === r.name + ".png" : validResourceFile(r.file, r.name)) || files.has(String(r.file).toLowerCase())) throw new Error("导出目录来源清单含无效或重复资源。");
+    files.add(String(r.file).toLowerCase());
   }
   return raw as unknown as ResourceManifest;
 }
 
-/** Validate the whole batch before any writes, using the latest directory snapshot. */
+/** Validate the whole batch before any writes, using root-relative file identities. */
 export function planSliceExport(batch: SliceExportBatch, manifest: ResourceManifest, files: string[], generatedHashes: Map<string, string>): ResourceManifest {
   if (!isSliceExportBatch(batch)) throw new Error("无效的切图导出请求。");
   parseResourceManifest(manifest);
-  const errors: ResourceConflict[] = [], records = new Map(manifest.resources.map(r => [r.name, r]));
+  const errors: ResourceConflict[] = [], records = new Map(manifest.resources.map(r => [r.file, r]));
   for (const item of batch.items) {
-    const previous = records.get(item.name), target = `${item.name}.png`, matches = files.filter(f => f.toLowerCase() === target);
-    const conflict = (message: string) => errors.push({ name: item.name, message: `${target}：${message}` });
-    if (matches.length > 1 || matches.some(f => f !== target)) conflict("目录中存在大小写冲突文件。");
+    const target = sliceExportPath(batch, item), previous = records.get(target), matches = files.filter(f => f.toLowerCase() === target);
+    const conflict = (message: string) => errors.push({ name: item.name, message: target + "：" + message });
+    if (matches.length > 1 || matches.some(f => f !== target) || [...records.keys()].some(f => f !== target && f.toLowerCase() === target)) conflict("目录中存在大小写冲突文件。");
     if (matches.length && !previous && !item.shared) conflict("已有文件没有来源记录，当前图层未标记为共享资源。");
-    if (previous && previous.source.documentId !== batch.source.documentId && !item.shared) conflict(`由 ${previous.source.psdName} 导出，当前图层未标记为共享资源。`);
-    const sha256 = generatedHashes.get(item.name); if (!hash(sha256)) conflict("切图数据未通过校验。");
-    records.set(item.name, { name: item.name, file: target, source: { ...batch.source }, layerId: item.layerId, layerName: item.layerName, shared: item.shared, width: item.width, height: item.height, nineGrid: item.nineGrid,
+    if (previous && previous.source.documentId !== batch.source.documentId && !item.shared) conflict("由 " + previous.source.psdName + " 导出，当前图层未标记为共享资源。");
+    const sha256 = generatedHashes.get(target); if (!hash(sha256)) conflict("切图数据未通过校验。");
+    records.set(target, { name: item.name, file: target, source: { ...batch.source }, layerId: item.layerId, layerName: item.layerName, shared: item.shared, width: item.width, height: item.height, nineGrid: item.nineGrid,
       ...(item.logicalSize && { logicalSize: item.logicalSize }), sha256: sha256! });
   }
   if (errors.length) throw new SliceExportConflict(errors);
-  return { schema: "gameflow.resources", version: 1, resources: [...records.values()].sort((a, b) => a.name.localeCompare(b.name)) };
+  return parseResourceManifest({ schema: "gameflow.resources", version: 2, resources: [...records.values()].sort((a, b) => a.file.localeCompare(b.file)) });
 }

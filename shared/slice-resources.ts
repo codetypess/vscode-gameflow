@@ -1,5 +1,5 @@
 import { exportDirectoryError } from "./export-directory";
-import { exportNameError, parseResourceManifest, RESOURCE_MANIFEST, type ExportSource, type SliceProductGeometry } from "./psd-export";
+import { exportNameError, parseResourceManifest, RESOURCE_MANIFEST, LEGACY_RESOURCE_MANIFEST, type ExportSource, type SliceProductGeometry } from "./psd-export";
 
 export interface SliceResourceRef {
   /** Portable path relative to the user's resource root, including .png. */
@@ -58,10 +58,17 @@ export async function readExportedSlice(path: string, io: {
     const bytes = await io.read(path); exists = bytes !== null;
     if (!bytes) throw new Error("资源文件不存在。");
     const directory = path.includes("/") ? path.slice(0, path.lastIndexOf("/") + 1) : "";
-    const manifestBytes = await io.read(directory + RESOURCE_MANIFEST);
-    if (!manifestBytes) throw new Error("资源缺少来源清单，请重新导出。");
-    const manifest = parseResourceManifest(JSON.parse(new TextDecoder().decode(manifestBytes)));
-    const item = manifest.resources.find(r => directory + r.file === path);
+    const parse = (bytes: Uint8Array) => {
+      if (bytes.length > 8 * 1024 * 1024) throw new Error("资源来源清单超过 8 MB。");
+      return parseResourceManifest(JSON.parse(new TextDecoder().decode(bytes)));
+    };
+    const rootManifest = await io.read(RESOURCE_MANIFEST);
+    let item = rootManifest ? parse(rootManifest).resources.find(r => r.file === path) : undefined;
+    if (!item) {
+      const legacy = await io.read(directory + LEGACY_RESOURCE_MANIFEST);
+      if (legacy) item = parse(legacy).resources.find(r => directory + r.file === path);
+      else if (!rootManifest) throw new Error("资源缺少来源清单，请重新导出。");
+    }
     if (!item) throw new Error("资源未登记在来源清单中，请重新导出。");
     if (await io.hash(bytes) !== item.sha256) throw new Error("图片与来源清单的 hash 不一致，请重新导出。");
     const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);

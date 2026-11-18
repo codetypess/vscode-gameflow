@@ -1,19 +1,20 @@
-import { sliceLayerMetadata, validAtlasName, validConfig, type PsdAsset, type PsdLayerMeta, type SliceConfig } from "./psd-meta";
+import { sliceLayerMetadata, validAtlasName, validConfig, validIndependentDirectory, type PsdAsset, type PsdLayerMeta, type SliceConfig } from "./psd-meta";
 import { normalizeAtlasName } from "./psd-naming";
 
 export interface PsdDraft {
   sourceHash: string;
   documentId: string;
   atlasName?: string;
+  independentDirectory?: boolean;
   layers: { key: number; config: SliceConfig; metadata: PsdLayerMeta }[];
 }
 const object = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
 export function makePsdDraft(asset: PsdAsset): PsdDraft {
   const atlasName = normalizeAtlasName(asset.atlasName);
-  return structuredClone({ sourceHash: asset.sourceHash, documentId: asset.documentId, ...(atlasName === undefined ? {} : { atlasName }), layers: asset.layers.map(l => ({ key: l.key, config: l.config, metadata: sliceLayerMetadata(asset, l) })) });
+  return structuredClone({ sourceHash: asset.sourceHash, documentId: asset.documentId, ...(atlasName === undefined ? {} : { atlasName }), ...(asset.independentDirectory ? { independentDirectory: true } : {}), layers: asset.layers.map(l => ({ key: l.key, config: l.config, metadata: sliceLayerMetadata(asset, l) })) });
 }
 export function isPsdDraft(value: unknown): value is PsdDraft {
-  if (!object(value) || !validAtlasName(value.atlasName)) return false;
+  if (!object(value) || !validAtlasName(value.atlasName) || !validIndependentDirectory(value.independentDirectory)) return false;
   if (!object(value) || typeof value.sourceHash !== "string" || !/^[a-f0-9]{64}$/.test(value.sourceHash) || typeof value.documentId !== "string" || !value.documentId || value.documentId.length > 128 || !Array.isArray(value.layers) || value.layers.length > 128) return false;
   const keys = new Set<number>();
   for (const l of value.layers) {
@@ -34,6 +35,8 @@ export function applyPsdDraft(asset: PsdAsset, value: unknown, restoring = false
   const result = { ...asset, documentId: value.documentId, layers };
   if (value.atlasName === undefined) delete result.atlasName;
   else result.atlasName = normalizeAtlasName(value.atlasName);
+  if (value.independentDirectory) result.independentDirectory = true;
+  else delete result.independentDirectory;
   return result;
 }
 export const draftStamp = (asset: PsdAsset) => JSON.stringify(makePsdDraft(asset));

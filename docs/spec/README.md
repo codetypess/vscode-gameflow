@@ -33,11 +33,11 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 
 ## Active Work Items
 
-- [psd-atlas-name.md](psd-atlas-name.md) — Done：文件级图集名默认仅作 placeholder，小写/下划线/拼音首字母统一用于输入、旧配置回读与导出；自定义值进入配置/草稿/PSD 副本/历史并刷新运行预览。322 项共享测试、生产构建、真实 PSD 中英文输入/下划线/跨图层/清空及此前窄窗口验收通过。
+- [psd-atlas-name.md](psd-atlas-name.md) — Done：文件级图集名默认仅作 placeholder，小写/下划线/拼音首字母统一用于输入、旧配置回读与导出；共享默认名省略图集名，取消共享恢复当前图集；自定义值进入配置/草稿/PSD 副本/历史并刷新运行预览。322 项共享测试、生产构建、真实 PSD 中英文输入/下划线/跨图层/清空及此前窄窗口验收通过。
 
 - [psd-slice-region.md](psd-slice-region.md) — Done：独立导出尺寸、拖动图片/四边线、方向键微调、滚轮缩放、居中/透明留白/裁剪、九宫格区域适配及配置持久化；313 项共享测试、3 项既有浏览器像素检查、生产构建及真实 PSD/360px 窄窗口/草稿重载验收通过；输入框对齐、外侧聚焦框及方向文字移除，弹窗标题栏普通指针拖动与右下角缩放完成。
 
-- [file-export-directory.md](file-export-directory.md) — Done：本机资源/预制体根目录与 GameFlow 顶层 exportDirectory 分离；设置面板按文件编辑相对目录，资源按 root/dir 实际输出。293 项共享测试、33 项宿主检查、生产构建及浏览器输入/取消/重载/小窗口验收通过。
+- [file-export-directory.md](file-export-directory.md) — Done：本机资源/预制体根目录与 GameFlow 顶层 exportDirectory 分离；设置面板按文件编辑相对目录，图片现按资源根下 shared/unclassified/独立图集目录分类输出，exportDirectory 保留供预制体使用，见 psd-independent-directory。历史 293 项共享测试、33 项宿主检查及浏览器设置验收通过；最新分类规则通过 333 项测试、39 项宿主检查及生产构建。
 
 - [page-export-name.md](page-export-name.md) — Done：页面名称下方新增独立“导出名称”，保存可选页面元数据，供后续 Prefab 生成使用；283 项测试、生产构建及浏览器提交/取消/历史/清空/保存重载验收通过。
 
@@ -55,7 +55,7 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 
 - [canvas-context-menu.md](canvas-context-menu.md) — Done：总览画板/空白、页内节点/当前层空白右键菜单，复用图层命令及保护；含右键位置新增、重命名对话框和键盘菜单。244 项测试、生产构建及总览/页内/多选/保护/窄窗口浏览器验收通过。
 
-- [psd-export-names.md](psd-export-names.md) — Done：按图层名选择 btn/img 前缀，默认名统一包含图集与图层缩写（图集规则见 psd-atlas-name）；自定义优先，图层树标记冲突，统一目录输出 PNG 及来源清单，共享导出覆盖并更新来源。246 项测试和生产构建通过；此前真实目录服务及浏览器配置/冲突验收通过，原生目录选择器端到端联调未覆盖。
+- [psd-export-names.md](psd-export-names.md) — Done：按图层名选择 btn/img 前缀，非共享默认名包含图集与图层缩写，共享默认名只含图层缩写（图集规则见 psd-atlas-name）；自定义优先，图层树标记冲突，分类目录输出 PNG 及根清单，共享导出覆盖并更新来源。333 项共享测试和生产构建通过；共享命名开关/不同图集同名输出及真实 PSD 验收通过，原生目录选择器端到端联调未覆盖。
 
 - [canvas-instance-editing.md](canvas-instance-editing.md) — Done：v5 引用实例展开、局部覆盖/附加节点、专色与“+”标记、属性右键还原/应用到源及继承结构保护；引用区简化为单行，覆盖属性默认双栏，支持跨节点逐字段勾选还原/应用。261 项回归、生产构建、浏览器交互及真实 VS Code 跨文件关联撤销/保存验收通过，保留 v1–v4 读取。
 
@@ -103,6 +103,8 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 - [prototype-layaui-prefab-psd.md](prototype-layaui-prefab-psd.md) — Draft：原型布局与 LayaUI 对齐、新建/增量更新已有 Prefab、字段管理与冲突协调、PSD 导出/关联对照及美术回流；未替代当前实现基线。
 - [laya-control-asset-bindings.md](laya-control-asset-bindings.md) — Draft：按当前 xq-client 节点皮肤契约设计 Slider/CheckBox/Radio 部件、RadioGroup 引用，以及原型、PSD 切图与 Prefab 的资产绑定闭环。
 - [psd-three-way-merge.md](psd-three-way-merge.md) — Draft：左侧两份 PSD 的图层树/预览、右侧合并结果；共同基础版本、逐节点采用、PSD 依赖和结果输出。
+
+The completed [psd-independent-directory.md](psd-independent-directory.md) defines root-level shared/unclassified/atlas routing, reserved names, a path-based v2 root ledger, transactional writes and legacy reads. [psd-inspector-sections.md](psd-inspector-sections.md) separates always-editable document settings from layer sections and shares prototype top alignment and overlay scrolling across properties and both layer trees. These changes passed 333 shared tests, production build, 39 native host checks and real PSD/prototype browser checks. [psd-layer-tree-density.md](psd-layer-tree-density.md) and [psd-zoom-top-left.md](psd-zoom-top-left.md) record the compact shared marker and top-left zoom controls; lasting rules are incorporated in the baselines.
 
 The completed [workspace-modes-psd-slicing.md](workspace-modes-psd-slicing.md) records three compact icon modes, real PSD import, slice/nine-grid configuration, same-name sidecars, metadata-only PSD copies and manual selection preview trees. Build, 35 shared tests, browser interactions and independent PSD output parsing passed. Extension Host/Photoshop validation and full merge/export delivery remain separate follow-ups.
 

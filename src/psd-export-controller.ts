@@ -3,31 +3,31 @@ import { createHash } from "node:crypto";
 import { exportSlicesToDirectory, type ResourceDirectory } from "../shared/psd-export-directory";
 import type { SliceExportBatch } from "../shared/psd-export";
 import { WorkbenchSettingsController } from "./workbench-settings-controller";
-import { exportDirectorySegments } from "../shared/export-directory";
 
 const inProgress = new Set<string>();
 export class PsdExportController {
-  constructor(private readonly settings: WorkbenchSettingsController, private readonly document: Pick<vscode.TextDocument, "uri">, private readonly relativeDirectory: () => string | undefined = () => undefined) {}
-  private targetDirectory(): vscode.Uri | undefined {
-    const root = this.settings.directory("resources"), segments = exportDirectorySegments(this.relativeDirectory());
-    return root && (segments.length ? vscode.Uri.joinPath(root, ...segments) : root);
-  }
-  get directoryLabel(): string | undefined { return this.targetDirectory()?.fsPath; }
+  constructor(private readonly settings: WorkbenchSettingsController, private readonly document: Pick<vscode.TextDocument, "uri">, private readonly independentDirectory: () => string | undefined = () => undefined) {}
+  get directoryLabel(): string | undefined { return this.settings.directory("resources")?.fsPath; }
   async choose(): Promise<boolean> {
     return this.settings.choose("resources", this.document.uri);
   }
   async export(batch: SliceExportBatch): Promise<number | null> {
-    const root = this.targetDirectory();
+    const root = this.settings.directory("resources");
+    batch = { ...batch, directory: this.independentDirectory() };
     if (!root) throw new Error("请先在工作台设置中选择资源导出根目录。");
     const key = root.toString();
     if (inProgress.has(key)) throw new Error("该目录正在导出，请稍后重试。");
     inProgress.add(key);
-    const target = (name: string) => vscode.Uri.joinPath(root, name);
+    const target = (name: string) => vscode.Uri.joinPath(root, ...name.split("/"));
     const ensureClean = (name: string) => {
       if (vscode.workspace.textDocuments.some(d => d.uri.toString() === target(name).toString() && d.isDirty)) throw new Error(`${name} 有未保存修改，请先保存。`);
     };
     const adapter: ResourceDirectory = {
-      list: async () => (await vscode.workspace.fs.readDirectory(root)).map(([name]) => name),
+      list: async folder => {
+        try { return (await vscode.workspace.fs.readDirectory(folder ? target(folder) : root)).map(([name]) => name); }
+        catch (e) { if (e instanceof vscode.FileSystemError && e.code === "FileNotFound") return []; throw e; }
+      },
+      mkdir: async folder => { await vscode.workspace.fs.createDirectory(target(folder)); },
       read: async name => {
         ensureClean(name);
         try {

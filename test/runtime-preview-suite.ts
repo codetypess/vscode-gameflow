@@ -168,15 +168,16 @@ test("disk preview verifies provenance PNG bytes dimensions and returns real tex
 test("export and disk preview preserve compact texture geometry and the separate layout size", async () => {
   const f = exportedFixture();
   const nineGrid = { left: 1, right: 3, top: 1, bottom: 2, repeat: false };
-  const logicalSize = { width: 41, height: 10 }, manifestName = "ui/login/gameflow-resources.json";
+  const logicalSize = { width: 41, height: 10 }, manifestName = "image-files.meta.json";
   const { source, file, sha256, ...item } = f.record;
   const batch = { source, items: [{ ...item, nineGrid, logicalSize, base64: png.toString("base64") }] };
-  const manifest = planSliceExport(batch, { schema: "gameflow.resources", version: 1, resources: [] }, [], new Map([[item.name, sha256]]));
-  assert.equal(manifest.resources[0].file, file);
+  const manifest = planSliceExport(batch, { schema: "gameflow.resources", version: 1, resources: [] }, [], new Map([["unclassified/" + item.name + ".png", sha256]]));
+  assert.equal(manifest.resources[0].file, "unclassified/" + file);
   assert.deepEqual(manifest.resources[0].logicalSize, logicalSize);
   f.files.set(manifestName, Buffer.from(JSON.stringify(manifest)));
-  const result = await readExportedSlice(ref.path, f.io);
-  assert.deepEqual(result.description, { ...description, nineGrid, logicalSize });
+  const path = manifest.resources[0].file; f.files.set(path, png);
+  const result = await readExportedSlice(path, f.io);
+  assert.deepEqual(result.description, { ...description, path, nineGrid, logicalSize });
   for (const invalid of [{ logicalSize: { width: 9, height: 10 } }, { nineGrid: { ...nineGrid, right: 9 } }]) {
     assert.equal(isSliceExportBatch({ ...batch, items: [{ ...batch.items[0], ...invalid }] }), false);
   }
@@ -201,4 +202,14 @@ test("resource protocol rejects traversal duplicate paths and unbounded batches"
   const request = { type: "sliceResources", requestId: "resources-1", paths: [ref.path] };
   assert.equal(isWebviewToHostMessage(request), true);
   for (const paths of [["../bad.png"], [ref.path, ref.path], Array.from({ length: 129 }, (_, i) => `img_${i}.png`)]) assert.equal(isWebviewToHostMessage({ ...request, paths }), false);
+});
+
+test("root ledger coexists with legacy folder manifests and verifies authoritative root records", async () => {
+  const f = exportedFixture();
+  f.files.set("image-files.meta.json", Buffer.from(JSON.stringify({ schema: "gameflow.resources", version: 2, resources: [] })));
+  assert.deepEqual((await readExportedSlice(ref.path, f.io)).description, description);
+  f.files.set("image-files.meta.json", Buffer.from(JSON.stringify({ schema: "gameflow.resources", version: 2, resources: [{ ...f.record, file: ref.path, sha256: "0".repeat(64) }] })));
+  assert.match((await readExportedSlice(ref.path, f.io)).error!, /hash/);
+  f.files.set("image-files.meta.json", Buffer.from("{}"));
+  assert.match((await readExportedSlice(ref.path, f.io)).error!, /清单格式/);
 });

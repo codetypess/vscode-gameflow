@@ -79,6 +79,7 @@ export const psdTests: { name: string; run: () => void | Promise<void> }[] = [
   { name: "PSD panels follow both edges without scaling their controls", run() {
     const viewport = { width: 1800, height: 1100 }, image = { width: 960, height: 640 }, heights = { left: 500, right: 420 };
     const camera = fitPsdCamera(viewport, image), before = placePsdPanels(viewport, image, camera, heights);
+    assert.ok(camera.y - 26 >= 48, "The PSD caption fits below the top controls");
     assert.equal(camera.zoom, 1);
     assert.equal(before.left.width, 278); assert.equal(before.right.width, before.left.width);
     assert.equal(camera.x - before.left.left - before.left.width, 16);
@@ -91,6 +92,28 @@ export const psdTests: { name: string; run: () => void | Promise<void> }[] = [
     assert.equal(zoomed.left.width, before.left.width); assert.equal(zoomed.right.width, before.right.width);
     assert.equal(zoomed.right.left, camera.x + image.width * .5 + 16);
   } },
+  { name: "PSD panels keep a shared top when inspector content grows and scroll the available height", run() {
+    const viewport = { width: 1800, height: 1100 }, image = { width: 960, height: 640 };
+    const camera = fitPsdCamera(viewport, image);
+    const short = placePsdPanels(viewport, image, camera, { left: 500, right: 180 });
+    const tall = placePsdPanels(viewport, image, camera, { left: 500, right: 1400 });
+    assert.deepEqual(tall, short);
+    assert.equal(tall.left.top, camera.y); assert.equal(tall.right.top, camera.y);
+    assert.equal(tall.left.maxHeight, tall.right.maxHeight);
+    assert.ok(tall.right.maxHeight < 1400 && tall.right.maxHeight >= 400);
+    assert.equal(tall.right.top + tall.right.maxHeight, viewport.height - 44 - 12);
+  } },
+  { name: "PSD panels dock together at the minimum height and resume following the image", run() {
+    const viewport = { width: 1800, height: 1100 }, image = { width: 960, height: 640 }, heights = { left: 200, right: 1400 };
+    const camera = { x: 310, y: 900, zoom: 1 };
+    const docked = placePsdPanels(viewport, image, camera, heights);
+    assert.equal(docked.left.top, docked.right.top);
+    assert.equal(docked.right.maxHeight, 400);
+    assert.equal(docked.right.top, 1100 - 44 - 12 - 400);
+    const following = placePsdPanels(viewport, image, { ...camera, y: 220 }, heights);
+    assert.equal(following.left.top, 220); assert.equal(following.right.top, 220);
+    assert.ok(following.right.maxHeight > 400);
+  } },
   { name: "PSD panels remain visible and disjoint across extreme pan, zoom and viewport sizes", run() {
     for (const viewport of [{ width: 2200, height: 1200 }, { width: 900, height: 600 }, { width: 360, height: 240 }]) {
       for (const x of [-5000, 0, 400, 5000]) for (const y of [-3000, 0, 300, 3000]) for (const zoom of [.05, 1, 8]) {
@@ -100,7 +123,7 @@ export const psdTests: { name: string; run: () => void | Promise<void> }[] = [
         for (const side of ["left", "right"] as const) {
           const p = panels[side];
           assert.ok(p.left >= 0 && p.left + p.width <= viewport.width + 1e-8);
-          assert.ok(p.top >= 0 && p.top + Math.min(heights[side], p.maxHeight) <= viewport.height);
+          assert.ok(p.top >= 48 && p.top + Math.min(heights[side], p.maxHeight) <= viewport.height);
         }
         assert.ok(panels.left.left + panels.left.width < panels.right.left);
       }

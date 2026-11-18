@@ -1,12 +1,12 @@
 import { sliceRegion, type NineGrid, type PsdAsset, type SliceRegion } from "../../shared/psd-meta";
-import { effectiveExportName, makeSliceExportBatch, MAX_EXPORT_BYTES, sliceExportIssues, type SliceProductGeometry } from "../../shared/psd-export";
+import { effectiveExportName, makeSliceExportBatch, MAX_EXPORT_BYTES, psdSliceDirectory, sliceExportIssues, type SliceProductGeometry } from "../../shared/psd-export";
 import { compactNineGrid } from "../../shared/nine-grid";
 import type { SliceResourceDescription, SliceResourceState } from "../../shared/slice-resources";
 
 export type SliceProduct = SliceResourceState<HTMLCanvasElement>;
 const products = new Map<string, { stamp: string; result: Promise<Map<number, SliceProduct>> }>();
 export function sliceGenerationStamp(asset: PsdAsset): string {
-  return JSON.stringify([asset.documentId, asset.sourceHash, asset.name, asset.atlasName, asset.layers.map(l => [l.key, l.name, l.metadata.layerId, l.config, l.limitation])]);
+  return JSON.stringify([asset.documentId, asset.sourceHash, asset.name, asset.atlasName, asset.independentDirectory, asset.layers.map(l => [l.key, l.name, l.metadata.layerId, l.config, l.limitation])]);
 }
 /** Cache the actual generated canvases: export encodes these same pixels on demand. */
 export function generateSliceProducts(asset: PsdAsset): Promise<Map<number, SliceProduct>> {
@@ -19,6 +19,8 @@ export function generateSliceProducts(asset: PsdAsset): Promise<Map<number, Slic
       const description: SliceResourceDescription = { path: `${effectiveExportName(asset, layer)}.png`, width, height, nineGrid: layer.config.nineGrid,
         source: { documentId: asset.documentId, psdName: asset.name, sourceHash: asset.sourceHash }, layerId: layer.metadata.layerId, layerName: layer.name, shared: layer.config.shared === true };
       try {
+        const directory = psdSliceDirectory(asset, layer.config.shared);
+        description.path = `${directory ? `${directory}/` : ""}${effectiveExportName(asset, layer)}.png`;
         const issue = issues.filter(i => i.keys.includes(layer.key));
         if (issue.length) throw new Error(issue.map(i => i.message).join("\n"));
         const source = await loadSliceImage(layer.image!);

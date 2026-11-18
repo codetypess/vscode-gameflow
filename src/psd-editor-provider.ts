@@ -5,7 +5,7 @@ import { applySidecar, makeSidecar, sidecarName, type PsdAsset } from "../shared
 import { applyPsdDraft, draftStamp, isPsdDraft, makePsdDraft, type PsdDraft } from "../shared/psd-draft";
 import { isPsdEditorRequest, type PsdEditorMessage, type PsdEditorState } from "../shared/psd-editor-protocol";
 import { isWebviewToHostMessage, type HostToWebviewMessage } from "../shared/protocol";
-import { SliceExportConflict } from "../shared/psd-export";
+import { psdExportDirectory, SliceExportConflict } from "../shared/psd-export";
 import { PsdDocumentModel, bytesHash } from "./psd-document-model";
 import { PsdExportController } from "./psd-export-controller";
 import { configureGameFlowWebview } from "./webview-html";
@@ -159,9 +159,9 @@ export class PsdEditorProvider implements vscode.CustomEditorProvider<PsdDocumen
   announce(doc: PsdDocument) {
     if (doc.model.dirty && !doc.announced) { doc.announced = true; this.editEvent(doc, doc.model.baseline, makePsdDraft(doc.model.asset), "打开未保存 PSD 配置", true); this.backupSoon(doc); }
   }
-  attach(doc: PsdDocument, panel: vscode.WebviewPanel, open: () => Promise<unknown>, exportDirectory?: () => string | undefined): vscode.Disposable {
+  attach(doc: PsdDocument, panel: vscode.WebviewPanel, open: () => Promise<unknown>): vscode.Disposable {
     doc.panels.add(panel);
-    const exports = new PsdExportController(this.settings, { uri: doc.uri }, exportDirectory);
+    const exports = new PsdExportController(this.settings, { uri: doc.uri }, () => psdExportDirectory(doc.model.asset));
     const subscription = panel.webview.onDidReceiveMessage(async (raw: unknown) => {
       if (isPsdEditorRequest(raw)) {
         if (raw.type === "psdEditorReady") {
