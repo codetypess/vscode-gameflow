@@ -1,5 +1,5 @@
 import type { Frame, GameFlowNode, GameFlowPage, NodeLayout, NodeType } from "./model";
-import { AXES, constraintsFor, managedAxis, resolvePageLayout } from "./ui-layout";
+import { AXES, constraintsFor, managedAxis, resolvePageLayout, type ResourceSizes } from "./ui-layout";
 import { inheritedFlag, makeNode, moveNode } from "./editor-ops";
 import type { Constraint } from "./ui-config";
 import { canHaveChildren, flowType } from "./ui-components";
@@ -7,9 +7,9 @@ import { reconcileControlReferences, sliderOwner } from "./ui-parts";
 import { axisAnchor, axisScale, inverse, mapVector, nodeMatrix, type Matrix } from "./ui-transform";
 
 /** Keep the intended resolved coordinates when constraint positioning rounds its base value. */
-function compensatePosition(page: GameFlowPage, id: string, target: Partial<Pick<Frame, "x" | "y">>): GameFlowPage {
+function compensatePosition(page: GameFlowPage, id: string, target: Partial<Pick<Frame, "x" | "y">>, resourceSizes?: ResourceSizes): GameFlowPage {
   if (!Object.keys(target).length) return page;
-  const node = page.nodes.find(n => n.id === id)!, local = resolvePageLayout(page).nodes.get(id)!.local;
+  const node = page.nodes.find(n => n.id === id)!, local = resolvePageLayout(page, resourceSizes).nodes.get(id)!.local;
   const layout = { ...node.layout };
   let changed = false;
   for (const axis of ["x", "y"] as const) {
@@ -22,19 +22,19 @@ function compensatePosition(page: GameFlowPage, id: string, target: Partial<Pick
 }
 
 /** Move the anchor inside the same visual rectangle, including layout-managed axes. */
-export function setNodeAnchor(page: GameFlowPage, id: string, anchor: { anchorX?: number; anchorY?: number }): GameFlowPage {
+export function setNodeAnchor(page: GameFlowPage, id: string, anchor: { anchorX?: number; anchorY?: number }, resourceSizes?: ResourceSizes): GameFlowPage {
   const node = page.nodes.find(n => n.id === id);
   if (!node || inheritedFlag(page, node, "locked") || Object.values(anchor).some(value => typeof value !== "number" || !Number.isFinite(value) || value < 0 || value > 1)) return page;
   const transform = { ...node.transform, ...anchor };
   if (sliderOwner(page, node)) return { ...page, nodes: page.nodes.map(item => item.id === id ? { ...item, transform } : item) };
   if ((transform.anchorX ?? 0) === (node.transform?.anchorX ?? 0) && (transform.anchorY ?? 0) === (node.transform?.anchorY ?? 0)) return page;
-  const geometry = resolvePageLayout(page), old = geometry.nodes.get(id)!;
+  const geometry = resolvePageLayout(page, resourceSizes), old = geometry.nodes.get(id)!;
   const delta = mapVector(nodeMatrix(old.local, node.transform), {
     x: ((transform.anchorX ?? 0)-(node.transform?.anchorX ?? 0))*old.local.width,
     y: ((transform.anchorY ?? 0)-(node.transform?.anchorY ?? 0))*old.local.height
   });
   const candidate = { ...node, transform }, next = { ...page, nodes: page.nodes.map(n => n.id === id ? candidate : n) };
-  const resolved = resolvePageLayout(next).nodes.get(id)!;
+  const resolved = resolvePageLayout(next, resourceSizes).nodes.get(id)!;
   const parent = page.nodes.find(n => n.id === node.parentId), parentGeometry = parent ? geometry.nodes.get(parent.id)! : undefined;
   const frame = { ...node.frame }, layout = { ...node.layout };
   for (const axis of ["x", "y"] as const) {
@@ -52,14 +52,14 @@ export function setNodeAnchor(page: GameFlowPage, id: string, anchor: { anchorX?
 }
 
 /** Switch anchors without reverting to stale authored coordinates or changing the visible bounds. */
-export function setNodeConstraint(page: GameFlowPage, id: string, key: Constraint, enabled: boolean): GameFlowPage {
+export function setNodeConstraint(page: GameFlowPage, id: string, key: Constraint, enabled: boolean, resourceSizes?: ResourceSizes): GameFlowPage {
   const node = page.nodes.find((item) => item.id === id);
   if (!node || inheritedFlag(page, node, "locked") || (node.layout?.[key] != null) === enabled) return page;
   if (enabled && sliderOwner(page, node)) return page;
   const axis = key === "left" || key === "centerX" || key === "right" ? "x" : "y";
   const parent = page.nodes.find((item) => item.id === node.parentId);
   if (managedAxis(parent, axis)) return page;
-  const geometry = resolvePageLayout(page), local = geometry.nodes.get(id)!.local, a = AXES[axis];
+  const geometry = resolvePageLayout(page, resourceSizes), local = geometry.nodes.get(id)!.local, a = AXES[axis];
   const parentFrame = parent ? geometry.nodes.get(parent.id)!.local : page.frame;
   const start = parent?.layout?.[a.padStart] ?? 0;
   const available = parentFrame[a.size] - start - (parent?.layout?.[a.padEnd] ?? 0);
@@ -80,17 +80,17 @@ export function setNodeConstraint(page: GameFlowPage, id: string, key: Constrain
     if (layout[a.center] != null) layout[a.center] = (position - start - (available - length) / 2) / unit;
   }
   const next = { ...page, nodes: page.nodes.map((item) => item.id === id ? { ...item, frame, layout } : item) };
-  return compensatePosition(next, id, { [axis]: local[axis] });
+  return compensatePosition(next, id, { [axis]: local[axis] }, resourceSizes);
 }
 /** Converts a resolved local rectangle back into authored coordinates/constraints. */
-export function editNodeFrame(page: GameFlowPage, id: string, next: Frame, intent: "move" | "resize" | "nudge" = "resize"): GameFlowPage {
+export function editNodeFrame(page: GameFlowPage, id: string, next: Frame, intent: "move" | "resize" | "nudge" = "resize", resourceSizes?: ResourceSizes): GameFlowPage {
   const node = page.nodes.find((n) => n.id === id);
   if (!node || inheritedFlag(page, node, "locked")) return page;
   if (sliderOwner(page, node)) {
-    if (intent !== "resize" || (next.width === resolvePageLayout(page).nodes.get(id)!.local.width && next.height === resolvePageLayout(page).nodes.get(id)!.local.height)) return page;
+    if (intent !== "resize" || (next.width === resolvePageLayout(page, resourceSizes).nodes.get(id)!.local.width && next.height === resolvePageLayout(page, resourceSizes).nodes.get(id)!.local.height)) return page;
     return { ...page, nodes: page.nodes.map(item => item.id === id ? { ...item, frame: { ...item.frame, width: Math.max(1, Math.round(next.width)), height: Math.max(1, Math.round(next.height)) }, layout: { ...item.layout, widthMode: "explicit", heightMode: "explicit" } } : item) };
   }
-  const geometry = resolvePageLayout(page), old = geometry.nodes.get(id)!.local;
+  const geometry = resolvePageLayout(page, resourceSizes), old = geometry.nodes.get(id)!.local;
   next = { ...next };
   for (const key of ["x", "y", "width", "height"] as const) {
     if (next[key] !== old[key]) next[key] = key === "width" || key === "height" ? Math.max(1, Math.round(next[key])) : Math.round(next[key]);
@@ -111,7 +111,7 @@ export function editNodeFrame(page: GameFlowPage, id: string, next: Frame, inten
       };
       target = siblings.reduce((nearest, n) => distance(n) < distance(nearest) ? n : nearest, node);
     }
-    if (target !== node) result = moveNode(page, id, { targetId: target.id, position: siblings.indexOf(target) < index ? "before" : "after" });
+    if (target !== node) result = moveNode(page, id, { targetId: target.id, position: siblings.indexOf(target) < index ? "before" : "after" }, resourceSizes);
   }
   const frame = { ...node.frame }, layout: NodeLayout = { ...node.layout };
   const positionTargets: Partial<Pick<Frame, "x" | "y">> = {};
@@ -137,7 +137,7 @@ export function editNodeFrame(page: GameFlowPage, id: string, next: Frame, inten
     if (layout[a.center] != null) layout[a.center] = (position - start - (available - length) / 2) / unit;
   }
   const updated = { ...node, frame, ...(node.layout || Object.keys(layout).length ? { layout } : {}) };
-  return compensatePosition({ ...result, nodes: result.nodes.map((n) => n.id === id ? updated : n) }, id, positionTargets);
+  return compensatePosition({ ...result, nodes: result.nodes.map((n) => n.id === id ? updated : n) }, id, positionTargets, resourceSizes);
 }
 
 /** Screen/page movement becomes a parent-local delta, independent of the node's own rotation. */
@@ -158,10 +158,10 @@ export function nodeResizeFrame(node: GameFlowNode, frame: Frame, matrix: Matrix
   return { x: frame.x+offset.x, y: frame.y+offset.y, width, height };
 }
 
-export function changeContainerType(page: GameFlowPage, id: string, type: NodeType): GameFlowPage {
+export function changeContainerType(page: GameFlowPage, id: string, type: NodeType, resourceSizes?: ResourceSizes): GameFlowPage {
   const original = page.nodes.find((n) => n.id === id);
   if (!original || original.prefab || (page.componentRootId === id && type !== "container") || inheritedFlag(page, original, "locked") || page.nodes.some((n) => n.parentId === id && n.locked)) return page;
-  const resolved = resolvePageLayout(page), parent = { ...original, type, layout: { ...original.layout } };
+  const resolved = resolvePageLayout(page, resourceSizes), parent = { ...original, type, layout: { ...original.layout } };
   if (type !== "hbox" && parent.layout.align === "justify") parent.layout.align = "left";
   if (type !== "vbox" && parent.layout.valign === "justify") parent.layout.valign = "top";
   return { ...page, nodes: page.nodes.map((n) => {
@@ -187,12 +187,13 @@ export function canConvertNodeType(page: GameFlowPage, id: string, type: NodeTyp
 }
 
 /** Changes identity's presentation without dropping children or authored content. */
-export function convertNodeType(page: GameFlowPage, id: string, type: NodeType): GameFlowPage {
+export function convertNodeType(page: GameFlowPage, id: string, type: NodeType, resourceSizes?: ResourceSizes): GameFlowPage {
   if (!canConvertNodeType(page, id, type)) return page;
-  const changed = changeContainerType(page, id, type);
+  const changed = changeContainerType(page, id, type, resourceSizes);
   const defaults = makeNode(type, id, 0, 0);
   return reconcileControlReferences(page, { ...changed, nodes: changed.nodes.map((node) => node.id === id ? {
     ...node, type,
+    sliceResource: type === "image" ? node.sliceResource : undefined,
     ...(node.text === undefined && defaults.text !== undefined ? { text: defaults.text } : {}),
     ...(type === "radioGroup" ? { widget: { ...node.widget, optionNodeIds: [], selectedIndex: -1 } } : !node.widget && defaults.widget ? { widget: structuredClone(defaults.widget) } : {})
   } : node) });

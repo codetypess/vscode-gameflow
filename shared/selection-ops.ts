@@ -2,7 +2,7 @@ import { ownedCanvasNodes, remapCanvasEdits } from "./canvas-instance-data";
 import type { GameFlowNode, GameFlowPage } from "./model";
 import { descendants, inheritedFlag, moveNode, orderedNodes, type LayerDrop } from "./editor-ops";
 import { editNodeFrame, nodeDragFrame } from "./ui-edit";
-import { resolvePageLayout } from "./ui-layout";
+import { resolvePageLayout, type ResourceSizes } from "./ui-layout";
 import { controlSelected, reconcileControlReferences, remapControlReferences, sliderOwner } from "./ui-parts";
 import { allocateVariableName } from "./node-variable";
 import { copyNode, type NodeClipboard } from "./node-clipboard";
@@ -38,8 +38,8 @@ export function removeSelection(page: GameFlowPage, ids: string[]): GameFlowPage
 }
 
 /** Every root consumes the same page-space displacement; selected descendants move only once. */
-export function translateSelection(page: GameFlowPage, ids: string[], dx: number, dy: number, intent: "move" | "nudge" = "move"): GameFlowPage {
-  const roots = selectionRoots(page, ids), geometry = resolvePageLayout(page);
+export function translateSelection(page: GameFlowPage, ids: string[], dx: number, dy: number, intent: "move" | "nudge" = "move", resourceSizes?: ResourceSizes): GameFlowPage {
+  const roots = selectionRoots(page, ids), geometry = resolvePageLayout(page, resourceSizes);
   if (!roots.length || roots.some(node => inheritedFlag(page, node, "locked") || sliderOwner(page, node) || !inverse(geometry.nodes.get(node.id)!.parentMatrix))) return page;
   const groups = new Map<string | undefined, GameFlowNode[]>();
   for (const node of roots) groups.set(node.parentId, [...(groups.get(node.parentId) ?? []), node]);
@@ -58,7 +58,7 @@ export function translateSelection(page: GameFlowPage, ids: string[], dx: number
   // Process each flow's leading edge first, using its own transformed layout direction.
   return frames.reduce((next, item) => {
     const node = next.nodes.find(node => node.id === item.id)!, parent = next.nodes.find(parent => parent.id === node.parentId), flow = flowType(parent);
-    const current = resolvePageLayout(next).nodes.get(node.id)!;
+    const current = resolvePageLayout(next, resourceSizes).nodes.get(node.id)!;
     const frame = intent === "nudge" ? nodeDragFrame(current.local, current.parentMatrix, dx, dy) : item.next;
     if (intent === "nudge" && flow !== "free") {
       const axis = flow === "vbox" || (flow === "grid" && parent?.layout?.direction === "vertical") ? "y" : "x";
@@ -67,30 +67,30 @@ export function translateSelection(page: GameFlowPage, ids: string[], dx: number
       // A selected neighbor at the boundary must not swap places with its own group.
       if (target && ids.includes(target.id)) return next;
     }
-    return editNodeFrame(next, item.id, frame, intent);
+    return editNodeFrame(next, item.id, frame, intent, resourceSizes);
   }, page);
 }
 
-export function moveSelection(page: GameFlowPage, ids: string[], drop: LayerDrop): GameFlowPage {
+export function moveSelection(page: GameFlowPage, ids: string[], drop: LayerDrop, resourceSizes?: ResourceSizes): GameFlowPage {
   const roots = selectionRoots(page, ids), all = new Set(roots.flatMap(node => [...descendants(page, node.id)]));
   if (!roots.length || roots.some(node => inheritedFlag(page, node, "locked")) || (drop.targetId && all.has(drop.targetId))) return page;
   const target = page.nodes.find(node => node.id === drop.targetId);
   if ((!target && (drop.targetId || drop.position !== "inside"))) return page;
   const parentId = drop.position === "inside" ? target?.id : target?.parentId;
   const parent = page.nodes.find(node => node.id === parentId);
-  if (parent && (!canHaveChildren(parent) || !inverse(resolvePageLayout(page).nodes.get(parent.id)!.matrix) || inheritedFlag(page, parent, "locked"))) return page;
+  if (parent && (!canHaveChildren(parent) || !inverse(resolvePageLayout(page, resourceSizes).nodes.get(parent.id)!.matrix) || inheritedFlag(page, parent, "locked"))) return page;
   // Validate all reparentings against the original snapshot, including locked reference owners.
-  if (roots.some(node => node.parentId !== parentId && moveNode(page, node.id, drop) === page)) return page;
+  if (roots.some(node => node.parentId !== parentId && moveNode(page, node.id, drop, resourceSizes) === page)) return page;
   const ordered = drop.position === "after" ? [...roots].reverse() : roots;
-  return ordered.reduce((next, node) => moveNode(next, node.id, drop), page);
+  return ordered.reduce((next, node) => moveNode(next, node.id, drop, resourceSizes), page);
 }
 
-export function copySelection(page: GameFlowPage, ids: string[]): NodeClipboard | null {
+export function copySelection(page: GameFlowPage, ids: string[], resourceSizes?: ResourceSizes): NodeClipboard | null {
   const roots = selectionRoots(page, ids);
-  if (roots.length === 1) return copyNode(page, roots[0].id);
+  if (roots.length === 1) return copyNode(page, roots[0].id, resourceSizes);
   if (!roots.length) return null;
   const rootIds = roots.map(node => node.id), selected = new Set(roots.flatMap(node => [...descendants(page, node.id)]));
-  const nodes = structuredClone(orderedNodes(page).filter(node => selected.has(node.id))), geometry = resolvePageLayout(page);
+  const nodes = structuredClone(orderedNodes(page).filter(node => selected.has(node.id))), geometry = resolvePageLayout(page, resourceSizes);
   const parent = page.nodes.find(node => node.id === commonSelectionParent(page, rootIds));
   const parentMatrix = multiply(parent ? geometry.nodes.get(parent.id)!.matrix : IDENTITY, translation(-(parent?.layout?.scrollX ?? 0), -(parent?.layout?.scrollY ?? 0)));
   const inv = inverse(parentMatrix); if (!inv) return null;

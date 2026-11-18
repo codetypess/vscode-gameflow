@@ -5,6 +5,7 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { SliceImage } from "./slice-image";
 import { sliceImageCanvas } from "./slice-render";
+import { paintSlice } from "../runtime/paint-slice";
 
 type Edge = "top" | "right" | "bottom" | "left";
 const EDGES: { edge: Edge; label: string }[] = [{ edge: "top", label: "上" }, { edge: "right", label: "右" }, { edge: "bottom", label: "下" }, { edge: "left", label: "左" }];
@@ -13,24 +14,13 @@ const clampZoom = (n: number) => Math.max(0.1, Math.min(16, n));
 export function NineGridPreview({ image, width, height, grid, region }: { image: string; width: number; height: number; grid: NineGrid; region?: SliceRegion }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const [target, setTarget] = useState({ width: 400, height: 100 });
-  const dw = Math.max(grid.left + grid.right + 1, target.width), dh = Math.max(grid.top + grid.bottom + 1, target.height);
+  const dw = target.width, dh = target.height;
   useEffect(() => {
     let cancelled = false; const source = new Image();
     source.onload = () => {
       const element = canvas.current; if (!element || cancelled) return;
       const pixels = region ? sliceImageCanvas(source, region) : source;
-      element.width = dw; element.height = dh; const ctx = element.getContext("2d")!; ctx.clearRect(0, 0, dw, dh);
-      const sx = [0, grid.left, width - grid.right, width], sy = [0, grid.top, height - grid.bottom, height];
-      const dx = [0, grid.left, dw - grid.right, dw], dy = [0, grid.top, dh - grid.bottom, dh];
-      for (let y = 0; y < 3; y++) for (let x = 0; x < 3; x++) {
-        const sw = sx[x + 1] - sx[x], sh = sy[y + 1] - sy[y], tw = dx[x + 1] - dx[x], th = dy[y + 1] - dy[y];
-        if (sw <= 0 || sh <= 0 || tw <= 0 || th <= 0) continue;
-        if (grid.repeat && (x === 1 || y === 1)) {
-          const tile = document.createElement("canvas"); tile.width = x === 1 ? sw : tw; tile.height = y === 1 ? sh : th;
-          tile.getContext("2d")!.drawImage(pixels, sx[x], sy[y], sw, sh, 0, 0, tile.width, tile.height);
-          ctx.save(); ctx.translate(dx[x], dy[y]); ctx.fillStyle = ctx.createPattern(tile, "repeat")!; ctx.fillRect(0, 0, tw, th); ctx.restore();
-        } else ctx.drawImage(pixels, sx[x], sy[y], sw, sh, dx[x], dy[y], tw, th);
-      }
+      paintSlice(element, pixels, { width, height, nineGrid: grid }, dw, dh);
     };
     source.src = image; return () => { cancelled = true; };
   }, [image, width, height, grid, dw, dh, region?.x, region?.y, region?.width, region?.height]);

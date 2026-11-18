@@ -64,6 +64,7 @@
     }
   },
   "$defs": {
+    "sliceResource": {"type":"object","additionalProperties":false,"required":["path"],"properties":{"path":{"type":"string","maxLength":640,"allOf":[{"pattern":"^(?:(?!(?:\\.{1,2}|(?:[cC][oO][nN]|[pP][rR][nN]|[aA][uU][xX]|[nN][uU][lL]|[cC][oO][mM][1-9]|[lL][pP][tT][1-9])(?:\\.[^/]*)?)(?:/|$))[^/\\\\:*?\"<>|\\x00-\\x1f]+(?<![ .]))(?:/(?:(?!(?:\\.{1,2}|(?:[cC][oO][nN]|[pP][rR][nN]|[aA][uU][xX]|[nN][uU][lL]|[cC][oO][mM][1-9]|[lL][pP][tT][1-9])(?:\\.[^/]*)?)(?:/|$))[^/\\\\:*?\"<>|\\x00-\\x1f]+(?<![ .])))*$(?![\\s\\S])"},{"pattern":"(?:^|/)(?!(?:con|prn|aux|nul|com[1-9]|lpt[1-9])\\.png$)[a-z0-9_]{1,120}\\.png$(?![\\s\\S])"},{"pattern":"^(?:[\\s\\S]{1,512}/)?[a-z0-9_]{1,120}\\.png$(?![\\s\\S])"}]},"source":{"type":"object","additionalProperties":false,"required":["documentId","layerId"],"properties":{"documentId":{"type":"string","minLength":1,"maxLength":128},"layerId":{"type":"string","minLength":1,"maxLength":128}}}}},
     "canvasTarget": {
       "type": "object",
       "additionalProperties": false,
@@ -109,6 +110,7 @@
                     "variableName",
                     "text",
                     "imageData",
+                    "sliceResource",
                     "hidden",
                     "style.fill",
                     "style.color",
@@ -295,6 +297,7 @@
         "name": {"type": "string","minLength": 1},
         "variableName": {"$ref": "#/$defs/variableName"},
         "text": {"type": "string"},
+        "sliceResource": {"$ref":"#/$defs/sliceResource"},
         "imageData": {"type": "string","maxLength": 7000000,"pattern": "^data:image/(png|jpeg|webp|gif);base64,[a-zA-Z0-9+/]+=*$"},
         "hidden": {"type": "boolean"},
         "frame.x": {"type": "number"},
@@ -437,8 +440,9 @@
     },
     "node": {
       "allOf": [
+        { "if": { "required": ["sliceResource"] }, "then": { "properties": { "type": { "const": "image" } } } },
         { "if": { "not": { "required": ["prefab"] } }, "then": { "properties": { "instanceEdits": false } } },
-        { "if": { "required": ["prefab"] }, "then": { "properties": { "type": { "const": "container" }, "text": false, "imageData": false, "widget": false, "style": { "propertyNames": { "const": "opacity" } }, "layout": { "propertyNames": { "enum": ["left","right","centerX","top","bottom","centerY","layoutUnit","widthMode","heightMode","crossAxisMode","positionOffsetX","positionOffsetY"] }, "properties": { "widthMode": { "const": "explicit" }, "heightMode": { "const": "explicit" } } } } } },
+        { "if": { "required": ["prefab"] }, "then": { "properties": { "type": { "const": "container" }, "text": false, "imageData": false, "sliceResource": false, "widget": false, "style": { "propertyNames": { "const": "opacity" } }, "layout": { "propertyNames": { "enum": ["left","right","centerX","top","bottom","centerY","layoutUnit","widthMode","heightMode","crossAxisMode","positionOffsetX","positionOffsetY"] }, "properties": { "widthMode": { "const": "explicit" }, "heightMode": { "const": "explicit" } } } } } },
         { "if": { "properties": { "type": { "not": { "enum": ["checkbox","radio","slider"] } } } }, "then": { "properties": { "widget": { "not": { "required": ["skinNodeId"] } } } } },
         { "if": { "properties": { "type": { "not": { "const": "radioGroup" } } } }, "then": { "properties": { "widget": { "not": { "required": ["optionNodeIds"] } } } } }
       ],
@@ -464,6 +468,7 @@
         "style": { "$ref": "#/$defs/style" },
         "hidden": { "type": "boolean" },
         "locked": { "type": "boolean" },
+        "sliceResource": { "$ref": "#/$defs/sliceResource" },
         "imageData": { "type": "string", "maxLength": 7000000, "pattern": "^data:image/(png|jpeg|webp|gif);base64,[a-zA-Z0-9+/]+=*$" },
         "frame": { "$ref": "#/$defs/frame" },
         "layout": { "$ref": "#/$defs/layout" },

@@ -1,3 +1,4 @@
+import { useSliceResources } from "../runtime/resource-context";
 import type { ConstraintLayout, GameFlowNode, GameFlowPage, NodeLayout, WidgetProps, NodeType } from "../../shared/model";
 import { canHaveChildren, COMPONENTS, flowType } from "../../shared/ui-components";
 import { AXES, managedAxis, resolvePageLayout } from "../../shared/ui-layout";
@@ -33,8 +34,9 @@ export function LayoutProperties({ page, node, locked, onNode, onPage, structure
   page: GameFlowPage; node: GameFlowNode; locked: boolean; structureProtected?: boolean;
   onNode: (id: string, patch: Partial<GameFlowNode>) => void; onPage: (transform: (page: GameFlowPage) => GameFlowPage) => void;
 }) {
+  const resources = useSliceResources();
   const layout = node.layout ?? {}, parent = page.nodes.find((n) => n.id === node.parentId), flow = flowType(node);
-  const resolved = resolvePageLayout(page).nodes.get(node.id)!;
+  const resolved = resolvePageLayout(page, resources.sizes).nodes.get(node.id)!;
   const set = (patch: Partial<NodeLayout>) => onNode(node.id, { layout: { ...layout, ...patch } });
   return <>
     <details className="property-details" open><summary>尺寸与约束</summary>
@@ -44,7 +46,7 @@ export function LayoutProperties({ page, node, locked, onNode, onPage, structure
       })} />
       <Select compact label="约束单位" value={layout.layoutUnit ?? "absolute"} disabled={locked} options={[["absolute", "像素"], ["percent", "百分比 %"]]} onChange={(value) => {
         const next = { ...layout, layoutUnit: value as "absolute" | "percent" };
-        const parentFrame = parent ? resolvePageLayout(page).nodes.get(parent.id)!.local : page.frame;
+        const parentFrame = parent ? resolvePageLayout(page, resources.sizes).nodes.get(parent.id)!.local : page.frame;
         for (const axis of ["x", "y"] as const) {
           const a = AXES[axis], size = parentFrame[a.size] - (parent?.layout?.[a.padStart] ?? 0) - (parent?.layout?.[a.padEnd] ?? 0);
           if (size <= 0 && value === "percent") return;
@@ -52,12 +54,12 @@ export function LayoutProperties({ page, node, locked, onNode, onPage, structure
         }
         onNode(node.id, { layout: next });
       }} />
-      <ConstraintControl layout={layout} disabledX={locked || !!sliderOwner(page, node) || managedAxis(parent, "x")} disabledY={locked || !!sliderOwner(page, node) || managedAxis(parent, "y")} onChange={set} onToggle={(key, enabled) => onPage((p) => setNodeConstraint(p, node.id, key, enabled))} />
+      <ConstraintControl layout={layout} disabledX={locked || !!sliderOwner(page, node) || managedAxis(parent, "x")} disabledY={locked || !!sliderOwner(page, node) || managedAxis(parent, "y")} onChange={set} onToggle={(key, enabled) => onPage((p) => setNodeConstraint(p, node.id, key, enabled, resources.sizes))} />
       {flowType(parent) !== "free" ? <p className="property-hint">父容器自动排布：拖动调整顺序；交叉轴可单独定位。</p> : null}
       {node.type === "text" && (layout.widthMode === "measured" || layout.heightMode === "measured") ? <p className="property-hint">文字内容尺寸为原型估算，实际以游戏字体为准。</p> : null}
     </details>
     {canHaveChildren(node) ? <details className="property-details" open><summary>容器布局</summary>
-      {["container", "hbox", "vbox", "grid"].includes(node.type) ? <Select label="排布方式" value={node.type} disabled={locked || structureProtected || page.componentRootId === node.id || page.nodes.some((n) => n.parentId === node.id && n.locked)} options={[["container", "自由布局"], ["hbox", "横向排列"], ["vbox", "纵向排列"], ["grid", "网格排列"]]} onChange={(value) => onPage((p) => changeContainerType(p, node.id, value as NodeType))} /> : null}
+      {["container", "hbox", "vbox", "grid"].includes(node.type) ? <Select label="排布方式" value={node.type} disabled={locked || structureProtected || page.componentRootId === node.id || page.nodes.some((n) => n.parentId === node.id && n.locked)} options={[["container", "自由布局"], ["hbox", "横向排列"], ["vbox", "纵向排列"], ["grid", "网格排列"]]} onChange={(value) => onPage((p) => changeContainerType(p, node.id, value as NodeType, resources.sizes))} /> : null}
       <PaddingControl layout={layout} disabled={locked} onChange={set} />
       {flow === "hbox" || flow === "vbox" ? <Field label="间距" type="number" integer value={layout.gap ?? 0} disabled={locked || (flow === "hbox" ? layout.align === "justify" : layout.valign === "justify")} onCommit={(v) => set({ gap: Number(v) })} /> : null}
       {flow === "grid" ? <>

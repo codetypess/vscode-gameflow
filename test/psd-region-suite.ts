@@ -7,6 +7,7 @@ import { applyPsdDraft, makePsdDraft } from "../shared/psd-draft";
 import { makeSliceExportBatch, sliceExportIssues } from "../shared/psd-export";
 import { isPsdEditorRequest } from "../shared/psd-editor-protocol";
 import { bytesHash, PsdDocumentModel } from "../src/psd-document-model";
+import { fitRegionCamera, resizedRegionCamera, resizeSliceRegion, zoomRegionCamera, type RegionEdge } from "../webview/psd/region-geometry";
 
 const bytes = readFileSync("examples/psd-metadata/GameFlow-PSD-Metadata-Sample.psd");
 const structure = () => createPsdStructure(parsePsdBinary(bytes), "sample.psd", bytesHash(bytes));
@@ -14,6 +15,48 @@ const region = { x: -41, y: -11, width: 300, height: 100 };
 const png = "data:image/png;base64," + readFileSync("examples/star-sea-login/assets/status_dot.png").toString("base64");
 function byKey<T extends { key: number }>(layers: T[], key: number): T { const layer = layers.find(l => l.key === key); assert.ok(layer); return layer; }
 export const psdRegionTests = [
+  { name: "PSD region edge resize fixes the opposite edge and source image at every zoom", run() {
+    for (const zoom of [.25, .5, 2, 6]) for (const edge of ["left", "right", "top", "bottom"] as RegionEdge[]) {
+      const camera = { x: 100, y: 80, zoom }, next = resizeSliceRegion(region, edge, 20 / zoom);
+      const view = resizedRegionCamera(camera, region, next);
+      assert.equal(view.x - next.x * zoom, camera.x - region.x * zoom, `${edge} image x`);
+      assert.equal(view.y - next.y * zoom, camera.y - region.y * zoom, `${edge} image y`);
+      if (edge === "left") { assert.equal(next.x + next.width, region.x + region.width); assert.equal(view.x - camera.x, Math.round(20 / zoom) * zoom); }
+      if (edge === "top") { assert.equal(next.y + next.height, region.y + region.height); assert.equal(view.y - camera.y, Math.round(20 / zoom) * zoom); }
+      if (edge === "right") { assert.equal(next.x, region.x); assert.equal(next.width - region.width, Math.round(20 / zoom)); }
+      if (edge === "bottom") assert.equal(next.y, region.y);
+      assert.equal(validSliceRegion(next), true);
+    }
+  } },
+  { name: "PSD region edge resize clamps coordinates dimensions pixels and nine-grid minimums", run() {
+    assert.equal(resizeSliceRegion(region, "right", -10000).width, 1);
+    assert.equal(resizeSliceRegion(region, "bottom", 10000).height, 4096);
+    const left = resizeSliceRegion({ ...region, x: -4090, width: 1 }, "left", -10000);
+    assert.equal(left.x, -4096); assert.equal(left.width, 7);
+    const large = { x: 0, y: 0, width: 2000, height: 4000 };
+    for (const edge of ["left", "right"] as RegionEdge[]) assert.deepEqual(resizeSliceRegion(large, edge, edge === "left" ? -10000 : 10000), large);
+    const minimum = { width: 221, height: 81 };
+    assert.equal(resizeSliceRegion(region, "left", 10000, minimum).width, 221);
+    assert.equal(resizeSliceRegion(region, "bottom", -10000, minimum).height, 81);
+    assert.deepEqual(resizeSliceRegion(region, "right", NaN), region);
+  } },
+  { name: "PSD region wheel zoom preserves the cursor point and never changes authored geometry", run() {
+    const camera = { x: 100, y: 80, zoom: 2 }, point = { x: 190, y: 120 }, saved = JSON.stringify(region);
+    for (const scale of [.001, .25, 1, 6, 100]) {
+      const next = zoomRegionCamera(camera, point, scale);
+      assert.ok(next.zoom >= .01 && next.zoom <= 16);
+      assert.ok(Math.abs((point.x - next.x) / next.zoom - (point.x - camera.x) / camera.zoom) < 1e-8);
+      assert.ok(Math.abs((point.y - next.y) / next.zoom - (point.y - camera.y) / camera.zoom) < 1e-8);
+    }
+    assert.equal(JSON.stringify(region), saved);
+    assert.deepEqual(camera, { x: 100, y: 80, zoom: 2 });
+    for (const viewport of [{ width: 720, height: 300 }, { width: 290, height: 140 }]) {
+      const fit = fitRegionCamera(viewport, region);
+      assert.ok(fit.x >= 24 && fit.y >= 24);
+      assert.ok(fit.x + region.width * fit.zoom <= viewport.width - 24);
+      assert.ok(fit.y + region.height * fit.zoom <= viewport.height - 24);
+    }
+  } },
   { name: "PSD region is optional and legacy reads keep original geometry without inserting defaults", run() {
     const a = structure(), l = a.layers.find(l => !l.group)!;
     const before = JSON.stringify(l.config);

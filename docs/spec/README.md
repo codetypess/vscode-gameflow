@@ -11,7 +11,7 @@ The complete workflow is defined in [../spec-driven-development.md](../spec-driv
 
 ## Current Baseline
 
-The repository now includes a runnable VS Code extension scaffold, a low-fidelity game UI prototype editor, PSD slice/nine-grid configuration, unified-directory PNG/provenance export and manual PSD selection previews. The baseline records document authority, the host/Webview boundary, canvas and layer editing, PSD metadata output and VS Code-themed controls; Agent integration, automatic planning-document analysis, complete PSD merging, assembled slice preview and Laya-specific resource import remain future work.
+The repository now includes a runnable VS Code extension scaffold, a game UI prototype editor, PSD slice/nine-grid configuration, PNG/provenance export and assembled runtime slice previews. The baseline records document authority, the host/Webview boundary, canvas and layer editing, PSD metadata output and VS Code-themed controls; Agent integration, automatic planning-document analysis, complete PSD merging and Laya-specific resource import remain future work.
 
 When the first non-trivial work item establishes a lasting rule, create the smallest relevant numbered baseline spec and add it to the baseline map below. Suggested numbers are conventions, not requirements:
 
@@ -33,7 +33,7 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 
 ## Active Work Items
 
-- [psd-slice-region.md](psd-slice-region.md) — Done：独立导出尺寸、弹窗拖动图片和方向键微调、居中/透明留白/裁剪、九宫格区域适配及配置持久化；293 项共享测试、3 项浏览器像素检查、生产构建及真实 PSD/360px 窄窗口/草稿重载验收通过。
+- [psd-slice-region.md](psd-slice-region.md) — Done：独立导出尺寸、拖动图片/四边线、方向键微调、滚轮缩放、居中/透明留白/裁剪、九宫格区域适配及配置持久化；296 项共享测试、3 项浏览器像素检查、生产构建及真实 PSD/360px 窄窗口/草稿重载验收通过；输入框对齐、外侧聚焦框移除。
 
 - [file-export-directory.md](file-export-directory.md) — Done：本机资源/预制体根目录与 GameFlow 顶层 exportDirectory 分离；设置面板按文件编辑相对目录，资源按 root/dir 实际输出。293 项共享测试、33 项宿主检查、生产构建及浏览器输入/取消/重载/小窗口验收通过。
 
@@ -61,7 +61,7 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 
 - [canvas-component-references.md](canvas-component-references.md) — Done：UIBox 存到画布并保留关联实例、同文件及跨模块画布引用、源更新和失效诊断；200 项测试、生产构建、宿主适配器文件监听测试和浏览器保存刷新验收通过，真实 Extension Host 人工联调未覆盖。
 
-- [runtime-slice-preview.md](runtime-slice-preview.md) — Draft：运行预览复用工作台已有布局和控件，聚焦切图装载；与项目 Laya UI 的已支持行为差异按 BUG 修正，预览不依赖启动游戏引擎。
+- [runtime-slice-preview.md](runtime-slice-preview.md) — Done：真实内存切图、持久资源绑定、磁盘来源验证及当前工作台运行预览；共用布局/绘制，支持九宫格多尺寸检查和临时控件状态。311 项共享测试、37 项真实宿主检查、6 项浏览器像素验收、真实 PSD 与窄窗口验收及生产构建通过。
 
 - [canvas-direct-selection.md](canvas-direct-selection.md) — Done：底部新增默认关闭的直选模式，可直接选择子节点并跨分支多选；180 项测试、生产构建和浏览器选择/拖动/会话验收通过。
 

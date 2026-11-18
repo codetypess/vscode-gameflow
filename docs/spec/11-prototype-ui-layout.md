@@ -15,6 +15,8 @@ Status: Implemented prototype subset
 
 控件状态通过属性面板编辑，包括勾选/禁用、数值范围、方向、输入占位/密码/字数、下拉选项、文字换行/溢出/垂直对齐及图片填充方式。预览不执行游戏事件、业务绑定或资源导出。UIList 是可编辑静态子项的网格，不是运行时虚拟列表。
 
+UIImage 可选 `sliceResource` 绑定实际切图；普通图片缺省 fill，显式 contain/cover 保留。切图九宫格按实际产物尺寸重建，支持重复，小于两侧之和时优先保留前侧边界且不扩大目标。资源自然尺寸进入 measured 布局及反向编辑，移动不会意外固化尺寸，缩放只固化改变的轴；锚点、约束、重挂接、复制及组件提取使用同一几何输入。顶栏运行预览复用这些布局/绘制，临时修改控件状态和尺寸可重置且不改设计初值。详见 [切图装载运行预览](runtime-slice-preview.md)。
+
 文字区统一提供 B/I/U/S（加粗、斜体、下划线、删除线）四个独立样式开关，按钮间隔 1px 紧凑排列，不提供字重下拉框；B 读取 fontWeight>=600，开启/关闭写入 700/400，其他样式使用可选布尔 style.italic/underline/strikethrough，缺省 false。“对齐”行分为水平左/中/右与垂直上/中/下两组，共六个图标，分别沿用 style.textAlign 与 widget.valign；每组独立高亮并提供提示。UILabel 默认左/上，其他文字节点沿用已有默认值，移除组件设置中的重复垂直对齐下拉框。组合样式及两轴对齐同步画布、保存与撤销；锁定/继承锁定禁用。详见 [文字样式与对齐](text-formatting-controls.md)。
 
 新 Slider、CheckBox、Radio 创建真实图片部件与独立说明文字，`widget.skinNodeId` 显式引用直接子节点；可从属性面板绑定或清空。Slider 根管理滑块位置，按变换后的滑块跨度计算行程，横向向右、纵向向下增长；坐标、相对约束和直接拖动停用，尺寸和变换可编辑，派生位置不保存。CheckBox/Radio 的选中状态只控制皮肤显隐，原 hidden 值保留，解除绑定恢复其含义；受控皮肤的图层显示按钮禁用。隐藏标记继续参与测量，禁用不自动降低透明度。无图片的模板部件以独立节点自身填充展示，支持普通图片替换。
@@ -112,7 +114,7 @@ UILabel 的文字区支持可选 `widget.leading/letterSpacing`（有限正负�
 
 页面根与所有控件在整份文档内共享唯一 ID 空间，包括独立 UIBox 画板。v1/v2 均在共享运行时校验中拒绝跨页面、根与控件、同页控件重号，错误包含 ID 和两个位置；解析/序列化/协议校验不自动分配或修复歧义身份，名字相同不构成冲突。新身份采用 8 位小写字母/数字 Nano ID，首位允许数字。未带 `elementIdScheme: "nanoid-8"` 的旧文档首次进入编辑会话时，独立迁移事务统一重分配页面/控件 ID、更新引用并记录标记；v1 在同一事务升级，可撤销。迁移完成后普通编辑及保存保持 ID，详见 [nanoid-element-ids.md](nanoid-element-ids.md)。
 
-`sample/ui-components.gameflow.json` 包含自适应背包和游戏设置；浏览器 `?sample=ui-components` 使用独立 localStorage key，避免覆盖原有预览文档。实际 Prefab 生成、资源/PSD 绑定仍由后续方案负责。
+`sample/ui-components.gameflow.json` 包含自适应背包和游戏设置；浏览器 `?sample=ui-components` 使用独立 localStorage key，避免覆盖原有预览文档。PSD 切图绑定与装载见运行预览规格，实际 Prefab 生成仍由后续方案负责。
 
 ## Reusable Canvas Components
 

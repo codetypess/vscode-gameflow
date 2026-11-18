@@ -95,7 +95,7 @@ function MergeSourceDrop({ side, disabled, onFile, onError, children }: {
   return <section className="psd-merge-pane psd-drop-target" aria-label={`合并来源 ${side}`} {...drop.handlers}>{children}{drop.dragging ? <DropHint label={`松开以打开来源 ${side}`} /> : null}</section>;
 }
 
-export function PsdWorkspace({ mode, active, binding, documentActions, exportActions, settings, exportDirectory, exportPending }: { mode: "slice" | "merge"; active: boolean; binding?: PsdWorkspaceBinding; documentActions?: HTMLElement | null; exportActions?: HTMLElement | null; settings: WorkbenchSettingsUI; exportDirectory?: string; exportPending?: boolean }) {
+export function PsdWorkspace({ mode, active, binding, documentActions, exportActions, settings, exportDirectory, exportPending, onAsset }: { mode: "slice" | "merge"; active: boolean; binding?: PsdWorkspaceBinding; documentActions?: HTMLElement | null; exportActions?: HTMLElement | null; settings: WorkbenchSettingsUI; exportDirectory?: string; exportPending?: boolean; onAsset?: (asset: PsdAsset) => void }) {
   const [localLoaded, setLoaded] = useState<Loaded | null>(null), [selectedKey, setSelectedKey] = useState<number | null>(null);
   const loaded = binding?.loaded ?? localLoaded;
   const [canvasSelection, setCanvasSelection] = useState(0);
@@ -110,6 +110,7 @@ export function PsdWorkspace({ mode, active, binding, documentActions, exportAct
   const input = useRef<HTMLInputElement>(null);
   const loading = useRef(false);
   const asset = loaded?.asset, selected = asset?.layers.find(l => l.key === selectedKey) ?? null;
+  useEffect(() => { if (asset) onAsset?.(asset); }, [asset, onAsset]);
   const selectedRegion = selected ? sliceRegion(selected) : null;
   useEffect(() => { if (binding) setSelectedKey(binding.loaded.asset.layers.find(l => l.config.nineGrid)?.key ?? binding.loaded.asset.layers.find(l => !l.group)?.key ?? null); }, [binding?.loaded.asset.sourceHash]);
   const backupBrowser = (next: PsdAsset) => { try { saveBrowserDraft(next); } catch { setMessage("草稿备份失败，浏览器存储可能已满，请保存配置文件。"); } };

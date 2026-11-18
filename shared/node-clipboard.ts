@@ -2,7 +2,7 @@ import type { GameFlowNode, GameFlowPage } from "./model";
 import { descendants, inheritedFlag, insertNode, orderedNodes } from "./editor-ops";
 import { canHaveChildren } from "./ui-components";
 import { CONSTRAINTS } from "./ui-config";
-import { resolvePageLayout } from "./ui-layout";
+import { resolvePageLayout, type ResourceSizes } from "./ui-layout";
 import { allocateVariableName } from "./node-variable";
 import { controlSelected, remapControlReferences } from "./ui-parts";
 import { ownedCanvasNodes, remapCanvasEdits } from "./canvas-instance-data";
@@ -10,13 +10,13 @@ import { ownedCanvasNodes, remapCanvasEdits } from "./canvas-instance-data";
 export interface NodeClipboard { rootId: string; rootIds?: string[]; nodes: GameFlowNode[] }
 
 /** A session-local snapshot, independent of subsequent source edits or deletion. */
-export function copyNode(page: GameFlowPage, id: string): NodeClipboard | null {
+export function copyNode(page: GameFlowPage, id: string, resourceSizes?: ResourceSizes): NodeClipboard | null {
   const root = page.nodes.find((node) => node.id === id);
   if (!root) return null;
   const ids = descendants(page, id);
   const nodes = structuredClone(orderedNodes(page).filter((node) => ids.has(node.id)));
   for (const node of nodes) if (node.type === "radio") node.widget = { ...node.widget, selected: controlSelected(page, node) };
-  nodes[0].frame = { ...resolvePageLayout(page).nodes.get(id)!.local };
+  nodes[0].frame = { ...resolvePageLayout(page, resourceSizes).nodes.get(id)!.local };
   return { rootId: id, nodes };
 }
 

@@ -8,9 +8,11 @@ import type { CanvasApplyRequest } from "./canvas-instances";
 import { validCanvasTarget, validCanvasSelections, isCanvasProperty } from "./canvas-instance-data";
 import { isSliceExportBatch, type ResourceConflict, type SliceExportBatch } from "./psd-export";
 import { isWorkbenchSettingsRequest, type WorkbenchSettingsRequest, type WorkbenchSettingsResult } from "./workbench-settings";
+import { isSliceResourcePath, type ExportedSliceResult } from "./slice-resources";
 
 export type WebviewToHostMessage =
   | WorkbenchSettingsRequest
+  | { type: "sliceResources"; requestId: string; paths: string[] }
   | { type: "workbenchFlushed"; requestId: string }
   | { type: "openPsdEditor" }
   | { type: "psdResourceExport"; requestId: string; action: "choose" | "export"; batch?: SliceExportBatch }
@@ -29,6 +31,7 @@ export type WebviewToHostMessage =
 
 export type HostToWebviewMessage =
   | WorkbenchSettingsResult
+  | { type: "sliceResourcesResult"; requestId: string; resources: ExportedSliceResult[] }
   | { type: "workbenchFlush"; requestId: string }
   | { type: "psdResourceExportResult"; requestId: string; directory?: string; count?: number; cancelled?: boolean; error?: string; conflicts?: ResourceConflict[] }
   | { type: "canvasSources"; sources: CanvasSources; pickedSource?: string; error?: string }
@@ -65,6 +68,8 @@ export function isWebviewToHostMessage(
     return false;
   }
   if (value.type === "workbenchSettings") return isWorkbenchSettingsRequest(value);
+  if (value.type === "sliceResources") return typeof value.requestId === "string" && value.requestId.length > 0 && value.requestId.length <= 80 &&
+    Array.isArray(value.paths) && value.paths.length <= 128 && value.paths.every(isSliceResourcePath) && new Set(value.paths).size === value.paths.length;
   if (value.type === "ready") {
     return true;
   }

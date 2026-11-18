@@ -6,13 +6,16 @@ import { resolvePageLayout, type ResolvedNode } from "../../shared/ui-layout";
 import { intersectPolygons, mapPoint } from "../../shared/ui-transform";
 import { controlSelected, hasNodeSkin } from "../../shared/ui-parts";
 import { LabelView } from "./label-view";
+import { ResourceCanvas, useSliceResources } from "../runtime/resource-context";
 
 export { orderedNodes } from "../../shared/editor-ops";
 
 export function NodeView({ page, node, geometry, hitId, referenceError }: { page: GameFlowPage; node: GameFlowNode; geometry?: ResolvedNode; hitId?: string; referenceError?: string }) {
+  const resources = useSliceResources();
+  const resource = node.sliceResource ? resources.resolve(node.sliceResource) : undefined;
   if (inheritedFlag(page, node, "hidden")) return null;
   const appearance = { ...defaultStyle(node.type), ...node.style };
-  const resolved = geometry ?? resolvePageLayout(page).nodes.get(node.id)!;
+  const resolved = geometry ?? resolvePageLayout(page, resources.sizes).nodes.get(node.id)!;
   const bounds = resolved.local;
   const clipped = resolved.clipPolygon ? intersectPolygons(resolved.corners, resolved.clipPolygon) : undefined;
   const clipLocal = clipped && resolved.inverse ? clipped.map(p => mapPoint(resolved.inverse!, p)) : undefined;
@@ -45,8 +48,11 @@ export function NodeView({ page, node, geometry, hitId, referenceError }: { page
   };
   return <div className={`node-body node-${node.type}${referenceError ? " reference-broken" : ""}`} data-node-id={hitId ?? node.id} data-reference-error={referenceError} data-locked={inheritedFlag(page, node, "locked")} style={style}>
     {referenceError ? <span className="reference-error-label" role="status">组件引用失效<br />{referenceError}</span> : null}
-    {node.type === "image" ? node.imageData
-      ? <img src={node.imageData} alt={node.name} draggable={false} style={{ objectFit: widget.imageFit ?? "contain" }} />
+    {node.type === "image" ? resource
+      ? resource.status === "ready" ? <ResourceCanvas resource={resource} width={bounds.width} height={bounds.height} fit={widget.imageFit ?? "fill"} label={node.name} />
+        : <span className="slice-resource-placeholder" role="status" data-resource-status={resource.status} title={resource.status === "error" ? resource.error : "正在装载切图…"}>{resource.status === "loading" ? "装载中…" : `切图异常\n${resource.error}`}</span>
+      : node.imageData
+      ? <img src={node.imageData} alt={node.name} draggable={false} style={{ objectFit: widget.imageFit ?? "fill" }} />
       : partImage ? null : <span className="image-placeholder"><ImageIcon size={24} /><small>图片</small></span>
       : node.type === "list" ? page.nodes.some((n) => n.parentId === node.id) ? null : <div className="list-placeholder">{Array.from({ length: 8 }, (_, i) => <span key={i} />)}</div>
       : ["container", "rectangle", "hbox", "vbox", "grid", "panel", "radioGroup"].includes(node.type) || hasNodeSkin(node) ? null

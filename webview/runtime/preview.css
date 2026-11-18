@@ -1,0 +1,38 @@
+.runtime-preview { width: calc(100vw - 32px); height: calc(100vh - 32px); max-width: none; max-height: none; padding: 0; border: 1px solid var(--border); border-radius: 8px; background: var(--background); color: var(--foreground); overflow: hidden; }
+.runtime-preview::backdrop { background: #0008; }
+.runtime-preview[open] { display: flex; flex-direction: column; }
+.runtime-heading { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+.runtime-heading select { max-width: 40vw; }
+.runtime-session-note { margin-left: auto; font-size: 11px; color: var(--muted-foreground); }
+.runtime-content { display: flex; min-height: 0; flex: 1; }
+.runtime-main { min-width: 0; min-height: 0; flex: 1; display: flex; flex-direction: column; }
+.runtime-view-tools { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding: 6px 12px; font-size: 12px; }
+.runtime-view-tools label { display: flex; align-items: center; gap: 5px; }
+.runtime-view-tools input[type=number] { width: 58px; }
+.runtime-preview input, .runtime-preview select { background: var(--muted); color: var(--foreground); border: 1px solid var(--input); border-radius: 3px; padding: 4px 6px; min-width: 0; }
+.runtime-stage { flex: 1; min-height: 0; overflow: auto; padding: 32px; }
+.runtime-page-space { margin: auto; position: relative; flex: none; }
+.runtime-page { position: relative; transform-origin: 0 0; overflow: hidden; touch-action: none; }
+.runtime-node-outline { position: absolute; left: 0; top: 0; border: 1px solid var(--vscode-focusBorder, #007acc); transform-origin: 0 0; pointer-events: none; z-index: 3; }
+.runtime-psd-overlay { position: absolute; left: 0; top: 0; max-width: none; opacity: .5; pointer-events: none; z-index: 2; }
+.runtime-inspector { width: 290px; flex: none; overflow-y: auto; padding: 14px; border-left: 1px solid var(--border); display: flex; flex-direction: column; gap: 14px; font-size: 12px; }
+.runtime-field { display: flex; flex-direction: column; gap: 6px; }
+.runtime-field select { width: 100%; }
+.runtime-size-inputs { display: flex; gap: 8px; }
+.runtime-size-inputs label { display: flex; align-items: center; gap: 5px; flex: 1; min-width: 0; }
+.runtime-size-inputs input { width: 100%; }
+.runtime-size-presets { display: flex; flex-wrap: wrap; gap: 5px; }
+.runtime-product { display: flex; flex-direction: column; gap: 7px; }
+.runtime-product-pixels, .runtime-product-source { position: relative; width: 100%; overflow: hidden; }
+.runtime-product p, .runtime-inspector > p, .runtime-diagnostics p { margin: 0; color: var(--muted-foreground); }
+.runtime-product code, .runtime-diagnostics code { overflow-wrap: anywhere; font-size: 11px; }
+.runtime-diagnostics { border-top: 1px solid var(--border); padding-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+.runtime-diagnostics > div { display: flex; align-items: center; justify-content: space-between; }
+.runtime-diagnostics > button { display: flex; flex-direction: column; gap: 4px; text-align: left; border: 1px solid var(--vscode-inputValidation-errorBorder, #be5353); border-radius: 4px; padding: 8px; overflow-wrap: anywhere; }
+.slice-resource-placeholder { display: flex; flex-direction: column; justify-content: center; align-items: center; width: 100%; height: 100%; padding: 4px; border: 1px dashed var(--vscode-inputValidation-errorBorder, #be5353); background: #be535314; color: var(--vscode-errorForeground, #be5353); white-space: pre-line; overflow: hidden; text-align: center; font-size: 11px; }
+.slice-resource-placeholder[data-resource-status=loading] { color: var(--muted-foreground); border-color: var(--border); }
+.slice-resource-error { color: var(--vscode-errorForeground, #be5353) !important; overflow-wrap: anywhere; }
+.slice-binding { display: flex; flex-direction: column; gap: 8px; }
+.slice-binding-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+@media (max-width: 650px) { .runtime-preview { width: calc(100vw - 12px); height: calc(100vh - 12px); } .runtime-inspector { width: 220px; padding: 10px; } .runtime-heading { gap: 6px; } .runtime-session-note { display: none; } .runtime-stage { padding: 16px; } }
+@media (max-width: 430px) { .runtime-content { flex-direction: column; } .runtime-main { min-height: 220px; } .runtime-inspector { width: 100%; max-height: 45%; border-left: 0; border-top: 1px solid var(--border); } }

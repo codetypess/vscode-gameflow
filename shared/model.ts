@@ -4,6 +4,7 @@ import { validateRootLayout, validateUIConfig } from "./ui-config";
 import type { ConstraintLayout, NodeLayout, WidgetProps } from "./ui-config";
 import { variableNameError } from "./node-variable";
 import { exportDirectoryError } from "./export-directory";
+import { isSliceResourceRef, type SliceResourceRef } from "./slice-resources";
 import { validateControlReferences } from "./ui-parts";
 import { validateNodeTransform, type NodeTransform } from "./ui-transform";
 import { isCanvasProperty, readProperty, targetKey, ownedCanvasNodes, validCanvasTarget, writeProperty, type CanvasInstanceEdits } from "./canvas-instance-data";
@@ -62,6 +63,7 @@ export interface GameFlowNode {
   text?: string;
   style?: NodeStyle;
   imageData?: string;
+  sliceResource?: SliceResourceRef;
   hidden?: boolean;
   locked?: boolean;
   layout?: NodeLayout;
@@ -243,6 +245,7 @@ function validateNode(
           if (field === "widget.optionNodeIds" && Array.isArray(v) && v.length <= 1000 && v.every(item => item === null || isRecord(item) && Object.keys(item).length === 1 && validCanvasTarget(item.canvasTarget))) continue;
           if (["widget.skinNodeId", "widget.optionNodeIds"].includes(field) && v !== null) { errors.push(`${at}.set.${field} must use scoped canvas targets`); optionalValid = false; continue; }
           const test = writeProperty({ id: "validate", name: "validate", type: "container", frame: { x: 0, y: 0, width: 1, height: 1 } }, field, v);
+          if (field === "sliceResource") test.type = "image";
           if (field.startsWith("widget.")) test.type = field === "widget.optionNodeIds" ? "radioGroup" : field === "widget.skinNodeId" ? "slider" : "text";
           if (field.startsWith("widget.") && typeof v === "number" && Number.isFinite(v)) {
             if (field === "widget.min") test.widget = {min:v,max:v+1,value:v};
@@ -275,7 +278,7 @@ function validateNode(
       optionalValid = validateString(value.prefab.pageId, `${path}.prefab.pageId`, errors) && optionalValid;
     }
     if (value.type !== "container") { errors.push(`${path}.prefab requires a container instance`); optionalValid = false; }
-    if (value.text !== undefined || value.imageData !== undefined || value.widget !== undefined) {
+    if (value.text !== undefined || value.imageData !== undefined || value.sliceResource !== undefined || value.widget !== undefined) {
       errors.push(`${path}.prefab content belongs to the source`); optionalValid = false;
     }
     if (isRecord(value.style) && Object.keys(value.style).some(key => key !== "opacity")) {
@@ -307,6 +310,10 @@ function validateNode(
   }
   if (value.imageData !== undefined && !isImageData(value.imageData)) {
     errors.push(`${path}.imageData must be a raster image data URI under 5 MB`);
+    optionalValid = false;
+  }
+  if (value.sliceResource !== undefined && (value.type !== "image" || !isSliceResourceRef(value.sliceResource))) {
+    errors.push(`${path}.sliceResource requires an image and a valid relative PNG resource reference`);
     optionalValid = false;
   }
   if (value.style !== undefined) {

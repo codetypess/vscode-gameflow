@@ -111,20 +111,19 @@
 .region-dialog { width: min(760px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow: auto; }
 .region-dialog > .psd-hint { padding: 12px 18px 8px; }
 .region-stage { position: relative; margin: 0 18px; height: min(360px, 40vh); min-height: 140px; overflow: hidden; border: 1px solid var(--border); background: var(--background); touch-action: none; user-select: none; cursor: grab; }
-.region-stage:focus-visible { outline: 1px solid var(--selection); outline-offset: 2px; }
+.region-stage:focus { outline: none; }
 .region-stage.is-dragging { cursor: grabbing; }
-.region-artboard { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); overflow: hidden; outline: 1px solid var(--selection); box-shadow: 0 2px 14px #0004; pointer-events: none; }
+.region-artboard { position: absolute; overflow: hidden; box-shadow: 0 2px 14px #0004; pointer-events: none; }
 .region-artboard img { position: absolute; max-width: none; pointer-events: none; }
-.region-preview-size { position: absolute; right: 8px; bottom: 6px; font-size: 10px; color: var(--muted-foreground); background: var(--background); padding: 2px 4px; pointer-events: none; }
+.region-preview-size { position: absolute; left: 8px; bottom: 6px; font-size: 10px; color: var(--muted-foreground); background: var(--background); padding: 2px 4px; pointer-events: none; }
+.nine-zoom .region-tool-divider { width: 1px; height: 14px; margin: 0 3px; flex: 0 0 1px; background: var(--border); }
+.region-edge:focus { outline: none; }
 .region-settings { padding: 16px 18px 0; display: flex; flex-direction: column; gap: 12px; }
 .region-setting-row { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; font-size: 12px; }
 .region-setting-row strong { width: 58px; font-weight: 500; }
 .region-setting-row label { display: grid; grid-template-columns: 12px auto; align-items: center; gap: 6px; }
 .region-setting-row input { width: 88px; height: 27px; font-size: 12px; border-radius: 2px; background: var(--vscode-input-background, #313131); }
 .region-setting-row > span { color: var(--muted-foreground); }
-.region-setting-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.region-setting-actions button { height: 26px; font-size: 11px; }
-.region-setting-actions small { margin-left: auto; color: var(--muted-foreground); font-size: 11px; }
 @media(max-width: 440px) { .region-setting-row { gap: 7px; }.region-setting-row strong { width: 100%; }.region-setting-row input { width: 78px; } }
 .psd-merge-layout { display: grid; grid-template-columns: 1fr 1.25fr; gap: 12px; padding: 14px; flex: 1; min-height: 0; }
 .psd-merge-sources { display: grid; grid-template-rows: 1fr 1fr; gap: 12px; min-height: 0; }

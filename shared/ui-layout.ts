@@ -6,6 +6,7 @@ import { sliderOwner } from "./ui-parts";
 import { axisAnchor, axisScale, framePolygon, IDENTITY, intersectPolygons, inverse, multiply, nodeMatrix, polygonBounds, translation, type Matrix, type Point } from "./ui-transform";
 
 export type SizeSource = "explicit" | "measured" | "stretch";
+export type ResourceSizes = ReadonlyMap<string, { width: number; height: number }>;
 export interface ResolvedNode { local: Frame; absolute: Frame; matrix: Matrix; parentMatrix: Matrix; inverse: Matrix | null; corners: Point[]; clipPolygon?: Point[]; widthSource: SizeSource; heightSource: SizeSource; clip?: Frame }
 export interface LayoutResult { nodes: Map<string, ResolvedNode>; issues: { nodeId: string; message: string }[] }
 export const AXES = {
@@ -23,7 +24,7 @@ export function intersectFrames(a: Frame, b: Frame): Frame {
 }
 
 /** Resolve layout in parent space, then compose affine geometry without DOM measurements. */
-export function resolvePageLayout(page: GameFlowPage): LayoutResult {
+export function resolvePageLayout(page: GameFlowPage, resourceSizes?: ResourceSizes): LayoutResult {
   const result: LayoutResult = { nodes: new Map(), issues: [] };
   const byId = new Map(page.nodes.map((n) => [n.id, n]));
   const children = new Map<string | undefined, GameFlowNode[]>();
@@ -95,7 +96,10 @@ export function resolvePageLayout(page: GameFlowPage): LayoutResult {
             const width = wrap ? Math.max(1, size(n, "x").value) : Infinity;
             value = widths.reduce((sum, widthOfLine) => sum + Math.max(1, Math.ceil(widthOfLine / width)), 0) * font * 1.35;
           }
-        } // Raster natural dimensions are not persisted; retain its explicit fallback.
+        } else if (n.type === "image" && n.sliceResource) {
+          const natural = resourceSizes?.get(n.sliceResource.path);
+          if (natural) value = natural[a.size];
+        }
       }
       if (!Number.isFinite(value) || value < 0) fail(`${n.name}：布局尺寸必须为非负有限数值`);
       const answer = { value, source: s }; sizes.set(key, answer); return answer;

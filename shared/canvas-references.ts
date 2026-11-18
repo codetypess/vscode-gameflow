@@ -1,7 +1,7 @@
 import { CANVAS_INSTANCE_LAYOUT_KEYS, GAMEFLOW_SCHEMA_VERSION, type CanvasReference, type GameFlowDocument, type GameFlowNode, type GameFlowPage } from "./model";
 import { ownedCanvasNodes, remapCanvasEdits } from "./canvas-instance-data";
 import { descendants, inheritedFlag } from "./editor-ops";
-import { resolvePageLayout } from "./ui-layout";
+import { resolvePageLayout, type ResourceSizes } from "./ui-layout";
 import { remapControlReferences } from "./ui-parts";
 
 export interface CanvasSource { source: string; document?: GameFlowDocument; error?: string; readOnly?: boolean }
@@ -44,11 +44,11 @@ export async function loadCanvasSources(document: GameFlowDocument, read: (sourc
   return sources;
 }
 
-export function canvasExtractionIssue(page: GameFlowPage, id: string): string | null {
+export function canvasExtractionIssue(page: GameFlowPage, id: string, resourceSizes?: ResourceSizes): string | null {
   const root = page.nodes.find(node => node.id === id);
   if (!root || root.type !== "container" || root.prefab) return "只有可添加到画布的自由容器 UIBox 可以存到画布。";
   if (page.componentRootId === id) return "该节点已是画布组件的根节点。";
-  const size = resolvePageLayout(page).nodes.get(id)!.local;
+  const size = resolvePageLayout(page, resourceSizes).nodes.get(id)!.local;
   if (size.width <= 0 || size.height <= 0) return "容器的布局尺寸为空，请先设置有效宽高。";
   const ids = descendants(page, id);
   if (page.nodes.some(node => ids.has(node.id) && inheritedFlag(page, node, "locked"))) return "请先解锁容器及其子节点。";
@@ -59,14 +59,14 @@ export function canvasExtractionIssue(page: GameFlowPage, id: string): string | 
   return null;
 }
 
-export function extractCanvasComponent(document: GameFlowDocument, pageId: string, id: string, makeId: () => string): GameFlowDocument {
+export function extractCanvasComponent(document: GameFlowDocument, pageId: string, id: string, makeId: () => string, resourceSizes?: ResourceSizes): GameFlowDocument {
   const page = document.pages.find(item => item.id === pageId);
   if (!page) throw new Error("页面不存在。");
-  const issue = canvasExtractionIssue(page, id);
+  const issue = canvasExtractionIssue(page, id, resourceSizes);
   if (issue) throw new Error(issue);
   const root = page.nodes.find(node => node.id === id)!;
   const ids = descendants(page, id), remap = new Map(ownedCanvasNodes(page.nodes.filter(node=>ids.has(node.id))).map(node => [node.id, makeId()]));
-  const local = resolvePageLayout(page).nodes.get(id)!.local;
+  const local = resolvePageLayout(page, resourceSizes).nodes.get(id)!.local;
   const sourceRoot = remap.get(id)!, componentId = makeId();
   const component: GameFlowPage = {
     id: componentId, name: `${root.name} 组件`, kind: "screen", rootType: "UIBox", componentRootId: sourceRoot,
@@ -94,9 +94,9 @@ export function extractCanvasComponent(document: GameFlowDocument, pageId: strin
   return { ...document, schemaVersion: GAMEFLOW_SCHEMA_VERSION, pages: [...document.pages.map(p => p.id === page.id ? { ...p, nodes: p.nodes.filter(n => !ids.has(n.id) || n.id === id).map(n => n.id === id ? instance : n) } : p), component] };
 }
 
-export function makeCanvasInstance(document: GameFlowDocument, page: GameFlowPage, source: string, id: string): GameFlowNode {
+export function makeCanvasInstance(document: GameFlowDocument, page: GameFlowPage, source: string, id: string, resourceSizes?: ResourceSizes): GameFlowNode {
   const root = page.nodes.find(node => node.id === page.componentRootId);
-  const size = root ? resolvePageLayout(page).nodes.get(root.id)!.local : page.frame;
+  const size = root ? resolvePageLayout(page, resourceSizes).nodes.get(root.id)!.local : page.frame;
   return { id, name: page.name, type: "container", frame: { x: 24, y: 24, width: Math.max(1, size.width), height: Math.max(1, size.height) },
     prefab: { source, documentId: document.documentId, pageId: page.id } };
 }

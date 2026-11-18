@@ -1,7 +1,7 @@
 import { ownedCanvasNodes, remapCanvasEdits } from "./canvas-instance-data";
 import type { Frame, GameFlowDocument, GameFlowNode, GameFlowPage, NodeStyle, NodeType } from "./model";
 import { canHaveChildren, COMPONENTS } from "./ui-components";
-import { resolvePageLayout } from "./ui-layout";
+import { resolvePageLayout, type ResourceSizes } from "./ui-layout";
 import { CONSTRAINTS } from "./ui-config";
 import { allocateVariableName } from "./node-variable";
 import { decomposeNode, IDENTITY, inverse, mapPoint, multiply, nodeMatrix, translation } from "./ui-transform";
@@ -38,8 +38,8 @@ export function descendants(page: GameFlowPage, id: string): Set<string> {
   return ids;
 }
 
-export function absoluteFrame(page: GameFlowPage, node: GameFlowNode): Frame {
-  return resolvePageLayout(page).nodes.get(node.id)?.absolute ?? node.frame;
+export function absoluteFrame(page: GameFlowPage, node: GameFlowNode, resourceSizes?: ResourceSizes): Frame {
+  return resolvePageLayout(page, resourceSizes).nodes.get(node.id)?.absolute ?? node.frame;
 }
 
 export function inheritedFlag(page: GameFlowPage, node: GameFlowNode, key: "hidden" | "locked"): boolean {
@@ -55,14 +55,14 @@ export function inheritedFlag(page: GameFlowPage, node: GameFlowNode, key: "hidd
   return false;
 }
 
-export function reparentNode(page: GameFlowPage, id: string, parentId?: string): GameFlowPage {
+export function reparentNode(page: GameFlowPage, id: string, parentId?: string, resourceSizes?: ResourceSizes): GameFlowPage {
   if (page.componentRootId === id && parentId !== undefined) return page;
   if (id !== page.componentRootId && page.nodes.some(node => node.id === page.componentRootId)) parentId ??= page.componentRootId;
   const node = page.nodes.find((item) => item.id === id);
   if (!node || node.parentId === parentId || inheritedFlag(page, node, "locked") || (parentId && descendants(page, id).has(parentId))) return page;
   const parent = page.nodes.find((item) => item.id === parentId);
   if (parentId && (!parent || !canHaveChildren(parent) || inheritedFlag(page, parent, "locked"))) return page;
-  const geometry = resolvePageLayout(page), resolved = geometry.nodes.get(id)!;
+  const geometry = resolvePageLayout(page, resourceSizes), resolved = geometry.nodes.get(id)!;
   const parentMatrix = multiply(parent ? geometry.nodes.get(parent.id)!.matrix : IDENTITY, translation(-(parent?.layout?.scrollX ?? 0), -(parent?.layout?.scrollY ?? 0)));
   const parentInverse = inverse(parentMatrix); if (!parentInverse) return page;
   const relative = multiply(parentInverse, resolved.matrix);
@@ -113,7 +113,7 @@ export function insertNode(page: GameFlowPage, node: GameFlowNode, parentId?: st
 }
 
 /** Moves a whole subtree, preserving page-space positions when its parent changes. */
-export function moveNode(page: GameFlowPage, id: string, drop: LayerDrop): GameFlowPage {
+export function moveNode(page: GameFlowPage, id: string, drop: LayerDrop, resourceSizes?: ResourceSizes): GameFlowPage {
   if (page.componentRootId === id) return page;
   if (page.nodes.some(node => node.id === page.componentRootId) && (!drop.targetId || drop.targetId === page.componentRootId)) drop = { targetId: page.componentRootId, position: "inside" };
   const node = page.nodes.find((item) => item.id === id);
@@ -124,7 +124,7 @@ export function moveNode(page: GameFlowPage, id: string, drop: LayerDrop): GameF
   const parentId = drop.position === "inside" ? target?.id : target?.parentId;
   const parent = page.nodes.find((item) => item.id === parentId);
   if (parentId && (!parent || !canHaveChildren(parent) || inheritedFlag(page, parent, "locked"))) return page;
-  const reparented = node.parentId === parentId ? page : reparentNode(page, id, parentId);
+  const reparented = node.parentId === parentId ? page : reparentNode(page, id, parentId, resourceSizes);
   if (node.parentId !== parentId && reparented === page) return page;
   const ordered = orderedNodes(reparented);
   const subtree = ordered.filter((item) => moving.has(item.id));

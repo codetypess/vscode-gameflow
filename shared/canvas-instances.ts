@@ -1,3 +1,4 @@
+import type { ResourceSizes } from "./ui-layout";
 import { GAMEFLOW_SCHEMA_VERSION, validateGameFlowDocument, type CanvasReference, type GameFlowDocument, type GameFlowNode, type GameFlowPage } from "./model";
 import { CANVAS_INSTANCE_LAYOUT_KEYS } from "./model";
 import { extractCanvasComponent, findCanvasTarget, type CanvasSources } from "./canvas-references";
@@ -123,7 +124,7 @@ export function composeCanvasPage(document: GameFlowDocument, page: GameFlowPage
         let candidate = entry.node;
         const fields = [...Object.keys(patch.set), ...patch.unset];
         for (const field of fields) {
-          if (field === "text" && !["text","input","button","checkbox","radio"].includes(entry.node.type) || field === "imageData" && entry.node.type !== "image") throw new Error("源节点类型已变化，该内容覆盖暂不可用。");
+          if (field === "text" && !["text","input","button","checkbox","radio"].includes(entry.node.type) || ["imageData", "sliceResource"].includes(field) && entry.node.type !== "image") throw new Error("源节点类型已变化，该内容覆盖暂不可用。");
           if (!isCanvasProperty(field) || !patch.target.path.length && nativeRoot(field)) throw new Error("实例独立属性不能作为源覆盖。");
           candidate = writeProperty(candidate, field, decodeValue(patch.set[field], entries), patch.unset.includes(field));
         }
@@ -336,8 +337,8 @@ export function editCanvasPage(document: GameFlowDocument, pageId: string, sourc
 function oldAddition(document: GameFlowDocument, ownerId: string, id: string) { return findOwnedCanvasNode(document, ownerId)?.instanceEdits?.additions.find(item => item.node.id === id); }
 
 /** Ordinary inherited selections become snapshots; reference boundaries retain linked definitions. */
-export function copyCanvasSelection(document: GameFlowDocument, composition: CanvasComposition, ids: string[]): NodeClipboard | null {
-  const clipboard = copySelection(composition.page, ids);
+export function copyCanvasSelection(document: GameFlowDocument, composition: CanvasComposition, ids: string[], resourceSizes?: ResourceSizes): NodeClipboard | null {
+  const clipboard = copySelection(composition.page, ids, resourceSizes);
   if (!clipboard) return null;
   const selected = new Set(clipboard.nodes.map(node => node.id)), removed = new Set<string>();
   for (const node of clipboard.nodes) {
@@ -482,17 +483,17 @@ export function changeCanvasAddition(document: GameFlowDocument, ownerId: string
 }
 
 /** Extract an owned local UIBox through the same composition/persistence boundary. */
-export function extractCanvasSelection(document: GameFlowDocument, pageId: string, sources: CanvasSources, id: string, makeId: () => string): GameFlowDocument {
+export function extractCanvasSelection(document: GameFlowDocument, pageId: string, sources: CanvasSources, id: string, makeId: () => string, resourceSizes?: ResourceSizes): GameFlowDocument {
   const page = document.pages.find(page=>page.id===pageId);
   if (!page) throw new Error("页面不存在。");
   const composition = composeCanvasPage(document,page,sources), meta=composition.info.get(id);
   if (meta?.inherited || meta?.reference) throw new Error("源节点和引用实例不能存到画布。");
-  if (!meta?.ownerId) return extractCanvasComponent(document,pageId,id,makeId);
-  const snapshot = copyCanvasSelection(document,composition,[id]);
+  if (!meta?.ownerId) return extractCanvasComponent(document,pageId,id,makeId,resourceSizes);
+  const snapshot = copyCanvasSelection(document,composition,[id],resourceSizes);
   if (!snapshot) throw new Error("节点不存在。");
   // Keep linked nested references atomic; source-derived children remain in their definition.
   const localPage = {...page,nodes:snapshot.nodes.map(node=>node.id===id ? {...node,parentId:undefined} : node),componentRootId:undefined};
-  const extracted = extractCanvasComponent({...document,pages:[...document.pages.filter(p=>p.id!==pageId),localPage]},pageId,id,makeId);
+  const extracted = extractCanvasComponent({...document,pages:[...document.pages.filter(p=>p.id!==pageId),localPage]},pageId,id,makeId,resourceSizes);
   const component = extracted.pages.at(-1)!;
   const instance = extracted.pages.find(p=>p.id===pageId)!.nodes.find(node=>node.id===id)!;
   const removed = descendants(composition.page,id);

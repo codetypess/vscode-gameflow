@@ -70,7 +70,7 @@ export function makeSliceExportBatch(asset: PsdAsset, renderedImages?: ReadonlyM
     source: { documentId: asset.documentId, psdName: asset.name, sourceHash: asset.sourceHash },
     items: asset.layers.filter(l => l.config.enabled).map(l => {
       if (l.config.region && !renderedImages?.has(l.key)) throw new Error(`${l.name}：需先生成自定义区域的 PNG 切图。`);
-      const image = l.config.region ? renderedImages!.get(l.key) : l.image;
+      const image = renderedImages?.get(l.key) ?? l.image;
       if (!image?.startsWith("data:image/png;base64,")) throw new Error(`${l.name}：没有有效的 PNG 切图。`);
       const { width, height } = sliceRegion(l);
       return { name: effectiveExportName(asset, l), layerId: l.metadata.layerId, layerName: l.name, shared: l.config.shared === true, width, height, nineGrid: l.config.nineGrid, base64: image.slice("data:image/png;base64,".length) };

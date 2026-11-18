@@ -9,6 +9,7 @@ import { canHaveChildren, COMPONENTS } from "../../shared/ui-components";
 import { canConvertNodeType } from "../../shared/ui-edit";
 import { selectionRoots } from "../../shared/selection-ops";
 import { canvasExtractionIssue } from "../../shared/canvas-references";
+import { useSliceResources } from "../runtime/resource-context";
 
 export interface LayerMenuTarget { x: number; y: number; id: string | null }
 const TYPES = COMPONENT_TOOLS;
@@ -24,6 +25,7 @@ export function LayerMenu({ page, selectedIds, target, onClose, onAdd, onDelete,
   onRename: (id: string) => void; onDuplicate: (id: string) => void; onConvert: (id: string, type: InsertType) => void;
   onSaveToCanvas: (id: string) => void; onOpenSource: (id: string) => void;
 }) {
+  const resources = useSliceResources();
   const node = page.nodes.find((item) => item.id === target?.id);
   const meta = node ? composition?.info.get(node.id) : undefined;
   const protectedStructure = multiProtected();
@@ -67,8 +69,8 @@ export function LayerMenu({ page, selectedIds, target, onClose, onAdd, onDelete,
           </DropdownMenu.SubContent></DropdownMenu.Portal>
         </DropdownMenu.Sub>
         {meta?.inherited || meta?.reference || node.prefab ? <DropdownMenu.Item onSelect={action(() => onOpenSource(node.id))}><Package size={14} /><span>编辑源组件</span></DropdownMenu.Item> : <>
-          <DropdownMenu.Item disabled={multi || !!meta?.inherited || !!canvasExtractionIssue(page, node.id)} title={canvasExtractionIssue(page, node.id) ?? "保存为组件并保留关联引用"} onSelect={action(() => onSaveToCanvas(node.id))}><Package size={14} /><span>存到画布</span></DropdownMenu.Item>
-          {canvasExtractionIssue(page, node.id) ? <div className="menu-hint">{canvasExtractionIssue(page, node.id)}</div> : null}
+          <DropdownMenu.Item disabled={multi || !!meta?.inherited || !!canvasExtractionIssue(page, node.id, resources.sizes)} title={canvasExtractionIssue(page, node.id, resources.sizes) ?? "保存为组件并保留关联引用"} onSelect={action(() => onSaveToCanvas(node.id))}><Package size={14} /><span>存到画布</span></DropdownMenu.Item>
+          {canvasExtractionIssue(page, node.id, resources.sizes) ? <div className="menu-hint">{canvasExtractionIssue(page, node.id, resources.sizes)}</div> : null}
         </>}
       </> : null}
       {protectedStructure ? <div className="menu-hint">源组件节点不能删除、剪切、换父或转换类型；可隐藏或编辑源组件。</div> : null}

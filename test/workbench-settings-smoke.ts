@@ -8,6 +8,7 @@ import { PsdExportController } from "../src/psd-export-controller";
 import { EXPORT_SETTINGS_KEY, LEGACY_RESOURCE_DIRECTORY_KEY } from "../shared/workbench-settings";
 import { RESOURCE_MANIFEST, makeSliceExportBatch } from "../shared/psd-export";
 import type { PsdAsset } from "../shared/psd-meta";
+import { readWorkbenchSlices } from "../src/slice-resource-controller";
 
 export async function settingsChecks(api: { psd: PsdEditorProvider }, root: string, directory: string): Promise<string[]> {
   const checks: string[] = [], settings = api.psd.settings;
@@ -20,6 +21,7 @@ export async function settingsChecks(api: { psd: PsdEditorProvider }, root: stri
   const batch = makeSliceExportBatch(asset), filename = batch.items[0].name + ".png";
   try {
     await settings.set("resources");
+    assert.match((await readWorkbenchSlices(settings, [filename]))[0].error!, /根目录/);
     await assert.rejects(exporter.export(batch), /工作台设置/);
     await Promise.all([settings.set("resources", first), settings.set("prefabs", prefab)]);
     assert.equal(settings.directory("resources")?.toString(), first.toString());
@@ -37,6 +39,14 @@ export async function settingsChecks(api: { psd: PsdEditorProvider }, root: stri
     assert.equal(await nested.export(batch), 1);
     assert.ok(existsSync(join(second.fsPath, "ui/login", filename)));
     assert.ok(existsSync(join(second.fsPath, "ui/login", RESOURCE_MANIFEST)));
+    const loaded = (await readWorkbenchSlices(settings, [`ui/login/${filename}`]))[0];
+    assert.equal(loaded.error, undefined); assert.equal(loaded.description?.source.documentId, asset.documentId);
+    assert.deepEqual(Buffer.from(loaded.base64!, "base64"), readFileSync(join(second.fsPath, "ui/login", filename)));
+    const missing = (await readWorkbenchSlices(settings, ["ui/login/img_missing.png"]))[0];
+    assert.equal(missing.exists, false); assert.match(missing.error!, /不存在/);
+    const unsafe = (await readWorkbenchSlices(settings, ["../private.png"]))[0];
+    assert.match(unsafe.error!, /相对 PNG/);
+    checks.push("preview loads real PNG and provenance from resource root plus relative directory", "preview reports missing roots and files without fallback", "preview rejects traversal before resource filesystem access");
     relativeDirectory = "ui/inventory";
     assert.equal(await nested.export(batch), 1);
     assert.equal(nested.directoryLabel, join(second.fsPath, "ui/inventory"));
@@ -67,8 +77,11 @@ export async function settingsChecks(api: { psd: PsdEditorProvider }, root: stri
     assert.equal(controller.directory("resources"), undefined);
     await assert.rejects(reopened.set("resources", vscode.Uri.file(join(first.fsPath, filename))), /文件夹/);
     assert.equal(reopened.directory("resources"), undefined);
+    values.set(EXPORT_SETTINGS_KEY, { version: 1, resources: "invalid" });
+    const invalidSettings = await readWorkbenchSlices(reopened, [filename]);
+    assert.match(invalidSettings[0].error!, /目录/);
     listener.dispose(); controller.dispose(); reopened.dispose();
-    checks.push("settings persist through controller recreation and legacy migration", "folder picker cancellation preserves configuration and broadcasts changes", "invalid directory rejected without restoring cleared legacy path");
+    checks.push("settings persist through controller recreation and legacy migration", "folder picker cancellation preserves configuration and broadcasts changes", "invalid directory rejected without restoring cleared legacy path", "preview returns invalid settings as resource diagnostics");
   } finally {
     await settings.set("resources", resources); await settings.set("prefabs", prefabs);
   }

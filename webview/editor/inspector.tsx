@@ -19,8 +19,10 @@ import type { CanvasNodeInfo } from "../../shared/canvas-instances";
 import { TextControls } from "./text-controls";
 import { ReferenceBar } from "./reference-bar";
 import type { CanvasOverrideManager } from "./override-panel";
+import { SliceBindingField } from "../runtime/binding-field";
+import { useSliceResources } from "../runtime/resource-context";
 
-export function Inspector({ page, variablePage = page, node, selectedNodes = [], editingPage, onNode, onPage, onColorPreview, onClose, onEnter, onImport, onCreateParts, panelRef, panelStyle, referenceError, referenceName, overrideManager, onOpenSource, referenceMeta, overrideActions }: {
+export function Inspector({ page, variablePage = page, node, selectedNodes = [], editingPage, onNode, onPage, onColorPreview, onClose, onEnter, onImport, onCreateParts, panelRef, panelStyle, referenceError, referenceName, overrideManager, onOpenSource, referenceMeta, overrideActions, onPsd }: {
   variablePage?: GameFlowPage;
   page: GameFlowPage; node: GameFlowNode | null; editingPage: boolean;
   selectedNodes?: GameFlowNode[];
@@ -30,19 +32,21 @@ export function Inspector({ page, variablePage = page, node, selectedNodes = [],
   onColorPreview: (preview: ColorPreview | null) => void;
   onClose: () => void; onEnter: () => void; onImport: () => void;
   onCreateParts: () => void;
+  onPsd: () => void;
   referenceError?: string; onOpenSource: () => void;
   referenceName?: string; overrideManager?: CanvasOverrideManager;
   referenceMeta?: CanvasNodeInfo; overrideActions?: OverrideActions;
 }) {
   const [collapsed, setCollapsed] = useState(false);
   const locked = node ? inheritedFlag(page, node, "locked") : false;
-  const geometry = resolvePageLayout(page);
+  const resources = useSliceResources();
+  const geometry = resolvePageLayout(page, resources.sizes);
   const frame = node ? geometry.nodes.get(node.id)!.local : page.frame;
   const parent = page.nodes.find((n) => n.id === node?.parentId);
   const identityLabel = node ? `${NODE_LABELS[node.type]}(${COMPONENTS[node.type].laya})` : `${page.kind === "modal" ? "弹窗" : "页面"}(${pageRootType(page)})`;
   const appearance = { ...defaultStyle(node?.type ?? "rectangle"), ...node?.style };
   const setFrame = (key: keyof Frame, value: string) => {
-    if (node) onPage((item) => editNodeFrame(item, node.id, { ...frame, [key]: Number(value) }));
+    if (node) onPage((item) => editNodeFrame(item, node.id, { ...frame, [key]: Number(value) }, "resize", resources.sizes));
     else if (!editingPage || key === "width" || key === "height") onPage((item) => ({ ...item, frame: { ...item.frame, [key]: Number(value) } }));
   };
   const setStyle = (patch: Partial<NodeStyle>) => { if (node) onNode(node.id, { style: { ...node.style, ...patch } }); };
@@ -73,7 +77,7 @@ export function Inspector({ page, variablePage = page, node, selectedNodes = [],
       <NumericPropertyRow label="位置" integer disabled={locked} fields={(["x", "y"] as const).map(key => ({ axis: key.toUpperCase(), ariaLabel: key.toUpperCase(), value: !node && editingPage ? 0 : frame[key], readOnly: !node && editingPage, disabled: !!node && (!!sliderOwner(page, node) || managedAxis(parent, key) || (flowType(parent) !== "free" && node.layout?.crossAxisMode !== "explicit" && !constraintsFor(key).some(k => node.layout?.[k] != null))), onCommit: value => setFrame(key, String(value)) }))} />
       <NumericPropertyRow label="尺寸" integer disabled={locked} fields={(["width", "height"] as const).map(key => ({ axis: key === "width" ? "W" : "H", ariaLabel: key === "width" ? "W" : "H", value: frame[key], min: 8, onCommit: value => setFrame(key, String(value)) }))} />
       {node ? <>
-        {([{ label: "锚点", keys: ["anchorX", "anchorY"], initial: 0 }, { label: "缩放", keys: ["scaleX", "scaleY"], initial: 1 }, { label: "倾斜", keys: ["skewX", "skewY"], initial: 0 }, { label: "旋转", keys: ["rotation"], initial: 0 }] as const).map(row => <NumericPropertyRow key={row.label} label={row.label} precision={2} disabled={locked} fields={row.keys.map((key, i) => ({ axis: key === "rotation" ? "°" : i ? "Y" : "X", ariaLabel: key === "rotation" ? "旋转角度" : `${row.label} ${i ? "Y" : "X"}`, value: node.transform?.[key] ?? row.initial, ...(row.label === "锚点" ? { min: 0, max: 1 } : {}), onCommit: value => key === "anchorX" || key === "anchorY" ? onPage(item => setNodeAnchor(item, node.id, { [key]: value })) : onNode(node.id, { transform: { ...node.transform, [key]: value } }) }))} />)}
+        {([{ label: "锚点", keys: ["anchorX", "anchorY"], initial: 0 }, { label: "缩放", keys: ["scaleX", "scaleY"], initial: 1 }, { label: "倾斜", keys: ["skewX", "skewY"], initial: 0 }, { label: "旋转", keys: ["rotation"], initial: 0 }] as const).map(row => <NumericPropertyRow key={row.label} label={row.label} precision={2} disabled={locked} fields={row.keys.map((key, i) => ({ axis: key === "rotation" ? "°" : i ? "Y" : "X", ariaLabel: key === "rotation" ? "旋转角度" : `${row.label} ${i ? "Y" : "X"}`, value: node.transform?.[key] ?? row.initial, ...(row.label === "锚点" ? { min: 0, max: 1 } : {}), onCommit: value => key === "anchorX" || key === "anchorY" ? onPage(item => setNodeAnchor(item, node.id, { [key]: value }, resources.sizes)) : onNode(node.id, { transform: { ...node.transform, [key]: value } }) }))} />)}
         <SliderPropertyRow label="不透明度" value={appearance.opacity} disabled={locked} onCommit={opacity => setStyle({ opacity })} />
         {!geometry.nodes.get(node.id)!.inverse ? <p className="property-hint">变换使控件压扁，画布拖动暂不可用；调整缩放或倾斜可恢复。</p> : null}
         {locked ? <div className="locked-message"><LockKeyhole size={13} />控件已锁定，请在图层树中解锁</div> : null}
@@ -88,7 +92,7 @@ export function Inspector({ page, variablePage = page, node, selectedNodes = [],
           <TextControls style={appearance} valign={node.widget?.valign ?? (node.type === "text" ? "top" : "middle")} disabled={locked} onStyle={setStyle} onVertical={valign => onNode(node.id, { widget: { ...node.widget, valign } })} />
           <LabelProperties node={node} locked={locked} onNode={onNode} /><Separator />
         </> : null}
-        {node.type === "image" ? <Button variant="outline" size="sm" disabled={locked} onClick={onImport}><ImagePlus size={14} />{node.imageData ? "替换图片" : "导入图片"}</Button> : null}
+        {node.type === "image" ? <><SliceBindingField node={node} disabled={locked} onChange={sliceResource => onNode(node.id, { sliceResource })} onPsd={onPsd} /><Button variant="outline" size="sm" disabled={locked} onClick={onImport}><ImagePlus size={14} />{node.imageData ? "替换图片" : "导入图片"}</Button></> : null}
         {!node.prefab ? <><div className="property-section-title">外观</div>
         <ColorField label="填充" value={appearance.fill} disabled={locked} onPreview={value => previewColor("fill", value)} onCommit={(fill) => setStyle({ fill })} />
         <Button variant="ghost" size="sm" className="transparent-button" disabled={locked} onClick={() => setStyle({ fill: "transparent" })}>设为透明</Button>

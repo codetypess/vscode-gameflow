@@ -8,6 +8,7 @@ import { CanvasReferenceController, type CanvasDocumentAccess, type CanvasText }
 import { PsdEditorProvider } from "./psd-editor-provider";
 import { bytesHash } from "./psd-document-model";
 import { WorkbenchDocument } from "./workbench-document";
+import { readWorkbenchSlices } from "./slice-resource-controller";
 
 export const GAMEFLOW_EDITOR_VIEW_TYPE = "gameflow.canvasEditor";
 const explain = (error: unknown) => error instanceof Error ? error.message : String(error);
@@ -172,6 +173,8 @@ export class GameFlowEditorProvider implements vscode.CustomEditorProvider<Workb
             this.changes.fire({ document: doc, label: "恢复工作台草稿", undo: () => restore(doc.baseline), redo: () => restore(recovered) }); this.checkpoint(doc);
           }
           for (const psd of doc.psds.values()) if (psd !== doc.currentPsd) this.psd.announce(psd);
+        } else if (raw.type === "sliceResources") {
+          await panel.webview.postMessage({ type: "sliceResourcesResult", requestId: raw.requestId, resources: await readWorkbenchSlices(this.psd.settings, raw.paths) } satisfies HostToWebviewMessage);
         } else if (raw.type === "workbenchFlushed") doc.flushes.get(raw.requestId)?.();
         else if (raw.type === "openPsdEditor") { if (!doc.currentPsd) await this.openPsd(doc); }
         else if (raw.type === "chooseCanvasSource") await references.choose();

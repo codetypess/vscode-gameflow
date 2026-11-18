@@ -2,8 +2,8 @@ import type { OverrideActions } from "./editor/override-properties";
 import { canvasPropertyLabel } from "./editor/override-properties";
 import type { CanvasOverrideGroup, CanvasOverrideManager } from "./editor/override-panel";
 import { sliderOwner } from "../shared/ui-parts";
-import { ArrowLeft, Box, Check, ChevronDown, ChevronRight, Focus, GitMerge, Layers3, LayoutDashboard, LayoutPanelTop, Minus, MousePointerClick, PanelRight, Plus, Redo2, Save, Scissors, SquareDashed, Undo2 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { ArrowLeft, Box, Check, ChevronDown, ChevronRight, Focus, GitMerge, Layers3, LayoutDashboard, LayoutPanelTop, Minus, MousePointerClick, PanelRight, Play, Plus, Redo2, Save, Scissors, SquareDashed, Undo2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import type { Frame, GameFlowNode, GameFlowPage, PageRootType } from "../shared/model";
 import { allocateElementId, reserveDocumentElementIds } from "../shared/element-id";
 import { createControlParts, descendants, duplicatePage, inheritedFlag, insertNode, makeComponent, NODE_LABELS, removePage, type Handle, type InsertType, type LayerDrop } from "../shared/editor-ops";
@@ -42,6 +42,11 @@ import { commonSelectionParent, copySelection, duplicateSelection, moveSelection
 import { applyColorPreview, type ColorPreview } from "./lib/color-edit";
 import { composeCanvasPage, editCanvasPage, canvasStructureIssue, findOwnedCanvasNode, revertCanvasProperties, revertCanvasSelections, planCanvasApply, changeCanvasAddition, canvasFingerprint, type CanvasApplyRequest, type CanvasOrphan, copyCanvasSelection, copyCanvasOrphan, extractCanvasSelection } from "../shared/canvas-instances";
 import { readProperty, sameTarget, type CanvasTarget, type CanvasPropertySelection } from "../shared/canvas-instance-data";
+import type { PsdAsset } from "../shared/psd-meta";
+import { sliceGenerationStamp } from "./psd/slice-render";
+import { useRuntimeResources } from "./runtime/resources";
+import { SliceResourcesProvider } from "./runtime/resource-context";
+import { RuntimePreview } from "./runtime/preview";
 
 type Tool = "select" | "hand" | InsertType;
 type Camera = { x: number; y: number; zoom: number };
@@ -92,6 +97,16 @@ export function App() {
   const [sources, setSources] = useState<CanvasSources>({});
   const [pickerSource, setPickerSource] = useState<string | null>(null);
   const [clipboard, setClipboard] = useState<NodeClipboard | null>(null);
+  const [runtimeOpen, setRuntimeOpen] = useState(false);
+  const [psdAssets, setPsdAssets] = useState<PsdAsset[]>([]);
+  const observePsd = useCallback((asset: PsdAsset) => setPsdAssets(previous => {
+    const index = previous.findIndex(a => a.documentId === asset.documentId);
+    if (index >= 0 && sliceGenerationStamp(previous[index]) === sliceGenerationStamp(asset)) return previous;
+    return [...previous.filter(a => a.documentId !== asset.documentId), asset];
+  }), []);
+  const resourcePages = useMemo(() => canvasDocument?.pages.map(p => composeCanvasPage(canvasDocument, p, sources).page) ?? [], [canvasDocument, sources]);
+  const runtimeResources = useRuntimeResources(psdAssets, resourcePages, canvasDocument?.exportDirectory, settings.settings.resourceDirectory);
+  const pageLayout = (page: GameFlowPage) => resolvePageLayout(page, runtimeResources.sizes);
   const canonicalPage = canvasDocument?.pages.find((item) => item.id === (editingId ?? selectedPageId)) ?? null;
   const composition = useMemo(() => canvasDocument && canonicalPage ? composeCanvasPage(canvasDocument, canonicalPage, sources) : null, [canvasDocument, canonicalPage, sources]);
   const page = composition?.page ?? null;
@@ -269,7 +284,7 @@ export function App() {
     const id = makeId();
     updatePage(editingId, (item) => {
       const parent = item.nodes.find((node) => node.id === parentId);
-      const bounds = parent ? resolvePageLayout(item).nodes.get(parent.id)!.local : item.frame;
+      const bounds = parent ? pageLayout(item).nodes.get(parent.id)!.local : item.frame;
       const offset = item.nodes.filter((node) => node.parentId === parentId).length % 4 * 12;
       const nodes = makeComponent(type, id, bounds.width / 2 + offset, bounds.height / 2 + offset, makeId);
       const inserted = insertNode(item, nodes[0], parentId, afterId);
@@ -288,10 +303,10 @@ export function App() {
     updatePage(editingId, () => next);
     setSelection(previous => reconcileSelection(next, previous));
   };
-  const moveLayer = (id: string, target: LayerDrop) => { if (editingId) updatePage(editingId, item => moveSelection(item, selectedNodeIds.includes(id) ? selectedNodeIds : [id], target)); };
+  const moveLayer = (id: string, target: LayerDrop) => { if (editingId) updatePage(editingId, item => moveSelection(item, selectedNodeIds.includes(id) ? selectedNodeIds : [id], target, runtimeResources.sizes)); };
   const copyLayer = (id: string) => {
     const currentPage = readPage(editingId);
-    if (currentPage && composition) { try { setClipboard(copyCanvasSelection(read()!, composition, selectedNodeIds.includes(id) ? selectedNodeIds : [id])); } catch(error) {setNotice(String(error));} }
+    if (currentPage && composition) { try { setClipboard(copyCanvasSelection(read()!, composition, selectedNodeIds.includes(id) ? selectedNodeIds : [id], runtimeResources.sizes)); } catch(error) {setNotice(String(error));} }
   };
   const pasteLayer = (parentId?: string, afterId?: string) => {
     const currentPage = readPage(editingId);
@@ -304,17 +319,17 @@ export function App() {
     const node = currentPage?.nodes.find((item) => item.id === id);
     if (!currentPage || !node || inheritedFlag(currentPage, node, "locked")) return;
     const ids = selectedNodeIds.includes(id) ? selectedNodeIds : [id];
-    const copies = composition && read() ? copyCanvasSelection(read()!,composition,ids) : null;
+    const copies = composition && read() ? copyCanvasSelection(read()!,composition,ids,runtimeResources.sizes) : null;
     const result = copies && copies.nodes.some(node => node.prefab) ? pasteNode(currentPage,copies,newIds(),commonSelectionParent(currentPage,ids) ?? undefined) : duplicateSelection(currentPage,ids,newIds());
     if (result.ids?.length) { updatePage(currentPage.id, () => result.page); selectNodes(result.ids); }
   };
-  const convertLayer = (id: string, type: InsertType) => { if (editingId) updatePage(editingId, (item) => convertNodeType(item, id, type)); };
+  const convertLayer = (id: string, type: InsertType) => { if (editingId) updatePage(editingId, (item) => convertNodeType(item, id, type, runtimeResources.sizes)); };
   const saveToCanvas = (id: string) => {
     if (!editingId) return;
     const makeId = newIds();
     edit(document => {
       try {
-        const next = extractCanvasSelection(document, editingId, sources, id, makeId);
+        const next = extractCanvasSelection(document, editingId, sources, id, makeId, runtimeResources.sizes);
         setNotice("已存为画布组件，原位置保留关联引用。"); return next;
       } catch (error) { setNotice(error instanceof Error ? error.message : String(error)); return document; }
     });
@@ -336,7 +351,7 @@ export function App() {
     const sourceDocument = source ? sources[source]?.document : document;
     const definition = sourceDocument?.pages.find(p => p.id === pageId);
     if (!document || !current || !sourceDocument || !definition) { setNotice("请先进入目标页面。"); return; }
-    const node = makeCanvasInstance(sourceDocument, definition, source, newIds()());
+    const node = makeCanvasInstance(sourceDocument, definition, source, newIds()(), runtimeResources.sizes);
     const next = insertNode(current, node, scopeId ?? undefined);
     if (next === current) { setNotice("当前容器已锁定，无法添加引用。"); return; }
     updatePage(current.id, () => next); selectNode(node.id); setPickerSource(null); setTool("select");
@@ -407,7 +422,7 @@ export function App() {
     });
   };
   useEffect(() => {
-    if (mode !== "prototype") return;
+    if (mode !== "prototype" || runtimeOpen) return;
     const keydown = (event: KeyboardEvent) => {
       if (pickerSource !== null) return;
       if ((event.target as Element).closest("[role=menu], dialog[open]")) return;
@@ -436,12 +451,12 @@ export function App() {
         event.preventDefault(); const node = selectedNode;
         if (selectedNodeIds.length > 1) {
           const step = event.shiftKey ? 10 : 1;
-          updatePage(page.id, item => translateSelection(item, selectedNodeIds, key === "arrowleft" ? -step : key === "arrowright" ? step : 0, key === "arrowup" ? -step : key === "arrowdown" ? step : 0, "nudge")); return;
+          updatePage(page.id, item => translateSelection(item, selectedNodeIds, key === "arrowleft" ? -step : key === "arrowright" ? step : 0, key === "arrowup" ? -step : key === "arrowdown" ? step : 0, "nudge", runtimeResources.sizes)); return;
         }
         if (node && inheritedFlag(page, node, "locked")) return;
-        const frame = node ? resolvePageLayout(page).nodes.get(node.id)!.local : page.frame, step = event.shiftKey ? 10 : 1;
+        const frame = node ? pageLayout(page).nodes.get(node.id)!.local : page.frame, step = event.shiftKey ? 10 : 1;
         const next = { ...frame, x: frame.x + (key === "arrowleft" ? -step : key === "arrowright" ? step : 0), y: frame.y + (key === "arrowup" ? -step : key === "arrowdown" ? step : 0) };
-        if (node) updatePage(page.id, (item) => editNodeFrame(item, node.id, next, "nudge")); else if (!editingId) updatePage(page.id, (item) => ({ ...item, frame: { ...next, x: Math.round(next.x), y: Math.round(next.y) } })); return;
+        if (node) updatePage(page.id, (item) => editNodeFrame(item, node.id, next, "nudge", runtimeResources.sizes)); else if (!editingId) updatePage(page.id, (item) => ({ ...item, frame: { ...next, x: Math.round(next.x), y: Math.round(next.y) } })); return;
       }
       if (command || event.altKey) return;
       if (key === "+") { event.preventDefault(); addPage(); return; }
@@ -483,7 +498,7 @@ export function App() {
         } else {
           selectNode(node.id);
           if (inheritedFlag(latestPage, node, "locked") || (!handle && sliderOwner(latestPage, node))) return;
-          const g = resolvePageLayout(latestPage).nodes.get(node.id)!; if (!g.inverse) return;
+          const g = pageLayout(latestPage).nodes.get(node.id)!; if (!g.inverse) return;
           kind = handle ? "resize" : "node"; frame = g.local; transform = { node, matrix: g.matrix, parentMatrix: g.parentMatrix }; nodeId = node.id; pageId = latestPage.id;
         }
       }
@@ -508,7 +523,7 @@ export function App() {
     if (!current || cancel) return;
     if (!current.moved) { if (current.collapseId) selectNode(current.collapseId); return; }
     if (current.kind === "pan") setCamera({ ...current.camera, x: current.next.x, y: current.next.y });
-    else if (current.pageId) updatePage(current.pageId, (item) => current.kind === "page" ? { ...item, frame: current.next } : current.nodeIds ? translateSelection(item, current.nodeIds, current.next.x, current.next.y) : editNodeFrame(item, current.nodeId!, current.next, current.kind === "resize" ? "resize" : "move"));
+    else if (current.pageId) updatePage(current.pageId, (item) => current.kind === "page" ? { ...item, frame: current.next } : current.nodeIds ? translateSelection(item, current.nodeIds, current.next.x, current.next.y, "move", runtimeResources.sizes) : editNodeFrame(item, current.nodeId!, current.next, current.kind === "resize" ? "resize" : "move", runtimeResources.sizes));
   };
   const requestImport = () => { if (page && selectedNode?.type === "image") { importTarget.current = { pageId: page.id, nodeId: selectedNode.id }; fileInput.current?.click(); } };
   const importImage = async (file?: File) => {
@@ -516,7 +531,7 @@ export function App() {
     if (!["image/png", "image/jpeg", "image/webp", "image/gif"].includes(file.type) || file.size > 5 * 1024 * 1024) { setNotice("请选择 5 MB 以内的 PNG、JPEG、WebP 或 GIF 图片"); return; }
     try {
       const imageData = await new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = reject; reader.readAsDataURL(file); });
-      updatePage(target.pageId, (item) => ({ ...item, nodes: item.nodes.map((node) => node.id === target.nodeId && !inheritedFlag(item, node, "locked") ? { ...node, imageData } : node) }));
+      updatePage(target.pageId, (item) => ({ ...item, nodes: item.nodes.map((node) => node.id === target.nodeId && !inheritedFlag(item, node, "locked") ? { ...node, imageData, sliceResource: undefined } : node) }));
     } catch { setNotice("图片读取失败，请重试"); }
   };
   const visibleCamera = preview?.kind === "pan" ? { ...camera, x: preview.next.x, y: preview.next.y } : camera;
@@ -527,11 +542,11 @@ export function App() {
     width: panelPageFrame.width * visibleCamera.zoom
   } : null, !!editingId, inspectorOpen, 48);
   let renderPage = page;
-  if (preview?.nodeIds && preview.sourcePage) renderPage = translateSelection(preview.sourcePage, preview.nodeIds, preview.next.x, preview.next.y);
-  if (renderPage && preview?.nodeId && preview.pageId === renderPage.id) renderPage = editNodeFrame(renderPage, preview.nodeId, preview.next, preview.kind === "resize" ? "resize" : "move");
+  if (preview?.nodeIds && preview.sourcePage) renderPage = translateSelection(preview.sourcePage, preview.nodeIds, preview.next.x, preview.next.y, "move", runtimeResources.sizes);
+  if (renderPage && preview?.nodeId && preview.pageId === renderPage.id) renderPage = editNodeFrame(renderPage, preview.nodeId, preview.next, preview.kind === "resize" ? "resize" : "move", runtimeResources.sizes);
   if (renderPage) renderPage = applyColorPreview(renderPage, colorPreview);
   const renderedNode = renderPage?.nodes.find((node) => node.id === selectedNodeId);
-  const selectionLayout = renderPage ? resolvePageLayout(renderPage) : null;
+  const selectionLayout = renderPage ? pageLayout(renderPage) : null;
   const selectedGeometry = selectedNodeIds.length === 1 && editingId && renderPage && renderedNode && !inheritedFlag(renderPage, renderedNode, "hidden") ? selectionLayout!.nodes.get(renderedNode.id)! : null;
   const selectionX = selectedGeometry ? Math.hypot(selectedGeometry.matrix[0], selectedGeometry.matrix[1]) : 1;
   const selectionY = selectedGeometry ? Math.hypot(selectedGeometry.matrix[2], selectedGeometry.matrix[3]) : 1;
@@ -566,7 +581,7 @@ export function App() {
     onRevert:selections=>changeOverrideSelection(selections,false),onApply:selections=>changeOverrideSelection(selections,true)
   } : undefined;
 
-  return <TooltipProvider delayDuration={300}><main className="app-shell">
+  return <SliceResourcesProvider value={runtimeResources}><TooltipProvider delayDuration={300}><main className="app-shell">
     <header className="topbar"><span className="brand-mark"><Layers3 size={18} /></span><strong>工作台</strong><Separator orientation="vertical" className="topbar-separator" />
       <div ref={setDocumentActions} className="workbench-document-actions" role="group" aria-label="文档操作">{mode === "prototype" ? <>
         <IconTool label="撤销 (Ctrl+Z)" disabled={pending || !canvasDocument} onClick={() => history("undo")}><Undo2 size={15} /></IconTool>
@@ -577,7 +592,7 @@ export function App() {
       {mode === "prototype" && editingId && page ? <><Button size="sm" variant="ghost" onClick={back}><ArrowLeft size={14} />总览</Button><span className="breadcrumb">/</span></> : null}
       <span className="document-title">{mode === "prototype" ? editingId ? page?.name : canvasDocument?.title ?? "正在打开画布" : "美术工作区"}</span>
       <nav className="mode-switcher" aria-label="工作模式">{([{ id: "prototype", label: "原型", icon: LayoutPanelTop }, { id: "merge", label: "PSD 合并", icon: GitMerge }, { id: "slice", label: "PSD 切图", icon: Scissors }] as const).map(({ icon: Icon, ...item }) => <Tooltip key={item.id}><TooltipTrigger asChild><Button size="icon" variant="ghost" aria-label={item.label} aria-pressed={mode === item.id} className={mode === item.id ? "mode-active" : ""} onClick={() => switchMode(item.id)}><Icon size={16} aria-hidden="true" /></Button></TooltipTrigger><TooltipContent side="bottom">{item.label}</TooltipContent></Tooltip>)}</nav>
-      <div className="workbench-right"><div ref={setExportActions} className="workbench-export-actions" /><WorkbenchSettingsButton settings={settings} /></div>
+      <div className="workbench-right"><div ref={setExportActions} className="workbench-export-actions" /><IconTool label="运行预览" disabled={!canvasDocument?.pages.length} onClick={() => { switchMode("prototype"); setRuntimeOpen(true); }}><Play size={16} /></IconTool><WorkbenchSettingsButton settings={settings} /></div>
     </header>
     <WorkbenchSettingsPanel settings={settings} file={canvasDocument ? { directory: canvasDocument.exportDirectory, name: resourceName || canvasDocument.title, change: exportDirectory => edit(document => ({ ...document, exportDirectory })) } : undefined} />
     <div ref={viewport} tabIndex={-1} hidden={mode !== "prototype"} className={cn("canvas-viewport", (tool === "hand" || spaceHand) && "hand-tool", preview?.kind === "pan" && "is-panning", (preview?.kind === "node" || preview?.kind === "page") && "is-moving")} aria-label={editingId ? "页面编辑画布" : "页面总览画布"}
@@ -602,7 +617,7 @@ export function App() {
           {(editingId ? renderPage ? [renderPage] : [] : canvasDocument.pages.map(item => applyColorPreview(item, colorPreview))).map((item) => {
             const frame = preview?.kind === "page" && preview.pageId === item.id ? preview.next : item.frame;
             const projection = editingId ? null : composeCanvasPage(canvasDocument, item, sources), visualPage = projection?.page ?? item;
-            const geometry = resolvePageLayout(visualPage);
+            const geometry = pageLayout(visualPage);
             const nodes = orderedNodes(visualPage), activeNodes = editingId && scopeId && !directSelection ? descendants(visualPage, scopeId) : null;
             const backgroundNodes = nodes.filter(node => !activeNodes?.has(node.id));
             const foregroundNodes = activeNodes ? nodes.filter(node => activeNodes.has(node.id)) : [];
@@ -643,7 +658,7 @@ export function App() {
           <CanvasViewItems onFit={()=>{setCanvasMenu(null);fit([page],true);}} onBack={()=>{setCanvasMenu(null);if(scopeId){const current=scopePath.at(-1)!;navigateScope(current.parentId ?? null,current.id);}else back();}} backLabel={scopeId ? "返回上一级" : "返回总览"}/>
         </LayerMenu> : <CanvasOverviewMenu target={canvasMenu?.kind === "overview" ? canvasMenu.target : null} page={canvasDocument.pages.find(item=>item.id===canvasMenu?.pageId)} onClose={()=>setCanvasMenu(null)} onRestoreFocus={restoreCanvasFocus}
           onEnter={()=>{const target=canvasDocument.pages.find(item=>item.id===canvasMenu?.pageId);if(target)enter(target);}} onRename={()=>beginCanvasRename()} onDuplicate={duplicate} onDelete={remove} onAddPage={addPage} onFit={()=>fit(canvasDocument.pages,false)} />}
-        {page && inspectorOpen ? <Inspector variablePage={{...page,nodes:page.nodes.filter(node=>composition?.info.get(node.id)?.scope===selectedMeta?.scope)}} referenceMeta={selectedMeta} referenceName={referenceName} overrideManager={overrideManager} overrideActions={overrideActions} onOpenSource={() => { if (selectedNode) openSource(selectedNode.id); }} referenceError={selectedMeta?.ownerId ? composition?.errors.get(selectedMeta.ownerId) : undefined} onColorPreview={setColorPreview} selectedNodes={page.nodes.filter(node => selectedNodeIds.includes(node.id))} onCreateParts={() => { if (editingId && selectedNodeId) { const makeId = newIds(); updatePage(editingId, item => createControlParts(item, selectedNodeId, makeId)); } }} panelRef={panels.rightRef} panelStyle={panels.rightStyle} page={page} node={selectedNode} editingPage={!!editingId} onNode={patchNode} onPage={(transform) => updatePage(page.id, transform)} onClose={() => setInspectorOpen(false)} onEnter={() => enter(page)} onImport={requestImport} /> : null}
+        {page && inspectorOpen ? <Inspector onPsd={() => switchMode("slice")} variablePage={{...page,nodes:page.nodes.filter(node=>composition?.info.get(node.id)?.scope===selectedMeta?.scope)}} referenceMeta={selectedMeta} referenceName={referenceName} overrideManager={overrideManager} overrideActions={overrideActions} onOpenSource={() => { if (selectedNode) openSource(selectedNode.id); }} referenceError={selectedMeta?.ownerId ? composition?.errors.get(selectedMeta.ownerId) : undefined} onColorPreview={setColorPreview} selectedNodes={page.nodes.filter(node => selectedNodeIds.includes(node.id))} onCreateParts={() => { if (editingId && selectedNodeId) { const makeId = newIds(); updatePage(editingId, item => createControlParts(item, selectedNodeId, makeId)); } }} panelRef={panels.rightRef} panelStyle={panels.rightStyle} page={page} node={selectedNode} editingPage={!!editingId} onNode={patchNode} onPage={(transform) => updatePage(page.id, transform)} onClose={() => setInspectorOpen(false)} onEnter={() => enter(page)} onImport={requestImport} /> : null}
         <div className="canvas-context">{editingId ? scopePath.at(-1) ? `编辑 ${scopePath.at(-1)!.name} 的子节点` : "页面编辑" : `${canvasDocument.pages.length} 个页面`}<span>{tool === "select" ? editingId ? directSelection ? "点击直接选择子节点 · 双击容器进入" : "双击容器进入 · 双击空白退一级" : "双击页面进入编辑" : tool === "hand" || spaceHand ? "拖动画布" : `点击页面放置${NODE_LABELS[tool]}`}</span></div>
         {canvasDocument.pages.length === 0 ? <div className="empty-canvas"><LayoutPanelTop size={32} /><strong>从第一个页面开始</strong><p>用底部 + 添加游戏界面</p><Button onClick={() => addPage()}><Plus size={15} />添加页面</Button></div> : null}
         <div className="canvas-toolbar floating-panel" onPointerDown={(event) => event.stopPropagation()}>
@@ -671,7 +686,8 @@ export function App() {
       {canvasDocument && pickerSource !== null ? <CanvasReferencePicker document={canvasDocument} sources={sources} source={pickerSource} currentPageId={editingId ?? undefined} onSource={setPickerSource} onPick={insertReference} onClose={() => setPickerSource(null)} /> : null}
     </div>
     <PsdWorkspace mode="merge" active={mode === "merge"} settings={settings} />
-    <PsdWorkspace mode="slice" active={mode === "slice"} binding={psdEditor.binding} documentActions={documentActions} exportActions={exportActions} settings={settings} exportDirectory={canvasDocument?.exportDirectory} exportPending={pending} />
+    <PsdWorkspace mode="slice" active={mode === "slice" && !runtimeOpen} binding={psdEditor.binding} documentActions={documentActions} exportActions={exportActions} settings={settings} exportDirectory={canvasDocument?.exportDirectory} exportPending={pending} onAsset={observePsd} />
+    {runtimeOpen ? <RuntimePreview pages={resourcePages} initialPageId={editingId ?? selectedPageId ?? undefined} assets={psdAssets} onClose={() => setRuntimeOpen(false)} /> : null}
     {psdEditor.initialError && mode === "slice" ? <div className="psd-status psd-warning" role="alert">{psdEditor.initialError}</div> : null}
-  </main></TooltipProvider>;
+  </main></TooltipProvider></SliceResourcesProvider>;
 }
