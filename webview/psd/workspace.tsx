@@ -6,6 +6,7 @@ import { identityProblems, makeSidecar, newLayerIdentity, selectedMergeTree, sid
 import type { WorkbenchSettingsUI } from "../workbench-settings";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
+import { AtlasNameInput } from "./atlas-name-input";
 import { isBrowserPreview, postHostMessage } from "../vscode-api";
 import { openPsd, psdTask, saveOutput } from "./io";
 import { NineGridEditor, NineGridPreview } from "./nine-grid-editor";
@@ -178,10 +179,11 @@ export function PsdWorkspace({ mode, active, binding, documentActions, exportAct
         properties={<><div className="floating-heading"><Scissors size={14} /><strong>切图属性</strong></div>{selected ? <div className="psd-properties-content"><div className="psd-section-heading"><strong>{selected.name}</strong><small>{selected.group ? "分组" : `${selected.width} × ${selected.height}`}</small></div><label className="psd-property"><span>图层 ID</span><code>{selected.metadata.layerId}</code></label><label className="psd-property"><span>原生 ID</span><code>{selected.nativeId ?? "无"}</code></label>
           {duplicates.includes(selected.metadata.layerId) ? <div className="psd-warning-box"><AlertTriangle size={14} /><span>此 ID 有多个图层使用。选中副本后分配新身份。</span><Button size="sm" variant="secondary" onClick={() => change(newLayerIdentity(asset, selected.key))}>作为新节点</Button></div> : null}
           {selected.image ? <div className="psd-layer-image checkerboard"><SliceImage layer={selected} /></div> : <p className="psd-hint">选择包含图片的子图层设置切图区域和九宫格。</p>}
+          <label className="psd-property"><span>图集名</span><AtlasNameInput key={asset.sourceHash + asset.documentId} name={asset.name} value={asset.atlasName} disabled={busy} onChange={atlasName => change({ ...asset, atlasName })} /></label>
           {selected.limitation ? <p className="psd-warning">{selected.limitation}</p> : null}
           {allExportIssues.filter(issue => issue.keys.some(key => getChildren(asset, selected.key).some(l => l.key === key))).map((issue, i) => <p key={i} className="psd-warning" role="alert">{issue.message}</p>)}
           <label className="psd-check"><input type="checkbox" checked={selected.config.enabled} disabled={selected.group || !selected.image || !!selected.limitation} onChange={e => patchConfig(selected.key, { enabled: e.target.checked })} />标记为切图</label>
-          <label className="psd-property"><span>导出名称</span><Input aria-label="导出名称" value={selected.config.exportName ?? ""} placeholder={defaultExportName(asset.name, selected.name, selected.config.shared)} title={`${effectiveExportName(asset, selected)}.png`} maxLength={120} aria-invalid={!!selectedNameError} onChange={e => patchConfig(selected.key, { exportName: e.target.value })} /></label>
+          <label className="psd-property"><span>导出名称</span><Input aria-label="导出名称" value={selected.config.exportName ?? ""} placeholder={defaultExportName(asset.name, selected.name, asset.atlasName)} title={`${effectiveExportName(asset, selected)}.png`} maxLength={120} aria-invalid={!!selectedNameError} onChange={e => patchConfig(selected.key, { exportName: e.target.value })} /></label>
           {selectedNameError ? <p className="psd-warning" role="alert">{selectedNameError}</p> : null}
           <label className="psd-check"><input type="checkbox" aria-label="共享资源" checked={selected.config.shared === true} onChange={e => patchConfig(selected.key, { shared: e.target.checked })} />共享资源</label>
           {selected.config.shared ? <p className="psd-hint">导出时覆盖目录中同名资源，并更新来源 PSD。</p> : null}

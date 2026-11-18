@@ -38,10 +38,10 @@ export const psdExportTests: { name: string; run: () => void | Promise<void> }[]
     assert.equal(defaultExportName("Login-UI2.psd", "确认 OK"), "img_login_ui2_qr_ok");
     assert.equal(defaultExportName("登录页面.psd", "服务器底板"), "img_dlym_fwqdb");
     assert.equal(defaultExportName("按钮页面.psd", "图标"), "img_anym_tb");
-    assert.equal(defaultExportName("登录页面.psd", "按钮底图", true), "btn_andt");
-    assert.equal(defaultExportName("登录页面.psd", "服务器底板", true), "img_fwqdb");
-    assert.equal(defaultExportName(".psd", "按钮", true), "btn_an");
-    assert.equal(defaultExportName("登录页面.psd", "★", true), "");
+    assert.equal(defaultExportName("登录页面.psd", "按钮底图", "Common"), "btn_common_andt");
+    assert.equal(defaultExportName("登录页面.psd", "服务器底板", "公共资源"), "img_ggzy_fwqdb");
+    assert.equal(defaultExportName(".psd", "按钮", "Common"), "btn_common_an");
+    assert.equal(defaultExportName("登录页面.psd", "★", "Common"), "");
     assert.equal(defaultExportName(".psd", "按钮"), "");
     assert.equal(defaultExportName("登录.psd", "★"), "");
     assert.equal(exportNameError("btn_01"), null);
@@ -52,10 +52,11 @@ export const psdExportTests: { name: string; run: () => void | Promise<void> }[]
     assert.equal(effectiveExportName(a, l), "btn_dlym_andt"); assert.equal(l.config.exportName, undefined);
     l.config.exportName = "CUSTOM_01"; assert.equal(effectiveExportName(a, l), "custom_01");
     l.config.exportName = ""; assert.equal(effectiveExportName(a, l), "btn_dlym_andt");
-    l.config.shared = true; assert.equal(effectiveExportName(a, l), "btn_andt");
+    l.config.shared = true; assert.equal(effectiveExportName(a, l), "btn_dlym_andt");
+    a.atlasName = "Common"; assert.equal(effectiveExportName(a, l), "btn_common_andt");
     l.config.exportName = "CUSTOM_01"; assert.equal(effectiveExportName(a, l), "custom_01");
     l.config.shared = false; assert.equal(effectiveExportName(a, l), "custom_01");
-    l.config.exportName = ""; assert.equal(effectiveExportName(a, l), "btn_dlym_andt");
+    l.config.exportName = ""; assert.equal(effectiveExportName(a, l), "btn_common_andt");
     assert.equal(l.config.name, "按钮底图");
   } },
   { name: "PSD name/shared settings roundtrip through sidecar and empty override remains empty", run() {
@@ -111,14 +112,15 @@ export const psdExportTests: { name: string; run: () => void | Promise<void> }[]
     assert.equal(d.manifest().resources.length, 1); assert.equal(d.manifest().resources[0].source.documentId, "psd-b");
     await assert.rejects(exportSlicesToDirectory(d, batch(), codec), /psd-b.psd/);
   } },
-  { name: "PSD shared defaults export one resource across PSD names and preserve custom names", async run() {
+  { name: "PSD shared defaults use the same atlas across PSD names and preserve custom names", async run() {
     const d = new MemoryDirectory(), first = asset(); first.layers[0].config.shared = true;
     const second = asset(); second.name = "设置界面.psd"; second.documentId = "psd-b"; second.layers[0].config.shared = true;
+    first.atlasName = "Common"; second.atlasName = "Common";
     const a = makeSliceExportBatch(first), b = makeSliceExportBatch(second);
-    assert.equal(a.items[0].name, "btn_andt"); assert.equal(b.items[0].name, a.items[0].name);
+    assert.equal(a.items[0].name, "btn_common_andt"); assert.equal(b.items[0].name, a.items[0].name);
     assert.equal(first.layers[0].config.exportName, undefined);
     await exportSlicesToDirectory(d, a, codec); await exportSlicesToDirectory(d, b, codec);
-    assert.deepEqual([...d.files.keys()].sort(), ["btn_andt.png", RESOURCE_MANIFEST].sort());
+    assert.deepEqual([...d.files.keys()].sort(), ["btn_common_andt.png", RESOURCE_MANIFEST].sort());
     assert.equal(d.manifest().resources[0].source.psdName, "设置界面.psd");
     second.layers[0].config.exportName = "custom_button";
     assert.equal(makeSliceExportBatch(second).items[0].name, "custom_button");

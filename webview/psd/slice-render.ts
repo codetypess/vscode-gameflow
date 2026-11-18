@@ -6,7 +6,7 @@ import type { SliceResourceDescription, SliceResourceState } from "../../shared/
 export type SliceProduct = SliceResourceState<HTMLCanvasElement>;
 const products = new Map<string, { stamp: string; result: Promise<Map<number, SliceProduct>> }>();
 export function sliceGenerationStamp(asset: PsdAsset): string {
-  return JSON.stringify([asset.documentId, asset.sourceHash, asset.name, asset.layers.map(l => [l.key, l.name, l.metadata.layerId, l.config, l.limitation])]);
+  return JSON.stringify([asset.documentId, asset.sourceHash, asset.name, asset.atlasName, asset.layers.map(l => [l.key, l.name, l.metadata.layerId, l.config, l.limitation])]);
 }
 /** Cache the actual generated canvases: export encodes these same pixels on demand. */
 export function generateSliceProducts(asset: PsdAsset): Promise<Map<number, SliceProduct>> {

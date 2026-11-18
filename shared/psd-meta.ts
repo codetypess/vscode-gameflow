@@ -1,15 +1,32 @@
 import { allocateElementId } from "./element-id";
+import { normalizeAtlasName } from "./psd-naming";
+export { defaultAtlasName } from "./psd-naming";
 
 export type NineGrid = { top: number; right: number; bottom: number; left: number; repeat: boolean };
 export type SliceRegion = { x: number; y: number; width: number; height: number };
 export type SliceConfig = { enabled: boolean; name: string; exportName?: string; shared?: boolean; region?: SliceRegion; nineGrid: NineGrid | null };
-export type PsdLayerMeta = Record<string, unknown> & { namespace: "com.codetypes.gameflow"; version: 1; documentId: string; layerId: string; slicing?: SliceConfig };
+export type PsdLayerMeta = Record<string, unknown> & { namespace: "com.codetypes.gameflow"; version: 1; documentId: string; layerId: string; atlasName?: string; slicing?: SliceConfig };
 export type PsdLayer = { key: number; nativeId: number | null; parentKey: number | null; name: string; group: boolean; left: number; top: number; width: number; height: number; hidden: boolean; identityOrigin: "embedded" | "new"; metadata: PsdLayerMeta; config: SliceConfig; image?: string; text?: boolean; limitation?: string };
-export type PsdAsset = { name: string; sourceHash: string; documentId: string; hasEmbeddedIdentity: boolean; width: number; height: number; layers: PsdLayer[]; preview: string };
-export type PsdSidecar = { schema: "gameflow.psd-meta"; version: 1; documentId: string; source: { name: string; sha256: string; width: number; height: number }; layers: { id: string; sourceKey: number; nativeId: number | null; name: string; config: SliceConfig; metadata: PsdLayerMeta }[] };
+export type PsdAsset = { name: string; atlasName?: string; sourceHash: string; documentId: string; hasEmbeddedIdentity: boolean; width: number; height: number; layers: PsdLayer[]; preview: string };
+export type PsdSidecar = { schema: "gameflow.psd-meta"; version: 1; documentId: string; atlasName?: string; source: { name: string; sha256: string; width: number; height: number }; layers: { id: string; sourceKey: number; nativeId: number | null; name: string; config: SliceConfig; metadata: PsdLayerMeta }[] };
 export const EMPTY_GRID: NineGrid = { top: 0, right: 0, bottom: 0, left: 0, repeat: false };
 export const sidecarName = (name: string) => name.replace(/\.psd$/i, "") + ".meta.json";
 const record = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
+
+export function validAtlasName(value: unknown): value is string | undefined {
+  if (value === undefined) return true;
+  if (typeof value !== "string" || value.length > 120) return false;
+  const canonical = normalizeAtlasName(value);
+  return canonical !== undefined && canonical.length <= 120;
+}
+/** The document value is authoritative; clear stale embedded values when reverting to the default. */
+export function sliceLayerMetadata(asset: Pick<PsdAsset, "atlasName">, layer: Pick<PsdLayer, "metadata" | "config">): PsdLayerMeta {
+  const metadata = { ...layer.metadata, slicing: layer.config };
+  const atlasName = normalizeAtlasName(asset.atlasName);
+  if (atlasName === undefined) delete metadata.atlasName;
+  else metadata.atlasName = atlasName;
+  return metadata;
+}
 
 export const MAX_SLICE_SIZE = 4096;
 export function validSliceRegion(value: unknown): value is SliceRegion {
@@ -95,12 +112,15 @@ export function selectedMergeTree(sources: { A: PsdAsset | null; B: PsdAsset | n
   return { ...base, name: "手动选择结果", layers };
 }
 export function makeSidecar(asset: PsdAsset): PsdSidecar {
+  if (!validAtlasName(asset.atlasName)) throw new Error("图集名须为 1–120 个字符，留空时使用 PSD 文件名。");
   if (identityProblems(asset).length) throw new Error("存在重复 ID，请选中副本并点击“作为新节点”后保存。");
   for (const l of asset.layers) if (!validConfig(l.config, l.width, l.height)) throw new Error(`${l.name} 的切图区域或九宫格范围无效，请重新编辑。`);
-  return { schema: "gameflow.psd-meta", version: 1, documentId: asset.documentId, source: { name: asset.name, sha256: asset.sourceHash, width: asset.width, height: asset.height }, layers: asset.layers.map(l => ({ id: l.metadata.layerId, sourceKey: l.key, nativeId: l.nativeId, name: l.name, config: l.config, metadata: { ...l.metadata, slicing: l.config } })) };
+  const atlasName = normalizeAtlasName(asset.atlasName);
+  return { schema: "gameflow.psd-meta", version: 1, documentId: asset.documentId, ...(atlasName === undefined ? {} : { atlasName }), source: { name: asset.name, sha256: asset.sourceHash, width: asset.width, height: asset.height }, layers: asset.layers.map(l => ({ id: l.metadata.layerId, sourceKey: l.key, nativeId: l.nativeId, name: l.name, config: l.config, metadata: sliceLayerMetadata(asset, l) })) };
 }
 export function applySidecar(asset: PsdAsset, raw: unknown): PsdAsset {
   if (!record(raw) || raw.schema !== "gameflow.psd-meta" || raw.version !== 1 || !record(raw.source) || !Array.isArray(raw.layers)) throw new Error("不是支持的 GameFlow PSD 配置（版本 1）。");
+  if (!validAtlasName(raw.atlasName)) throw new Error("配置中的图集名无效。");
   const exactSource = raw.source.sha256 === asset.sourceHash;
   if (typeof raw.documentId !== "string" || !raw.documentId || (!(!asset.hasEmbeddedIdentity && exactSource) && raw.documentId !== asset.documentId)) throw new Error("配置属于另一个 PSD 文档谱系，不能覆盖当前配置。");
   const imported = new Map<string, Record<string, unknown>>();
@@ -121,6 +141,8 @@ export function applySidecar(asset: PsdAsset, raw: unknown): PsdAsset {
   });
   if ([...imported.keys()].some(id => !consumed.has(id))) throw new Error("配置包含当前 PSD 不存在的图层 ID，请使用对应版本的 PSD。");
   const result = { ...asset, documentId: raw.documentId, layers };
+  if (raw.atlasName === undefined) delete result.atlasName;
+  else result.atlasName = normalizeAtlasName(raw.atlasName);
   if (layers.some(l => l.metadata.documentId !== result.documentId) || identityProblems(result).length) throw new Error("配置未完整恢复身份，存在混合谱系或重复 ID。");
   return result;
 }

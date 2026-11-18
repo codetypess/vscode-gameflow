@@ -33,6 +33,8 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 
 ## Active Work Items
 
+- [psd-atlas-name.md](psd-atlas-name.md) — Done：文件级图集名默认仅作 placeholder，小写/下划线/拼音首字母统一用于输入、旧配置回读与导出；自定义值进入配置/草稿/PSD 副本/历史并刷新运行预览。322 项共享测试、生产构建、真实 PSD 中英文输入/下划线/跨图层/清空及此前窄窗口验收通过。
+
 - [psd-slice-region.md](psd-slice-region.md) — Done：独立导出尺寸、拖动图片/四边线、方向键微调、滚轮缩放、居中/透明留白/裁剪、九宫格区域适配及配置持久化；313 项共享测试、3 项既有浏览器像素检查、生产构建及真实 PSD/360px 窄窗口/草稿重载验收通过；输入框对齐、外侧聚焦框及方向文字移除，弹窗标题栏普通指针拖动与右下角缩放完成。
 
 - [file-export-directory.md](file-export-directory.md) — Done：本机资源/预制体根目录与 GameFlow 顶层 exportDirectory 分离；设置面板按文件编辑相对目录，资源按 root/dir 实际输出。293 项共享测试、33 项宿主检查、生产构建及浏览器输入/取消/重载/小窗口验收通过。
@@ -53,7 +55,7 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 
 - [canvas-context-menu.md](canvas-context-menu.md) — Done：总览画板/空白、页内节点/当前层空白右键菜单，复用图层命令及保护；含右键位置新增、重命名对话框和键盘菜单。244 项测试、生产构建及总览/页内/多选/保护/窄窗口浏览器验收通过。
 
-- [psd-export-names.md](psd-export-names.md) — Done：按图层名选择 btn/img 前缀，非共享默认名包含 PSD 缩写、共享默认名仅含图层缩写；自定义优先，图层树标记冲突，统一目录输出 PNG 及来源清单，共享导出覆盖并更新来源。246 项测试和生产构建通过；此前真实目录服务及浏览器配置/冲突验收通过，原生目录选择器端到端联调未覆盖。
+- [psd-export-names.md](psd-export-names.md) — Done：按图层名选择 btn/img 前缀，默认名统一包含图集与图层缩写（图集规则见 psd-atlas-name）；自定义优先，图层树标记冲突，统一目录输出 PNG 及来源清单，共享导出覆盖并更新来源。246 项测试和生产构建通过；此前真实目录服务及浏览器配置/冲突验收通过，原生目录选择器端到端联调未覆盖。
 
 - [canvas-instance-editing.md](canvas-instance-editing.md) — Done：v5 引用实例展开、局部覆盖/附加节点、专色与“+”标记、属性右键还原/应用到源及继承结构保护；引用区简化为单行，覆盖属性默认双栏，支持跨节点逐字段勾选还原/应用。261 项回归、生产构建、浏览器交互及真实 VS Code 跨文件关联撤销/保存验收通过，保留 v1–v4 读取。
 

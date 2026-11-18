@@ -1,5 +1,5 @@
-import { pinyin } from "pinyin-pro";
-import { identityProblems, sliceRegion, validConfig, validGrid, type NineGrid, type PsdAsset } from "./psd-meta";
+import { defaultAtlasName, identityProblems, sliceRegion, validConfig, validGrid, type NineGrid, type PsdAsset } from "./psd-meta";
+import { normalizeAtlasName, psdNameInitials } from "./psd-naming";
 
 export const RESOURCE_MANIFEST = "gameflow-resources.json";
 export const MAX_EXPORT_BYTES = 48 * 1024 * 1024;
@@ -28,25 +28,19 @@ const hash = (v: unknown): v is string => typeof v === "string" && /^[a-f0-9]{64
 const text = (v: unknown, max = 512): v is string => typeof v === "string" && v.length > 0 && v.length <= max;
 const sourceValid = (v: unknown): v is ExportSource => record(v) && text(v.documentId, 128) && text(v.psdName) && !/[\\/]/.test(v.psdName) && /\.psd$/i.test(v.psdName) && hash(v.sourceHash);
 
-/** Chinese syllable initials, with existing ASCII words/numbers retained. */
-function initials(value: string): string {
-  return pinyin(value.normalize("NFKC"), { pattern: "first", toneType: "none", type: "array", nonZh: "consecutive" })
-    .join("").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
-}
-export function defaultExportName(psdName: string, layerName: string, shared = false): string {
-  const prefix = layerName.includes("按钮") ? "btn" : "img", layer = initials(layerName);
+export function defaultExportName(psdName: string, layerName: string, atlasName?: string): string {
+  const prefix = layerName.includes("按钮") ? "btn" : "img", layer = psdNameInitials(layerName);
   if (!layer) return "";
-  if (shared) return `${prefix}_${layer}`;
-  const psd = initials(psdName.replace(/\.psd$/i, ""));
-  return psd ? `${prefix}_${psd}_${layer}` : "";
+  const atlas = normalizeAtlasName(atlasName) ?? defaultAtlasName(psdName);
+  return atlas ? `${prefix}_${atlas}_${layer}` : "";
 }
 export function exportNameError(value: string): string | null {
   if (!/^[a-zA-Z0-9_]{1,120}$/.test(value)) return "导出名称须为 1–120 位英文字母、数字或下划线，不含扩展名。";
   if (/^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i.test(value)) return "导出名称不能使用系统保留名称。";
   return null;
 }
-export function effectiveExportName(asset: Pick<PsdAsset, "name">, layer: PsdAsset["layers"][number]): string {
-  return (layer.config.exportName || defaultExportName(asset.name, layer.name, layer.config.shared)).toLowerCase();
+export function effectiveExportName(asset: Pick<PsdAsset, "name" | "atlasName">, layer: PsdAsset["layers"][number]): string {
+  return (layer.config.exportName || defaultExportName(asset.name, layer.name, asset.atlasName)).toLowerCase();
 }
 export const layerNameKey = (name: string) => name.trim().normalize("NFC");
 
