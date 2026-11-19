@@ -6,7 +6,7 @@
 
 - **原型**：在安装 GameFlow 的 VS Code 中打开 `star-sea-login.gameflow.json`。它与仓库 `sample/star-sea-login.gameflow.json` 内容相同。默认“原型”模式使用内置图片。
 - **浏览器**：启动 `npm run dev:webview -- --port 5187`，访问 `http://127.0.0.1:5187/?sample=star-sea-login`。该样例使用独立浏览器存储；双击页面编辑内部节点。
-- **美术 PSD**：在工作台打开 `Star-Sea-Login-750x1334.psd`，切换“美术 PSD”资源模式，读取已绑定的内存切图；可用“关联 PSD 图片”按稳定身份重新绑定。
+- **美术 PSD**：示例默认未绑定 PSD。切换“美术 PSD”，点击“绑定 PSD”并选择 `Star-Sea-Login-750x1334.psd`，随后按正常流程保存页面绑定。打开 PSD 切图只查看/编辑切图配置，不代表关联该页面。浏览器刷新后需要重新选择本地 PSD。
 - **预制体**：在“工作台设置”选择资源与预制体根目录，再用“导出 Prefab”。“预制体”资源模式通过原型布局读取导出的 PNG，不读取真实 Prefab 层级。没有打开 PSD 时，已绑定的美术资源需要存在于资源根目录；否则会进入缺图确认流程。
 - **预览资料**：`artwork-preview.png` 与当前 PSD 的保存合成图一致。`prototype-preview.jpg`、`workbench-preview.jpg` 和 `comparison-preview.png` 是旧版结构的历史截图，不作为本次资源模式改造的界面验收证据。
 

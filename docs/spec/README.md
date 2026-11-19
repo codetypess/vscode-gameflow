@@ -34,9 +34,11 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 
 ## Active Work Items
 
+- [page-psd-binding.md](page-psd-binding.md) — Done：页面独立保存 PSD 文件关联；美术模式未绑定入口、生成即绑定、后台装载、多页文件资源隔离和保存重开完成。358 项共享测试、46 项原生宿主检查、新增页面浏览器/7 项像素及既有 14 组浏览器回归、生产构建通过。
+
 - [internal-extension-updates.md](internal-extension-updates.md) — Verifying：vsix.bitserver.wang 的分发容器、签名目录、发布工具和更新器已部署；333 项原测试、10 项分发测试及 Windows 真机插件/更新器自身升级通过；等待主机 Nginx 的 sudo reload 完成域名入口验收。
 
-- [prototype-art-prefab-resource-modes.md](prototype-art-prefab-resource-modes.md) — Verifying：三种资源模式、69 张内置 PNG、UIButton 三态、控件图片部件、横向/圆形进度、PSD 生成/稳定关联和 Prefab 输出已实现，示例已直接更新；349 项共享测试、10 项浏览器、41 项 PSD/资源宿主、6 项实例宿主检查及生产构建通过。真实 Laya 工程和 Photoshop 往返待验收，复杂 PSD 变换与 imageFit 的目标映射边界已记录。
+- [prototype-art-prefab-resource-modes.md](prototype-art-prefab-resource-modes.md) — Verifying：三种资源模式、69 张内置 PNG、UIButton 三态、控件图片部件、横向/圆形进度、PSD 生成/稳定关联和 Prefab 输出已实现，示例已直接更新；350 项共享测试、14 组浏览器、41 项 PSD/资源宿主、6 项实例宿主检查及生产构建通过。真实 Laya 工程和 Photoshop 往返待验收，复杂 PSD 变换与 imageFit 的目标映射边界已记录。
 
 - [psd-atlas-name.md](psd-atlas-name.md) — Done：文件级图集名默认仅作 placeholder，小写/下划线/拼音首字母统一用于输入、旧配置回读与导出；共享默认名省略图集名，取消共享恢复当前图集；自定义值进入配置/草稿/PSD 副本/历史并刷新运行预览。322 项共享测试、生产构建、真实 PSD 中英文输入/下划线/跨图层/清空及此前窄窗口验收通过。
 
@@ -161,6 +163,8 @@ Add active work items as direct children of this directory using lowercase kebab
 - `docs/spec/save-lifecycle-regression.md`
 
 Remove completed work items from this list after their lasting decisions have been incorporated into the relevant baseline specs. Git history remains the audit trail.
+
+[PSD 工作区启动与页面绑定隔离](psd-workspace-startup-regression.md) 修复恢复 PSD 抢占原型画布，明确切图打开、页面绑定与保存的独立边界。
 
 ## Source Of Truth
 

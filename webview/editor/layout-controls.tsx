@@ -44,14 +44,13 @@ export function ConstraintControl({ layout, disabledX, disabledY, onChange, onTo
         </div>)}
       </div>)}
     </div></div>
-    <p className="property-hint">勾选启用，0 为贴边/居中。双边拉伸；居中优先。</p>
   </div>;
 }
 
 export function PaddingControl({ layout, disabled, onChange }: { layout: NodeLayout; disabled: boolean; onChange: (patch: Partial<NodeLayout>) => void }) {
   const override=useOverrideAttributes("内边距");
   return <div {...override} className="padding-control" role="group" aria-label="内边距">
-    <span title="内边距（像素）">Padding</span><div className="padding-values">
+    <span title="内边距（像素）">内边距</span><div className="padding-values">
       {([ ["paddingTop", "U", "上"], ["paddingRight", "R", "右"], ["paddingBottom", "D", "下"], ["paddingLeft", "L", "左"] ] as const).map(([key, short, label]) => <Field key={key} label={short} ariaLabel={`内边距${label}`} type="number" integer min={0} max={1e7} disabled={disabled} value={layout[key] ?? 0} onCommit={value => onChange({ [key]: Number(value) })} />)}
     </div>
   </div>;

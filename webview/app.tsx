@@ -2,7 +2,7 @@ import type { OverrideActions } from "./editor/override-properties";
 import { canvasPropertyLabel } from "./editor/override-properties";
 import type { CanvasOverrideGroup, CanvasOverrideManager } from "./editor/override-panel";
 import { sliderOwner } from "../shared/ui-parts";
-import { ArrowLeft, Box, Check, ChevronDown, ChevronRight, Focus, GitMerge, Layers3, LayoutDashboard, LayoutPanelTop, Minus, MousePointerClick, PanelRight, Play, Plus, Redo2, Save, Scissors, SquareDashed, Undo2 } from "lucide-react";
+import { ArrowLeft, Box, Check, ChevronDown, ChevronRight, Focus, GitMerge, Layers3, LayoutDashboard, LayoutPanelTop, Minus, MousePointerClick, Play, Plus, Redo2, Save, Scissors, SquareDashed, Undo2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import type { Frame, GameFlowNode, GameFlowPage, PageRootType } from "../shared/model";
 import { allocateElementId, reserveDocumentElementIds } from "../shared/element-id";
@@ -47,6 +47,8 @@ import type { PsdAsset } from "../shared/psd-meta";
 import { sliceGenerationStamp } from "./psd/slice-render";
 import { useRuntimeResources } from "./runtime/resources";
 import { SliceResourcesProvider } from "./runtime/resource-context";
+import { usePagePsds } from "./runtime/page-psd";
+import { PageArtState, pageArtReady } from "./editor/page-art-state";
 import { RuntimePreview } from "./runtime/preview";
 
 type Tool = "select" | "hand" | InsertType;
@@ -107,8 +109,6 @@ export function App() {
     return [...previous.filter(a => a.documentId !== asset.documentId), asset];
   }), []);
   const resourcePages = useMemo(() => canvasDocument?.pages.map(p => composeCanvasPage(canvasDocument, p, sources).page) ?? [], [canvasDocument, sources]);
-  const runtimeResources = useRuntimeResources(psdAssets, resourcePages, settings.settings.resourceDirectory, resourceMode);
-  const pageLayout = (page: GameFlowPage) => resolvePageLayout(page, runtimeResources.sizes);
   const canonicalPage = canvasDocument?.pages.find((item) => item.id === (editingId ?? selectedPageId)) ?? null;
   const composition = useMemo(() => canvasDocument && canonicalPage ? composeCanvasPage(canvasDocument, canonicalPage, sources) : null, [canvasDocument, canonicalPage, sources]);
   const page = composition?.page ?? null;
@@ -120,6 +120,10 @@ export function App() {
   const scopePath = page && editingId ? selectedNodeIds.length ? canvasScopePath(page, commonSelectionParent(page, selectedNodeIds)) : reconcileCanvasScope(page, scopeIds, null).path : [];
   const scopeId = scopePath.at(-1)?.id ?? null;
   const updatePage = (id: string, transform: (page: GameFlowPage) => GameFlowPage) => edit(document => { try { return editCanvasPage(document, id, sources, transform); } catch (error) { setNotice(error instanceof Error ? error.message : String(error)); return document; } });
+  const pagePsds = usePagePsds(canvasDocument, read, updatePage, observePsd, setNotice, (document, page) => composeCanvasPage(document, page, sources).page);
+  const runtimeResources = useRuntimeResources(psdAssets, resourcePages, settings.settings.resourceDirectory, resourceMode, pagePsds.assets);
+  const pageLayout = (page: GameFlowPage) => resolvePageLayout(page, (runtimeResources.forPage?.(page) ?? runtimeResources).sizes);
+  const selectedResources = page ? runtimeResources.forPage?.(page) ?? runtimeResources : runtimeResources;
   const patchNode = (id: string, patch: Partial<GameFlowNode>) => { if (page) updatePage(page.id, (item) => ({ ...item, nodes: item.nodes.map((node) => node.id === id ? { ...node, ...patch } : node) })); };
   const newIds = () => {
     const current = read();
@@ -583,7 +587,7 @@ export function App() {
     onRevert:selections=>changeOverrideSelection(selections,false),onApply:selections=>changeOverrideSelection(selections,true)
   } : undefined;
 
-  return <SliceResourcesProvider value={runtimeResources}><TooltipProvider delayDuration={300}><main className="app-shell">
+  return <SliceResourcesProvider value={{ ...selectedResources, forPage: runtimeResources.forPage }}><TooltipProvider delayDuration={300}><main className="app-shell">
     <header className="topbar"><span className="brand-mark"><Layers3 size={18} /></span><strong>工作台</strong><Separator orientation="vertical" className="topbar-separator" />
       <div ref={setDocumentActions} className="workbench-document-actions" role="group" aria-label="文档操作">{mode === "prototype" ? <>
         <IconTool label="撤销 (Ctrl+Z)" disabled={pending || !canvasDocument} onClick={() => history("undo")}><Undo2 size={15} /></IconTool>
@@ -594,7 +598,7 @@ export function App() {
       {mode === "prototype" && editingId && page ? <><Button size="sm" variant="ghost" onClick={back}><ArrowLeft size={14} />总览</Button><span className="breadcrumb">/</span></> : null}
       <span className="document-title">{mode === "prototype" ? editingId ? page?.name : canvasDocument?.title ?? "正在打开画布" : "美术工作区"}</span>
       <nav className="mode-switcher" aria-label="工作模式">{([{ id: "prototype", label: "原型", icon: LayoutPanelTop }, { id: "merge", label: "PSD 合并", icon: GitMerge }, { id: "slice", label: "PSD 切图", icon: Scissors }] as const).map(({ icon: Icon, ...item }) => <Tooltip key={item.id}><TooltipTrigger asChild><Button size="icon" variant="ghost" aria-label={item.label} aria-pressed={mode === item.id} className={mode === item.id ? "mode-active" : ""} onClick={() => switchMode(item.id)}><Icon size={16} aria-hidden="true" /></Button></TooltipTrigger><TooltipContent side="bottom">{item.label}</TooltipContent></Tooltip>)}</nav>
-      <div className="workbench-right">{mode === "prototype" && canvasDocument && (page ?? resourcePages.find(p=>p.id===selectedPageId) ?? resourcePages[0]) ? <CanvasExportActions document={canvasDocument} page={(page ?? resourcePages.find(p=>p.id===selectedPageId) ?? resourcePages[0])!} resources={runtimeResources} settings={settings} assets={psdAssets} disabled={pending || !!composition?.errors.size} onPage={transform=>updatePage((page ?? resourcePages.find(p=>p.id===selectedPageId) ?? resourcePages[0])!.id,transform)} onNotice={setNotice} /> : null}<div ref={setExportActions} className="workbench-export-actions" /><IconTool label="运行预览" disabled={!canvasDocument?.pages.length} onClick={() => { switchMode("prototype"); setRuntimeOpen(true); }}><Play size={16} /></IconTool><WorkbenchSettingsButton settings={settings} /></div>
+      <div className="workbench-right">{mode === "prototype" && canvasDocument && (page ?? resourcePages.find(p=>p.id===selectedPageId) ?? resourcePages[0]) ? <CanvasExportActions document={canvasDocument} page={(page ?? resourcePages.find(p=>p.id===selectedPageId) ?? resourcePages[0])!} resources={runtimeResources} settings={settings} pagePsds={pagePsds} disabled={pending || !!composition?.errors.size} onNotice={setNotice} /> : null}<div ref={setExportActions} className="workbench-export-actions" /><IconTool label="运行预览" disabled={!canvasDocument?.pages.length} onClick={() => { switchMode("prototype"); setRuntimeOpen(true); }}><Play size={16} /></IconTool><WorkbenchSettingsButton settings={settings} /></div>
     </header>
     <WorkbenchSettingsPanel settings={settings} file={canvasDocument ? { directory: canvasDocument.exportDirectory, name: resourceName || canvasDocument.title, change: exportDirectory => edit(document => ({ ...document, exportDirectory })) } : undefined} />
     <div ref={viewport} tabIndex={-1} hidden={mode !== "prototype"} className={cn("canvas-viewport", (tool === "hand" || spaceHand) && "hand-tool", preview?.kind === "pan" && "is-panning", (preview?.kind === "node" || preview?.kind === "page") && "is-moving")} aria-label={editingId ? "页面编辑画布" : "页面总览画布"}
@@ -619,19 +623,21 @@ export function App() {
           {(editingId ? renderPage ? [renderPage] : [] : canvasDocument.pages.map(item => applyColorPreview(item, colorPreview))).map((item) => {
             const frame = preview?.kind === "page" && preview.pageId === item.id ? preview.next : item.frame;
             const projection = editingId ? null : composeCanvasPage(canvasDocument, item, sources), visualPage = projection?.page ?? item;
-            const geometry = pageLayout(visualPage);
+            const geometry = pageLayout(visualPage), artBlocked = resourceMode === "art" && !pageArtReady(visualPage, pagePsds);
             const nodes = orderedNodes(visualPage), activeNodes = editingId && scopeId && !directSelection ? descendants(visualPage, scopeId) : null;
             const backgroundNodes = nodes.filter(node => !activeNodes?.has(node.id));
             const foregroundNodes = activeNodes ? nodes.filter(node => activeNodes.has(node.id)) : [];
             return <article key={item.id} className={cn("page-group", !editingId && selectedPageId === item.id && "page-selected", editingId && "page-editing")} data-page-id={item.id} style={{ left: editingId ? 0 : frame.x, top: editingId ? 0 : frame.y, width: frame.width, height: frame.height }}>
               <div className="page-caption"><LayoutPanelTop size={14} /><span>{item.name}</span><small>{Math.round(frame.width)} × {Math.round(frame.height)}</small></div>
-              <div className="page-surface" style={{ background: item.background ?? "#ffffff" }}>
+              <SliceResourcesProvider value={runtimeResources.forPage?.(visualPage) ?? runtimeResources}><div className="page-surface" style={{ background: item.background ?? "#ffffff" }}>
+                {artBlocked ? <PageArtState page={visualPage} actions={pagePsds} zoom={visibleCamera.zoom}/> : <>
                 {backgroundNodes.map(node => <NodeView key={node.id} page={visualPage} node={node} referenceError={(projection ?? composition)?.errors.get(node.id)} geometry={geometry.nodes.get(node.id)} />)}
                 {showContainerOutlines ? <ContainerOutlines page={visualPage} nodes={backgroundNodes} geometry={geometry} /> : null}
                 {activeNodes ? <div className="canvas-scope-dimmer" aria-hidden="true" /> : null}
                 {foregroundNodes.map(node => <NodeView key={node.id} page={visualPage} node={node} referenceError={(projection ?? composition)?.errors.get(node.id)} geometry={geometry.nodes.get(node.id)} />)}
                 {showContainerOutlines && activeNodes ? <ContainerOutlines page={visualPage} nodes={foregroundNodes} geometry={geometry} /> : null}
-              </div>
+                </>}
+              </div></SliceResourcesProvider>
             </article>;
           })}
         </div>
@@ -665,6 +671,7 @@ export function App() {
         <div className="canvas-toolbar floating-panel" onPointerDown={(event) => event.stopPropagation()}>
           <IconTool label="直选模式" active={directSelection} onClick={() => setDirectSelection(value => !value)}><MousePointerClick size={19} /></IconTool>
           <IconTool label="虚线框" active={showContainerOutlines} onClick={() => setShowContainerOutlines(value => !value)}><SquareDashed size={19} /></IconTool>
+          <Separator orientation="vertical" /><div className="resource-mode-tools" role="group" aria-label="资源显示模式">{([{ id: "prototype", label: "原型", icon: LayoutDashboard }, { id: "art", label: "美术 PSD", icon: Layers3 }, { id: "prefab", label: "预制体", icon: Box }] as const).map(({ id, label, icon: Icon }) => <IconTool key={id} label={label + "资源"} active={resourceMode === id} onClick={() => { setResourceMode(id); runtimeResources.refresh(); }}><Icon size={17} /></IconTool>)}</div>
           <Separator orientation="vertical" /><Popover open={insertOpen} onOpenChange={setInsertOpen}><PopoverTrigger asChild><Button size="icon" variant="ghost" className="toolbar-button insert-trigger" aria-label="添加页面或控件"><Plus size={20} /><ChevronDown size={9} /></Button></PopoverTrigger><PopoverContent side="top" align="start" collisionPadding={12} className="insert-menu" aria-label="添加页面或控件菜单">
             <div className="menu-heading">添加到画布</div>
             <div className="insert-grid" role="group" aria-label="添加到画布">{PAGE_ROOT_TYPES.map((type) => { const Icon = type === "UIBox" ? LayoutDashboard : LayoutPanelTop; return <button key={type} onClick={() => addPage(type)}><Icon size={16} /><span>{PAGE_ROOTS[type].label} <small className="menu-class">({type})</small></span></button>; })}</div>
@@ -673,8 +680,6 @@ export function App() {
             <div className="insert-grid" role="group" aria-label="添加控件">{TOOLS.map(({ type, icon: Icon }) => <button key={type} disabled={!editingId} onClick={() => chooseInsertTool(type)}><Icon size={16} /><span>{NODE_LABELS[type]} <small className="menu-class">({COMPONENTS[type].laya})</small></span></button>)}</div>
           </PopoverContent></Popover>
           <div className="direct-tools">{TOOLS.filter((item) => item.key).map(({ type, icon: Icon, key }) => <IconTool key={type} label={`${NODE_LABELS[type]} (${key})`} disabled={!editingId} active={tool === type} onClick={() => chooseInsertTool(type)}><Icon size={19} /></IconTool>)}</div>
-          <Separator orientation="vertical" /><div className="resource-mode-tools" role="group" aria-label="资源显示模式">{([{ id: "prototype", label: "原型", icon: LayoutDashboard }, { id: "art", label: "美术 PSD", icon: Layers3 }, { id: "prefab", label: "预制体", icon: Box }] as const).map(({ id, label, icon: Icon }) => <IconTool key={id} label={label + "资源"} active={resourceMode === id} onClick={() => { setResourceMode(id); runtimeResources.refresh(); }}><Icon size={17} /></IconTool>)}</div>
-          <Separator orientation="vertical" /><IconTool label={inspectorOpen ? "隐藏属性面板" : "显示属性面板"} disabled={!page} active={!!page && inspectorOpen} onClick={() => setInspectorOpen(!inspectorOpen)}><PanelRight size={18} /></IconTool>
         </div>
       </>}
       {notice || (canvasDocument && error) ? <div className="editor-notice" role="status">{notice || error}</div> : null}
@@ -689,7 +694,7 @@ export function App() {
     </div>
     <PsdWorkspace mode="merge" active={mode === "merge"} settings={settings} />
     <PsdWorkspace mode="slice" active={mode === "slice" && !runtimeOpen} binding={psdEditor.binding} documentActions={documentActions} exportActions={exportActions} settings={settings} exportPending={pending} onAsset={observePsd} />
-    {runtimeOpen ? <RuntimePreview resourceMode={resourceMode} onResourceMode={setResourceMode} pages={resourcePages} initialPageId={editingId ?? selectedPageId ?? undefined} assets={psdAssets} onClose={() => setRuntimeOpen(false)} /> : null}
+    {runtimeOpen ? <RuntimePreview pagePsds={pagePsds} resourceMode={resourceMode} onResourceMode={setResourceMode} pages={resourcePages} initialPageId={editingId ?? selectedPageId ?? undefined} onClose={() => setRuntimeOpen(false)} /> : null}
     {psdEditor.initialError && mode === "slice" ? <div className="psd-status psd-warning" role="alert">{psdEditor.initialError}</div> : null}
   </main></TooltipProvider></SliceResourcesProvider>;
 }

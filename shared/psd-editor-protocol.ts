@@ -11,6 +11,7 @@ export interface PsdEditorState {
   requestId?: string; rejected?: boolean;
 }
 export type PsdEditorMessage = PsdEditorState
+  | { type: "psdEditorReveal" }
   | { type: "psdEditorFlush"; requestId: string }
   | { type: "psdEditorInit"; name: string; base64: string; state: PsdEditorState; configPath: string; notice?: string }
   | { type: "psdEditorCommandResult"; requestId: string; error?: string };

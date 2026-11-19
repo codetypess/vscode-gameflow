@@ -37,6 +37,7 @@ import { canvasReferenceTests } from "./canvas-references-suite";
 import { canvasReferenceHostTests } from "./canvas-reference-host-suite";
 import { workbenchSettingsTests } from "./workbench-settings-suite";
 import { fileExportDirectoryTests } from "./file-export-directory-suite";
+import { pagePsdTests } from "./page-psd-suite";
 import { resourceModesTests } from "./resource-modes-suite";
 import { runtimePreviewTests } from "./runtime-preview-suite";
 
@@ -654,7 +655,7 @@ tests.push(...nodeVariableTests);
 tests.push(...uiTransformTests);
 tests.push(...pageRootLayoutTests, ...uiPartsTests, ...nodeReferenceTests, ...canvasScopeTests, ...nodeSelectionTests, ...colorEditTests, ...textFormattingTests);
 tests.push(...pageExportNameTests);
-tests.push(...runtimePreviewTests, ...resourceModesTests);
+tests.push(...runtimePreviewTests, ...resourceModesTests, ...pagePsdTests);
 export const testsCompleted = (async () => {
   let failed = 0;
   for (const item of tests) {

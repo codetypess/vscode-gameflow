@@ -13,20 +13,18 @@ function description(asset: PsdAsset, layer: PsdAsset["layers"][number]): SliceR
   return { path: sliceResourcePath(psdSliceDirectory(asset, layer.config.shared), effectiveExportName(asset, layer)), width: region.width, height: region.height, nineGrid: layer.config.nineGrid,
     source: { documentId: asset.documentId, psdName: asset.name, sourceHash: asset.sourceHash }, layerId: layer.metadata.layerId, layerName: layer.name, shared: layer.config.shared === true };
 }
-function merge(entries: Map<string, RuntimeResource>, entry: RuntimeResource) {
-  const d = entry.description; if (!d) return;
-  const previous = entries.get(d.path)?.description;
-  entries.set(d.path, previous && previous.source.documentId !== d.source.documentId && !d.shared
-    ? { status: "error", description: d, error: `同名资源由 ${previous.source.psdName} 生成，当前图层未标记共享。` } : entry);
+function merge(entries: Map<string, RuntimeResource>, entry: RuntimeResource, owner: number) {
+  if (entry.description) entries.set(owner + ":" + entry.description.path, entry);
 }
 
-export function useRuntimeResources(assets: PsdAsset[], pages: GameFlowPage[], root?: string, mode: ResourceMode = "art") {
+export function useRuntimeResources(observedAssets: PsdAsset[], pages: GameFlowPage[], root?: string, mode: ResourceMode = "art", pageAssets: Record<string, PsdAsset> = {}) {
+  const assets = useMemo(() => Array.from(new Set([...observedAssets, ...Object.values(pageAssets)])), [observedAssets, pageAssets]);
   const [revision, setRevision] = useState(0);
   const stamp = useMemo(() => JSON.stringify(assets.map(sliceGenerationStamp)), [assets]);
   const pending = useMemo(() => {
     const entries = new Map<string, RuntimeResource>();
     for (const asset of assets) for (const layer of asset.layers.filter(l => l.config.enabled)) {
-      try { merge(entries, { status: "loading", description: description(asset, layer) }); } catch { /* Invalid names have no selectable resource path; PSD tree diagnoses them. */ }
+      try { merge(entries, { status: "loading", description: description(asset, layer) }, assets.indexOf(asset)); } catch { /* Invalid names have no selectable resource path; PSD tree diagnoses them. */ }
     }
     return entries;
   }, [stamp]);
@@ -40,7 +38,7 @@ export function useRuntimeResources(assets: PsdAsset[], pages: GameFlowPage[], r
         const layer = assets[index].layers.find(l => l.key === key)!;
         try {
           const placeholder = description(assets[index], layer);
-          merge(entries, { ...entry, description: { ...(entry.description ?? placeholder), path: placeholder.path } });
+          merge(entries, { ...entry, description: { ...(entry.description ?? placeholder), path: placeholder.path } }, index);
         } catch { /* Name errors are reported at their source. */ }
       } });
       setGenerated({ stamp, entries });
@@ -48,7 +46,7 @@ export function useRuntimeResources(assets: PsdAsset[], pages: GameFlowPage[], r
     return () => { cancelled = true; };
   }, [stamp]);
   const memory = generated.stamp === stamp ? generated.entries : pending;
-  const paths = useMemo(() => [...new Set([...memory.keys(), ...pages.flatMap(p => p.nodes.flatMap(n => [...nodeArtRefs(n).map(ref => ref.path), ...IMAGE_SLOT_FIELDS.flatMap(field => n[field]?.builtin ? [builtinPath(n[field]!.builtin!)] : [])]))])].sort(), [memory, pages]);
+  const paths = useMemo(() => [...new Set([...Array.from(memory.values(), entry => entry.description!.path), ...pages.flatMap(p => p.nodes.flatMap(n => [...nodeArtRefs(n).map(ref => ref.path), ...IMAGE_SLOT_FIELDS.flatMap(field => n[field]?.builtin ? [builtinPath(n[field]!.builtin!)] : [])]))])].sort(), [memory, pages]);
   const pathsKey = JSON.stringify(paths), diskStamp = JSON.stringify([pathsKey, root, revision]);
   const [disk, setDisk] = useState<{ stamp: string; entries: Map<string, RuntimeResource>; owners: Map<string, { exists: boolean; documentId?: string }> }>({ stamp: "", entries: new Map(), owners: new Map() });
   useEffect(() => {
@@ -75,27 +73,36 @@ export function useRuntimeResources(assets: PsdAsset[], pages: GameFlowPage[], r
     return () => controller.abort();
   }, [diskStamp]);
   return useMemo<Resources>(() => {
-    const sources = new Map<string, string | null>();
-    for (const asset of assets) {
-      for (const page of pages) for (const node of page.nodes) for (const ref of nodeArtRefs(node)) if (ref.source?.documentId === asset.documentId) sources.set(sourceKey(ref.source), null);
-      for (const layer of asset.layers) {
-        let path: string | null = null;
-        try { if (layer.config.enabled) path = description(asset, layer).path; } catch { /* Invalid output name remains unavailable. */ }
-        sources.set(sourceKey({ documentId: asset.documentId, layerId: layer.metadata.layerId }), path);
-      }
-    }
     const diskEntries = disk.stamp === diskStamp ? disk.entries : new Map<string, RuntimeResource>(paths.map(path => [path, { status: "loading" }]));
-    const entries = mode === "prefab" ? diskEntries : memory;
-    const resolve = (ref: SliceResourceRef) => mode === "prefab" ? resolveSliceResource(ref, diskEntries) : resolveSliceResource(ref, memory, sources);
+    const forPage = (page: GameFlowPage): Resources => {
+      const scoped = new Map<string, RuntimeResource>();
+      const scopedAsset = pageAssets[page.id], owner = scopedAsset ? assets.indexOf(scopedAsset) : -1;
+      for (const [key, entry] of memory) if (key.startsWith(owner + ":") && entry.description && page.artPsd && entry.description.source.documentId === page.artPsd.documentId) scoped.set(entry.description.path, entry);
+      const sources = new Map<string, string | null>();
+      for (const asset of assets.filter(item => item === scopedAsset && item.documentId === page.artPsd?.documentId)) {
+        for (const node of page.nodes) for (const ref of nodeArtRefs(node)) if (ref.source?.documentId === asset.documentId) sources.set(sourceKey(ref.source), null);
+        for (const layer of asset.layers) {
+          let path: string | null = null;
+          try { if (layer.config.enabled) path = description(asset, layer).path; } catch { /* Invalid names remain unavailable. */ }
+          sources.set(sourceKey({ documentId: asset.documentId, layerId: layer.metadata.layerId }), path);
+        }
+      }
+      const entries = mode === "prefab" ? diskEntries : scoped;
+      const resolve = (ref: SliceResourceRef) => mode === "prefab" ? resolveSliceResource(ref, diskEntries) : resolveSliceResource(ref, scoped, sources);
+      const sizes = new Map<string, { width: number; height: number }>();
+      for (const node of page.nodes) for (const field of IMAGE_SLOT_FIELDS) { const slot = node[field]; if (slot?.builtin) { const image = builtinImage(slot.builtin); if (image) sizes.set(builtinPath(image.id), image); } }
+      for (const [path, entry] of entries) if (entry.status === "ready") sizes.set(path, entry.description.logicalSize ?? entry.description);
+      for (const node of page.nodes) {
+        const request = imageSlotRequest(nodeImageSlot(node, mode), mode);
+        if (request.kind === "builtin") sizes.set("@node:" + node.id, request.image);
+        if (request.kind === "resource") { const resource = resolve(request.ref); if (resource.status === "ready") sizes.set("@node:" + node.id, resource.description.logicalSize ?? resource.description); }
+      }
+      const resolveForExport = (ref: SliceResourceRef) => scoped.has(ref.path) || ref.source && sources.has(sourceKey(ref.source)) ? resolveSliceResource(ref, scoped, sources) : resolveSliceResource(ref, diskEntries);
+      return { mode, entries, memoryEntries: scoped, diskEntries, sizes, resolve, resolveForExport, refresh: () => setRevision(n => n + 1) };
+    };
+    const scoped = pages.map(forPage), base = scoped[0];
     const sizes = new Map<string, { width: number; height: number }>();
-    for (const page of pages) for (const node of page.nodes) for (const field of IMAGE_SLOT_FIELDS) { const slot = node[field]; if (slot?.builtin) { const image = builtinImage(slot.builtin); if (image) sizes.set(builtinPath(image.id), image); } }
-    for (const [path, entry] of entries) if (entry.status === "ready") sizes.set(path, entry.description.logicalSize ?? entry.description);
-    for (const page of pages) for (const node of page.nodes) {
-      const request = imageSlotRequest(nodeImageSlot(node, mode), mode);
-      if (request.kind === "builtin") sizes.set("@node:" + node.id, request.image);
-      if (request.kind === "resource") { const resource = resolve(request.ref); if (resource.status === "ready") sizes.set("@node:" + node.id, resource.description.logicalSize ?? resource.description); }
-    }
-    const resolveForExport = (ref: SliceResourceRef) => memory.has(ref.path) || ref.source && sources.has(sourceKey(ref.source)) ? resolveSliceResource(ref, memory, sources) : resolveSliceResource(ref, diskEntries);
-    return { mode, entries, memoryEntries: memory, diskEntries, sizes, resolve, resolveForExport, refresh: () => setRevision(n => n + 1) };
-  }, [memory, disk, diskStamp, pathsKey, assets, pages, root, mode]);
+    for (const resources of scoped) for (const [key, value] of resources.sizes) sizes.set(key, value);
+    return { ...(base ?? { mode, entries: new Map(), resolve: (ref: SliceResourceRef) => resolveSliceResource(ref, new Map()), refresh: () => setRevision(n => n + 1) }), sizes, forPage };
+  }, [memory, disk, diskStamp, pathsKey, assets, pageAssets, pages, root, mode]);
 }

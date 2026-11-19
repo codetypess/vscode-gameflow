@@ -1,0 +1,55 @@
+import * as vscode from "vscode";
+import assert from "node:assert/strict";
+import { readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { writePsdUint8Array } from "ag-psd";
+import type { GameFlowEditorProvider } from "../src/gameflow-editor-provider";
+import type { PsdEditorProvider } from "../src/psd-editor-provider";
+import type { PagePsdController } from "../src/page-psd-controller";
+import { parseGameFlowDocument, serializeGameFlowDocument } from "../shared/model";
+export async function pagePsdChecks(api: { workbench: GameFlowEditorProvider; psd: PsdEditorProvider }, root: string, directory: string): Promise<string[]> {
+  const checks: string[] = [], cancel = new vscode.CancellationTokenSource();
+  const source = readFileSync(join(root, "examples/star-sea-login/Star-Sea-Login-750x1334.psd"));
+  const document = parseGameFlowDocument(readFileSync(join(root, "sample/star-sea-login.gameflow.json"), "utf8"));
+  document.pages[0].artPsd = { source: "page-art.psd", documentId: "47061573-175a-4735-986e-15e5faa87890" };
+  const file = join(directory, "page-binding.gameflow.json"), uri = vscode.Uri.file(file);
+  writeFileSync(file, serializeGameFlowDocument(document)); writeFileSync(join(directory, "page-art.psd"), source);
+  const controller = (api.workbench as unknown as { pagePsds: PagePsdController }).pagePsds;
+  const open = () => api.workbench.openCustomDocument(uri, { backupId: undefined, untitledDocumentData: undefined }, cancel.token);
+  let doc = await open();
+  const load = () => controller.handle(doc, { type: "pagePsd", requestId: "native-load", pageId: document.pages[0].id, action: "load", expected: document.pages[0].artPsd });
+  try {
+    const boundText = doc.getText(), boundDisk = readFileSync(file, "utf8");
+    const result = await load(); assert.equal(result.error, undefined); assert.equal(result.draft?.documentId, document.pages[0].artPsd.documentId);
+    assert.equal(doc.currentPsd, undefined); assert.equal(doc.dirty, false); assert.equal(doc.psds.size, 1);
+    assert.equal(doc.getText(), boundText); assert.equal(readFileSync(file, "utf8"), boundDisk);
+    checks.push("page art loads its saved file without opening, dirtying, rebinding or saving the prototype");
+    doc.replace(serializeGameFlowDocument({ ...document, title: "持久页面绑定" }));
+    await api.workbench.saveCustomDocument(doc, cancel.token);
+    assert.deepEqual(parseGameFlowDocument(readFileSync(file, "utf8")).pages[0].artPsd, document.pages[0].artPsd);
+    doc.dispose(); doc = await open();
+    const reopened = await load(); assert.equal(reopened.error, undefined); assert.equal(reopened.draft?.documentId, result.draft?.documentId); assert.equal(doc.currentPsd, undefined);
+    checks.push("native save and reopen retain page PSD binding and stable source identity");
+    const folder = vscode.Uri.file(join(directory, "page-copy")); await vscode.workspace.fs.createDirectory(folder);
+    const destination = vscode.Uri.joinPath(folder, "saved.gameflow.json");
+    await api.workbench.saveCustomDocumentAs(doc, destination, cancel.token);
+    const savedAs = parseGameFlowDocument(readFileSync(destination.fsPath, "utf8")); assert.equal(savedAs.pages[0].artPsd?.source, "../page-art.psd");
+    checks.push("native save as rebases relative PSD paths");
+    const missing = { ...document, pages: [{ ...document.pages[0], artPsd: { ...document.pages[0].artPsd!, source: "missing.psd" } }] };
+    doc.replace(serializeGameFlowDocument(missing));
+    const failure = await controller.handle(doc, { type: "pagePsd", requestId: "missing", pageId: missing.pages[0].id, action: "load", expected: missing.pages[0].artPsd });
+    assert.ok(failure.error); assert.equal(doc.currentPsd, undefined); checks.push("missing bound PSD reports an error without switching active sessions");
+    const pixels = { width: 2, height: 2, data: new Uint8ClampedArray(16).fill(255) };
+    const plainUri = vscode.Uri.file(join(directory, "plain-art.psd"));
+    writeFileSync(plainUri.fsPath, writePsdUint8Array({ width: 2, height: 2, imageData: pixels, children: [{ name: "art", imageData: pixels }] }, { generateThumbnail: false }));
+    const plain = await api.psd.openCustomDocument(plainUri, { backupId: undefined, untitledDocumentData: undefined }, cancel.token, { preview: true });
+    assert.equal(plain.model.asset.hasEmbeddedIdentity, false); assert.equal(plain.model.dirty, true);
+    document.pages[0].artPsd = { source: "plain-art.psd", documentId: plain.model.asset.documentId };
+    doc.psds.set(plainUri.toString(), plain); doc.replace(serializeGameFlowDocument(document));
+    await api.workbench.saveCustomDocument(doc, cancel.token);
+    doc.dispose(); doc = await open();
+    const plainReload = await load(); assert.equal(plainReload.error, undefined); assert.equal(plainReload.draft?.documentId, document.pages[0].artPsd.documentId);
+    checks.push("untagged PSD identity is saved in sidecar and reloads through its page binding");
+  } finally { doc.dispose(); cancel.dispose(); }
+  return checks;
+}

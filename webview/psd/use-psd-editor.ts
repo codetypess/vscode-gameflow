@@ -20,7 +20,9 @@ export function usePsdEditor(onOpen?: () => void) {
     if (isBrowserPreview) return;
     let alive = true, generation = 0;
     const listener = async ({ data }: MessageEvent<PsdEditorMessage>) => {
-      if (data?.type === "psdEditorInit") {
+      if (data?.type === "psdEditorReveal") {
+        opened.current?.();
+      } else if (data?.type === "psdEditorInit") {
         const current = ++generation;
         session.current!.dispose();
         session.current = new PsdDocumentSession(postPsdMessage, () => { if (alive) render(n => n + 1); });
@@ -31,7 +33,7 @@ export function usePsdEditor(onOpen?: () => void) {
           const bytes = Uint8Array.from(atob(data.base64), c => c.charCodeAt(0)).buffer;
           const asset = await psdTask<PsdAsset>("read", bytes, data.name);
           if (!alive || current !== generation) return;
-          setSource({ asset, bytes }); setConfigPath(data.configPath); opened.current?.();
+          setSource({ asset, bytes }); setConfigPath(data.configPath);
         } catch (error) { if (alive && current === generation) setInitialError(error instanceof Error ? error.message : String(error)); }
       } else if (data && typeof data.type === "string" && data.type.startsWith("psdEditor")) session.current!.receive(data);
     };

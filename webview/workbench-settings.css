@@ -21,3 +21,5 @@
 .topbar .document-title { min-width: 0; }
 @media (max-width: 800px) { .topbar { gap: 5px; }.topbar .document-title { display: none; }.topbar .mode-switcher { position: static; transform: none; margin-left: auto; align-self: center; margin-top: 0; }.workbench-right { margin-left: 4px; } }
 @media (max-width: 520px) { .topbar .workbench-history { display: none; }.topbar .brand-mark, .topbar > strong, .topbar .topbar-separator { display: none; }.topbar .workbench-export-button { padding: 0 7px; } }
+
+@media (max-width: 1000px) { .topbar .page-export-label { display: none; }.topbar .workbench-right > button { padding-left: 7px; padding-right: 7px; } }

@@ -93,7 +93,17 @@ export interface NodeStyle {
   opacity?: number;
 }
 
+export interface PagePsdBinding { source: string; documentId: string }
+export function isPagePsdSource(value: unknown): value is string {
+  return typeof value === "string" && value.length > 0 && value.length <= 512 && !value.startsWith("/") && !/[\\:*?"<>|#\x00-\x1f]/.test(value) && /\.psd$/i.test(value);
+}
+export function isPagePsdBinding(value: unknown): value is PagePsdBinding {
+  return isRecord(value) && Object.keys(value).every(key => key === "source" || key === "documentId") && isPagePsdSource(value.source) && typeof value.documentId === "string" && value.documentId.trim().length > 0 && value.documentId.length <= 128;
+}
+
 export interface GameFlowPage {
+  /** Explicit art source, relative to this GameFlow file. */
+  artPsd?: PagePsdBinding;
   id: string;
   name: string;
   /** Optional authored name for future Prefab generation, independent of the display name. */
@@ -382,6 +392,8 @@ function validatePage(
   const rootTypeValid = value.rootType === undefined || PAGE_ROOT_TYPES.includes(value.rootType as PageRootType);
   if (!rootTypeValid) errors.push(`${path}.rootType must be UIStack, UITop, UIScene, or UIBox`);
   const exportNameValid = value.exportName === undefined || validateString(value.exportName, `${path}.exportName`, errors);
+  const artPsdValid = value.artPsd === undefined || isPagePsdBinding(value.artPsd);
+  if (!artPsdValid) errors.push(`${path}.artPsd must contain a relative PSD source and documentId`);
   const layoutValid = validateRootLayout(value.layout, `${path}.layout`, errors);
   const componentValid = value.componentRootId === undefined || validateString(value.componentRootId, `${path}.componentRootId`, errors);
   const frameValid = validateFrame(value.frame, `${path}.frame`, errors);
@@ -405,7 +417,7 @@ function validatePage(
       }
     });
   }
-  return idValid && nameValid && kindValid && rootTypeValid && exportNameValid && layoutValid && componentValid && frameValid && nodesValid && backgroundValid;
+  return artPsdValid && idValid && nameValid && kindValid && rootTypeValid && exportNameValid && layoutValid && componentValid && frameValid && nodesValid && backgroundValid;
 }
 
 function validateInteraction(

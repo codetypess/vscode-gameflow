@@ -23,9 +23,9 @@ def save(id,name,category,im,grid=None):
  entries.append(dict(id=id,name=name,category=category,width=im.width,height=im.height,nineGrid=grid,dataUri='data:image/png;base64,'+base64.b64encode(file.read_bytes()).decode()))
 def grid(n):return dict(top=n,right=n,bottom=n,left=n,repeat=False)
 for color,(fill,stroke) in colors.items():
- im,d=canvas();box(d,(1,1,62,62),fill,stroke,2,10);line(d,[(12,7),(51,7)],'#ffffff70',2);save('button/'+color,labels[color]+'按钮','按钮',im,grid(14))
+ im,d=canvas();box(d,(1,1,62,62),fill,stroke,2,10);save('button/'+color,labels[color]+'按钮','按钮',im,grid(14))
  for border in [False,True]:
-  im,d=canvas(32,32);box(d,(1,1,30,30),fill,stroke if border else None,2,4 if border else 0);save('block/'+('outline-' if border else 'fill-')+color,labels[color]+('描边色块' if border else '色块'),'色块',im,grid(6) if border else None)
+  im,d=canvas(32,32);box(d,(1,1,30,30),fill,stroke if border else None,2,4 if border else 0);save('block/'+('outline-' if border else 'fill-')+color,labels[color]+('描边色块' if border else '色块'),'色块',im,grid(6))
  for border in [False,True]:
   im,d=canvas();ellipse(d,(3,3,60,60),fill,stroke if border else None,3);save('circle/'+('outline-' if border else 'fill-')+color,labels[color]+('描边圆形' if border else '圆形'),'圆形',im)
 im,d=canvas(64,64);box(d,(0,0,63,63),'#e3e7ec',r=0);box(d,(19,22,44,42),None,'#657385',2,2);ellipse(d,(24,26,29,31),'#657385');line(d,[(21,39),(29,32),(35,37),(39,33),(43,37)],width=2);save('image/default','默认图片','色块',im)

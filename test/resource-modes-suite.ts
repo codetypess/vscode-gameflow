@@ -30,6 +30,14 @@ test("image library contains real consistent PNGs and exactly five picker catego
   assert.equal(new Set(BUILTIN_IMAGES.map(image=>image.category)).size,5);
   for(const image of BUILTIN_IMAGES){const bytes=Buffer.from(image.dataUri.split(",")[1],"base64");assert.equal(bytes.readUInt32BE(0),0x89504e47);assert.equal(bytes.readUInt32BE(16),image.width);assert.equal(bytes.readUInt32BE(20),image.height);assert.deepEqual(bytes,readFileSync("assets/builtin/"+image.id+".png"));}
 });
+test("filled and outlined blocks export their default six-pixel nine-grid",async()=>{
+  const blocks=BUILTIN_IMAGES.filter(image=>image.id.startsWith("block/"));assert.equal(blocks.length,12);
+  const d=doc(page(blocks.map((image,index)=>({...makeNode("image","block"+index,0,0),image:{builtin:image.id}}))));
+  const plan=await planPrefabExport(d,d.pages[0],missing);assert.deepEqual(plan.missing,[]);assert.equal(plan.batch.images.length,12);
+  for(const image of plan.batch.images)assert.deepEqual(image.description.nineGrid,{top:6,right:6,bottom:6,left:6,repeat:false});
+  const resources=memoryDirectory(),prefabs=memoryDirectory();await exportPrefabToDirectories(resources.io,prefabs.io,plan.batch,codec);
+  for(const image of plan.batch.images){const meta=JSON.parse(new TextDecoder().decode(resources.files.get(image.path+".meta")!));assert.deepEqual(meta.importer.sizeGrid,[6,6,6,6,0]);}
+});
 test("prototype ignores art bindings while art and prefab request their separate sources",()=>{
   const slot={builtin:"button/green",art:{path:"unclassified/normal.png"}};
   assert.equal(imageSlotRequest(slot,"prototype").kind,"builtin");

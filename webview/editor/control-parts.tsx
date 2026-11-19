@@ -20,7 +20,6 @@ export function ControlPartsProperties({ page, node, locked, onNode, onPage, onC
   const changeOptions = (next: (string | null)[]) => onPage(p => setRadioOptions(p, node.id, next));
   return <>
     {owner ? <p className="property-hint">{owner.type === "progress" ? `尺寸和填充由「${owner.name}」的进度控制。` : sliderOwner(page, node) ? `位置由「${owner.name}」的滑块值控制。` : `显示状态由「${owner.name}」的选中状态控制。`}删除或移出控件会解除皮肤引用。</p> : null}
-    {node.type === "button" ? <p className="property-hint">按钮可独立使用。需要文案时，在图层树右键添加文字子节点。</p> : null}
     {supportsNodeSkin(node) ? <details className="property-details" open><summary>控件部件</summary>
       <div {...skinOverride} className="property-field"><span>{skinLabel}</span><NodeReferenceField page={page} owner={node} kind="skin" label={skinLabel} disabled={locked} value={node.widget?.skinNodeId ?? null} onChange={skinNodeId => onNode(node.id, { widget: { ...node.widget, skinNodeId } })} /></div>
       <p className="property-hint">{node.type === "progress" ? "选择直接 UIImage 子节点作为填充；填充根不能设置相对约束。" : node.type === "slider" ? "选择直接子节点；滑块根不能设置相对约束。" : "选择直接子节点作为选中时显示的标记。"}</p>

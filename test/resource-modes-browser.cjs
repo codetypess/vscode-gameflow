@@ -56,12 +56,55 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
     await page.waitForSelector(".page-editing");
     await page.getByRole("button",{name:"直选模式",exact:true}).click();
     const button=page.locator(".page-editing .node-button").first();await button.click({position:{x:3,y:3}});
+    await page.setViewportSize({width:420,height:760});
+    const imageField=page.locator('.image-slot-field[data-image-slot="normalSkin"]');
+    await imageField.scrollIntoViewIfNeeded();
+    const controlBounds=await imageField.locator('.image-slot-control').boundingBox(),inspectorBounds=await page.locator('.inspector').boundingBox();
+    assert.ok(controlBounds.x>=inspectorBounds.x&&controlBounds.x+controlBounds.width<=inspectorBounds.x+inspectorBounds.width,"image resource selector stays inside the narrow inspector");
+    await page.setViewportSize({width:1500,height:1000});
     await page.getByRole("button",{name:/^选择普通图片/}).click();
     await page.getByRole("dialog",{name:"内置图片资源",exact:true}).waitFor();
     for(const name of ["按钮","色块","圆形","图标","单选/复选"])assert.equal(await page.getByRole("dialog",{name:"内置图片资源"}).getByRole("button",{name,exact:true}).count(),1);
+    const picker=page.getByRole("dialog",{name:"内置图片资源",exact:true});
+    const pickerBounds=await picker.boundingBox();
+    for(const name of ["按钮","色块","圆形","图标","单选/复选"]){
+      await picker.getByRole("button",{name,exact:true}).click();
+      assert.deepEqual(await picker.boundingBox(),pickerBounds,"switching to "+name+" must keep picker bounds stable");
+    }
+    const search=picker.getByRole("textbox",{name:"搜索内置图片",exact:true});
+    await search.fill("不存在的图片 no-matching-image");
+    assert.equal(await picker.locator(".builtin-image-grid button").count(),0);
+    assert.deepEqual(await picker.boundingBox(),pickerBounds,"empty search must keep picker bounds stable");
+    await search.fill("");
+    assert.deepEqual(await picker.boundingBox(),pickerBounds,"clearing search must keep picker bounds stable");
     await page.getByRole("button",{name:"图标",exact:true}).click();
     assert.equal(await page.locator(".builtin-image-grid button").count(),28);
     await page.screenshot({path:path.join(output,"image-picker.png")});
+    for(const viewport of [{width:420,height:600},{width:360,height:480},{width:600,height:320}]){
+      await page.setViewportSize(viewport);
+      const bounds=await picker.boundingBox();
+      assert.equal(bounds.width,Math.min(600,viewport.width-32));
+      assert.equal(bounds.height,Math.min(520,viewport.height-32));
+      assert.ok(bounds.x>=16&&bounds.y>=16&&bounds.x+bounds.width<=viewport.width-16&&bounds.y+bounds.height<=viewport.height-16,"picker stays within viewport margins");
+      for(const name of ["按钮","图标","色块"]){
+        await picker.getByRole("button",{name,exact:true}).click();
+        assert.deepEqual(await picker.boundingBox(),bounds,"responsive category changes keep picker bounds stable");
+      }
+      await search.fill("no-matching-image");
+      assert.deepEqual(await picker.boundingBox(),bounds,"responsive empty search keeps picker bounds stable");
+      await search.fill("");
+      assert.ok(await picker.locator(".builtin-image-grid").evaluate(el=>el.clientHeight>0&&el.scrollHeight>el.clientHeight),"only the resource grid scrolls in small windows");
+      if(viewport.width===360)await page.screenshot({path:path.join(output,"image-picker-narrow.png")});
+    }
+    await page.setViewportSize({width:1500,height:1000});
+    assert.deepEqual(await picker.boundingBox(),pickerBounds,"restoring viewport restores picker bounds");
+    await page.screenshot({path:path.join(output,"image-picker-blocks.png")});
+    await picker.getByRole("button",{name:"浅灰色块",exact:true}).click();
+    await picker.waitFor({state:"hidden"});
+    assert.match(await page.locator('.image-slot-field[data-image-slot="normalSkin"] .image-slot-value').innerText(),/浅灰色块/);
+    await page.getByRole("button",{name:/^选择普通图片/}).click();
+    await picker.waitFor();
+    assert.deepEqual(await picker.boundingBox(),pickerBounds,"reopening keeps picker bounds stable");
     await page.getByRole("button",{name:"关闭图片资源",exact:true}).click();
     await page.locator('.image-slot-field[data-image-slot="normalSkin"] .image-slot-art-toggle').click();
     await page.getByRole("textbox",{name:"资源路径",exact:true}).fill("unclassified/missing.png");
@@ -87,7 +130,7 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
     assert.ok(alpha.right>0);assert.equal(alpha.left,0);
     await page.screenshot({path:path.join(output,"runtime-preview.png")});
     assert.deepEqual(errors,[]);
-    console.log(JSON.stringify({passed:true,checks:["default prototype mode","missing disk diagnostic","PSD state layers and editable labels roundtrip","builtin Prefab actual export","exported disk resource preview","five-category picker with 28 icons","three-mode runtime preview","grouped PSD state composition","cancel and continue missing-resource dialog","circular progress pixel clipping"],output},null,2));
+    console.log(JSON.stringify({passed:true,checks:["default prototype mode","missing disk diagnostic","PSD state layers and editable labels roundtrip","builtin Prefab actual export","exported disk resource preview","compact image resource field within narrow inspector","five-category picker with 28 icons","fixed picker bounds across categories and empty search","responsive picker at 420x600, 360x480 and 600x320","block selection and picker reopening","three-mode runtime preview","grouped PSD state composition","cancel and continue missing-resource dialog","circular progress pixel clipping"],output},null,2));
   }catch(error){await page.screenshot({path:path.join(output,"failure.png")});console.error("Browser artifacts:",output);console.error("Page errors:",errors);throw error;}
   finally{await browser.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});

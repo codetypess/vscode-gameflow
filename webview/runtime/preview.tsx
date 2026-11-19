@@ -7,20 +7,24 @@ import { mapPoint } from "../../shared/ui-transform";
 import { previewControl } from "../../shared/preview-session";
 import { NodeView, orderedNodes } from "../editor/node-view";
 import { Button } from "../components/ui/button";
-import { ResourceCanvas, useSliceResources } from "./resource-context";
+import { pagePsdKey } from "../../shared/page-psd";
+import { PageArtState, pageArtReady } from "../editor/page-art-state";
+import type { PagePsdActions } from "./page-psd";
+import { SliceResourcesProvider, ResourceCanvas, useSliceResources } from "./resource-context";
 import "./preview.css";
 
 import { imageSlotRequest, nodeImageSlot, type ResourceMode } from "../../shared/image-slots";
 import { nodeSlots } from "../../shared/prefab-export";
 
-export function RuntimePreview({ resourceMode, onResourceMode, pages, initialPageId, assets, onClose }: { resourceMode?:ResourceMode; onResourceMode?(mode:ResourceMode):void; pages: GameFlowPage[]; initialPageId?: string; assets: PsdAsset[]; onClose(): void }) {
+export function RuntimePreview({ pagePsds, resourceMode, onResourceMode, pages, initialPageId, onClose }: { pagePsds: PagePsdActions; resourceMode?:ResourceMode; onResourceMode?(mode:ResourceMode):void; pages: GameFlowPage[]; initialPageId?: string; onClose(): void }) {
   const dialog = useRef<HTMLDialogElement>(null), stage = useRef<HTMLDivElement>(null), world = useRef<HTMLDivElement>(null);
   const [pageId, setPageId] = useState(initialPageId ?? pages[0]?.id ?? ""), [nodeId, setNodeId] = useState("");
   const baseline = pages.find(p => p.id === pageId) ?? pages[0];
   const [session, setSession] = useState<{ baseline: GameFlowPage | undefined; page: GameFlowPage | undefined }>({ baseline, page: baseline });
   const page = session.baseline === baseline ? session.page : baseline;
   const [zoom, setZoom] = useState(1), [compare, setCompare] = useState(false);
-  const resources = useSliceResources(), sizes = resources.sizes;
+  const allResources = useSliceResources(), resources = page ? allResources.forPage?.(page) ?? allResources : allResources, sizes = resources.sizes;
+  const artBlocked = !!page && resourceMode === "art" && !pageArtReady(page, pagePsds);
   const geometry = page ? resolvePageLayout(page, sizes) : null;
   const selected = page?.nodes.find(n => n.id === nodeId), selectedGeometry = selected && geometry?.nodes.get(selected.id);
   const selectedSlot = selected ? nodeImageSlot(selected, resources.mode) : undefined;
@@ -31,7 +35,7 @@ export function RuntimePreview({ resourceMode, onResourceMode, pages, initialPag
   const fit = () => { const bounds = stage.current?.getBoundingClientRect(); if (bounds && page) setZoom(Math.max(.05, Math.min(1, (bounds.width - 64) / page.frame.width, (bounds.height - 64) / page.frame.height))); };
   useEffect(() => { dialog.current?.showModal(); resources.refresh(); }, []);
   useEffect(() => { const el = stage.current; if (!el) return; const observer = new ResizeObserver(fit); observer.observe(el); fit(); return () => observer.disconnect(); }, [page?.id, page?.frame.width, page?.frame.height]);
-  const diagnostics = page?.nodes.flatMap(node => nodeSlots(node).flatMap(([field,slot])=>{
+  const diagnostics = (artBlocked ? [] : page?.nodes)?.flatMap(node => nodeSlots(node).flatMap(([field,slot])=>{
     const request=imageSlotRequest(slot,resources.mode??"art");
     if(request.kind==="empty"||request.kind==="builtin")return [];
     const resource=request.kind==="error"?{status:"error" as const,error:request.error}:resources.resolve(request.ref);
@@ -65,13 +69,12 @@ export function RuntimePreview({ resourceMode, onResourceMode, pages, initialPag
     const ratio = node.widget?.direction === "vertical" ? point.y / Math.max(1, local.height) : point.x / Math.max(1, local.width);
     update(p => previewControl(p, node.id, min + Math.max(0, Math.min(1, ratio)) * (max - min)));
   };
-  const source = selectedResource?.description?.source.documentId;
-  const psd = assets.find(asset => asset.documentId === source) ?? assets.find(asset => page?.nodes.some(n => nodeSlots(n).some(([,slot])=>slot?.art?.source?.documentId === asset.documentId)));
+  const psd = page && pagePsdKey(page.artPsd) === pagePsds.states[page.id]?.key ? pagePsds.assets[page.id] : undefined;
   const sourceLayer = selectedResource?.description && psd?.layers.find(l => l.metadata.layerId === selectedResource.description!.layerId);
   const sourceRegion = sourceLayer && sliceRegion(sourceLayer);
   const product = selectedResource?.status === "ready" ? selectedResource : undefined;
   const design = baseline && selected ? resolvePageLayout(baseline, sizes).nodes.get(selected.id)?.local : undefined;
-  return <dialog ref={dialog} className="runtime-preview" aria-label="运行预览" onCancel={e => { e.preventDefault(); onClose(); }} onKeyDown={e => e.stopPropagation()}>
+  return <SliceResourcesProvider value={resources}><dialog ref={dialog} className="runtime-preview" aria-label="运行预览" onCancel={e => { e.preventDefault(); onClose(); }} onKeyDown={e => e.stopPropagation()}>
     <header className="runtime-heading"><strong>运行预览</strong>{onResourceMode ? <div className="resource-mode-tools" role="group" aria-label="预览资源显示模式">{([{id:"prototype",label:"原型",icon:LayoutDashboard},{id:"art",label:"美术 PSD",icon:Layers3},{id:"prefab",label:"预制体",icon:Box}] as const).map(({id,label,icon:Icon})=><Button key={id} size="icon" variant="ghost" aria-label={label+"资源"} aria-pressed={resourceMode===id} title={label} onClick={()=>{onResourceMode(id);resources.refresh();}}><Icon size={16}/></Button>)}</div> : null}<select aria-label="预览页面" value={page?.id ?? ""} onChange={e => { setPageId(e.target.value); setNodeId(""); setCompare(false); }}>{pages.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select><span className="runtime-session-note">临时状态</span>
       <Button size="icon" variant="ghost" aria-label="重置预览状态" title="重置预览状态" onClick={reset}><RotateCcw size={15} /></Button><Button size="icon" variant="ghost" aria-label="关闭运行预览" onClick={onClose}><X size={17} /></Button></header>
     <div className="runtime-content"><div className="runtime-main"><div className="runtime-view-tools"><label>缩放 <input aria-label="预览缩放" type="number" min={5} max={300} value={Math.round(zoom * 100)} onChange={e => setZoom(Math.max(.05, Math.min(3, Number(e.target.value) / 100)))} />%</label><Button size="sm" variant="ghost" onClick={fit}>适应窗口</Button><label><input type="checkbox" checked={compare} disabled={!psd} onChange={e => setCompare(e.target.checked)} />PSD 原图对照</label></div>
@@ -81,9 +84,9 @@ export function RuntimePreview({ resourceMode, onResourceMode, pages, initialPag
           onPointerMove={e => { const control = page.nodes.find(n => n.id === drag.current); if (control) sliderValue(control, e); }}
           onPointerUp={e => { if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId); drag.current = null; }} onPointerCancel={() => { drag.current = null; }}
           onClick={e => { const control = controlAt((e.target as Element).closest<HTMLElement>("[data-node-id]")?.dataset.nodeId); if (control && control.type !== "slider") update(p => previewControl(p, control.id)); }}>
-          {orderedNodes(page).map(node => <NodeView key={node.id} page={page} node={node} geometry={geometry.nodes.get(node.id)} />)}
-          {compare && psd ? <img className="runtime-psd-overlay" src={psd.preview} alt="PSD 原图对照" style={{ width: psd.width, height: psd.height }} /> : null}
-          {selectedGeometry ? <div className="runtime-node-outline" style={{ width: selectedGeometry.local.width, height: selectedGeometry.local.height, transform: `matrix(${selectedGeometry.matrix.join(",")})`, borderWidth: 1 / zoom }} /> : null}
+          {artBlocked ? <PageArtState page={page} actions={pagePsds} zoom={zoom}/> : <>{orderedNodes(page).map(node => <NodeView key={node.id} page={page} node={node} geometry={geometry.nodes.get(node.id)} />)}
+          </>}{!artBlocked && compare && psd ? <img className="runtime-psd-overlay" src={psd.preview} alt="PSD 原图对照" style={{ width: psd.width, height: psd.height }} /> : null}
+          {!artBlocked && selectedGeometry ? <div className="runtime-node-outline" style={{ width: selectedGeometry.local.width, height: selectedGeometry.local.height, transform: `matrix(${selectedGeometry.matrix.join(",")})`, borderWidth: 1 / zoom }} /> : null}
         </div></div> : <p>当前没有可预览页面。</p>}
       </div></div>
       <aside className="runtime-inspector"><label className="runtime-field">检查控件<select aria-label="预览检查控件" value={selected?.id ?? ""} onChange={e => setNodeId(e.target.value)}><option value="">选择控件</option>{page?.nodes.map(n => <option key={n.id} value={n.id}>{n.name}</option>)}</select></label>
@@ -96,5 +99,5 @@ export function RuntimePreview({ resourceMode, onResourceMode, pages, initialPag
         <section className="runtime-diagnostics"><div><strong>装载诊断（{diagnostics.length}）</strong><Button size="sm" variant="ghost" onClick={resources.refresh}>刷新</Button></div>{diagnostics.length ? diagnostics.map(d => <button key={d.id} onClick={() => setNodeId(d.nodeId)}><strong>{d.name}</strong><code>{d.path}</code><span>{d.message}</span></button>) : <p>已绑定资源装载正常。</p>}{geometry?.issues.map((issue, i) => <button key={`layout-${i}`} onClick={() => setNodeId(issue.nodeId)}>{issue.message}</button>)}</section>
       </aside>
     </div>
-  </dialog>;
+  </dialog></SliceResourcesProvider>;
 }

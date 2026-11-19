@@ -12,6 +12,7 @@ export class Disposable {
   dispose() { this.run(); }
   static from(...items: { dispose: () => void }[]) { return new Disposable(() => items.forEach(item => item.dispose())); }
 }
+export class CancellationTokenSource { token = { isCancellationRequested: false }; dispose() {} }
 export class RelativePattern { constructor(public base: Uri, public pattern: string) {} }
 export class Range { constructor(public start: unknown, public end: unknown) {} }
 export class WorkspaceEdit {
@@ -50,7 +51,7 @@ export const referenceHost = {
 };
 export const workspace = {
   textDocuments: [] as TestTextDocument[], onDidChangeTextDocument: change.subscribe,
-  fs: { isWritableFileSystem: (_scheme: string) => true, async stat(uri: Uri) { return {permissions:referenceHost.readOnly.has(uri.path)?1:0}; }, async readFile(uri: Uri) {
+  fs: { async writeFile(uri: Uri, bytes: Uint8Array) { referenceHost.files.set(uri.path, Buffer.from(bytes).toString()); }, isWritableFileSystem: (_scheme: string) => true, async stat(uri: Uri) { return {permissions:referenceHost.readOnly.has(uri.path)?1:0}; }, async readFile(uri: Uri) {
     referenceHost.reads.push(uri.path);
     if (referenceHost.readOverride) return referenceHost.readOverride(uri);
     const text = referenceHost.files.get(uri.path);
@@ -73,5 +74,5 @@ export const workspace = {
     return true;
   }
 };
-export const window = { async showOpenDialog() { return referenceHost.picked ? [referenceHost.picked] : undefined; } };
+export const window = { async showSaveDialog() { return referenceHost.picked; }, async showOpenDialog() { return referenceHost.picked ? [referenceHost.picked] : undefined; } };
 export const commands = { async executeCommand(command: string, uri: Uri) { referenceHost.commands.push({ command, uri }); } };

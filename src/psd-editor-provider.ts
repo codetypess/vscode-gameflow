@@ -67,7 +67,7 @@ export class PsdEditorProvider implements vscode.CustomEditorProvider<PsdDocumen
     if (!/\.psd$/i.test(uri.path)) throw new Error("请选择 PSD 文件。");
     await vscode.commands.executeCommand("vscode.openWith", uri, PSD_EDITOR_VIEW_TYPE, { preview: false });
   }
-  async openCustomDocument(uri: vscode.Uri, context: vscode.CustomDocumentOpenContext, token: vscode.CancellationToken): Promise<PsdDocument> {
+  async openCustomDocument(uri: vscode.Uri, context: vscode.CustomDocumentOpenContext, token: vscode.CancellationToken, options?: { preview?: boolean; acceptChangedSource?: boolean }): Promise<PsdDocument> {
     if (this.documents.has(uri.toString())) throw new Error("此 PSD 已在工作台或配置编辑器中打开，请先关闭原会话。");
     const cache = vscode.Uri.joinPath(this.context.globalStorageUri, "psd-drafts", bytesHash(new TextEncoder().encode(uri.toString())));
     let backup: Backup | undefined;
@@ -99,6 +99,7 @@ export class PsdEditorProvider implements vscode.CustomEditorProvider<PsdDocumen
       } catch (error) { configReadIssue = message(error); notice = `已有配置未能自动读取：${configReadIssue} 原文件已保留。可修复身份后读取配置，或另存为 PSD 副本。`; }
       if (matched) {
         if (changedSource) {
+          if (options?.preview && !options.acceptChangedSource) throw new Error("PSD 已变化，请重新绑定并确认采用已有配置。");
           const answer = await vscode.window.showWarningMessage("PSD 已变化，是否按图层身份采用已有配置？", { modal: true }, "采用配置");
           if (answer !== "采用配置") throw new vscode.CancellationError();
           notice = "已按图层身份读取配置，请检查后保存。";
@@ -109,6 +110,7 @@ export class PsdEditorProvider implements vscode.CustomEditorProvider<PsdDocumen
     const model = new PsdDocumentModel(asset, savedBytes ? bytesHash(savedBytes) : null, !savedBytes || !!notice);
     if (backup) { model.restore(backup.draft, backup.baseline); model.configHash = backup.configHash; model.needsSave = backup.needsSave; configReadIssue = backup.configReadIssue; notice = "已恢复未保存草稿，请检查后保存配置。"; }
     else if (!savedBytes) notice = "已新建切图配置，Ctrl+S 保存到 PSD 同目录。";
+    if (options?.preview && !backup && !savedBytes && asset.hasEmbeddedIdentity) { model.needsSave = false; notice = undefined; }
     const doc = new PsdDocument(uri, bytes, model, cache); doc.notice = notice; doc.configReadIssue = configReadIssue;
     if (backup) doc.backup = "saved";
     cancelled(token); this.documents.set(uri.toString(), doc);

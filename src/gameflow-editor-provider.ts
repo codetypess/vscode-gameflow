@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 import { rename } from "node:fs/promises";
 import { parseGameFlowDocument, serializeGameFlowDocument, validateGameFlowDocument } from "../shared/model";
 import { isWebviewToHostMessage, type HostToWebviewMessage } from "../shared/protocol";
-import { isPsdEditorRequest } from "../shared/psd-editor-protocol";
+import { isPsdEditorRequest, type PsdEditorMessage } from "../shared/psd-editor-protocol";
 import { configureGameFlowWebview } from "./webview-html";
 import { CanvasReferenceController, type CanvasDocumentAccess, type CanvasText } from "./canvas-reference-controller";
 import { PsdEditorProvider } from "./psd-editor-provider";
@@ -10,6 +10,7 @@ import { bytesHash } from "./psd-document-model";
 import { WorkbenchDocument } from "./workbench-document";
 import { readWorkbenchSlices } from "./slice-resource-controller";
 
+import { PagePsdController, rebasePagePsds } from "./page-psd-controller";
 import { exportPrefab } from "./prefab-export-controller";
 
 export const GAMEFLOW_EDITOR_VIEW_TYPE = "gameflow.canvasEditor";
@@ -39,17 +40,20 @@ async function writeCanvas(uri: vscode.Uri, text: string) {
 /** One native working copy owns the prototype and its PSD configuration sessions. */
 export class GameFlowEditorProvider implements vscode.CustomEditorProvider<WorkbenchDocument> {
   readonly documents = new Map<string, WorkbenchDocument>();
+  private readonly pagePsds: PagePsdController;
   private readonly changes = new vscode.EventEmitter<vscode.CustomDocumentEditEvent<WorkbenchDocument>>();
   private readonly uriChanges = new vscode.EventEmitter<vscode.Uri>();
   readonly onDidChangeCustomDocument = this.changes.event;
   constructor(private readonly context: vscode.ExtensionContext, readonly psd: PsdEditorProvider) {
+    this.pagePsds = new PagePsdController(psd);
     context.subscriptions.push(this.changes, this.uriChanges, psd.onDidChangeCustomDocument(event => {
       const owner = [...this.documents.values()].find(doc => doc.psds.get(event.document.uri.toString()) === event.document);
       if (!owner) return;
       this.changes.fire({ document: owner, label: event.label,
-        undo: async () => { await event.undo(); await owner.refresh(); this.checkpoint(owner); },
-        redo: async () => { await event.redo(); await owner.refresh(); this.checkpoint(owner); }
+        undo: async () => { await event.undo(); for (const panel of owner.panels) void panel.webview.postMessage({ type: "pagePsdChanged", documentId: event.document.model.asset.documentId } satisfies HostToWebviewMessage); await owner.refresh(); this.checkpoint(owner); },
+        redo: async () => { await event.redo(); for (const panel of owner.panels) void panel.webview.postMessage({ type: "pagePsdChanged", documentId: event.document.model.asset.documentId } satisfies HostToWebviewMessage); await owner.refresh(); this.checkpoint(owner); }
       });
+      for (const panel of owner.panels) void panel.webview.postMessage({ type: "pagePsdChanged", documentId: event.document.model.asset.documentId } satisfies HostToWebviewMessage);
       void owner.refresh(); this.checkpoint(owner);
     }));
   }
@@ -126,7 +130,10 @@ export class GameFlowEditorProvider implements vscode.CustomEditorProvider<Workb
     if (!uri || doc.disposed) return;
     if (!/\.psd$/i.test(uri.path)) throw new Error("请选择 PSD 文件。");
     const source = uri.toString();
-    if (source === doc.currentPsd?.uri.toString()) return;
+    if (source === doc.currentPsd?.uri.toString()) {
+      for (const panel of doc.panels) await panel.webview.postMessage({ type: "psdEditorReveal" } satisfies PsdEditorMessage);
+      return;
+    }
     if (this.psd.documents.has(source) && !doc.psds.has(source)) throw new Error("此 PSD 已在其他工作台或编辑器中打开，请先关闭该会话。");
     if (doc.currentPsd) {
       await this.psd.flush(doc.currentPsd);
@@ -147,7 +154,11 @@ export class GameFlowEditorProvider implements vscode.CustomEditorProvider<Workb
     finally { cancellation.dispose(); }
     if (doc.disposed) { psd.dispose(); return; }
     doc.attachment?.dispose(); doc.psds.set(source, psd); doc.currentPsd = psd;
-    for (const panel of doc.panels) { doc.attachment = this.psd.attach(psd, panel, () => this.openPsd(doc)); await this.psd.initialize(psd, panel); }
+    for (const panel of doc.panels) {
+      doc.attachment = this.psd.attach(psd, panel, () => this.openPsd(doc));
+      await panel.webview.postMessage({ type: "psdEditorReveal" } satisfies PsdEditorMessage);
+      await this.psd.initialize(psd, panel);
+    }
     await this.context.workspaceState.update(this.stateKey(doc.uri), source); this.checkpoint(doc);
   }
   async resolveCustomEditor(doc: WorkbenchDocument, panel: vscode.WebviewPanel): Promise<void> {
@@ -175,6 +186,8 @@ export class GameFlowEditorProvider implements vscode.CustomEditorProvider<Workb
             this.changes.fire({ document: doc, label: "恢复工作台草稿", undo: () => restore(doc.baseline), redo: () => restore(recovered) }); this.checkpoint(doc);
           }
           for (const psd of doc.psds.values()) if (psd !== doc.currentPsd) this.psd.announce(psd);
+        } else if (raw.type === "pagePsd") {
+          await panel.webview.postMessage(await this.pagePsds.handle(doc, raw));
         } else if (raw.type === "psdOutput") {
           try {
             const uri = await vscode.window.showSaveDialog({ defaultUri: vscode.Uri.joinPath(doc.uri, "..", raw.name), filters: raw.kind === "psd" ? { Photoshop: ["psd"] } : { JSON: ["json"] } });
@@ -260,7 +273,7 @@ export class GameFlowEditorProvider implements vscode.CustomEditorProvider<Workb
     if (cancellation.isCancellationRequested) throw new vscode.CancellationError();
     if (vscode.workspace.textDocuments.some(text => text.uri.toString() === destination.toString() && text.isDirty) || this.documents.get(destination.toString())?.dirty) throw new Error("目标文件有未保存修改。");
     for (const psd of doc.psds.values()) if (psd.model.dirty) await this.psd.saveCustomDocument(psd, cancellation);
-    const saved = doc.getText(); parseGameFlowDocument(saved); await write(destination, saved); doc.baseline = saved;
+    const saved = serializeGameFlowDocument(rebasePagePsds(parseGameFlowDocument(doc.getText()), doc.uri, destination)); await write(destination, saved); doc.baseline = doc.getText();
     await this.context.workspaceState.update(this.stateKey(destination), doc.currentPsd?.uri.toString()); await remove(doc.cache);
   }
   async backupCustomDocument(doc: WorkbenchDocument, context: vscode.CustomDocumentBackupContext, cancellation: vscode.CancellationToken): Promise<vscode.CustomDocumentBackup> {

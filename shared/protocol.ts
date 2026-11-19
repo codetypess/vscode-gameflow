@@ -2,6 +2,8 @@ import {
   type GameFlowDocument,
   validateGameFlowDocument
 } from "./model";
+import type { PagePsdRequest, PagePsdResult } from "./page-psd-protocol";
+import { isPagePsdBinding } from "./model";
 import { isCanvasReferenceSource } from "./model";
 import type { CanvasSources } from "./canvas-references";
 import type { CanvasApplyRequest } from "./canvas-instances";
@@ -13,6 +15,7 @@ import { isSliceResourcePath, type ExportedSliceResult } from "./slice-resources
 import { isPrefabExportBatch, type PrefabExportBatch } from "./prefab-export";
 
 export type WebviewToHostMessage =
+  | PagePsdRequest
   | { type: "prefabExport"; requestId: string; batch: PrefabExportBatch }
   | WorkbenchSettingsRequest
   | { type: "sliceResources"; requestId: string; paths: string[] }
@@ -33,6 +36,8 @@ export type WebviewToHostMessage =
     };
 
 export type HostToWebviewMessage =
+  | PagePsdResult
+  | { type: "pagePsdChanged"; documentId: string }
   | { type: "prefabExportResult"; requestId: string; count?: number; error?: string }
   | WorkbenchSettingsResult
   | { type: "sliceResourcesResult"; requestId: string; resources: ExportedSliceResult[] }
@@ -71,6 +76,7 @@ export function isWebviewToHostMessage(
   if (!isRecord(value) || typeof value.type !== "string") {
     return false;
   }
+  if (value.type === "pagePsd") return typeof value.requestId === "string" && value.requestId.length > 0 && value.requestId.length <= 80 && typeof value.pageId === "string" && value.pageId.length > 0 && value.pageId.length <= 128 && (value.expected === undefined || isPagePsdBinding(value.expected)) && (value.action === "choose" || value.action === "load" && isPagePsdBinding(value.expected) || value.action === "generate" && typeof value.name === "string" && /^[^\\/:*?"<>|\x00-\x1f]{1,156}\.psd$/i.test(value.name) && !value.name.includes("..") && !/^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(value.name) && typeof value.base64 === "string" && value.base64.length > 0 && value.base64.length <= 44_739_244 && value.base64.length % 4 === 0 && /^[A-Za-z0-9+/]*={0,2}$/.test(value.base64));
   if (value.type === "workbenchSettings") return isWorkbenchSettingsRequest(value);
   if (value.type === "sliceResources") return typeof value.requestId === "string" && value.requestId.length > 0 && value.requestId.length <= 80 &&
     Array.isArray(value.paths) && value.paths.length <= 128 && value.paths.every(isSliceResourcePath) && new Set(value.paths).size === value.paths.length;

@@ -34,6 +34,7 @@
         "properties": {
           "id": { "type": "string", "minLength": 1 },
           "name": { "type": "string", "minLength": 1 },
+          "artPsd": {"type":"object","additionalProperties":false,"required":["source","documentId"],"properties":{"source":{"type":"string","minLength":1,"maxLength":512,"pattern":"^(?!/)[^\\\\:*?\"<>|#\\x00-\\x1f]+\\.[pP][sS][dD]$(?![\\s\\S])"},"documentId":{"type":"string","minLength":1,"maxLength":128,"pattern":"\\S"}}},
           "exportName": { "type": "string", "minLength": 1, "pattern": "\\S" },
           "kind": { "enum": ["screen","modal"] },
           "rootType": { "enum": ["UIStack","UITop","UIScene","UIBox"] },

@@ -55,7 +55,6 @@ export function LayoutProperties({ page, node, locked, onNode, onPage, structure
         onNode(node.id, { layout: next });
       }} />
       <ConstraintControl layout={layout} disabledX={locked || !!sliderOwner(page, node) || managedAxis(parent, "x")} disabledY={locked || !!sliderOwner(page, node) || managedAxis(parent, "y")} onChange={set} onToggle={(key, enabled) => onPage((p) => setNodeConstraint(p, node.id, key, enabled, resources.sizes))} />
-      {flowType(parent) !== "free" ? <p className="property-hint">父容器自动排布：拖动调整顺序；交叉轴可单独定位。</p> : null}
       {node.type === "text" && (layout.widthMode === "measured" || layout.heightMode === "measured") ? <p className="property-hint">文字内容尺寸为原型估算，实际以游戏字体为准。</p> : null}
     </details>
     {canHaveChildren(node) ? <details className="property-details" open><summary>容器布局</summary>
@@ -68,7 +67,7 @@ export function LayoutProperties({ page, node, locked, onNode, onPage, structure
         <NumericPropertyRow label="间距" integer disabled={locked} fields={[{ axis: "X", ariaLabel: "水平间距", value: layout.gapX ?? 0, onCommit: gapX => set({ gapX }) }, { axis: "Y", ariaLabel: "垂直间距", value: layout.gapY ?? 0, onCommit: gapY => set({ gapY }) }]} />
       </> : null}
       {flow !== "free" ? <ContainerAlignment layout={layout} flow={flow} disabled={locked} onChange={set} /> : null}
-      <Toggle label="裁剪超出内容" value={layout.clipContent ?? node.type === "panel"} disabled={locked} onChange={(v) => set({ clipContent: v })} />
+      <Toggle label="裁剪内容" value={layout.clipContent ?? node.type === "panel"} disabled={locked} onChange={(v) => set({ clipContent: v })} />
       {node.type === "panel" || node.type === "list" ? <NumericPropertyRow label="滚动" integer disabled={locked} fields={[{ axis: "X", ariaLabel: "滚动 X", min: 0, value: layout.scrollX ?? 0, onCommit: scrollX => set({ scrollX }) }, { axis: "Y", ariaLabel: "滚动 Y", min: 0, value: layout.scrollY ?? 0, onCommit: scrollY => set({ scrollY }) }]} /> : null}
       {node.type === "list" ? <p className="property-hint">静态列表项可在层级树中编辑、复制和排序。</p> : null}
     </details> : null}

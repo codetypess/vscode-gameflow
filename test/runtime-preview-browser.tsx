@@ -9,6 +9,7 @@ import { RuntimePreview } from "../webview/runtime/preview";
 import { NodeView } from "../webview/editor/node-view";
 import type { RuntimeResource } from "../webview/runtime/resource-context";
 import type { PsdAsset } from "../shared/psd-meta";
+import { pagePsdKey } from "../shared/page-psd";
 import type { GameFlowPage } from "../shared/model";
 import "../webview/style.css";
 
@@ -18,7 +19,7 @@ const colors = ["#ff0000", "#ff00ff", "#00ff00", "#00ffff", "#000000", "#00ffff"
 for (let y = 0; y < 3; y++) for (let x = 0; x < 3; x++) { ctx.fillStyle = colors[y * 3 + x]; ctx.fillRect(x * 2, y * 2, 2, 2); }
 ctx.fillStyle = "#ffffff"; ctx.fillRect(3, 2, 1, 1); ctx.fillRect(2, 3, 1, 1);
 const asset: PsdAsset = { documentId: "test-psd", name: "预览.psd", sourceHash: "a".repeat(64), hasEmbeddedIdentity: true, width: 6, height: 6, preview: source.toDataURL(), layers: [{ key: 0, parentKey: null, nativeId: 1, name: "按钮", group: false, left: 0, top: 0, width: 6, height: 6, hidden: false, identityOrigin: "embedded", metadata: { namespace: "com.codetypes.gameflow", version: 1, documentId: "test-psd", layerId: "test-layer" }, image: source.toDataURL(), config: { enabled: true, name: "按钮", exportName: "btn_test", nineGrid: { left: 3, right: 3, top: 3, bottom: 3, repeat: true }, region: { x: -1, y: -1, width: 8, height: 8 } } }] };
-const page: GameFlowPage = { id: "preview-page", name: "切图装载验收", kind: "screen", frame: { x: 0, y: 0, width: 240, height: 200 }, nodes: [
+const page: GameFlowPage = { artPsd: { source: "preview.psd", documentId: asset.documentId }, id: "preview-page", name: "切图装载验收", kind: "screen", frame: { x: 0, y: 0, width: 240, height: 200 }, nodes: [
   { id: "image", name: "九宫格按钮", type: "image", frame: { x: 20, y: 20, width: 100, height: 60 }, style: { fill: "transparent", borderWidth: 0, radius: 0 }, sliceResource: { path: "unclassified/btn_test.png", source: { documentId: "test-psd", layerId: "test-layer" } } },
   { id: "check", name: "选择", type: "checkbox", text: "临时复选", frame: { x: 20, y: 100, width: 100, height: 30 }, widget: { selected: false } },
   { id: "slider", name: "滑块", type: "slider", frame: { x: 20, y: 150, width: 180, height: 20 }, widget: { min: 0, max: 100, value: 20 } }
@@ -94,8 +95,8 @@ async function checkPixels() {
 }
 function Fixture() {
   const [open, setOpen] = useState(false), [results, setResults] = useState<string[]>([]), [assets, setAssets] = useState([asset]);
-  const resources = useRuntimeResources(assets, [page]);
+  const resources = useRuntimeResources(assets, [page], undefined, "art", { [page.id]: assets[0] });
   const state = resources.resolve(page.nodes[0].sliceResource!);
-  return <SliceResourcesProvider value={resources}><main style={{ padding: 20 }}><h1>运行预览像素验收</h1><button onClick={() => { void checkPixels().then(setResults).catch(e => setResults([`FAIL ${String(e)}`])); }}>执行像素验收</button><button onClick={() => setOpen(true)}>打开运行预览</button><button onClick={() => setAssets([{ ...asset, layers: [{ ...asset.layers[0], config: { ...asset.layers[0].config, exportName: "btn_renamed" } }] }])}>资源改名</button><button onClick={() => setAssets([{ ...asset, layers: [] }])}>删除来源</button><p role="status">资源状态：{state.status}{state.status === "error" ? ` ${state.error}` : ""}</p><pre>{results.join("\n")}</pre><p>设计初值：复选 false；Slider 20；九宫格 100×60。</p>{open ? <RuntimePreview pages={[page]} initialPageId={page.id} assets={assets} onClose={() => setOpen(false)} /> : null}</main></SliceResourcesProvider>;
+  return <SliceResourcesProvider value={resources}><main style={{ padding: 20 }}><h1>运行预览像素验收</h1><button onClick={() => { void checkPixels().then(setResults).catch(e => setResults([`FAIL ${String(e)}`])); }}>执行像素验收</button><button onClick={() => setOpen(true)}>打开运行预览</button><button onClick={() => setAssets([{ ...asset, layers: [{ ...asset.layers[0], config: { ...asset.layers[0].config, exportName: "btn_renamed" } }] }])}>资源改名</button><button onClick={() => setAssets([{ ...asset, layers: [] }])}>删除来源</button><p role="status">资源状态：{state.status}{state.status === "error" ? ` ${state.error}` : ""}</p><pre>{results.join("\n")}</pre><p>设计初值：复选 false；Slider 20；九宫格 100×60。</p>{open ? <RuntimePreview pagePsds={{ states: { [page.id]: { key: pagePsdKey(page.artPsd), status: "ready" } }, assets: { [page.id]: assets[0] }, busy: new Set(), run: async () => {}, retry() {} }} pages={[page]} initialPageId={page.id} onClose={() => setOpen(false)} /> : null}</main></SliceResourcesProvider>;
 }
 createRoot(document.getElementById("root")!).render(<Fixture />);

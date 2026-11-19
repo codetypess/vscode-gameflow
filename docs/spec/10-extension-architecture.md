@@ -95,3 +95,13 @@ Schema v4 introduced `page.componentRootId` and `node.prefab: { source, document
 `shared/image-slots.ts` 定义可序列化图片槽位与资源来源选择，内置 PNG 清单在 shared/builtin-images.json，原文件在 assets/builtin。Webview 负责图片选择、模式会话、Canvas 绘制、原型 PSD 编码、稳定 PSD 身份关联和导出预检。原型、美术内存和磁盘资源互相隔离。`shared/prefab-export.ts` 构建目标 UI `.lh` 与图片计划，并通过抽象 ResourceDirectory 对两导出根执行校验、文件备份和失败恢复；浏览器与 VS Code 使用同一核心。
 
 新协议 prefabExport / prefabExportResult 带有有界且逐项校验的相对输出路径，Host 仅向本机配置根目录写入，拒绝目录穿越、大小写冲突、损坏 PNG、来源冲突和未保存的目标文档。原生 PSD 与 Prefab 图片导出共用根目录锁。psdOutput / psdOutputResult 通过保存对话框输出生成 PSD，并检查打开的目标 PSD 草稿。源项目 xq-client 只作只读契约依据。
+
+## PSD 工作区导航（2026-11-19）
+
+GameFlow 打开或恢复时初始显示原型。psdEditorInit 只恢复数据，不触发工作区切换；psdEditorReveal 仅由明确打开切图的操作发送并即时导航，异步解码完成不得覆盖用户随后选择的工作区。同一 PSD 再次打开仅聚焦，不重新初始化或清除未同步修改。切图会话的 currentPsd 与页面 artPsd 独立；打开/恢复切图不写页面绑定或 GameFlow 文件。详见 [PSD 工作区启动修复](psd-workspace-startup-regression.md)。
+
+## 页面 PSD 文件关联（2026-11-19）
+
+GameFlow 页面通过可选 artPsd 保存 PSD 相对文件路径及稳定文档身份。pagePsd / pagePsdResult 请求负责选择、生成保存和按页面绑定加载文件；加载路径从宿主的权威页面读取并校验 expected，取消不改变页面。Webview 将文件绑定与稳定槽位匹配合并为一次页面编辑，异步结果验证目标页面及原绑定。DocumentSession 不把这些返回消息视为文档事务确认。
+
+PagePsdController 复用工作台管理的 PsdDocument，后台加载不改变 currentPsd 或发送活动编辑器初始化。已有草稿与 sidecar 仍由原 PSD 模型负责；新建无内嵌身份 PSD 需要保存 sidecar 以持久化分配的身份，已有内嵌身份的纯预览不产生 dirty。PSD 配置编辑、撤销重做通过 pagePsdChanged 失效相应页面缓存。保存重开按页面明确绑定装载；另存为重算路径。每页资源上下文仅接收该页面加载成功的文件资产，内存条目按资产实例隔离，避免同名切图和复制 PSD 的同身份互相污染。详见 [page-psd-binding.md](page-psd-binding.md)。

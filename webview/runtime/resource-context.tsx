@@ -6,6 +6,7 @@ import { paintSlice } from "./paint-slice";
 export type RuntimeResource = SliceResourceState<HTMLCanvasElement | HTMLImageElement>;
 export interface Resources {
   mode?: ResourceMode;
+  forPage?(page: import("../../shared/model").GameFlowPage): Resources;
   memoryEntries?: ReadonlyMap<string, RuntimeResource>;
   diskEntries?: ReadonlyMap<string, RuntimeResource>;
   entries: ReadonlyMap<string, RuntimeResource>;

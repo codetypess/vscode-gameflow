@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { pagePsdChecks } from "./page-psd-native-smoke";
 import { settingsChecks } from "./workbench-settings-smoke";
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, writeFileSync, existsSync } from "node:fs";
@@ -83,6 +84,7 @@ export async function run() {
     repairable.dispose(); checks.push("incompatible sidecar preserves editable identity repair and original config");
     checks.push(...await settingsChecks(api, root, directory));
     checks.push(...await workbenchChecks(api, root, directory));
+    checks.push(...await pagePsdChecks(api, root, directory));
     if (process.env.GAMEFLOW_PSD_CLOSE_UI === "1") checks.push(...await closeUiChecks(api, root, directory));
     writeFileSync(report, JSON.stringify({ ok: true, directory, checks }, null, 2));
   } catch (error) { writeFileSync(report, JSON.stringify({ ok: false, directory, checks, error: String(error), stack: error instanceof Error ? error.stack : undefined }, null, 2)); throw error; }
