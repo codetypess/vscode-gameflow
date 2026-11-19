@@ -73,7 +73,7 @@ export function sliceExportIssues(asset: PsdAsset): ExportIssue[] {
   for (const l of layers) {
     const name = effectiveExportName(asset, l), error = exportNameError(name);
     if (error) issues.push({ keys: [l.key], message: `${l.name}：${error}` });
-    if (l.group || !l.image || l.limitation) issues.push({ keys: [l.key], message: `${l.name}：当前图层无法独立导出。` });
+    if (!l.image || l.limitation) issues.push({ keys: [l.key], message: `${l.name}：当前图层无法独立导出。` });
     if (identities.includes(l.metadata.layerId)) issues.push({ keys: [l.key], message: `${l.name}：图层 ID 重复，请先分配新身份。` });
     if (!validConfig(l.config, l.width, l.height)) issues.push({ keys: [l.key], message: `${l.name}：切图区域或九宫格范围无效。` });
   }

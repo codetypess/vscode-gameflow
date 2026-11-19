@@ -1,19 +1,19 @@
 # Prototype UI and Layout Baseline
 
-Date: 2026-11-16
+Date: 2026-11-18
 Status: Implemented prototype subset
 
 ## Components
 
-页面属性在“页面名称”与“基础属性”之间提供独立的“导出名称”一行，与其他输入对齐，保存为可选 v2 `page.exportName`，供后续生成预制体使用。Enter/失焦提交时去除首尾空白，保留大小写，Escape 恢复，留空移除字段；旧文档不自动填充。修改显示名称、根类型或几何不联动导出名，整页复制保留；支持普通保存、重载及撤销/重做。本阶段仅存储名称，详见 [页面导出名称](page-export-name.md)。
+页面属性在“页面名称”与“基础属性”之间提供独立的“导出名称”一行，与其他输入对齐，保存为可选 v2 `page.exportName`，供后续生成预制体使用。Enter/失焦提交时去除首尾空白，保留大小写，Escape 恢复，留空移除字段；旧文档不自动填充。修改显示名称、根类型或几何不联动导出名，整页复制保留；支持普通保存、重载及撤销/重做。此名称现用于当前页面的 `.lh` 导出，详见 [页面导出名称](page-export-name.md)。
 
-底部添加菜单和层级树右键提供 16 种原型节点：自由容器、横排、竖排、网格、面板容器、文字、图片、按钮、输入框、列表、复选框、单选框、单选组、进度条、滑块、下拉框。旧矩形节点继续兼容读写和渲染。菜单显示中文名与括号内的 LayaUI 类名，底部菜单不显示快捷键列。`shared/ui-components.ts` 定义类型、中文名、目标 LayaUI 类及能否包含子节点。新 UIButton 默认只有按钮根，UILabel 可通过添加子节点按需创建、删除；无 text 时不显示节点名，旧按钮显式保存的 text 原样显示。容器能力与是否自身绘制分别描述，不根据 UIBox 继承关系推断。
+底部添加菜单和层级树右键提供 16 种原型节点：自由容器、横排、竖排、网格、面板容器、文字、图片、按钮、输入框、列表、复选框、单选框、单选组、进度条、滑块、下拉框。旧矩形节点继续兼容读写和渲染。菜单显示中文名与括号内的 LayaUI 类名，底部菜单不显示快捷键列。`shared/ui-components.ts` 定义类型、中文名、目标 LayaUI 类及能否包含子节点。新 UIButton 默认只有按钮根，UILabel 可通过添加子节点按需创建、删除；无 text 时不显示节点名，UIButton 自身不渲染 text，文案仅由独立 UILabel 表达；自带示例直接更新，不进行旧文档自动转换。容器能力与是否自身绘制分别描述，不根据 UIBox 继承关系推断。
 
-画布根类型包括堆叠界面 (UIStack)、顶层界面 (UITop)、场景界面 (UIScene)，三种界面新建默认尺寸均为 750×1334；组件画板 (UIBox) 初始为 320×240。添加菜单上方“添加到画布”包含四种根类；下方控件区另保留自由容器，仅在页面内启用并添加子容器。UIBox 画板可用于 ItemRender 设计，双击编辑内部节点。UIView 是基础类，不作为可选根类型；默认新建 UIStack。页面属性可改根类型，与 screen/modal 页面形式独立；改类型保留 ID、内容和几何，复制保留类型并生成新 ID。层级树根和属性身份显示实际根类。运行时层级管理、ItemRender 绑定与 Prefab 导出仍为后续工作。
+画布根类型包括堆叠界面 (UIStack)、顶层界面 (UITop)、场景界面 (UIScene)，三种界面新建默认尺寸均为 750×1334；组件画板 (UIBox) 初始为 320×240。添加菜单上方“添加到画布”包含四种根类；下方控件区另保留自由容器，仅在页面内启用并添加子容器。UIBox 画板可用于 ItemRender 设计，双击编辑内部节点。UIView 是基础类，不作为可选根类型；默认新建 UIStack。页面属性可改根类型，与 screen/modal 页面形式独立；改类型保留 ID、内容和几何，复制保留类型并生成新 ID。层级树根和属性身份显示实际根类。当前页面可导出目标自定义 UI 类的 `.lh`；运行时层级管理及 ItemRender 业务绑定仍由目标项目负责。
 
-页面属性的“根节点布局”支持配置六项相对游戏父容器的约束及像素/百分比单位，保存为可选 v2 `page.layout`，仅接收 ConstraintLayout 字段。新启用项默认 0，取消写 null；单位切换保留输入数字，不假定预览父级进行换算。当前画布继续按 page.frame 设计尺寸和总览摆放坐标展示，根约束不参与内部控件几何解算；界面明确说明该范围。改名、拖动画板、换根类和整页复制保留配置，复制独立克隆布局对象；支持正常保存和 undo/redo。父容器自适应预览及 Prefab 消费仍为后续工作。
+页面属性的“根节点布局”支持配置六项相对游戏父容器的约束及像素/百分比单位，保存为可选 v2 `page.layout`，仅接收 ConstraintLayout 字段。新启用项默认 0，取消写 null；单位切换保留输入数字，不假定预览父级进行换算。当前画布继续按 page.frame 设计尺寸和总览摆放坐标展示，根约束不参与内部控件几何解算；界面明确说明该范围。改名、拖动画板、换根类和整页复制保留配置，复制独立克隆布局对象；支持正常保存和 undo/redo。导出的 Prefab 保留根约束；父容器自适应预览仍为后续工作。
 
-控件状态通过属性面板编辑，包括勾选/禁用、数值范围、方向、输入占位/密码/字数、下拉选项、文字换行/溢出/垂直对齐及图片填充方式。预览不执行游戏事件、业务绑定或资源导出。UIList 是可编辑静态子项的网格，不是运行时虚拟列表。
+控件状态通过属性面板编辑，包括勾选/禁用、数值范围、方向、输入占位/密码/字数、下拉选项、文字换行/溢出/垂直对齐及图片填充方式。预览不执行游戏业务事件；正式资源与 Prefab 导出从顶栏独立触发。UIList 是可编辑静态子项的网格，不是运行时虚拟列表。
 
 UIImage 可选 `sliceResource` 绑定实际切图；普通图片缺省 fill，显式 contain/cover 保留。切图九宫格按实际产物尺寸重建，支持重复，小于两侧之和时优先保留前侧边界且不扩大目标。资源自然尺寸进入 measured 布局及反向编辑，移动不会意外固化尺寸，缩放只固化改变的轴；锚点、约束、重挂接、复制及组件提取使用同一几何输入。顶栏运行预览复用这些布局/绘制，临时修改控件状态和尺寸可重置且不改设计初值。详见 [切图装载运行预览](runtime-slice-preview.md)。
 
@@ -114,7 +114,7 @@ UILabel 的文字区支持可选 `widget.leading/letterSpacing`（有限正负�
 
 页面根与所有控件在整份文档内共享唯一 ID 空间，包括独立 UIBox 画板。v1/v2 均在共享运行时校验中拒绝跨页面、根与控件、同页控件重号，错误包含 ID 和两个位置；解析/序列化/协议校验不自动分配或修复歧义身份，名字相同不构成冲突。新身份采用 8 位小写字母/数字 Nano ID，首位允许数字。未带 `elementIdScheme: "nanoid-8"` 的旧文档首次进入编辑会话时，独立迁移事务统一重分配页面/控件 ID、更新引用并记录标记；v1 在同一事务升级，可撤销。迁移完成后普通编辑及保存保持 ID，详见 [nanoid-element-ids.md](nanoid-element-ids.md)。
 
-`sample/ui-components.gameflow.json` 包含自适应背包和游戏设置；浏览器 `?sample=ui-components` 使用独立 localStorage key，避免覆盖原有预览文档。PSD 切图绑定与装载见运行预览规格，实际 Prefab 生成仍由后续方案负责。
+`sample/ui-components.gameflow.json` 包含自适应背包和游戏设置；浏览器 `?sample=ui-components` 使用独立 localStorage key，避免覆盖原有预览文档。PSD 切图绑定与装载见运行预览规格，当前页面可从顶栏生成原型 PSD、关联带身份的 PSD 图片并导出 Prefab。
 
 ## Reusable Canvas Components
 
@@ -133,3 +133,17 @@ Inherited deletion/cut/type/reparent/order changes are rejected for every normal
 Variables use one scope per reference boundary: the root belongs to its parent scope, descendants/additions to their containing instance. Skin/radio bindings resolve through scoped targets and retain direct-child/type/membership rules. Whole-instance copies preserve linkage and rekey owned additions; inherited ordinary copies are snapshots, retaining nested reference boundaries. Source rename/reparent retains stable addresses; missing/replaced identities never match by name.
 
 `sample/canvas-reference-demo.gameflow.json` remains a v4 compatibility fixture. `sample/canvas-instance-demo.gameflow.json` demonstrates cross-file A/B inheritance, A's local text and a local close button; `sample/canvas-instance-local-demo.gameflow.json` includes the source board for same-file apply. Browser queries `?sample=canvas-instances` and `?sample=canvas-instances-local` use separate storage. See [canvas-instance-editing.md](canvas-instance-editing.md) for validation and native-host history coverage.
+
+## 图片资源模式与交付
+
+- UIBox 只处理结构、布局、裁剪、显隐和变换，不再绘制 fill、border、radius。自由容器的“外观 / 添加背景图片”每次添加一个普通 UIImage 子节点；流式容器的底图作为普通外部图片单独安排，不引入专用背景角色。旧样式字段可读写，但不用于外观绘制。
+- UIImage 使用 `image: ImageSlot | null`；UIButton 使用独立 `normalSkin`、`selectedSkin`、`disabledSkin`。ImageSlot 分别记录内置 ID 和可选 PSD art 引用；显式 null 表示留空。新按钮只填 normal，状态优先级 disabled > selected > normal，未配置可选态回退 normal，已配置但坏掉的图片报错。
+- 底部及运行预览提供原型 / 美术 PSD / 预制体三个资源模式。初始原型，仅使用内置 PNG；美术模式只使用当前 PSD 内存切图（未绑定槽位使用内置）；预制体模式只装载磁盘资源。模式是会话状态，不写入原型，不改变导出来源规则。
+- 内置库包含 69 张真实 PNG：按钮、填充/描边色块与圆形、默认图片、28 个图标、单选/复选部件、滑块和两种进度部件。选择面板保留按钮 / 色块 / 圆形 / 图标 / 单选/复选五类。
+- Radio/Checkbox 保留底框与选中标记图片，`skinNodeId` 控制标记；UILabel 独立。Slider 轨道和滑块是图片。ProgressBar 的 `widget.mode` 为 horizontal/circular，`skinNodeId` 为不带相对约束的直接 UIImage 子节点，横向按比例改变宽度，圆形保持整图并按顺时针扇区绘制；模式、数值及引用均持久化。
+- ComboBox 可通过 `widget.textLabelNodeId` 引用直接 UILabel 子节点显示选项；背景与箭头普通图片手动添加。UITextInput 独立创建，不自动包装。图片槽位、进度模式和文本引用均支持实例覆盖、复制重映射、保存及撤销。
+- 生成原型 PSD 时按钮是组，状态图片分别叫 @normal / @selected / @disabled，UILabel 是独立文字层。图层元数据保留原型文档/页面/节点/槽位身份；“关联 PSD 图片”仅按身份绑定。简单正常混合的状态分组可合成切图，效果、蒙版和特殊混合继续报不支持。
+- Prefab 导出按槽位优先采用绑定美术，无绑定时采用内置；与当前显示模式无关。导出包含 `.lh`、PNG、PNG.meta 的九宫格/导入 UUID 及 image-files.meta.json。已存在的有效导入 UUID 保留。写入前校验两目录，失败恢复本次文件写入；原生切图与 Prefab 导出共用目录锁。
+- 失效引用触发“有资源缺失，是否继续导出？”，列出节点/槽位/路径，允许取消或仍然导出。继续保留坏引用并跳过坏图片，空槽位与未配置可选态不误报。预制体模式使用原型结构装载磁盘图，并不检查实际 `.lh` 层级。
+
+详见 [原型、美术 PSD 与预制体资源模式](prototype-art-prefab-resource-modes.md)。

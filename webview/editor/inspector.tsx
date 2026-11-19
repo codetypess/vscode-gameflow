@@ -1,7 +1,9 @@
+import { ImageSlotField } from "./image-slot-field";
+import { allocateElementId } from "../../shared/element-id";
 import { useState, type CSSProperties } from "react";
 import { ChevronDown, ChevronUp, ImagePlus, LockKeyhole, X } from "lucide-react";
 import type { Frame, GameFlowNode, GameFlowPage, NodeStyle, PageRootType } from "../../shared/model";
-import { defaultStyle, inheritedFlag, NODE_LABELS } from "../../shared/editor-ops";
+import { addBackgroundImage, defaultStyle, inheritedFlag, NODE_LABELS } from "../../shared/editor-ops";
 import { Button } from "../components/ui/button";
 import { Separator } from "../components/ui/separator";
 import { ScrollArea } from "../components/ui/scroll-area";
@@ -22,7 +24,8 @@ import type { CanvasOverrideManager } from "./override-panel";
 import { SliceBindingField } from "../runtime/binding-field";
 import { useSliceResources } from "../runtime/resource-context";
 
-export function Inspector({ page, variablePage = page, node, selectedNodes = [], editingPage, onNode, onPage, onColorPreview, onClose, onEnter, onImport, onCreateParts, panelRef, panelStyle, referenceError, referenceName, overrideManager, onOpenSource, referenceMeta, overrideActions, onPsd }: {
+export function Inspector({ makeId, page, variablePage = page, node, selectedNodes = [], editingPage, onNode, onPage, onColorPreview, onClose, onEnter, onImport, onCreateParts, panelRef, panelStyle, referenceError, referenceName, overrideManager, onOpenSource, referenceMeta, overrideActions, onPsd }: {
+  makeId?: () => string;
   variablePage?: GameFlowPage;
   page: GameFlowPage; node: GameFlowNode | null; editingPage: boolean;
   selectedNodes?: GameFlowNode[];
@@ -84,7 +87,7 @@ export function Inspector({ page, variablePage = page, node, selectedNodes = [],
         <LayoutProperties page={page} node={node} locked={locked} structureProtected={!!referenceMeta?.inherited || !!referenceMeta?.reference} onNode={onNode} onPage={onPage} />
         {!node.prefab ? <><ControlPartsProperties page={page} node={node} locked={locked} onNode={onNode} onPage={onPage} onCreateParts={onCreateParts} />
         <WidgetProperties node={node} locked={locked} onNode={onNode} /></> : null}
-        {(["text", "input"].includes(node.type) || (["checkbox", "radio"].includes(node.type) && !hasNodeSkin(node)) || (node.type === "button" && node.text !== undefined)) ? <>
+        {(["text", "input"].includes(node.type)) ? <>
           <div className="property-section-title">文字</div>
           <Field label="文字内容" multiline={node.type === "text"} value={node.text ?? node.name} disabled={locked} onCommit={(text) => onNode(node.id, { text })} />
           <Field label="字号" type="number" min={1} max={300} value={appearance.fontSize} disabled={locked} onCommit={(fontSize) => setStyle({ fontSize: Number(fontSize) })} />
@@ -92,13 +95,12 @@ export function Inspector({ page, variablePage = page, node, selectedNodes = [],
           <TextControls style={appearance} valign={node.widget?.valign ?? (node.type === "text" ? "top" : "middle")} disabled={locked} onStyle={setStyle} onVertical={valign => onNode(node.id, { widget: { ...node.widget, valign } })} />
           <LabelProperties node={node} locked={locked} onNode={onNode} /><Separator />
         </> : null}
-        {node.type === "image" ? <><SliceBindingField node={node} disabled={locked} onChange={sliceResource => onNode(node.id, { sliceResource })} onPsd={onPsd} /><Button variant="outline" size="sm" disabled={locked} onClick={onImport}><ImagePlus size={14} />{node.imageData ? "替换图片" : "导入图片"}</Button></> : null}
-        {!node.prefab ? <><div className="property-section-title">外观</div>
-        <ColorField label="填充" value={appearance.fill} disabled={locked} onPreview={value => previewColor("fill", value)} onCommit={(fill) => setStyle({ fill })} />
-        <Button variant="ghost" size="sm" className="transparent-button" disabled={locked} onClick={() => setStyle({ fill: "transparent" })}>设为透明</Button>
-        <ColorField label="描边" value={appearance.borderColor} disabled={locked} onPreview={value => previewColor("borderColor", value)} onCommit={(borderColor) => setStyle({ borderColor })} />
-        <Field label="描边宽度" type="number" min={0} max={40} value={appearance.borderWidth} disabled={locked} onCommit={(value) => setStyle({ borderWidth: Number(value) })} />
-        <Field label="圆角" type="number" min={0} value={appearance.radius} disabled={locked} onCommit={(value) => setStyle({ radius: Number(value) })} /></> : null}
+        {node.type === "image" ? <ImageSlotField node={node} field="image" label="图片" disabled={locked} onChange={image => onNode(node.id, { image })} onPsd={onPsd} /> : null}
+        {node.type === "button" ? <><ImageSlotField node={node} field="normalSkin" label="普通图片 normal" disabled={locked} onChange={normalSkin => onNode(node.id, { normalSkin })} onPsd={onPsd} /><ImageSlotField node={node} field="selectedSkin" label="选中图片 selected" disabled={locked} onChange={selectedSkin => onNode(node.id, { selectedSkin })} onPsd={onPsd} /><ImageSlotField node={node} field="disabledSkin" label="禁用图片 disabled" disabled={locked} onChange={disabledSkin => onNode(node.id, { disabledSkin })} onPsd={onPsd} />{!node.normalSkin ? <p className="property-hint">普通图片为空，按钮保留点击区域。</p> : null}</> : null}
+        {!node.prefab && COMPONENTS[node.type].children && node.type !== "button" && flowType(node) === "free" ? <><div className="property-section-title">外观</div><Button variant="outline" size="sm" disabled={locked} onClick={() => onPage(item => {
+          const reserved = new Set(item.nodes.map(child => child.id)); return addBackgroundImage(item, node.id, makeId ?? (() => allocateElementId(reserved)));
+        })}><ImagePlus size={14} />添加背景图片</Button></> : null}
+
       </> : <>
         <label className="property-field"><span>页面类型</span><select aria-label="页面类型" value={pageRootType(page)} onChange={(event) => { const rootType = event.target.value as PageRootType; onPage((item) => ({ ...item, rootType })); }}>
           {PAGE_ROOT_TYPES.map((type) => <option key={type} value={type}>{PAGE_ROOTS[type].label} ({type})</option>)}

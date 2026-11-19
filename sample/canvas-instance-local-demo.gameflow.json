@@ -136,11 +136,27 @@
             "width": 280,
             "height": 96
           },
-          "style": {
-            "fill": "#163b53",
-            "borderColor": "#4395b7",
-            "borderWidth": 1,
-            "radius": 10
+          "style": {}
+        },
+        {
+          "id": "res00003",
+          "type": "image",
+          "name": "背景图片",
+          "parentId": "cardroot",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 280,
+            "height": 96
+          },
+          "image": {
+            "builtin": "block/outline-gray"
+          },
+          "layout": {
+            "left": 0,
+            "right": 0,
+            "top": 0,
+            "bottom": 0
           }
         },
         {

@@ -4,20 +4,320 @@
   "height": 1334,
   "background": "#091120",
   "nodes": [
-    { "key": "background", "name": "背景", "type": "container", "variableName": "background", "frame": { "x": 0, "y": 0, "width": 750, "height": 1334 }, "layout": { "left": 0, "right": 0, "top": 0, "bottom": 0 } },
-    { "key": "deep_space", "parent": "background", "name": "深空渐变", "type": "image", "variableName": "deepSpace", "frame": { "x": 0, "y": 0, "width": 750, "height": 1334 }, "layout": { "left": 0, "right": 0, "top": 0, "bottom": 0 } },
-    { "key": "stars", "parent": "background", "name": "星点与轨道", "type": "image", "variableName": "stars", "frame": { "x": 0, "y": 0, "width": 750, "height": 1334 }, "layout": { "left": 0, "right": 0, "top": 0, "bottom": 0 } },
-    { "key": "title_area", "name": "标题区", "type": "container", "variableName": "titleArea", "frame": { "x": 60, "y": 275, "width": 630, "height": 295 }, "layout": { "centerX": 0, "top": 275 } },
-    { "key": "emblem", "parent": "title_area", "name": "星海徽记", "type": "image", "variableName": "emblem", "frame": { "x": 207, "y": 0, "width": 216, "height": 80 }, "layout": { "centerX": 0, "top": 0 } },
-    { "key": "game_title", "parent": "title_area", "name": "游戏标题", "type": "text", "variableName": "gameTitle", "frame": { "x": 0, "y": 130, "width": 630, "height": 106 }, "layout": { "left": 0, "right": 0, "top": 130 }, "text": "星海远征", "fontSize": 72, "color": "#efe1c1" },
-    { "key": "subtitle", "parent": "title_area", "name": "副标题", "type": "text", "variableName": "subtitle", "frame": { "x": 0, "y": 240, "width": 630, "height": 40 }, "layout": { "left": 0, "right": 0, "top": 240 }, "text": "启航，探索未知星域", "fontSize": 24, "color": "#96aec5" },
-    { "key": "server_info", "name": "服务器信息", "type": "container", "variableName": "serverInfo", "frame": { "x": 145, "y": 870, "width": 460, "height": 64 }, "layout": { "centerX": 0, "bottom": 400 } },
-    { "key": "server_bg", "parent": "server_info", "name": "服务器底板", "type": "image", "variableName": "serverBackground", "frame": { "x": 0, "y": 0, "width": 460, "height": 64 }, "layout": { "left": 0, "right": 0, "top": 0, "bottom": 0 }, "nineGrid": { "top": 12, "right": 12, "bottom": 12, "left": 12, "repeat": false } },
-    { "key": "status_dot", "parent": "server_info", "name": "连接状态灯", "type": "image", "variableName": "connectionStatus", "frame": { "x": 32, "y": 27, "width": 10, "height": 10 }, "layout": { "left": 32, "centerY": 0 } },
-    { "key": "server_label", "parent": "server_info", "name": "服务器名称", "type": "text", "variableName": "serverLabel", "frame": { "x": 58, "y": 12, "width": 378, "height": 40 }, "layout": { "left": 58, "right": 24, "centerY": 0 }, "text": "星港一区   ·   连接正常", "fontSize": 21, "color": "#b2c2d0" },
-    { "key": "start_button", "name": "开始远征", "type": "button", "variableName": "startButton", "frame": { "x": 130, "y": 978, "width": 490, "height": 94 }, "layout": { "centerX": 0, "bottom": 262 } },
-    { "key": "button_bg", "parent": "start_button", "name": "按钮底图", "type": "image", "variableName": "startBackground", "frame": { "x": 0, "y": 0, "width": 490, "height": 94 }, "layout": { "left": 0, "right": 0, "top": 0, "bottom": 0 }, "nineGrid": { "top": 20, "right": 20, "bottom": 20, "left": 20, "repeat": false } },
-    { "key": "button_label", "parent": "start_button", "name": "按钮文案", "type": "text", "variableName": "startLabel", "frame": { "x": 0, "y": 0, "width": 490, "height": 94 }, "layout": { "left": 0, "right": 0, "top": 0, "bottom": 0 }, "text": "开始远征", "fontSize": 32, "color": "#25262a" },
-    { "key": "footer", "name": "底部提示", "type": "text", "variableName": "footer", "frame": { "x": 60, "y": 1220, "width": 630, "height": 30 }, "layout": { "centerX": 0, "bottom": 84 }, "text": "适度游戏，探索更多精彩", "fontSize": 18, "color": "#74899f" }
+    {
+      "key": "background",
+      "name": "背景",
+      "type": "container",
+      "variableName": "background",
+      "frame": {
+        "x": 0,
+        "y": 0,
+        "width": 750,
+        "height": 1334
+      },
+      "layout": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 0
+      }
+    },
+    {
+      "key": "deep_space",
+      "parent": "background",
+      "name": "深空渐变",
+      "type": "image",
+      "variableName": "deepSpace",
+      "frame": {
+        "x": 0,
+        "y": 0,
+        "width": 750,
+        "height": 1334
+      },
+      "layout": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 0
+      },
+      "image": {
+        "builtin": "block/fill-gray"
+      }
+    },
+    {
+      "key": "stars",
+      "parent": "background",
+      "name": "星点与轨道",
+      "type": "image",
+      "variableName": "stars",
+      "frame": {
+        "x": 0,
+        "y": 0,
+        "width": 750,
+        "height": 1334
+      },
+      "layout": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 0
+      },
+      "image": {
+        "builtin": "image/default"
+      }
+    },
+    {
+      "key": "title_area",
+      "name": "标题区",
+      "type": "container",
+      "variableName": "titleArea",
+      "frame": {
+        "x": 60,
+        "y": 275,
+        "width": 630,
+        "height": 295
+      },
+      "layout": {
+        "centerX": 0,
+        "top": 275
+      }
+    },
+    {
+      "key": "emblem",
+      "parent": "title_area",
+      "name": "星海徽记",
+      "type": "image",
+      "variableName": "emblem",
+      "frame": {
+        "x": 207,
+        "y": 0,
+        "width": 216,
+        "height": 80
+      },
+      "layout": {
+        "centerX": 0,
+        "top": 0
+      },
+      "image": {
+        "builtin": "icon/star"
+      }
+    },
+    {
+      "key": "game_title",
+      "parent": "title_area",
+      "name": "游戏标题",
+      "type": "text",
+      "variableName": "gameTitle",
+      "frame": {
+        "x": 0,
+        "y": 130,
+        "width": 630,
+        "height": 106
+      },
+      "layout": {
+        "left": 0,
+        "right": 0,
+        "top": 130
+      },
+      "text": "星海远征",
+      "fontSize": 72,
+      "color": "#efe1c1"
+    },
+    {
+      "key": "subtitle",
+      "parent": "title_area",
+      "name": "副标题",
+      "type": "text",
+      "variableName": "subtitle",
+      "frame": {
+        "x": 0,
+        "y": 240,
+        "width": 630,
+        "height": 40
+      },
+      "layout": {
+        "left": 0,
+        "right": 0,
+        "top": 240
+      },
+      "text": "启航，探索未知星域",
+      "fontSize": 24,
+      "color": "#96aec5"
+    },
+    {
+      "key": "server_info",
+      "name": "服务器信息",
+      "type": "container",
+      "variableName": "serverInfo",
+      "frame": {
+        "x": 145,
+        "y": 870,
+        "width": 460,
+        "height": 64
+      },
+      "layout": {
+        "centerX": 0,
+        "bottom": 400
+      }
+    },
+    {
+      "key": "server_bg",
+      "parent": "server_info",
+      "name": "服务器底板",
+      "type": "image",
+      "variableName": "serverBackground",
+      "frame": {
+        "x": 0,
+        "y": 0,
+        "width": 460,
+        "height": 64
+      },
+      "layout": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 0
+      },
+      "nineGrid": {
+        "top": 12,
+        "right": 12,
+        "bottom": 12,
+        "left": 12,
+        "repeat": false
+      },
+      "image": {
+        "builtin": "block/outline-gray"
+      }
+    },
+    {
+      "key": "status_dot",
+      "parent": "server_info",
+      "name": "连接状态灯",
+      "type": "image",
+      "variableName": "connectionStatus",
+      "frame": {
+        "x": 32,
+        "y": 27,
+        "width": 10,
+        "height": 10
+      },
+      "layout": {
+        "left": 32,
+        "centerY": 0
+      },
+      "image": {
+        "builtin": "circle/fill-green"
+      }
+    },
+    {
+      "key": "server_label",
+      "parent": "server_info",
+      "name": "服务器名称",
+      "type": "text",
+      "variableName": "serverLabel",
+      "frame": {
+        "x": 58,
+        "y": 12,
+        "width": 378,
+        "height": 40
+      },
+      "layout": {
+        "left": 58,
+        "right": 24,
+        "centerY": 0
+      },
+      "text": "星港一区   ·   连接正常",
+      "fontSize": 21,
+      "color": "#b2c2d0"
+    },
+    {
+      "key": "start_button",
+      "name": "开始远征",
+      "type": "button",
+      "variableName": "startButton",
+      "frame": {
+        "x": 130,
+        "y": 978,
+        "width": 490,
+        "height": 94
+      },
+      "layout": {
+        "centerX": 0,
+        "bottom": 262
+      },
+      "normalSkin": {
+        "builtin": "button/yellow"
+      },
+      "normalAsset": "button_bg"
+    },
+    {
+      "key": "button_label",
+      "parent": "start_button",
+      "name": "按钮文案",
+      "type": "text",
+      "variableName": "startLabel",
+      "frame": {
+        "x": 0,
+        "y": 0,
+        "width": 490,
+        "height": 94
+      },
+      "layout": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 0
+      },
+      "text": "开始远征",
+      "fontSize": 32,
+      "color": "#25262a"
+    },
+    {
+      "key": "footer",
+      "name": "底部提示",
+      "type": "text",
+      "variableName": "footer",
+      "frame": {
+        "x": 60,
+        "y": 1220,
+        "width": 630,
+        "height": 30
+      },
+      "layout": {
+        "centerX": 0,
+        "bottom": 84
+      },
+      "text": "适度游戏，探索更多精彩",
+      "fontSize": 18,
+      "color": "#74899f"
+    }
+  ],
+  "resources": [
+    {
+      "key": "button_bg",
+      "parent": "start_button",
+      "name": "按钮底图",
+      "type": "image",
+      "variableName": "startBackground",
+      "frame": {
+        "x": 0,
+        "y": 0,
+        "width": 490,
+        "height": 94
+      },
+      "layout": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 0
+      },
+      "nineGrid": {
+        "top": 20,
+        "right": 20,
+        "bottom": 20,
+        "left": 20,
+        "repeat": false
+      }
+    }
   ]
 }

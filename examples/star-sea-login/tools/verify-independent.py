@@ -25,12 +25,12 @@ for layer in psd.descendants():
     layers[metadata["layerId"]] = (layer, metadata)
     groups += layer.is_group()
     texts += layer.kind == "type"
-assert (len(layers), groups, texts) == (22, 11, 5)
+assert (len(layers), groups, texts) == (21, 10, 5)
 for binding in mapping["bindings"]:
     layer, metadata = layers[binding["psd"]["layerId"]]
     assert metadata["prototype"] == binding["prototype"]
     if "asset" in binding:
-        assert layer.is_group() and len(layer) == 1
+        assert layer.is_group() and (len(layer) == 1 or binding["asset"].get("slot") == "normalSkin")
         raster, data = layers[binding["asset"]["rasterLayerId"]]
         assert raster.parent is layer and raster.kind != "type"
         expected = Image.open(root / binding["asset"]["path"]).convert("RGBA")

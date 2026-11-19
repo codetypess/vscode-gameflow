@@ -193,11 +193,11 @@ export function resizeFrame(frame: Frame, handle: Handle, dx: number, dy: number
 
 export function defaultStyle(type: string): Required<NodeStyle> {
   return {
-    fill: type === "button" ? "#3b82f6" : type === "text" ? "transparent" : type === "image" ? "#e2e8f0" : "#f1f5f9",
+    fill: "transparent",
     color: type === "button" ? "#ffffff" : "#263244",
     borderColor: type === "button" ? "#3b82f6" : "#cbd5e1",
-    borderWidth: type === "text" ? 0 : 1,
-    radius: type === "button" ? 6 : 2,
+    borderWidth: 0,
+    radius: 0,
     fontSize: type === "text" ? 16 : 14,
     fontWeight: type === "button" ? 600 : 400,
     italic: false, underline: false, strikethrough: false,
@@ -212,10 +212,12 @@ export function makeNode(type: InsertType, id: string, x: number, y: number): Ga
   const height = box ? 160 : ["text", "checkbox", "radio", "progress", "slider"].includes(type) ? 32 : ["button", "input", "combo"].includes(type) ? 40 : 90;
   return { id, type, name: NODE_LABELS[type], frame: { x: Math.round(x - width / 2), y: Math.round(y - height / 2), width, height },
     style: { ...defaultStyle(type), ...(["checkbox", "radio", "radioGroup", "slider"].includes(type) ? { fill: "transparent", borderWidth: 0 } : {}) },
+    ...(type === "image" ? { image: { builtin: "image/default" } } : {}),
+    ...(type === "button" ? { normalSkin: { builtin: "button/gray" } } : {}),
     ...(type === "text" ? { text: "文本内容" } : {}),
     ...(box ? { layout: { gap: 8, gapX: 8, gapY: 8, wrapCount: type === "list" ? 3 : 2, paddingLeft: 12, paddingRight: 12, paddingTop: 12, paddingBottom: 12, clipContent: type === "panel" || type === "list" } } : {}),
     ...(type === "input" ? { widget: { placeholder: "请输入内容" } } : {}),
-    ...(["progress", "slider"].includes(type) ? { widget: { min: 0, max: 100, value: 60 } } : {}),
+    ...(["progress", "slider"].includes(type) ? { widget: { min: 0, max: 100, value: 60, ...(type === "progress" ? { mode: "horizontal" as const } : {}) } } : {}),
     ...(type === "combo" ? { widget: { options: ["选项一", "选项二", "选项三"], selectedIndex: 0 } } : {}) };
 }
 
@@ -223,20 +225,25 @@ export function makeNode(type: InsertType, id: string, x: number, y: number): Ga
 export function makeComponent(type: InsertType, id: string, x: number, y: number, makeId: () => string): GameFlowNode[] {
   const root = makeNode(type, id, x, y), nodes = [root];
   if (supportsNodeSkin(root)) {
-    const slider = type === "slider", radio = type === "radio";
+    const slider = type === "slider", progress = type === "progress", radio = type === "radio";
     if (slider) root.frame.height = 64;
-    const image = (name: string, frame: Frame, fill: string, radius: number): GameFlowNode => ({
+    const image = (name: string, frame: Frame, builtin: string): GameFlowNode => ({
       ...makeNode("image", makeId(), 0, 0), parentId: id, name, frame,
-      style: { fill, borderWidth: 0, radius }
+      image: { builtin }, widget: { imageFit: "fill" }
     });
-    const track = image(slider ? "轨道" : "底框", { x: 0, y: slider ? 29 : 6, width: slider ? root.frame.width : 20, height: slider ? 6 : 20 }, "#cbd5e1", radio ? 10 : 3);
-    track.layout = slider ? { left: 0, right: 0, centerY: 0 } : { left: 0, centerY: 0 };
-    const skin = image(slider ? "滑块" : "选中标记", { x: slider ? 0 : 4, y: slider ? 0 : 10, width: slider ? 24 : 12, height: slider ? 24 : 12 }, "#3b82f6", slider ? 12 : radio ? 6 : 2);
-    if (!slider) skin.layout = { left: 4, centerY: 0 };
+    const track = image(slider ? "轨道" : progress ? "底槽" : "底框",
+      { x: 0, y: slider ? 29 : progress ? 0 : 0, width: slider || progress ? root.frame.width : 32, height: slider ? 6 : progress ? 32 : 32 },
+      slider ? "slider/track" : progress ? "progress/base" : (radio ? "radio/base" : "checkbox/base"));
+    track.layout = slider ? { left: 0, right: 0, centerY: 0 } : progress ? { left: 0, right: 0, top: 0, bottom: 0 } : { left: 0, centerY: 0 };
+    const skin = image(slider ? "滑块" : progress ? "填充" : "选中标记",
+      { x: 0, y: 0, width: slider ? 24 : progress ? root.frame.width : 32, height: slider ? 24 : 32 },
+      slider ? "slider/thumb" : progress ? "progress/fill" : (radio ? "radio/mark" : "checkbox/mark"));
+    if (!slider && !progress) skin.layout = { left: 0, centerY: 0 };
     root.widget = { ...root.widget, skinNodeId: skin.id };
-    nodes.push(track, skin, { ...makeNode("text", makeId(), 0, 0), parentId: id, name: "说明", text: NODE_LABELS[type],
-      frame: { x: slider ? 0 : 28, y: slider ? 46 : 0, width: slider ? root.frame.width : root.frame.width - 28, height: slider ? 18 : 32 },
-      layout: slider ? { left: 0, right: 0, bottom: 0 } : { left: 28, right: 0, centerY: 0 },
+    nodes.push(track, skin);
+    if (!progress) nodes.push({ ...makeNode("text", makeId(), 0, 0), parentId: id, name: "说明", text: NODE_LABELS[type],
+      frame: { x: slider ? 0 : 40, y: slider ? 46 : 0, width: slider ? root.frame.width : root.frame.width - 40, height: slider ? 18 : 32 },
+      layout: slider ? { left: 0, right: 0, bottom: 0 } : { left: 40, right: 0, centerY: 0 },
       widget: { valign: "middle" }, style: { ...defaultStyle("text"), fontSize: 14 } });
   }
   if (type === "radioGroup") {
@@ -265,4 +272,15 @@ export function createControlParts(page: GameFlowPage, id: string, makeId: () =>
   const label = parts.find(node => node.type === "text")!;
   label.text = original.text ?? original.name;
   return { ...page, nodes: [...page.nodes.map(node => node.id === id ? root : node), ...parts] };
+}
+
+/** Each click creates an ordinary editable image child behind the existing children. */
+export function addBackgroundImage(page: GameFlowPage, id: string, makeId: () => string): GameFlowPage {
+  const owner = page.nodes.find(node => node.id === id);
+  if (!owner || !canHaveChildren(owner) || inheritedFlag(page, owner, "locked")) return page;
+  const image: GameFlowNode = { ...makeNode("image", makeId(), 0, 0), parentId: id, name: "背景图片", image: { builtin: "block/fill-gray" },
+    frame: { x: 0, y: 0, width: owner.frame.width, height: owner.frame.height }, layout: { left: 0, right: 0, top: 0, bottom: 0 }, widget: { imageFit: "fill" } };
+  const first = page.nodes.findIndex(node => node.parentId === id);
+  const nodes = [...page.nodes]; nodes.splice(first < 0 ? nodes.findIndex(node => node.id === id) + 1 : first, 0, image);
+  return { ...page, nodes };
 }

@@ -5,13 +5,14 @@ import { Field } from "../editor/fields";
 import { useOverrideAttributes } from "../editor/override-properties";
 import { useSliceResources } from "./resource-context";
 
-export function SliceBindingField({ node, disabled, onChange, onPsd }: { node: GameFlowNode; disabled: boolean; onChange(ref?: SliceResourceRef): void; onPsd(): void }) {
-  const resources = useSliceResources(), attributes = useOverrideAttributes("切图资源"), current = node.sliceResource ? resources.resolve(node.sliceResource) : null;
-  const choices = [...resources.entries].filter(([path]) => isSliceResourcePath(path));
+export function SliceBindingField({ overrideField = "sliceResource", node, disabled, onChange, onPsd }: { overrideField?: string; node: GameFlowNode; disabled: boolean; onChange(ref?: SliceResourceRef): void; onPsd(): void }) {
+  const resources = useSliceResources(), attributes = useOverrideAttributes("切图资源", [overrideField]), current = node.sliceResource ? resources.resolve(node.sliceResource) : null;
+  const entries = resources.memoryEntries ?? resources.entries;
+  const choices = [...entries].filter(([path]) => isSliceResourcePath(path));
   return <section className="slice-binding" {...attributes}>
     <div className="property-section-title">切图资源</div>
     <label className="property-field"><span>选择切图</span><select aria-label="选择切图资源" disabled={disabled} value={node.sliceResource?.path ?? ""} onChange={event => {
-      const path = event.target.value, description = resources.entries.get(path)?.description;
+      const path = event.target.value, description = entries.get(path)?.description;
       onChange(path ? { path, ...(description ? { source: { documentId: description.source.documentId, layerId: description.layerId } } : {}) } : undefined);
     }}><option value="">未绑定</option>{node.sliceResource && !choices.some(([path]) => path === node.sliceResource!.path) ? <option value={node.sliceResource.path}>{node.sliceResource.path}</option> : null}
       {choices.map(([path, entry]) => <option key={path} value={path}>{entry.description?.layerName ?? path} · {path}{entry.status === "error" ? "（异常）" : ""}</option>)}

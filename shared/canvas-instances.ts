@@ -124,12 +124,12 @@ export function composeCanvasPage(document: GameFlowDocument, page: GameFlowPage
         let candidate = entry.node;
         const fields = [...Object.keys(patch.set), ...patch.unset];
         for (const field of fields) {
-          if (field === "text" && !["text","input","button","checkbox","radio"].includes(entry.node.type) || ["imageData", "sliceResource"].includes(field) && entry.node.type !== "image") throw new Error("源节点类型已变化，该内容覆盖暂不可用。");
+          if (field === "text" && !["text","input","button","checkbox","radio"].includes(entry.node.type) || ["imageData", "sliceResource", "image"].includes(field) && entry.node.type !== "image" || ["normalSkin", "selectedSkin", "disabledSkin"].includes(field) && entry.node.type !== "button") throw new Error("源节点类型已变化，该内容覆盖暂不可用。");
           if (!isCanvasProperty(field) || !patch.target.path.length && nativeRoot(field)) throw new Error("实例独立属性不能作为源覆盖。");
           candidate = writeProperty(candidate, field, decodeValue(patch.set[field], entries), patch.unset.includes(field));
         }
         const check = { ...candidate, id: "check", parentId: undefined, variableName: undefined, widget: { ...candidate.widget } };
-        delete check.widget!.skinNodeId; delete check.widget!.optionNodeIds;
+        delete check.widget!.skinNodeId; delete check.widget!.optionNodeIds; delete check.widget!.textLabelNodeId;
         if (check.type === "radioGroup") check.widget!.selectedIndex = -1;
         const valid = validateGameFlowDocument({ ...document, pages: [{ id: "validation-page", name: "validation", kind: "screen", frame: page.frame, nodes: [check] }], interactions: [] });
         if (!valid.ok) throw new Error(valid.errors.join("；"));
@@ -182,7 +182,7 @@ export function canvasSemanticIssues(page: GameFlowPage, info: ReadonlyMap<strin
       if (names.has(key)) issues.push([node.id, `变量 ${node.variableName} 在同一实例作用域内重名。`]);
       names.set(key,node.id);
     }
-    for (const ref of [node.widget?.skinNodeId, ...node.widget?.optionNodeIds ?? []]) if (ref && canvasVariableScope(page,info,ref) !== scope) issues.push([node.id,"控件引用不能跨越独立实例作用域。"]);
+    for (const ref of [node.widget?.skinNodeId, node.widget?.textLabelNodeId, ...node.widget?.optionNodeIds ?? []]) if (ref && canvasVariableScope(page,info,ref) !== scope) issues.push([node.id,"控件引用不能跨越独立实例作用域。"]);
   }
   const controls: string[] = []; validateControlReferences(page,controls);
   for (const issue of controls) issues.push([page.nodes.find(node=>issue.includes(node.id))?.id ?? page.id,issue]);
@@ -198,7 +198,7 @@ function setOverride(owner: GameFlowNode, target: CanvasTarget, field: string, v
   if (unset) patch.unset.push(field); else patch.set[field] = structuredClone(value);
 }
 function encodeValue(field: string, value: unknown, ownerId: string, composition: CanvasComposition): unknown {
-  if (!["widget.skinNodeId", "widget.optionNodeIds"].includes(field) || value == null) return value;
+  if (!["widget.skinNodeId", "widget.optionNodeIds", "widget.textLabelNodeId"].includes(field) || value == null) return value;
   const encode = (id: string) => {
     const meta = composition.info.get(id);
     if (!meta || meta.ownerId !== ownerId) throw new Error("控件部件必须属于同一组合实例。");
@@ -222,11 +222,17 @@ export function editCanvasPage(document: GameFlowDocument, pageId: string, sourc
     if (meta.inherited && meta.ownerId && byId.has(meta.ownerId)) {
       if (!next) throw new Error("源组件节点不能在实例中删除，可隐藏或编辑源组件。");
       if (next.type !== old.type || next.parentId !== old.parentId || next.prefab) throw new Error("源组件节点的类型和层级受保护。");
-      const oldOrder = before.nodes.filter(n => n.parentId === old.parentId && composition.info.get(n.id)?.inherited).map(n => n.id);
-      const nextOrder = after.nodes.filter(n => n.parentId === old.parentId && composition.info.get(n.id)?.inherited).map(n => n.id);
-      if (!equal(oldOrder, nextOrder)) throw new Error("源组件节点不能在实例中排序。");
+
       if (next.locked !== old.locked) throw new Error("源节点锁定状态请在源组件中修改。");
     }
+  }
+  // Check direct structural violations before their effect on sibling ordering.
+  for (const old of before.nodes) {
+    const meta = composition.info.get(old.id)!;
+    if (!meta.inherited || !meta.ownerId || !byId.has(meta.ownerId)) continue;
+    const oldOrder = before.nodes.filter(n => n.parentId === old.parentId && composition.info.get(n.id)?.inherited).map(n => n.id);
+    const nextOrder = after.nodes.filter(n => n.parentId === old.parentId && composition.info.get(n.id)?.inherited).map(n => n.id);
+    if (!equal(oldOrder, nextOrder)) throw new Error("源组件节点不能在实例中排序。");
   }
   const nextDocument = structuredClone(document), nextPage = nextDocument.pages.find(p => p.id === pageId)!;
   nextDocument.schemaVersion = GAMEFLOW_SCHEMA_VERSION;
@@ -262,7 +268,7 @@ export function editCanvasPage(document: GameFlowDocument, pageId: string, sourc
   if (newIssues.length) throw new Error(newIssues.map(([, issue]) => issue).join("；"));
   const additionRecord = (node: GameFlowNode, ownerId: string): Pick<CanvasAddition,"node"|"references"> => {
     const saved = clean(node), references: NonNullable<CanvasAddition["references"]> = {};
-    for (const field of ["widget.skinNodeId", "widget.optionNodeIds"]) {
+    for (const field of ["widget.skinNodeId", "widget.optionNodeIds", "widget.textLabelNodeId"]) {
       const value = readProperty(node, field);
       if (value == null) continue;
       const encoded = encodeValue(field, value, ownerId, editedComposition);
@@ -342,7 +348,7 @@ export function copyCanvasSelection(document: GameFlowDocument, composition: Can
   if (!clipboard) return null;
   const selected = new Set(clipboard.nodes.map(node => node.id)), removed = new Set<string>();
   for (const node of clipboard.nodes) {
-    for (const ref of [node.widget?.skinNodeId, ...node.widget?.optionNodeIds ?? []]) if (ref && !selected.has(ref)) throw new Error("复制范围与外部节点之间存在控件引用，请一并复制或解除绑定。");
+    for (const ref of [node.widget?.skinNodeId, node.widget?.textLabelNodeId, ...node.widget?.optionNodeIds ?? []]) if (ref && !selected.has(ref)) throw new Error("复制范围与外部节点之间存在控件引用，请一并复制或解除绑定。");
   }
   clipboard.nodes = clipboard.nodes.flatMap(node => {
     if (removed.has(node.id)) return [];

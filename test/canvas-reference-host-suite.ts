@@ -33,14 +33,14 @@ test("host references follow unsaved source edits and disk deletion/recreation w
     const opened = await workspace.openTextDocument(new Uri("/workspace/modules/shared-components.gameflow.json"));
     opened.text = f.source.replace("来自公共模块的组件", "源文件尚未保存"); opened.isDirty = true;
     let next = f.nextMessage(); referenceHost.fireText(opened); await next;
-    assert.equal(f.messages.at(-1)!.sources["shared-components.gameflow.json"].document!.pages[0].nodes[1].text, "源文件尚未保存");
+    assert.equal(f.messages.at(-1)!.sources["shared-components.gameflow.json"].document!.pages[0].nodes.find(node=>node.id==="cardtext")!.text, "源文件尚未保存");
     opened.isDirty = false;
     referenceHost.files.delete(opened.uri.path);
     next = f.nextMessage(); referenceHost.watchers[0].delete.fire(); await next;
     assert.match(f.messages.at(-1)!.sources["shared-components.gameflow.json"].error!, /文件不存在/);
     referenceHost.files.set(opened.uri.path, f.source.replace("来自公共模块的组件", "磁盘文件已恢复"));
     next = f.nextMessage(); referenceHost.watchers[0].create.fire(); await next;
-    assert.equal(f.messages.at(-1)!.sources["shared-components.gameflow.json"].document!.pages[0].nodes[1].text, "磁盘文件已恢复");
+    assert.equal(f.messages.at(-1)!.sources["shared-components.gameflow.json"].document!.pages[0].nodes.find(node=>node.id==="cardtext")!.text, "磁盘文件已恢复");
     assert.equal(f.document.text.includes("demoref1"), true, "source updates do not replace the edited file");
   } finally { f.controller.dispose(); }
 });
@@ -55,7 +55,7 @@ test("host source epochs suppress stale reads and disposal releases all watchers
   await f.controller.refresh();
   resolveOld(Buffer.from(f.source)); await stale;
   assert.equal(f.messages.length, 1);
-  assert.equal(f.messages[0].sources["shared-components.gameflow.json"].document!.pages[0].nodes[1].text, "最新文件内容");
+  assert.equal(f.messages[0].sources["shared-components.gameflow.json"].document!.pages[0].nodes.find(node=>node.id==="cardtext")!.text, "最新文件内容");
   f.controller.dispose();
   assert.ok(referenceHost.watchers.every(watcher => watcher.disposed));
   referenceHost.fireText(f.document);
@@ -107,7 +107,7 @@ test("host apply preserves dirty source text and submits source and cleanup in o
     await f.controller.refresh();const expected=Object.fromEntries(Object.entries(f.messages.at(-1)!.sources).map(([key,entry])=>[key,canvasFingerprint(entry.document!)]));
     await f.controller.apply({pageId:current.pages[0].id,ownerId:"demoref1",selections:edited.pages[0].nodes.find(n=>n.id==="demoref1")!.instanceEdits!.overrides.map(patch=>({target:patch.target,fields:["text"]}))},expected,f.document.version);
     assert.equal(referenceHost.edits.length,1);assert.equal(referenceHost.edits[0].edits.length,2);
-    const result=parseGameFlowDocument(source.text);assert.equal(result.title,dirty.title);assert.equal(result.pages[0].nodes[1].text,"应用文案");assert.equal(source.isDirty,true);
+    const result=parseGameFlowDocument(source.text);assert.equal(result.title,dirty.title);assert.equal(result.pages[0].nodes.find(node=>node.id==="cardtext")!.text,"应用文案");assert.equal(source.isDirty,true);
     assert.equal(parseGameFlowDocument(f.document.text).pages[0].nodes.find(n=>n.id==="demoref1")!.instanceEdits!.overrides.length,0);
   } finally {f.controller.dispose();}
 });

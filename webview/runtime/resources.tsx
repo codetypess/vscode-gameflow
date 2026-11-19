@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { nodeArtRefs, IMAGE_SLOT_FIELDS, builtinPath, builtinImage, nodeImageSlot, imageSlotRequest, type ResourceMode } from "../../shared/image-slots";
 import type { GameFlowPage } from "../../shared/model";
 import { effectiveExportName, psdSliceDirectory } from "../../shared/psd-export";
 import type { PsdAsset } from "../../shared/psd-meta";
@@ -19,7 +20,7 @@ function merge(entries: Map<string, RuntimeResource>, entry: RuntimeResource) {
     ? { status: "error", description: d, error: `同名资源由 ${previous.source.psdName} 生成，当前图层未标记共享。` } : entry);
 }
 
-export function useRuntimeResources(assets: PsdAsset[], pages: GameFlowPage[], root?: string) {
+export function useRuntimeResources(assets: PsdAsset[], pages: GameFlowPage[], root?: string, mode: ResourceMode = "art") {
   const [revision, setRevision] = useState(0);
   const stamp = useMemo(() => JSON.stringify(assets.map(sliceGenerationStamp)), [assets]);
   const pending = useMemo(() => {
@@ -47,7 +48,7 @@ export function useRuntimeResources(assets: PsdAsset[], pages: GameFlowPage[], r
     return () => { cancelled = true; };
   }, [stamp]);
   const memory = generated.stamp === stamp ? generated.entries : pending;
-  const paths = useMemo(() => [...new Set([...memory.keys(), ...pages.flatMap(p => p.nodes.flatMap(n => n.sliceResource ? [n.sliceResource.path] : []))])].sort(), [memory, pages]);
+  const paths = useMemo(() => [...new Set([...memory.keys(), ...pages.flatMap(p => p.nodes.flatMap(n => [...nodeArtRefs(n).map(ref => ref.path), ...IMAGE_SLOT_FIELDS.flatMap(field => n[field]?.builtin ? [builtinPath(n[field]!.builtin!)] : [])]))])].sort(), [memory, pages]);
   const pathsKey = JSON.stringify(paths), diskStamp = JSON.stringify([pathsKey, root, revision]);
   const [disk, setDisk] = useState<{ stamp: string; entries: Map<string, RuntimeResource>; owners: Map<string, { exists: boolean; documentId?: string }> }>({ stamp: "", entries: new Map(), owners: new Map() });
   useEffect(() => {
@@ -76,29 +77,25 @@ export function useRuntimeResources(assets: PsdAsset[], pages: GameFlowPage[], r
   return useMemo<Resources>(() => {
     const sources = new Map<string, string | null>();
     for (const asset of assets) {
-      for (const page of pages) for (const node of page.nodes) if (node.sliceResource?.source?.documentId === asset.documentId) sources.set(sourceKey(node.sliceResource.source), null);
+      for (const page of pages) for (const node of page.nodes) for (const ref of nodeArtRefs(node)) if (ref.source?.documentId === asset.documentId) sources.set(sourceKey(ref.source), null);
       for (const layer of asset.layers) {
         let path: string | null = null;
         try { if (layer.config.enabled) path = description(asset, layer).path; } catch { /* Invalid output name remains unavailable. */ }
         sources.set(sourceKey({ documentId: asset.documentId, layerId: layer.metadata.layerId }), path);
       }
     }
-    const entries = new Map<string, RuntimeResource>();
-    for (const path of paths) {
-      let entry: RuntimeResource = disk.stamp === diskStamp ? disk.entries.get(path) ?? { status: "error", error: "资源没有返回装载结果。" } : { status: "loading" };
-      const current = memory.get(path);
-      if (current) {
-        entry = current;
-        const owner = disk.stamp === diskStamp ? disk.owners.get(path) : undefined;
-        if (current.status === "ready" && owner?.exists && owner.documentId !== current.description.source.documentId && !current.description.shared)
-          entry = { status: "error", description: current.description, error: "导出目录存在其他 PSD 或未登记的同名资源，当前图层未标记共享。" };
-        else if (root && disk.stamp !== diskStamp && current.status === "ready") entry = { status: "loading", description: current.description };
-      }
-      entries.set(path, entry);
-    }
-    const resolve = (ref: SliceResourceRef) => resolveSliceResource(ref, entries, sources);
+    const diskEntries = disk.stamp === diskStamp ? disk.entries : new Map<string, RuntimeResource>(paths.map(path => [path, { status: "loading" }]));
+    const entries = mode === "prefab" ? diskEntries : memory;
+    const resolve = (ref: SliceResourceRef) => mode === "prefab" ? resolveSliceResource(ref, diskEntries) : resolveSliceResource(ref, memory, sources);
     const sizes = new Map<string, { width: number; height: number }>();
+    for (const page of pages) for (const node of page.nodes) for (const field of IMAGE_SLOT_FIELDS) { const slot = node[field]; if (slot?.builtin) { const image = builtinImage(slot.builtin); if (image) sizes.set(builtinPath(image.id), image); } }
     for (const [path, entry] of entries) if (entry.status === "ready") sizes.set(path, entry.description.logicalSize ?? entry.description);
-    return { entries, sizes, resolve, refresh: () => setRevision(n => n + 1) };
-  }, [memory, disk, diskStamp, pathsKey, assets, pages, root]);
+    for (const page of pages) for (const node of page.nodes) {
+      const request = imageSlotRequest(nodeImageSlot(node, mode), mode);
+      if (request.kind === "builtin") sizes.set("@node:" + node.id, request.image);
+      if (request.kind === "resource") { const resource = resolve(request.ref); if (resource.status === "ready") sizes.set("@node:" + node.id, resource.description.logicalSize ?? resource.description); }
+    }
+    const resolveForExport = (ref: SliceResourceRef) => memory.has(ref.path) || ref.source && sources.has(sourceKey(ref.source)) ? resolveSliceResource(ref, memory, sources) : resolveSliceResource(ref, diskEntries);
+    return { mode, entries, memoryEntries: memory, diskEntries, sizes, resolve, resolveForExport, refresh: () => setRevision(n => n + 1) };
+  }, [memory, disk, diskStamp, pathsKey, assets, pages, root, mode]);
 }

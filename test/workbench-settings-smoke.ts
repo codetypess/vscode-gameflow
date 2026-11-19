@@ -9,6 +9,10 @@ import { EXPORT_SETTINGS_KEY, LEGACY_RESOURCE_DIRECTORY_KEY } from "../shared/wo
 import { RESOURCE_MANIFEST, makeSliceExportBatch, psdExportDirectory } from "../shared/psd-export";
 import type { PsdAsset } from "../shared/psd-meta";
 import { readWorkbenchSlices } from "../src/slice-resource-controller";
+import { exportPrefab } from "../src/prefab-export-controller";
+import { planPrefabExport } from "../shared/prefab-export";
+import { makeNode } from "../shared/editor-ops";
+import { createDefaultGameFlowDocument } from "../shared/model";
 
 export async function settingsChecks(api: { psd: PsdEditorProvider }, root: string, directory: string): Promise<string[]> {
   const checks: string[] = [], settings = api.psd.settings;
@@ -43,6 +47,37 @@ export async function settingsChecks(api: { psd: PsdEditorProvider }, root: stri
     const unsafe = (await readWorkbenchSlices(settings, ["../private.png"]))[0];
     assert.match(unsafe.error!, /相对 PNG/);
     checks.push("preview loads classified PNGs from the root ledger", "preview reports missing roots and files without fallback", "preview rejects traversal before resource filesystem access");
+    const prototype = createDefaultGameFlowDocument("native-prefab");
+    const button = makeNode("button", "button", 20, 20);
+    const label = { ...makeNode("text", "caption", 0, 0), parentId: button.id, text: "登录" };
+    prototype.pages = [{ id: "login", name: "原型导出", kind: "screen", frame: { x: 0, y: 0, width: 320, height: 240 }, nodes: [button, label] }];
+    prototype.interactions = [];
+    const plan = await planPrefabExport(prototype, prototype.pages[0], async () => ({ status: "error", error: "unexpected art binding" }));
+    assert.deepEqual(plan.missing, []);
+    assert.equal(await exportPrefab(settings, plan.batch), 1);
+    const prefabFile = join(prefab.fsPath, plan.batch.name);
+    const nativePrefab = JSON.parse(readFileSync(prefabFile, "utf8"));
+    assert.equal(nativePrefab._$child[0]._$type, "UIButton");
+    assert.ok(nativePrefab._$child[0].normalSkin.startsWith("res://"));
+    assert.equal(nativePrefab._$child[0].text, undefined);
+    assert.equal(nativePrefab._$child[0]._$child[0].text, "登录");
+    assert.ok(existsSync(join(second.fsPath, "builtin/button/gray.png.meta")));
+    const builtin = (await readWorkbenchSlices(settings, ["builtin/button/gray.png"]))[0];
+    assert.equal(builtin.error, undefined);
+    assert.equal(builtin.description?.source.documentId, "gameflow-builtin");
+    const target = await vscode.workspace.openTextDocument(vscode.Uri.file(prefabFile));
+    const savedPrefab = target.getText();
+    const localEdit = new vscode.WorkspaceEdit();
+    localEdit.insert(target.uri, new vscode.Position(0, 0), " ");
+    assert.ok(await vscode.workspace.applyEdit(localEdit));
+    assert.equal(target.isDirty, true);
+    await assert.rejects(exportPrefab(settings, plan.batch), /未保存/);
+    assert.equal(readFileSync(prefabFile, "utf8"), savedPrefab);
+    const restore = new vscode.WorkspaceEdit();
+    restore.replace(target.uri, new vscode.Range(target.positionAt(0), target.positionAt(target.getText().length)), savedPrefab);
+    assert.ok(await vscode.workspace.applyEdit(restore));
+    assert.ok(await target.save());
+    checks.push("native Prefab export writes builtin PNG metadata ledger and independent labels", "native Prefab export protects dirty destination files");
     const isolatedAsset: PsdAsset = { ...asset, atlasName: "公共资源", independentDirectory: true, layers: asset.layers.map(l => ({ ...l, config: { ...l.config, shared: false } })) };
     const isolated = new PsdExportController(settings, { uri: source }, () => psdExportDirectory(isolatedAsset));
     const isolatedBatch = makeSliceExportBatch(isolatedAsset), isolatedFile = isolatedBatch.items[0].name + ".png";

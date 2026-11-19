@@ -194,6 +194,10 @@ export function convertNodeType(page: GameFlowPage, id: string, type: NodeType, 
   return reconcileControlReferences(page, { ...changed, nodes: changed.nodes.map((node) => node.id === id ? {
     ...node, type,
     sliceResource: type === "image" ? node.sliceResource : undefined,
+    image: type === "image" ? node.image ?? defaults.image : undefined,
+    normalSkin: type === "button" ? node.normalSkin ?? defaults.normalSkin : undefined,
+    selectedSkin: type === "button" ? node.selectedSkin : undefined,
+    disabledSkin: type === "button" ? node.disabledSkin : undefined,
     ...(node.text === undefined && defaults.text !== undefined ? { text: defaults.text } : {}),
     ...(type === "radioGroup" ? { widget: { ...node.widget, optionNodeIds: [], selectedIndex: -1 } } : !node.widget && defaults.widget ? { widget: structuredClone(defaults.widget) } : {})
   } : node) });

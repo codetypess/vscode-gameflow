@@ -14,7 +14,7 @@ DESIGN = json.loads((ROOT / "design.json").read_text(encoding="utf-8"))
 W, H = DESIGN["width"], DESIGN["height"]
 FONT = "C:/Windows/Fonts/msyh.ttc"
 SCALE = 3
-nodes = {n["key"]: n for n in DESIGN["nodes"]}
+nodes = {n["key"]: n for n in DESIGN["nodes"] + DESIGN.get("resources", [])}
 assets = {}
 composite = Image.new("RGBA", (W, H), DESIGN["background"])
 
@@ -70,7 +70,7 @@ def draw_art(key, w, h):
     return image.resize((w, h), Image.Resampling.LANCZOS)
 
 
-for node in DESIGN["nodes"]:
+for node in [entry for n in DESIGN["nodes"] for entry in [n] + [r for r in DESIGN.get("resources", []) if r.get("parent") == n["key"]]]:
     kind, key, frame = node["type"], node["key"], node["frame"]
     if kind not in ("image", "text"):
         continue

@@ -25,12 +25,12 @@ export interface CanvasInstanceEdits { overrides: CanvasOverride[]; additions: C
 export const ROOT_TARGET: CanvasTarget = { path: [] };
 export const targetKey = (target: CanvasTarget) => JSON.stringify(target.path.map(part => [part.documentId, part.pageId, part.kind, part.nodeId]));
 export const sameTarget = (a: CanvasTarget, b: CanvasTarget) => targetKey(a) === targetKey(b);
-const SCALARS = new Set(["name", "variableName", "text", "imageData", "sliceResource", "hidden"]);
+const SCALARS = new Set(["name", "variableName", "text", "imageData", "sliceResource", "image", "normalSkin", "selectedSkin", "disabledSkin", "hidden"]);
 const PROPERTY_GROUPS: Record<string, readonly string[]> = {
   frame: ["x", "y", "width", "height"],
   style: ["fill", "color", "borderColor", "borderWidth", "radius", "fontSize", "fontWeight", "italic", "underline", "strikethrough", "textAlign", "opacity"],
   layout: ["left", "right", "centerX", "top", "bottom", "centerY", "layoutUnit", "widthMode", "heightMode", "crossAxisMode", "positionOffsetX", "positionOffsetY", "paddingLeft", "paddingRight", "paddingTop", "paddingBottom", "gap", "gapX", "gapY", "align", "valign", "direction", "wrapCount", "clipContent", "scrollX", "scrollY"],
-  widget: ["skinNodeId", "optionNodeIds", "selected", "disabled", "min", "max", "value", "direction", "placeholder", "password", "maxChars", "options", "selectedIndex", "wordWrap", "overflow", "valign", "imageFit", "leading", "letterSpacing", "html", "ubb", "templateVars", "scrollX", "scrollY"],
+  widget: ["mode", "textLabelNodeId", "skinNodeId", "optionNodeIds", "selected", "disabled", "min", "max", "value", "direction", "placeholder", "password", "maxChars", "options", "selectedIndex", "wordWrap", "overflow", "valign", "imageFit", "leading", "letterSpacing", "html", "ubb", "templateVars", "scrollX", "scrollY"],
   transform: ["anchorX", "anchorY", "scaleX", "scaleY", "skewX", "skewY", "rotation"]
 };
 export function isCanvasProperty(path: string): boolean {
@@ -101,7 +101,7 @@ export function remapCanvasEdits(node: GameFlowNode, mapping: ReadonlyMap<string
   const value = (v: unknown): unknown => Array.isArray(v) ? v.map(value) : v && typeof v === "object" && "canvasTarget" in v ? { canvasTarget: address((v as {canvasTarget:CanvasTarget}).canvasTarget) } : v;
   return { ...node, instanceEdits: {
     overrides: node.instanceEdits.overrides.map(patch => ({ ...patch, target: address(patch.target), set: Object.fromEntries(Object.entries(patch.set).map(([k,v])=>[k,value(v)])) })),
-    additions: node.instanceEdits.additions.map(item => ({ ...item, node: remapCanvasEdits({ ...item.node, id: mapping.get(item.node.id) ?? item.node.id, widget: item.node.widget ? { ...item.node.widget, ...(typeof item.node.widget.skinNodeId === "string" ? { skinNodeId: mapping.get(item.node.widget.skinNodeId) ?? item.node.widget.skinNodeId } : {}), ...(item.node.widget.optionNodeIds ? { optionNodeIds: item.node.widget.optionNodeIds.map(id=>id ? mapping.get(id) ?? id : null) } : {}) } : undefined }, mapping, context), parent: address(item.parent), before: item.before ? address(item.before) : undefined,
+    additions: node.instanceEdits.additions.map(item => ({ ...item, node: remapCanvasEdits({ ...item.node, id: mapping.get(item.node.id) ?? item.node.id, widget: item.node.widget ? { ...item.node.widget, ...(typeof item.node.widget.skinNodeId === "string" ? { skinNodeId: mapping.get(item.node.widget.skinNodeId) ?? item.node.widget.skinNodeId } : {}), ...(typeof item.node.widget.textLabelNodeId === "string" ? { textLabelNodeId: mapping.get(item.node.widget.textLabelNodeId) ?? item.node.widget.textLabelNodeId } : {}), ...(item.node.widget.optionNodeIds ? { optionNodeIds: item.node.widget.optionNodeIds.map(id=>id ? mapping.get(id) ?? id : null) } : {}) } : undefined }, mapping, context), parent: address(item.parent), before: item.before ? address(item.before) : undefined,
       references: item.references ? Object.fromEntries(Object.entries(item.references).map(([k,v])=>[k,Array.isArray(v)?v.map(item=>item?address(item):null):address(v)])) : undefined }))
   } };
 }

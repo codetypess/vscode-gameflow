@@ -28,11 +28,21 @@ scope.onmessage = async ({ data }: MessageEvent<{ id: number; type: "read" | "pa
     const walk = (children: Layer[], inherited = false) => { for (const l of [...children].reverse()) { const limitation = inherited || !!l.mask || !!l.vectorMask || !!l.effects || !!l.clipping || !!l.adjustment || !!l.placedLayer || l.opacity !== 1 || (l.blendMode !== "normal" && l.blendMode !== "pass through"); ordered.push({ layer: l, inheritedLimitation: limitation }); if (l.children) walk(l.children, limitation); } };
     walk(decoded.children ?? []);
     if (ordered.length !== raw.layers.length) throw new Error("PSD 图层结构解析不一致，已停止读取。");
+    let groupPixelsUsed = 0;
+    const groupPixels = (group: Layer, bounds: PsdLayer): PixelData | undefined => {
+      if (!bounds.width || !bounds.height || (groupPixelsUsed += bounds.width * bounds.height) > 24_000_000) return undefined;
+      const canvas=new OffscreenCanvas(bounds.width,bounds.height),ctx=canvas.getContext("2d")!;
+      // Compose with source-over so transparent pixels preserve lower layers.
+      const compose=(layer:Layer)=>{if(layer.hidden)return;if(layer.children){for(const child of layer.children)compose(child);}else if(layer.imageData){const pixels=layer.imageData,temp=new OffscreenCanvas(pixels.width,pixels.height);temp.getContext("2d")!.putImageData(new ImageData(new Uint8ClampedArray(pixels.data),pixels.width,pixels.height),0,0);ctx.drawImage(temp,(layer.left??0)-bounds.left,(layer.top??0)-bounds.top);}};
+      for(const child of group.children??[])compose(child);return ctx.getImageData(0,0,bounds.width,bounds.height);
+    };
     const layers: PsdLayer[] = [];
     for (let i = 0; i < raw.layers.length; i++) {
       const r = raw.layers[i], { layer: l, inheritedLimitation } = ordered[i];
       if (l.name !== r.name || (l.id ?? null) !== r.nativeId) throw new Error("PSD 图层对应关系无法确认。");
-      layers.push({ ...structure.layers[i], image: await png(l.imageData), text: !!l.text, limitation: inheritedLimitation ? "此层含效果、蒙版、剪贴或特殊混合，单层图仅显示保存的基础像素。" : undefined });
+      const unsupportedChild = (child:Layer):boolean => !child.hidden && (!!child.mask || !!child.vectorMask || !!child.effects || !!child.clipping || !!child.adjustment || !!child.placedLayer || child.opacity !== 1 || (child.blendMode !== "normal" && child.blendMode !== "pass through") || !!child.children?.some(unsupportedChild));
+      const flatUnsupported = inheritedLimitation || !!l.children?.some(unsupportedChild);
+      layers.push({ ...structure.layers[i], image: await png(l.children ? groupPixels(l, structure.layers[i]) : l.imageData), text: !!l.text, limitation: flatUnsupported ? "此层含效果、蒙版、剪贴或特殊混合，单层图仅显示保存的基础像素。" : undefined });
     }
     const result: PsdAsset = { ...structure, layers, preview: await png(decoded.imageData) };
     scope.postMessage({ id: data.id, result });

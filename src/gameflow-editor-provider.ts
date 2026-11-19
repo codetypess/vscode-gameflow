@@ -10,6 +10,8 @@ import { bytesHash } from "./psd-document-model";
 import { WorkbenchDocument } from "./workbench-document";
 import { readWorkbenchSlices } from "./slice-resource-controller";
 
+import { exportPrefab } from "./prefab-export-controller";
+
 export const GAMEFLOW_EDITOR_VIEW_TYPE = "gameflow.canvasEditor";
 const explain = (error: unknown) => error instanceof Error ? error.message : String(error);
 interface Checkpoint {
@@ -173,6 +175,15 @@ export class GameFlowEditorProvider implements vscode.CustomEditorProvider<Workb
             this.changes.fire({ document: doc, label: "恢复工作台草稿", undo: () => restore(doc.baseline), redo: () => restore(recovered) }); this.checkpoint(doc);
           }
           for (const psd of doc.psds.values()) if (psd !== doc.currentPsd) this.psd.announce(psd);
+        } else if (raw.type === "psdOutput") {
+          try {
+            const uri = await vscode.window.showSaveDialog({ defaultUri: vscode.Uri.joinPath(doc.uri, "..", raw.name), filters: raw.kind === "psd" ? { Photoshop: ["psd"] } : { JSON: ["json"] } });
+            if (uri) { if ([...doc.psds.values()].some(psd=>psd.uri.toString()===uri.toString()&&psd.model.dirty)) throw new Error("目标 PSD 有未保存修改。"); if (vscode.workspace.textDocuments.some(d=>d.uri.toString()===uri.toString() && d.isDirty)) throw new Error("目标文件有未保存修改。"); await vscode.workspace.fs.writeFile(uri,Buffer.from(raw.base64,"base64")); }
+            await panel.webview.postMessage({ type:"psdOutputResult",requestId:raw.requestId,saved:!!uri } satisfies HostToWebviewMessage);
+          } catch (error) { await panel.webview.postMessage({ type:"psdOutputResult",requestId:raw.requestId,saved:false,error:explain(error) } satisfies HostToWebviewMessage); }
+        } else if (raw.type === "prefabExport") {
+          try { await panel.webview.postMessage({ type: "prefabExportResult", requestId: raw.requestId, count: await exportPrefab(this.psd.settings, raw.batch) } satisfies HostToWebviewMessage); }
+          catch (error) { await panel.webview.postMessage({ type: "prefabExportResult", requestId: raw.requestId, error: explain(error) } satisfies HostToWebviewMessage); }
         } else if (raw.type === "sliceResources") {
           await panel.webview.postMessage({ type: "sliceResourcesResult", requestId: raw.requestId, resources: await readWorkbenchSlices(this.psd.settings, raw.paths) } satisfies HostToWebviewMessage);
         } else if (raw.type === "workbenchFlushed") doc.flushes.get(raw.requestId)?.();

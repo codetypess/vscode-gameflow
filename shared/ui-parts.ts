@@ -1,7 +1,7 @@
 import type { GameFlowNode, GameFlowPage } from "./model";
 import { CONSTRAINTS } from "./ui-config";
 
-export const NODE_SKIN_TYPES = ["checkbox", "radio", "slider"] as const;
+export const NODE_SKIN_TYPES = ["checkbox", "radio", "slider", "progress"] as const;
 export const supportsNodeSkin = (node: Pick<GameFlowNode, "type">) => NODE_SKIN_TYPES.some(type => type === node.type);
 export const hasNodeSkin = (node: GameFlowNode) => supportsNodeSkin(node) && node.widget?.skinNodeId !== undefined;
 export function skinOwner(page: GameFlowPage, node: GameFlowNode): GameFlowNode | undefined {
@@ -36,10 +36,13 @@ export function validateControlReferences(page: GameFlowPage, errors: string[]):
   const byId = new Map(page.nodes.map(node => [node.id, node]));
   const memberships = new Map<string, string>();
   for (const node of page.nodes) {
+    const labelId = node.widget?.textLabelNodeId;
+    if (labelId) { const label = byId.get(labelId); if (node.type !== "combo" || label?.type !== "text" || label.parentId !== node.id) errors.push("node " + node.id + " textLabelNodeId must reference a direct UILabel child"); }
     const skinId = node.widget?.skinNodeId;
     if (skinId) {
       const skin = byId.get(skinId);
       if (!skin || skin.parentId !== node.id) errors.push(`node ${node.id} skinNodeId must reference a direct child`);
+      else if (node.type === "progress" && (skin.type !== "image" || CONSTRAINTS.some(key => skin.layout?.[key] != null))) errors.push("node " + node.id + " progress skin must be an unconstrained image child");
       else if (node.type === "slider" && CONSTRAINTS.some(key => skin.layout?.[key] != null)) errors.push(`node ${node.id} slider skin must not have relative constraints`);
     }
     if (node.type !== "radioGroup") continue;
@@ -57,8 +60,9 @@ export function validateControlReferences(page: GameFlowPage, errors: string[]):
 /** Copies only references inside the copied identity scope. */
 export function remapControlReferences(node: GameFlowNode, ids: Map<string, string>): GameFlowNode {
   const widget = node.widget;
-  if (!widget || (widget.skinNodeId === undefined && widget.optionNodeIds === undefined)) return node;
+  if (!widget || (widget.skinNodeId === undefined && widget.textLabelNodeId === undefined && widget.optionNodeIds === undefined)) return node;
   const next = { ...widget };
+  if (widget.textLabelNodeId !== undefined) next.textLabelNodeId = widget.textLabelNodeId ? ids.get(widget.textLabelNodeId) ?? null : null;
   if (widget.skinNodeId !== undefined) next.skinNodeId = widget.skinNodeId ? ids.get(widget.skinNodeId) ?? null : null;
   if (widget.optionNodeIds !== undefined) {
     next.optionNodeIds = widget.optionNodeIds.map(id => id ? ids.get(id) ?? null : null);
@@ -84,12 +88,18 @@ export function reconcileControlReferences(before: GameFlowPage, after: GameFlow
   const byId = new Map(after.nodes.map(node => [node.id, node]));
   const nodes = after.nodes.map(node => {
     const widget = { ...node.widget };
+    if (node.type !== "progress") delete widget.mode;
     if (widget.skinNodeId !== undefined) {
       if (!supportsNodeSkin(node)) delete widget.skinNodeId;
       else if (widget.skinNodeId) {
         const skin = byId.get(widget.skinNodeId);
-        if (skin?.parentId !== node.id || (node.type === "slider" && CONSTRAINTS.some(key => skin?.layout?.[key] != null))) widget.skinNodeId = null;
+        if (skin?.parentId !== node.id || (["slider", "progress"].includes(node.type) && CONSTRAINTS.some(key => skin?.layout?.[key] != null)) || (node.type === "progress" && skin?.type !== "image")) widget.skinNodeId = null;
       }
+    }
+    if (widget.textLabelNodeId !== undefined) {
+      const label = byId.get(widget.textLabelNodeId ?? "");
+      if (node.type !== "combo") delete widget.textLabelNodeId;
+      else if (widget.textLabelNodeId && (label?.type !== "text" || label.parentId !== node.id)) widget.textLabelNodeId = null;
     }
     if (widget.optionNodeIds !== undefined) {
       if (node.type !== "radioGroup") { delete widget.optionNodeIds; delete widget.selectedIndex; }

@@ -14,7 +14,7 @@ const assetsDir = process.argv[2];
 if (!assetsDir) throw new Error("Usage: node examples/star-sea-login/tools/build-sample.cjs <generated assets>");
 assert.equal(require("ag-psd/package.json").version, "34.2.0");
 
-// Use the production codec/layout/metadata validators, without adding a runtime exporter.
+// Rebuild this checked-in example directly from its design source.
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), "gameflow-login-"));
 let shared;
 try {
@@ -47,8 +47,11 @@ const nodes = design.nodes.map(n => {
   if (n.type === "image") {
     const png = fs.readFileSync(path.join(assetsDir, n.key + ".png"));
     fs.writeFileSync(path.join(assetOut, n.key + ".png"), png);
-    node.imageData = "data:image/png;base64," + png.toString("base64");
+    node.image = { ...n.image, art: { path: "unclassified/" + n.key + ".png", source: { documentId: ids.psdDocumentId, layerId: id("layers", n.key + ".pixels") } } };
     node.widget = { imageFit: "fill" };
+  } else if (n.type === "button") {
+    node.normalSkin = { ...n.normalSkin, art: { path: "unclassified/" + n.normalAsset + ".png", source: { documentId: ids.psdDocumentId, layerId: id("layers", n.normalAsset + ".pixels") } } };
+    fs.copyFileSync(path.join(assetsDir, n.normalAsset + ".png"), path.join(assetOut, n.normalAsset + ".png"));
   } else if (n.type === "text") {
     node.text = n.text;
     node.style = { ...transparent, color: n.color, fontSize: n.fontSize, textAlign: "center" };
@@ -57,8 +60,8 @@ const nodes = design.nodes.map(n => {
   return node;
 });
 const document = shared.parseGameFlowDocument(JSON.stringify({
-  schemaVersion: 3, elementIdScheme: "nanoid-8", documentId: ids.prototypeDocumentId, title: design.name,
-  requirements: [{ id: "portrait-login", text: "按参考界面制作750×1334竖版登录页；按钮为容器，图片部件与可选文字分别建模。", status: "confirmed", source: "用户截图及2026-11-16尺寸要求" }],
+  schemaVersion: 5, elementIdScheme: "nanoid-8", documentId: ids.prototypeDocumentId, title: design.name,
+  requirements: [{ id: "portrait-login", text: "按参考界面制作750×1334竖版登录页；按钮自身 normalSkin 提供图片，文字由独立 UILabel 子节点提供。", status: "confirmed", source: "用户截图及2026-11-16尺寸要求" }],
   pages: [{ id: pageId, name: "星海远征 · 登录", kind: "screen", rootType: "UIStack", frame: { x: 0, y: 0, width: design.width, height: design.height }, background: design.background, nodes }],
   interactions: [],
 }));
@@ -78,7 +81,7 @@ for (const definition of design.nodes) {
 assert.equal(nodes.filter(n => n.type === "text").length, 5);
 const button = nodes.find(n => n.type === "button");
 assert.equal(button.text, undefined);
-assert.deepEqual(nodes.filter(n => n.parentId === button.id).map(n => n.type), ["image", "text"]);
+assert.deepEqual(nodes.filter(n => n.parentId === button.id).map(n => n.type), ["text"]);
 const prototypePath = path.join(repo, "sample/star-sea-login.gameflow.json");
 fs.writeFileSync(prototypePath, shared.serializeGameFlowDocument(document));
 fs.copyFileSync(prototypePath, path.join(root, "star-sea-login.gameflow.json"));
@@ -124,11 +127,16 @@ function layer(n) {
     base.opened = false;
     base.children = [{ id: pixelId, name: `${n.name} · 像素`, ...raster(n.key),
       gameflowMetadata: meta(n.key + ".pixels", "asset.raster", {
-        exportGroupId: base.gameflowMetadata.layerId,
-        slicing: { enabled: true, name: n.key, nineGrid: n.nineGrid ?? null },
+        exportGroupId: base.gameflowMetadata.layerId, prototype: { ...ref, slot: "image" },
+        slicing: { enabled: true, name: n.key, exportName: n.key, nineGrid: n.nineGrid ?? null },
         ...(n.key === "button_bg" ? { state: "normal" } : {}),
       }) }];
     binding.asset = { path: `assets/${n.key}.png`, rasterLayerId: base.children[0].gameflowMetadata.layerId, nativeId: pixelId, nineGrid: n.nineGrid ?? null };
+  } else if (n.type === "button") {
+    base.opened = true;
+    const key = n.normalAsset, definition = design.resources.find(r => r.key === key), pixelId = ++nativeId;
+    base.children = [{ id: pixelId, name: "@normal", ...raster(key), gameflowMetadata: meta(key + ".pixels", "asset.raster", { prototype: { ...ref, slot: "normalSkin" }, slicing: { enabled: true, name: "@normal", exportName: key, nineGrid: definition.nineGrid ?? null } }) }, ...design.nodes.filter(child => child.parent === n.key).map(layer)];
+    binding.asset = { path: "assets/" + key + ".png", slot: "normalSkin", rasterLayerId: base.children[0].gameflowMetadata.layerId, nativeId: pixelId, nineGrid: definition.nineGrid ?? null };
   } else if (n.type === "text") {
     Object.assign(base, raster(n.key), { text: assets[n.key].text });
   } else {
@@ -152,9 +160,9 @@ fs.copyFileSync(path.join(assetsDir, "artwork-preview.png"), path.join(root, "ar
 const bytes = fs.readFileSync(psdPath);
 const parsed = shared.parsePsdBinary(bytes), independent = readMetadata(bytes);
 assert.equal(parsed.width, 750); assert.equal(parsed.height, 1334);
-assert.equal(parsed.layers.length, 22);
-assert.equal(independent.layers.length, 22);
-assert.equal(new Set(parsed.layers.map(l => l.metadata.layerId)).size, 22);
+assert.equal(parsed.layers.length, 21);
+assert.equal(independent.layers.length, 21);
+assert.equal(new Set(parsed.layers.map(l => l.metadata.layerId)).size, 21);
 for (const record of parsed.layers) {
   assert.deepEqual(record.metadata, independent.layers.find(l => l.metadata.layerId === record.metadata.layerId).metadata);
   assert.equal(record.metadata.documentId, ids.psdDocumentId);
@@ -165,14 +173,14 @@ function verify(n, parent) {
   if (n.text) textCount++;
   if (n.children) groupCount++;
   if (n.imageData) rasterCount++;
-  if (n.imageData && !n.text) assert.ok(parent.children.length === 1 && parent.name.includes("UIImage"));
+  if (n.imageData && !n.text) assert.ok((parent.children.length === 1 && parent.name.includes("UIImage")) || (n.name === "@normal" && parent.name.includes("UIButton")));
   (n.children ?? []).forEach(child => verify(child, n));
 }
 decoded.children.forEach(n => verify(n, null));
-assert.equal(textCount, 5); assert.equal(groupCount, 11); assert.equal(rasterCount, 11);
+assert.equal(textCount, 5); assert.equal(groupCount, 10); assert.equal(rasterCount, 11);
 assert.deepEqual(Buffer.from(decoded.imageData.data), Buffer.from(psd.imageData.data));
-assert.equal(new Set(bindings.map(b => b.prototype.nodeId)).size, 16);
-assert.equal(new Set(bindings.map(b => b.psd.layerId)).size, 16);
+assert.equal(new Set(bindings.map(b => b.prototype.nodeId)).size, 15);
+assert.equal(new Set(bindings.map(b => b.psd.layerId)).size, 15);
 for (const binding of bindings) {
   const l = parsed.layers.find(l => l.metadata.layerId === binding.psd.layerId);
   assert.deepEqual(l.metadata.prototype, binding.prototype);
@@ -198,7 +206,7 @@ fs.writeFileSync(path.join(root, "prototype-psd-map.json"), JSON.stringify({ sch
   prototype: "star-sea-login.gameflow.json", psd: psdName, psdSha256: hash, bindings }, null, 2) + "\n");
 fs.writeFileSync(identityPath, JSON.stringify(ids, null, 2) + "\n");
 const report = { width: design.width, height: design.height, prototypeNodes: nodes.length, bindings: bindings.length,
-  groups: groupCount, editableTextRecords: textCount, imageExportGroups: 6, rasterLayers: rasterCount - textCount,
+  groups: groupCount, editableTextRecords: textCount, imageExportGroups: 5, rasterLayers: rasterCount - textCount,
   taggedRecords: parsed.layers.length, psdBytes: bytes.length, sourceHash: hash,
   prototypeCodecAndLayout: "passed", metadataIndependentReader: "passed", savedCompositeBytes: "exact match",
   imageGroupsExcludeLabels: "passed", photoshopRoundTrip: "not executed" };

@@ -52,7 +52,7 @@ export async function run() {
     const expected={"shared-components.gameflow.json":canvasFingerprint(dirtySource)};
     const selected=parseGameFlowDocument(local.getText()).pages[0].nodes.find(n=>n.id==="demoref1")!.instanceEdits!.overrides.map(patch=>({target:patch.target,fields:["text"]}));
     await controller.apply({pageId:"66ht4ruz",ownerId:"demoref1",selections:selected},expected,local.version);
-    assert.equal(parseGameFlowDocument(source.getText()).pages[0].nodes[1].text,"A 的本地提示文案");
+    assert.equal(parseGameFlowDocument(source.getText()).pages[0].nodes.find(n=>n.id==="cardtext")!.text,"A 的本地提示文案");
     assert.equal(parseGameFlowDocument(source.getText()).title,dirtySource.title);
     assert.equal(parseGameFlowDocument(local.getText()).pages[0].nodes.find(n=>n.id==="demoref1")!.instanceEdits!.overrides.length,0);
     assert.equal(source.isDirty,true);

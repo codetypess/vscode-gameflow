@@ -89,3 +89,9 @@ Schema v4 introduced `page.componentRootId` and `node.prefab: { source, document
 
 
 `chooseCanvasSource`, `openCanvasSource` and `canvasSources` isolate source catalogs from authoritative snapshots. DocumentSession ignores source responses for edit/save/history sequencing. The per-editor host controller loads a maximum of 64 source files, includes dirty managed workbench snapshots or TextDocuments, reads clean files from disk, watches changes/create/delete plus managed-document notifications and refreshes nested dependencies with an epoch guard. Disposal releases watchers, subscriptions and pending timers. Selecting a legacy source completes normal ID migration through the active document adapter as an unsaved undoable edit before exposing target IDs. Browser preview imports explicit File snapshots with separate localStorage persistence and an explicit reimport message; it cannot watch arbitrary disk paths. See [canvas-component-references.md](canvas-component-references.md).
+
+## 原型图片与导出边界（2026-11-18）
+
+`shared/image-slots.ts` 定义可序列化图片槽位与资源来源选择，内置 PNG 清单在 shared/builtin-images.json，原文件在 assets/builtin。Webview 负责图片选择、模式会话、Canvas 绘制、原型 PSD 编码、稳定 PSD 身份关联和导出预检。原型、美术内存和磁盘资源互相隔离。`shared/prefab-export.ts` 构建目标 UI `.lh` 与图片计划，并通过抽象 ResourceDirectory 对两导出根执行校验、文件备份和失败恢复；浏览器与 VS Code 使用同一核心。
+
+新协议 prefabExport / prefabExportResult 带有有界且逐项校验的相对输出路径，Host 仅向本机配置根目录写入，拒绝目录穿越、大小写冲突、损坏 PNG、来源冲突和未保存的目标文档。原生 PSD 与 Prefab 图片导出共用根目录锁。psdOutput / psdOutputResult 通过保存对话框输出生成 PSD，并检查打开的目标 PSD 草稿。源项目 xq-client 只作只读契约依据。

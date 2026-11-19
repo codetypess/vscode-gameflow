@@ -1,3 +1,4 @@
+import { isImageSlot, IMAGE_SLOT_FIELDS, type ImageSlot } from "./image-slots";
 import { allocateElementId, ELEMENT_ID_SCHEME, reserveDocumentElementIds } from "./element-id";
 import { canHaveChildren, COMPONENT_TYPES, PAGE_ROOT_TYPES } from "./ui-components";
 import { validateRootLayout, validateUIConfig } from "./ui-config";
@@ -63,6 +64,10 @@ export interface GameFlowNode {
   text?: string;
   style?: NodeStyle;
   imageData?: string;
+  image?: ImageSlot | null;
+  normalSkin?: ImageSlot | null;
+  selectedSkin?: ImageSlot | null;
+  disabledSkin?: ImageSlot | null;
   sliceResource?: SliceResourceRef;
   hidden?: boolean;
   locked?: boolean;
@@ -241,12 +246,13 @@ function validateNode(
         }
         // Validate values independently of external source availability. Full target compatibility is composed later.
         for (const [field, v] of Object.entries(patch.set)) {
-          if (field === "widget.skinNodeId" && isRecord(v) && Object.keys(v).length === 1 && validCanvasTarget(v.canvasTarget)) continue;
+          if (["widget.skinNodeId", "widget.textLabelNodeId"].includes(field) && isRecord(v) && Object.keys(v).length === 1 && validCanvasTarget(v.canvasTarget)) continue;
           if (field === "widget.optionNodeIds" && Array.isArray(v) && v.length <= 1000 && v.every(item => item === null || isRecord(item) && Object.keys(item).length === 1 && validCanvasTarget(item.canvasTarget))) continue;
-          if (["widget.skinNodeId", "widget.optionNodeIds"].includes(field) && v !== null) { errors.push(`${at}.set.${field} must use scoped canvas targets`); optionalValid = false; continue; }
+          if (["widget.skinNodeId", "widget.optionNodeIds", "widget.textLabelNodeId"].includes(field) && v !== null) { errors.push(`${at}.set.${field} must use scoped canvas targets`); optionalValid = false; continue; }
           const test = writeProperty({ id: "validate", name: "validate", type: "container", frame: { x: 0, y: 0, width: 1, height: 1 } }, field, v);
-          if (field === "sliceResource") test.type = "image";
-          if (field.startsWith("widget.")) test.type = field === "widget.optionNodeIds" ? "radioGroup" : field === "widget.skinNodeId" ? "slider" : "text";
+          if (["sliceResource", "image"].includes(field)) test.type = "image";
+          if (["normalSkin", "selectedSkin", "disabledSkin"].includes(field)) test.type = "button";
+          if (field.startsWith("widget.")) test.type = field === "widget.optionNodeIds" ? "radioGroup" : field === "widget.skinNodeId" ? "slider" : field === "widget.textLabelNodeId" ? "combo" : field === "widget.mode" ? "progress" : "text";
           if (field.startsWith("widget.") && typeof v === "number" && Number.isFinite(v)) {
             if (field === "widget.min") test.widget = {min:v,max:v+1,value:v};
             if (field === "widget.max") test.widget = {min:v-1,max:v,value:v};
@@ -262,9 +268,9 @@ function validateNode(
           errors.push(`${at} has invalid addition or parent`); optionalValid = false; continue;
         }
         optionalValid = validateNode(addition.node, `${at}.node`, errors, depth + 1) && optionalValid;
-        if (typeof readProperty(addition.node,"widget.skinNodeId") === "string" || Array.isArray(readProperty(addition.node,"widget.optionNodeIds")) && (readProperty(addition.node,"widget.optionNodeIds") as unknown[]).some(id=>id!==null)) { errors.push(`${at} control references must use scoped targets`); optionalValid = false; }
+        if (typeof readProperty(addition.node,"widget.skinNodeId") === "string" || typeof readProperty(addition.node,"widget.textLabelNodeId") === "string" || Array.isArray(readProperty(addition.node,"widget.optionNodeIds")) && (readProperty(addition.node,"widget.optionNodeIds") as unknown[]).some(id=>id!==null)) { errors.push(`${at} control references must use scoped targets`); optionalValid = false; }
         if (isRecord(addition.references) && Object.keys(addition.references).some(field=>readProperty(addition.node,field)!==undefined)) {errors.push(`${at} duplicates a scoped control reference`); optionalValid=false;}
-        if (addition.references !== undefined && (!isRecord(addition.references) || Object.entries(addition.references).some(([k,v]) => (k === "widget.skinNodeId" ? !validCanvasTarget(v) : k === "widget.optionNodeIds" ? !(Array.isArray(v) && v.length <= 1000 && v.every(item => item === null || validCanvasTarget(item))) : true)))) { errors.push(`${at}.references is invalid`); optionalValid = false; }
+        if (addition.references !== undefined && (!isRecord(addition.references) || Object.entries(addition.references).some(([k,v]) => (["widget.skinNodeId", "widget.textLabelNodeId"].includes(k) ? !validCanvasTarget(v) : k === "widget.optionNodeIds" ? !(Array.isArray(v) && v.length <= 1000 && v.every(item => item === null || validCanvasTarget(item))) : true)))) { errors.push(`${at}.references is invalid`); optionalValid = false; }
       }
     }
   }
@@ -278,7 +284,7 @@ function validateNode(
       optionalValid = validateString(value.prefab.pageId, `${path}.prefab.pageId`, errors) && optionalValid;
     }
     if (value.type !== "container") { errors.push(`${path}.prefab requires a container instance`); optionalValid = false; }
-    if (value.text !== undefined || value.imageData !== undefined || value.sliceResource !== undefined || value.widget !== undefined) {
+    if (value.text !== undefined || value.imageData !== undefined || value.sliceResource !== undefined || IMAGE_SLOT_FIELDS.some(field => value[field] !== undefined) || value.widget !== undefined) {
       errors.push(`${path}.prefab content belongs to the source`); optionalValid = false;
     }
     if (isRecord(value.style) && Object.keys(value.style).some(key => key !== "opacity")) {
@@ -315,6 +321,11 @@ function validateNode(
   if (value.sliceResource !== undefined && (value.type !== "image" || !isSliceResourceRef(value.sliceResource))) {
     errors.push(`${path}.sliceResource requires an image and a valid relative PNG resource reference`);
     optionalValid = false;
+  }
+  for (const field of IMAGE_SLOT_FIELDS) {
+    if (value[field] !== undefined && (!isImageSlot(value[field]) || (field === "image" ? value.type !== "image" : value.type !== "button"))) {
+      errors.push(path + "." + field + " requires an image resource slot on the matching node type"); optionalValid = false;
+    }
   }
   if (value.style !== undefined) {
     if (!isRecord(value.style)) {
@@ -640,9 +651,10 @@ export function createDefaultGameFlowDocument(
             id: "node-backpack-button",
             name: "背包按钮",
             type: "button",
-            text: "背包",
+            normalSkin: { builtin: "button/gray" },
             frame: { x: 24, y: 112, width: 92, height: 40 }
-          }
+          },
+          { id: "node-backpack-label", name: "按钮文案", type: "text", parentId: "node-backpack-button", text: "背包", frame: { x: 0, y: 10, width: 92, height: 20 }, style: { textAlign: "center" } }
         ]
       },
       {
@@ -683,6 +695,7 @@ export function createDefaultGameFlowDocument(
             id: "node-item-image",
             name: "道具图标",
             type: "image",
+            image: { builtin: "icon/potion" },
             frame: { x: 20, y: 24, width: 72, height: 72 }
           },
           {
@@ -696,9 +709,10 @@ export function createDefaultGameFlowDocument(
             id: "node-use-button",
             name: "使用按钮",
             type: "button",
-            text: "使用",
+            normalSkin: { builtin: "button/green" },
             frame: { x: 168, y: 132, width: 80, height: 36 }
-          }
+          },
+          { id: "node-use-label", name: "按钮文案", type: "text", parentId: "node-use-button", text: "使用", frame: { x: 0, y: 8, width: 80, height: 20 }, style: { textAlign: "center" } }
         ]
       }
     ],

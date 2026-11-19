@@ -1,4 +1,5 @@
 import type { Frame, GameFlowNode, GameFlowPage } from "./model";
+import { nodeImageSlot, builtinPath, builtinImage, progressRatio } from "./image-slots";
 import { canHaveChildren, flowType } from "./ui-components";
 import type { Constraint } from "./ui-config";
 import { layoutLabel } from "./label-text";
@@ -75,7 +76,7 @@ export function resolvePageLayout(page: GameFlowPage, resourceSizes?: ResourceSi
           } else if (cross) value = Math.max(0, ...lengths);
           else if (flow === "grid") value = gridExtent(n, axis, lengths);
           else value = Math.max(0, ...items.map((child, i) => {
-            if (n.type === "slider" && n.widget?.skinNodeId === child.id) {
+            if (["slider", "progress"].includes(n.type) && n.widget?.skinNodeId === child.id) {
               const bounds = polygonBounds(framePolygon(nodeMatrix({ x: 0, y: 0, width: size(child, "x").value, height: size(child, "y").value }, child.transform), size(child, "x").value, size(child, "y").value));
               return bounds[a.size];
             }
@@ -96,8 +97,9 @@ export function resolvePageLayout(page: GameFlowPage, resourceSizes?: ResourceSi
             const width = wrap ? Math.max(1, size(n, "x").value) : Infinity;
             value = widths.reduce((sum, widthOfLine) => sum + Math.max(1, Math.ceil(widthOfLine / width)), 0) * font * 1.35;
           }
-        } else if (n.type === "image" && n.sliceResource) {
-          const natural = resourceSizes?.get(n.sliceResource.path);
+        } else if (n.type === "image" || n.type === "button") {
+          const slot = nodeImageSlot(n), resourcePath = slot?.art?.path ?? (slot?.builtin ? builtinPath(slot.builtin) : n.sliceResource?.path);
+          const natural = resourceSizes?.get("@node:" + n.id) ?? (resourcePath ? resourceSizes?.get(resourcePath) ?? (slot?.builtin ? builtinImage(slot.builtin) : undefined) : undefined);
           if (natural) value = natural[a.size];
         }
       }
@@ -169,6 +171,12 @@ export function resolvePageLayout(page: GameFlowPage, resourceSizes?: ResourceSi
       const vertical = widget.direction === "vertical";
       local.x = (vertical ? (parentGeometry.local.width - bounds.width) / 2 : Math.max(0, parentGeometry.local.width - bounds.width) * ratio) - bounds.x;
       local.y = (vertical ? Math.max(0, parentGeometry.local.height - bounds.height) * ratio : (parentGeometry.local.height - bounds.height) / 2) - bounds.y;
+    }
+    if (parentGeometry && parent?.type === "progress" && parent.widget?.skinNodeId === n.id) {
+      const fullWidth = Math.max(0, parentGeometry.local.width - (parent.layout?.paddingLeft ?? 0) - (parent.layout?.paddingRight ?? 0));
+      local.x = parent.layout?.paddingLeft ?? 0; local.y = parent.layout?.paddingTop ?? 0;
+      local.width = fullWidth * (parent.widget?.mode === "circular" ? 1 : progressRatio(parent));
+      local.height = Math.max(0, parentGeometry.local.height - local.y - (parent.layout?.paddingBottom ?? 0));
     }
     const parentMatrix = multiply(parentGeometry?.matrix ?? IDENTITY, translation(-(parent?.layout?.scrollX ?? 0), -(parent?.layout?.scrollY ?? 0)));
     const matrix = multiply(parentMatrix, nodeMatrix(local, n.transform));

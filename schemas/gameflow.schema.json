@@ -180,7 +180,13 @@
                     "transform.scaleY",
                     "transform.skewX",
                     "transform.skewY",
-                    "transform.rotation"
+                    "transform.rotation",
+                    "image",
+                    "normalSkin",
+                    "selectedSkin",
+                    "disabledSkin",
+                    "widget.mode",
+                    "widget.textLabelNodeId"
                   ]
                 }
               }
@@ -282,7 +288,10 @@
                 "additionalProperties": false,
                 "properties": {
                   "widget.skinNodeId": {"$ref": "#/$defs/canvasTarget"},
-                  "widget.optionNodeIds": {"type": "array","items": {"anyOf": [{"type": "null"},{"$ref": "#/$defs/canvasTarget"}]}}
+                  "widget.optionNodeIds": {"type": "array","items": {"anyOf": [{"type": "null"},{"$ref": "#/$defs/canvasTarget"}]}},
+                  "widget.textLabelNodeId": {
+                    "$ref": "#/$defs/canvasTarget"
+                  }
                 }
               }
             }
@@ -391,7 +400,44 @@
         "transform.scaleY": {"type": "number"},
         "transform.skewX": {"type": "number"},
         "transform.skewY": {"type": "number"},
-        "transform.rotation": {"type": "number"}
+        "transform.rotation": {"type": "number"},
+        "image": {
+          "$ref": "#/$defs/imageSlot"
+        },
+        "normalSkin": {
+          "$ref": "#/$defs/imageSlot"
+        },
+        "selectedSkin": {
+          "$ref": "#/$defs/imageSlot"
+        },
+        "disabledSkin": {
+          "$ref": "#/$defs/imageSlot"
+        },
+        "widget.mode": {
+          "enum": [
+            "horizontal",
+            "circular"
+          ]
+        },
+        "widget.textLabelNodeId": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "canvasTarget"
+              ],
+              "properties": {
+                "canvasTarget": {
+                  "$ref": "#/$defs/canvasTarget"
+                }
+              }
+            }
+          ]
+        }
       }
     },
     "rootLayout": {
@@ -442,9 +488,95 @@
       "allOf": [
         { "if": { "required": ["sliceResource"] }, "then": { "properties": { "type": { "const": "image" } } } },
         { "if": { "not": { "required": ["prefab"] } }, "then": { "properties": { "instanceEdits": false } } },
-        { "if": { "required": ["prefab"] }, "then": { "properties": { "type": { "const": "container" }, "text": false, "imageData": false, "sliceResource": false, "widget": false, "style": { "propertyNames": { "const": "opacity" } }, "layout": { "propertyNames": { "enum": ["left","right","centerX","top","bottom","centerY","layoutUnit","widthMode","heightMode","crossAxisMode","positionOffsetX","positionOffsetY"] }, "properties": { "widthMode": { "const": "explicit" }, "heightMode": { "const": "explicit" } } } } } },
-        { "if": { "properties": { "type": { "not": { "enum": ["checkbox","radio","slider"] } } } }, "then": { "properties": { "widget": { "not": { "required": ["skinNodeId"] } } } } },
-        { "if": { "properties": { "type": { "not": { "const": "radioGroup" } } } }, "then": { "properties": { "widget": { "not": { "required": ["optionNodeIds"] } } } } }
+        { "if": { "required": ["prefab"] }, "then": { "properties": { "type": { "const": "container" }, "text": false, "imageData": false, "sliceResource": false, "widget": false, "style": { "propertyNames": { "const": "opacity" } }, "layout": { "propertyNames": { "enum": ["left","right","centerX","top","bottom","centerY","layoutUnit","widthMode","heightMode","crossAxisMode","positionOffsetX","positionOffsetY"] }, "properties": { "widthMode": { "const": "explicit" }, "heightMode": { "const": "explicit" } } }, "image": false, "normalSkin": false, "selectedSkin": false, "disabledSkin": false } } },
+        { "if": { "properties": { "type": { "not": { "enum": ["checkbox","radio","slider", "progress"] } } } }, "then": { "properties": { "widget": { "not": { "required": ["skinNodeId"] } } } } },
+        { "if": { "properties": { "type": { "not": { "const": "radioGroup" } } } }, "then": { "properties": { "widget": { "not": { "required": ["optionNodeIds"] } } } } },
+        {
+          "if": {
+            "required": [
+              "image"
+            ]
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "const": "image"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "anyOf": [
+              {
+                "required": [
+                  "normalSkin"
+                ]
+              },
+              {
+                "required": [
+                  "selectedSkin"
+                ]
+              },
+              {
+                "required": [
+                  "disabledSkin"
+                ]
+              }
+            ]
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "const": "button"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "not": {
+                  "const": "progress"
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "widget": {
+                "not": {
+                  "required": [
+                    "mode"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "not": {
+                  "const": "combo"
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "widget": {
+                "not": {
+                  "required": [
+                    "textLabelNodeId"
+                  ]
+                }
+              }
+            }
+          }
+        }
       ],
       "type": "object",
       "additionalProperties": false,
@@ -473,7 +605,19 @@
         "frame": { "$ref": "#/$defs/frame" },
         "layout": { "$ref": "#/$defs/layout" },
         "widget": { "$ref": "#/$defs/widget" },
-        "transform": { "$ref": "#/$defs/transform" }
+        "transform": { "$ref": "#/$defs/transform" },
+        "image": {
+          "$ref": "#/$defs/imageSlot"
+        },
+        "normalSkin": {
+          "$ref": "#/$defs/imageSlot"
+        },
+        "selectedSkin": {
+          "$ref": "#/$defs/imageSlot"
+        },
+        "disabledSkin": {
+          "$ref": "#/$defs/imageSlot"
+        }
       }
     },
     "transform": {
@@ -579,8 +723,53 @@
         "direction": { "enum": ["horizontal","vertical"] },
         "overflow": { "enum": ["visible","hidden","scroll","shrink","ellipsis"] },
         "valign": { "enum": ["top","middle","bottom"] },
-        "imageFit": { "enum": ["contain","cover","fill"] }
+        "imageFit": { "enum": ["contain","cover","fill"] },
+        "mode": {
+          "enum": [
+            "horizontal",
+            "circular"
+          ]
+        },
+        "textLabelNodeId": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        }
       }
+    },
+    "imageSlot": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "anyOf": [
+            {
+              "required": [
+                "builtin"
+              ]
+            },
+            {
+              "required": [
+                "art"
+              ]
+            }
+          ],
+          "properties": {
+            "builtin": {
+              "type": "string",
+              "pattern": "^[a-z0-9-]+(?:/[a-z0-9-]+)*$"
+            },
+            "art": {
+              "$ref": "#/$defs/sliceResource"
+            }
+          }
+        }
+      ]
     }
   },
   "allOf": [

@@ -11,7 +11,7 @@ The complete workflow is defined in [../spec-driven-development.md](../spec-driv
 
 ## Current Baseline
 
-The repository now includes a runnable VS Code extension scaffold, a game UI prototype editor, PSD slice/nine-grid configuration, PNG/provenance export and assembled runtime slice previews. The baseline records document authority, the host/Webview boundary, canvas and layer editing, PSD metadata output and VS Code-themed controls; Agent integration, automatic planning-document analysis, complete PSD merging and Laya-specific resource import remain future work.
+The repository now includes a runnable VS Code extension scaffold, a game UI prototype editor, PSD slice/nine-grid configuration, PNG/provenance export, three image resource modes, prototype PSD generation and current-page Prefab export. The baseline records document authority, the host/Webview boundary, canvas and layer editing, PSD metadata output and VS Code-themed controls; Agent integration, automatic planning-document analysis, complete PSD merging and full target-engine integration remain future work.
 
 When the first non-trivial work item establishes a lasting rule, create the smallest relevant numbered baseline spec and add it to the baseline map below. Suggested numbers are conventions, not requirements:
 
@@ -32,6 +32,8 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 | [11-prototype-ui-layout.md](11-prototype-ui-layout.md) | Prototype UI components, shared layout geometry, control references and v1/v2/v3/v4/v5 persistence |
 
 ## Active Work Items
+
+- [prototype-art-prefab-resource-modes.md](prototype-art-prefab-resource-modes.md) — Verifying：三种资源模式、69 张内置 PNG、UIButton 三态、控件图片部件、横向/圆形进度、PSD 生成/稳定关联和 Prefab 输出已实现，示例已直接更新；349 项共享测试、10 项浏览器、41 项 PSD/资源宿主、6 项实例宿主检查及生产构建通过。真实 Laya 工程和 Photoshop 往返待验收，复杂 PSD 变换与 imageFit 的目标映射边界已记录。
 
 - [psd-atlas-name.md](psd-atlas-name.md) — Done：文件级图集名默认仅作 placeholder，小写/下划线/拼音首字母统一用于输入、旧配置回读与导出；共享默认名省略图集名，取消共享恢复当前图集；自定义值进入配置/草稿/PSD 副本/历史并刷新运行预览。322 项共享测试、生产构建、真实 PSD 中英文输入/下划线/跨图层/清空及此前窄窗口验收通过。
 

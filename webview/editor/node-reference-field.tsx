@@ -122,7 +122,7 @@ function NodeReferenceDialog({ page, owner, kind, label, value, disabled, onChan
       </div>
       <div className="node-picker-selection" aria-live="polite"><span>待选择：<strong>{draft?.name ?? (draftId ? "节点已不存在" : "不绑定")}</strong></span>
         {draft ? <><small>{nodeReferencePath(page, draft.id)}</small><code>{draft.id} · {COMPONENTS[draft.type].laya}</code></> : null}
-        {focused && unavailable(focused.id) ? <p>{focused.name}：{unavailable(focused.id)}</p> : reason ? <p>{reason}</p> : <p>{kind === "skin" ? "选择控件的直接子节点；灰色节点不可绑定。" : "选择同页的单选框；已用于其他选项的节点不可绑定。"}</p>}
+        {focused && unavailable(focused.id) ? <p>{focused.name}：{unavailable(focused.id)}</p> : reason ? <p>{reason}</p> : <p>{kind === "textLabel" ? "选择控件的直接 UILabel 子节点。" : kind === "skin" ? "选择控件的直接子节点；灰色节点不可绑定。" : "选择同页的单选框；已用于其他选项的节点不可绑定。"}</p>}
       </div>
       <footer className="node-picker-footer"><span>双击或 Enter 确认 · Esc 取消</span><Button variant="ghost" size="sm" onClick={onClose}>取消</Button><Button size="sm" disabled={disabled || !!reason} onClick={() => commit(draftId)}>确认选择</Button></footer>
     </div>

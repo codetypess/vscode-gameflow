@@ -31,6 +31,8 @@ export function validateRootLayout(raw: unknown, path: string, errors: string[])
 }
 export interface WidgetProps {
   skinNodeId?: string | null;
+  textLabelNodeId?: string | null;
+  mode?: "horizontal" | "circular";
   optionNodeIds?: (string | null)[];
   selected?: boolean; disabled?: boolean;
   min?: number; max?: number; value?: number; direction?: "horizontal" | "vertical";
@@ -55,18 +57,19 @@ export function validateUIConfig(node: Record<string, unknown>, path: string, er
     const enums: Record<string, string[]> = group === "layout" ? {
       layoutUnit: ["absolute", "percent"], widthMode: ["explicit", "measured"], heightMode: ["explicit", "measured"], crossAxisMode: ["aligned", "explicit"],
       align: ["left", "center", "right", "justify"], valign: ["top", "middle", "bottom", "justify"], direction: ["horizontal", "vertical"]
-    } : { direction: ["horizontal", "vertical"], overflow: ["visible", "hidden", "scroll", "shrink", "ellipsis"], valign: ["top", "middle", "bottom"], imageFit: ["contain", "cover", "fill"] };
+    } : { mode: ["horizontal", "circular"], direction: ["horizontal", "vertical"], overflow: ["visible", "hidden", "scroll", "shrink", "ellipsis"], valign: ["top", "middle", "bottom"], imageFit: ["contain", "cover", "fill"] };
     const booleans = group === "layout" ? ["clipContent"] : ["selected", "disabled", "password", "wordWrap", "html", "ubb"];
     const numbers = group === "layout" ? [...CONSTRAINTS, "paddingLeft", "paddingRight", "paddingTop", "paddingBottom", "gap", "gapX", "gapY", "wrapCount", "scrollX", "scrollY", "positionOffsetX", "positionOffsetY"] : ["min", "max", "value", "maxChars", "selectedIndex", "leading", "letterSpacing", "scrollX", "scrollY"];
     for (const [key, value] of Object.entries(values)) {
       let valid = false;
-      if (Object.hasOwn(enums, key)) valid = typeof value === "string" && enums[key].includes(value);
+      if (Object.hasOwn(enums, key)) valid = typeof value === "string" && enums[key].includes(value) && (key !== "mode" || node.type === "progress");
       else if (booleans.includes(key)) valid = typeof value === "boolean";
       else if (numbers.includes(key)) {
         valid = (group === "layout" && CONSTRAINTS.includes(key as Constraint) && value === null) || (typeof value === "number" && Number.isFinite(value));
         if (key.startsWith("padding") || ["scrollX", "scrollY", "maxChars"].includes(key)) valid = valid && Number(value) >= 0;
         if (["wrapCount", "maxChars", "selectedIndex"].includes(key)) valid = valid && Number.isSafeInteger(value) && Number(value) >= (key === "wrapCount" ? 1 : key === "selectedIndex" ? -1 : 0);
-      } else if (group === "widget" && key === "skinNodeId") valid = ["checkbox", "radio", "slider"].includes(String(node.type)) && (value === null || typeof value === "string" && value.length > 0);
+      } else if (group === "widget" && key === "skinNodeId") valid = ["checkbox", "radio", "slider", "progress"].includes(String(node.type)) && (value === null || typeof value === "string" && value.length > 0);
+      else if (group === "widget" && key === "textLabelNodeId") valid = node.type === "combo" && (value === null || typeof value === "string" && value.length > 0);
       else if (group === "widget" && key === "templateVars") valid = isTemplateVars(value);
       else if (group === "widget" && key === "optionNodeIds") valid = node.type === "radioGroup" && Array.isArray(value) && value.length <= 1000 && value.every(id => id === null || typeof id === "string" && id.length > 0);
       else if (group === "widget" && key === "placeholder") valid = typeof value === "string";

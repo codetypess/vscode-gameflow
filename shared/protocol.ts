@@ -10,7 +10,10 @@ import { isSliceExportBatch, type ResourceConflict, type SliceExportBatch } from
 import { isWorkbenchSettingsRequest, type WorkbenchSettingsRequest, type WorkbenchSettingsResult } from "./workbench-settings";
 import { isSliceResourcePath, type ExportedSliceResult } from "./slice-resources";
 
+import { isPrefabExportBatch, type PrefabExportBatch } from "./prefab-export";
+
 export type WebviewToHostMessage =
+  | { type: "prefabExport"; requestId: string; batch: PrefabExportBatch }
   | WorkbenchSettingsRequest
   | { type: "sliceResources"; requestId: string; paths: string[] }
   | { type: "workbenchFlushed"; requestId: string }
@@ -30,6 +33,7 @@ export type WebviewToHostMessage =
     };
 
 export type HostToWebviewMessage =
+  | { type: "prefabExportResult"; requestId: string; count?: number; error?: string }
   | WorkbenchSettingsResult
   | { type: "sliceResourcesResult"; requestId: string; resources: ExportedSliceResult[] }
   | { type: "workbenchFlush"; requestId: string }
@@ -70,6 +74,7 @@ export function isWebviewToHostMessage(
   if (value.type === "workbenchSettings") return isWorkbenchSettingsRequest(value);
   if (value.type === "sliceResources") return typeof value.requestId === "string" && value.requestId.length > 0 && value.requestId.length <= 80 &&
     Array.isArray(value.paths) && value.paths.length <= 128 && value.paths.every(isSliceResourcePath) && new Set(value.paths).size === value.paths.length;
+  if (value.type === "prefabExport") return typeof value.requestId === "string" && value.requestId.length > 0 && value.requestId.length <= 80 && isPrefabExportBatch(value.batch);
   if (value.type === "ready") {
     return true;
   }

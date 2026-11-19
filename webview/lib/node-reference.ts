@@ -4,17 +4,23 @@ import { CONSTRAINTS } from "../../shared/ui-config";
 import { radioGroupFor } from "../../shared/ui-parts";
 import { searchLayers } from "./layer-search";
 
-export type NodeReferenceKind = "skin" | "radioOption";
+export type NodeReferenceKind = "skin" | "radioOption" | "textLabel";
 
 /** Explain the existing binding contract without hiding the surrounding hierarchy. */
 export function referenceUnavailableReason(page: GameFlowPage, owner: GameFlowNode, kind: NodeReferenceKind, currentId: string | null, targetId: string | null): string | undefined {
   if (inheritedFlag(page, owner, "locked")) return "正在设置的控件已锁定";
   const target = page.nodes.find(node => node.id === targetId);
   if (targetId && !target) return "节点已不存在";
+  if (kind === "textLabel") {
+    if (!target) return undefined;
+    if (target.parentId !== owner.id || target.type !== "text") return "只能选择当前下拉框的直接 UILabel 子节点";
+    return undefined;
+  }
   if (kind === "skin") {
     if (!target) return undefined;
     if (target.parentId !== owner.id) return "只能选择该控件的直接子节点";
-    if (owner.type === "slider" && CONSTRAINTS.some(key => target.layout?.[key] != null)) return "滑块节点不能设置相对约束";
+    if (owner.type === "progress" && target.type !== "image") return "进度填充需要 UIImage 子节点";
+    if (["slider", "progress"].includes(owner.type) && CONSTRAINTS.some(key => target.layout?.[key] != null)) return "滑块节点不能设置相对约束";
     return undefined;
   }
   const current = page.nodes.find(node => node.id === currentId);

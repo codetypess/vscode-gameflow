@@ -26,7 +26,15 @@ export function createPsdStructure(raw: ParsedPsd, name: string, sourceHash: str
   if (documentIds.size > 1) throw new Error("此 PSD 含多个文档谱系，请先处理跨文档身份。");
   const documentId = documentIds.values().next().value ?? crypto.randomUUID();
   const reserved = new Set(existing.filter(Boolean).map(m => m!.layerId));
-  const layers = raw.layers.map((r, i) => {
+  const bounds = (r: ParsedPsd["layers"][number]): { left:number; top:number; width:number; height:number } => {
+    if (![1,2].includes(r.divider)) return r;
+    const children = raw.layers.filter(child => child.parentKey === r.key && !child.hidden).map(bounds).filter(child => child.width > 0 && child.height > 0);
+    if (!children.length) return {left:r.left,top:r.top,width:0,height:0};
+    const left=Math.min(...children.map(c=>c.left)),top=Math.min(...children.map(c=>c.top));
+    return {left,top,width:Math.max(...children.map(c=>c.left+c.width))-left,height:Math.max(...children.map(c=>c.top+c.height))-top};
+  };
+  const layers = raw.layers.map((record, i) => {
+    const r = {...record,...bounds(record)};
     const embedded = existing[i];
     const m: PsdLayerMeta = embedded ?? { namespace: "com.codetypes.gameflow", version: 1, documentId, layerId: allocateElementId(reserved) };
     let config: SliceConfig = { enabled: false, name: r.name, nineGrid: null };

@@ -53,7 +53,7 @@ export function canvasExtractionIssue(page: GameFlowPage, id: string, resourceSi
   const ids = descendants(page, id);
   if (page.nodes.some(node => ids.has(node.id) && inheritedFlag(page, node, "locked"))) return "请先解锁容器及其子节点。";
   for (const node of page.nodes) {
-    const refs = [node.widget?.skinNodeId, ...node.widget?.optionNodeIds ?? []].filter((ref): ref is string => !!ref);
+    const refs = [node.widget?.skinNodeId, node.widget?.textLabelNodeId, ...node.widget?.optionNodeIds ?? []].filter((ref): ref is string => !!ref);
     if (refs.some(ref => ids.has(node.id) !== ids.has(ref))) return "容器与外部节点之间存在控件部件或单选组引用，请先解除绑定。";
   }
   return null;

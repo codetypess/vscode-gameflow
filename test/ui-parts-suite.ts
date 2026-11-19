@@ -30,7 +30,7 @@ test("buttons need no label and deleting explicit text never renders the control
   const label: GameFlowNode = { id: id(), name: "Label", type: "text", text: "确认", parentId: "button", frame: { x: 0, y: 0, width: 50, height: 20 } };
   p = page(...nodes, label); assertValid(p); assert.ok(draw(p, label).includes("确认"));
   p = removeNode(p, label.id); assertValid(p); assert.ok(!draw(p, nodes[0]).includes("node-content"));
-  assert.ok(draw(p, { ...nodes[0], text: "历史文案" }).includes("历史文案"));
+  assert.ok(!draw(p, { ...nodes[0], text: "历史文案" }).includes("历史文案"));
 });
 
 test("control templates contain real parts, skin references and independent optional labels", () => {
@@ -186,7 +186,7 @@ test("type conversion initializes an empty radio group and releases selected mem
 
 test("skin visibility ownership preserves stored flags and propagates through a composite skin", () => {
   let p = control("checkbox"); const skinId = p.nodes[0].widget!.skinNodeId!;
-  p = { ...p, nodes: p.nodes.map(node => node.id === skinId ? { ...node, type: "container", hidden: true } : node) };
+  p = { ...p, nodes: p.nodes.map(node => node.id === skinId ? { ...node, type: "container", image: undefined, hidden: true } : node) };
   const child: GameFlowNode = { id: id(), name: "图标", type: "image", parentId: skinId, frame: { x: 0, y: 0, width: 5, height: 5 } };
   p.nodes.push(child); assertValid(p);
   assert.equal(inheritedFlag(p, child, "hidden"), true);

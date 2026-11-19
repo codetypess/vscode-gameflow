@@ -453,3 +453,33 @@ body.vscode-high-contrast .layer-reference, body.vscode-high-contrast-light .lay
 
 .layer-name .layer-node-icon { overflow:visible; position:relative; width:14px; height:14px; display:inline-flex; flex:none; }
 .layer-addition-badge { position:absolute; right:-4px; bottom:-3px; width:10px; height:10px; display:grid; place-items:center; border-radius:50%; background:var(--vscode-editor-background,#1e1e1e); color:var(--vscode-textLink-foreground,#75beff); box-shadow:0 0 0 1px currentColor; }
+
+/* Shared PNG image slots and resource browser. */
+.image-slot-field { margin: 8px 0 12px; min-width: 0; }
+.image-slot-row { display: flex; gap: 4px; align-items: center; }
+.image-slot-value { display: flex; gap: 8px; align-items: center; min-width: 0; flex: 1; padding: 6px 8px; border: 1px solid var(--vscode-input-border, #6b728044); border-radius: 4px; background: var(--vscode-input-background, #ffffff12); color: inherit; text-align: left; }
+.image-slot-value img { width: 32px; height: 32px; object-fit: contain; flex-shrink: 0; }
+.image-slot-value span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.image-slot-art-toggle { margin-top: 6px; font-size: 11px; color: var(--vscode-descriptionForeground); text-align: left; overflow-wrap: anywhere; }
+.builtin-image-picker { width: min(600px, 90vw); max-height: min(650px, 85vh); padding: 16px; border: 1px solid var(--vscode-panel-border, #657385); border-radius: 9px; background: var(--vscode-editorWidget-background, #202731); color: var(--vscode-foreground, #e8edf2); box-shadow: 0 20px 80px #0008; }
+.builtin-image-picker::backdrop { background: #0007; }
+.builtin-image-picker header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.builtin-image-picker nav { display: flex; gap: 4px; flex-wrap: wrap; }
+.builtin-image-picker nav button { padding: 6px 10px; border-radius: 4px; }
+.builtin-image-picker nav button[aria-pressed="true"] { background: var(--vscode-button-background, #3979b3); color: var(--vscode-button-foreground, white); }
+.builtin-image-search { width: 100%; margin: 12px 0; padding: 7px; background: var(--vscode-input-background, #ffffff12); border: 1px solid var(--vscode-input-border, #ffffff30); border-radius: 4px; }
+.builtin-image-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: 8px; max-height: 390px; overflow: auto; }
+.builtin-image-grid button { min-height: 100px; padding: 8px; border: 1px solid transparent; border-radius: 5px; }
+.builtin-image-grid button:hover, .builtin-image-grid button:focus-visible { border-color: var(--vscode-focusBorder, #679ad0); background: #ffffff0b; }
+.builtin-image-grid button span { display: flex; align-items: center; justify-content: center; height: 56px; background: #f1f3f5; border-radius: 4px; margin-bottom: 5px; }
+.builtin-image-grid img { max-width: 54px; max-height: 50px; object-fit: contain; }
+.builtin-image-grid small { display: block; font-size: 11px; }
+.resource-mode-tools { display: flex; gap: 2px; }
+
+.missing-resources-dialog { max-width: 620px; width: calc(100vw - 48px); border:1px solid var(--border); border-radius:12px; background:var(--background); color:var(--foreground); padding:24px; }
+.missing-resources-dialog::backdrop { background:#0008; }
+.missing-resources-dialog h2 { font-size:17px; font-weight:600; margin:0 0 12px; }
+.missing-resources-dialog p { font-size:13px; color:var(--muted-foreground); }
+.missing-resources-dialog ul { max-height:340px; overflow:auto; padding:0; list-style:none; }
+.missing-resources-dialog li { display:flex; flex-direction:column; gap:5px; padding:12px 0; border-bottom:1px solid var(--border); font-size:12px; overflow-wrap:anywhere; }
+.missing-resources-dialog footer { display:flex; gap:10px; justify-content:flex-end; margin-top:20px; }

@@ -70,7 +70,7 @@ function SettingsDialog({ settings, file }: { settings: WorkbenchSettingsUI; fil
         <label htmlFor={`workbench-${field.kind}`}>{field.label}</label>
         <div className="workbench-directory"><Input id={`workbench-${field.kind}`} readOnly value={field.path ?? ""} placeholder="尚未设置" title={field.path} /><Button ref={field.kind === "resources" ? resources : undefined} variant="secondary" size="sm" disabled={settings.busy} aria-label={`选择${field.label}`} onClick={() => void settings.choose(field.kind)}><FolderOpen size={14} />选择</Button></div>
         {field.kind === "prefabs" && field.path && previewDirectory ? <small className="workbench-export-destination" title={exportDestination(field.path, previewDirectory)}>实际导出到：{exportDestination(field.path, previewDirectory)}</small> : null}
-        {field.kind === "prefabs" ? <small>预制体导出启用后使用此目录。</small> : <small>图片按共享、未分类或独立图集目录保存。</small>}
+        {field.kind === "prefabs" ? <small>当前页面的 .lh 预制体导出到此目录。</small> : <small>图片按共享、未分类或独立图集目录保存。</small>}
       </div>)}
       <p className="workbench-settings-note">{isBrowserPreview ? "浏览器中的根目录选择仅在当前会话有效。" : "根目录仅保存在本机当前 VS Code 工作区，不随项目提交 SVN。选择后自动保存。"}</p>
       {file ? <div className="workbench-setting workbench-file-setting">

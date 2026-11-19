@@ -4,7 +4,7 @@ import { exportSlicesToDirectory, type ResourceDirectory } from "../shared/psd-e
 import type { SliceExportBatch } from "../shared/psd-export";
 import { WorkbenchSettingsController } from "./workbench-settings-controller";
 
-const inProgress = new Set<string>();
+import { exportRootsInProgress as inProgress } from "./export-lock";
 export class PsdExportController {
   constructor(private readonly settings: WorkbenchSettingsController, private readonly document: Pick<vscode.TextDocument, "uri">, private readonly independentDirectory: () => string | undefined = () => undefined) {}
   get directoryLabel(): string | undefined { return this.settings.directory("resources")?.fsPath; }

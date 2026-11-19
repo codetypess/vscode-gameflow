@@ -32,7 +32,7 @@ test("instance composition uses stable scoped identities and retains source puri
   const f=fixture(),before=serializeGameFlowDocument(f.document),c=composeCanvasPage(f.document,f.document.pages[0],f.sources);
   assert.equal(c.errors.size,0);assert.ok(c.page.nodes.length>f.document.pages[0].nodes.length);
   assert.notEqual(textId(f.document,f.sources),textId(f.document,f.sources,"demoref2"));
-  f.source.pages[0].nodes[1].name="改名";
+  f.source.pages[0].nodes.find(node=>node.id==="cardtext")!.name="改名";
   assert.equal(textId(f.document,f.sources),textId(f.document,f.sources));assert.equal(serializeGameFlowDocument(f.document),before);
 });
 test("local text overrides affect one instance and survive save while unmodified style follows source",()=>{
@@ -40,12 +40,12 @@ test("local text overrides affect one instance and survive save while unmodified
   const saved=parseGameFlowDocument(serializeGameFlowDocument(next));
   assert.equal(saved.schemaVersion,5);assert.equal(saved.pages[0].nodes.length,f.document.pages[0].nodes.length);
   assert.equal(owner(saved).instanceEdits!.overrides[0].set.text,"A 的文案");
-  f.source.pages[0].nodes[1].text="新版源";f.source.pages[0].nodes[1].style!.color="#112233";
+  f.source.pages[0].nodes.find(node=>node.id==="cardtext")!.text="新版源";f.source.pages[0].nodes.find(node=>node.id==="cardtext")!.style!.color="#112233";
   const c=composeCanvasPage(saved,saved.pages[0],f.sources);
   assert.equal(c.page.nodes.find(node=>node.id===id)!.text,"A 的文案");
   assert.equal(c.page.nodes.find(node=>node.id===textId(saved,f.sources,"demoref2"))!.text,"新版源");
   assert.equal(c.page.nodes.find(node=>node.id===id)!.style!.color,"#112233");
-  assert.equal(f.source.pages[0].nodes[1].text,"新版源");
+  assert.equal(f.source.pages[0].nodes.find(node=>node.id==="cardtext")!.text,"新版源");
 });
 test("root source appearance becomes an override while native placement remains on instance",()=>{
   const f=fixture(),c=composeCanvasPage(f.document,f.document.pages[0],f.sources),root=c.page.nodes.find(n=>n.id==="demoref1")!;
@@ -59,7 +59,7 @@ test("explicit zero false null and unset remain distinct from inheritance and re
   next=change(next,f.sources,id,{text:undefined});
   const patch=owner(next).instanceEdits!.overrides[0];assert.ok(patch.unset.includes("text"));assert.equal(patch.set["style.opacity"],0);assert.equal(patch.set["layout.left"],null);
   const reset=revertCanvasProperties(next,"demoref1",patch.target,["text"]);
-  assert.equal(composeCanvasPage(reset,reset.pages[0],f.sources).page.nodes.find(n=>n.id===id)!.text,f.source.pages[0].nodes[1].text);
+  assert.equal(composeCanvasPage(reset,reset.pages[0],f.sources).page.nodes.find(n=>n.id===id)!.text,f.source.pages[0].nodes.find(node=>node.id==="cardtext")!.text);
 });
 test("local additions persist complete nodes, stable parents and independent children",()=>{
   const f=fixture();let next=editCanvasPage(f.document,f.pageId,f.sources,page=>({...page,nodes:[...page.nodes,{id:"newbox01",name:"关闭按钮",type:"button",frame:{x:1,y:2,width:40,height:20},parentId:"demoref1"},{id:"newtext1",name:"文字",type:"text",text:"关闭",frame:{x:0,y:0,width:40,height:20},parentId:"newbox01"}]}));
@@ -89,7 +89,7 @@ test("applying selected properties updates source, cleans only those overrides a
   const f=fixture(),id=textId(f.document,f.sources);let next=change(f.document,f.sources,id,{text:"全局新文案",style:{color:"#123456"}});
   const b=textId(next,f.sources,"demoref2");next=change(next,f.sources,b,{text:"B 独立"});
   const target=owner(next).instanceEdits!.overrides[0].target,plan=planCanvasApply(next,f.sources,{pageId:f.pageId,ownerId:"demoref1",target,fields:["text"]});
-  assert.equal(plan.sourceDocument.pages[0].nodes[1].text,"全局新文案");assert.equal(plan.sourceDocument.pages[0].nodes[1].style!.color,f.source.pages[0].nodes[1].style!.color);
+  assert.equal(plan.sourceDocument.pages[0].nodes.find(node=>node.id==="cardtext")!.text,"全局新文案");assert.equal(plan.sourceDocument.pages[0].nodes.find(node=>node.id==="cardtext")!.style!.color,f.source.pages[0].nodes.find(node=>node.id==="cardtext")!.style!.color);
   assert.equal(owner(plan.document).instanceEdits!.overrides[0].set.text,undefined);assert.equal(owner(plan.document).instanceEdits!.overrides[0].set["style.color"],"#123456");
   assert.equal(owner(plan.document,"demoref2").instanceEdits!.overrides[0].set.text,"B 独立");
 });
@@ -102,8 +102,8 @@ test("multi-node property choices apply atomically and retain every unselected f
   next=editCanvasPage(next,f.pageId,f.sources,page=>({...page,nodes:[...page.nodes,{id:"local001",name:"本地按钮",type:"button",parentId:"demoref1",frame:{x:0,y:0,width:20,height:20}}]}));
   const patches=owner(next).instanceEdits!.overrides,selections=patches.map(patch=>({target:patch.target,fields:[patch.target.path.length ? "text" : "style.fill"]}));
   const plan=planCanvasApply(next,f.sources,{pageId:f.pageId,ownerId:"demoref1",selections});
-  assert.equal(plan.sourceDocument.pages[0].nodes[1].text,"只应用文案");assert.equal(plan.sourceDocument.pages[0].nodes[0].style!.fill,"#112233");
-  assert.equal(plan.sourceDocument.pages[0].nodes[1].style!.color,f.source.pages[0].nodes[1].style!.color);
+  assert.equal(plan.sourceDocument.pages[0].nodes.find(node=>node.id==="cardtext")!.text,"只应用文案");assert.equal(plan.sourceDocument.pages[0].nodes[0].style!.fill,"#112233");
+  assert.equal(plan.sourceDocument.pages[0].nodes.find(node=>node.id==="cardtext")!.style!.color,f.source.pages[0].nodes.find(node=>node.id==="cardtext")!.style!.color);
   assert.equal(owner(plan.document).instanceEdits!.overrides.length,2);
   assert.equal(owner(plan.document).instanceEdits!.overrides.find(p=>p.target.path.length)!.set["style.color"],"#123456");
   assert.equal(owner(plan.document).instanceEdits!.overrides.find(p=>!p.target.path.length)!.set["style.borderColor"],"#445566");
@@ -134,14 +134,14 @@ test("selected unset cleanup in a same-file candidate preserves other overrides"
   let next=change(f.document,{},textId(f.document,{}),{text:undefined,hidden:true});
   const patch=owner(next).instanceEdits!.overrides[0];assert.ok(patch.unset.includes("text"));
   const plan=planCanvasApply(next,{}, {pageId:f.pageId,ownerId:"demoref1",selections:[{target:patch.target,fields:["text"]}]});
-  assert.equal(plan.document.pages[1].nodes[1].text,undefined);assert.equal(owner(plan.document).instanceEdits!.overrides[0].set.hidden,true);
+  assert.equal(plan.document.pages[1].nodes.find(node=>node.id==="cardtext")!.text,undefined);assert.equal(owner(plan.document).instanceEdits!.overrides[0].set.hidden,true);
   assert.equal(owner(plan.document).instanceEdits!.overrides[0].unset.length,0);
 });
 test("same-file apply is one candidate containing source changes and override cleanup",()=>{
   const f=fixture();f.document.pages.push(f.source.pages[0]);for(const node of f.document.pages[0].nodes)if(node.prefab)node.prefab={source:"",documentId:f.document.documentId,pageId:f.source.pages[0].id};
   const next=change(f.document,{},textId(f.document,{}),{text:"同文件",style:{color:"#123456"}});
   const plan=planCanvasApply(next,{}, {pageId:f.pageId,ownerId:"demoref1"});
-  assert.equal(plan.source,"");assert.equal(plan.document.pages[1].nodes[1].text,"同文件");assert.equal(plan.document.pages[1].nodes[1].style!.color,"#123456");assert.equal(owner(plan.document).instanceEdits!.overrides.length,0);
+  assert.equal(plan.source,"");assert.equal(plan.document.pages[1].nodes.find(node=>node.id==="cardtext")!.text,"同文件");assert.equal(plan.document.pages[1].nodes.find(node=>node.id==="cardtext")!.style!.color,"#123456");assert.equal(owner(plan.document).instanceEdits!.overrides.length,0);
 });
 test("copying whole instances preserves linkage and remaps every owned addition",()=>{
   const f=fixture();const next=editCanvasPage(f.document,f.pageId,f.sources,page=>({...page,nodes:[...page.nodes,{id:"addition",name:"附加",type:"text",parentId:"demoref1",frame:{x:0,y:0,width:10,height:10}}]}));
@@ -153,7 +153,7 @@ test("copying whole instances preserves linkage and remaps every owned addition"
 });
 test("ordinary inherited subtree copies become local snapshots",()=>{
   const f=fixture(),c=composeCanvasPage(f.document,f.document.pages[0],f.sources),clipboard=copyCanvasSelection(f.document,c,[textId(f.document,f.sources)])!;
-  assert.equal(clipboard.nodes.length,1);assert.equal(clipboard.nodes[0].prefab,undefined);assert.equal(clipboard.nodes[0].text,f.source.pages[0].nodes[1].text);
+  assert.equal(clipboard.nodes.length,1);assert.equal(clipboard.nodes[0].prefab,undefined);assert.equal(clipboard.nodes[0].text,f.source.pages[0].nodes.find(node=>node.id==="cardtext")!.text);
 });
 test("invalid edit addresses, identity overrides, duplicate local IDs and v4 edits fail validation",()=>{
   const f=fixture(),id=textId(f.document,f.sources),next=change(f.document,f.sources,id,{text:"局部"});
@@ -192,7 +192,7 @@ test("new local controls keep nullable member slots and scoped references throug
   assert.throws(()=>change(saved,f.sources,"localgrp",{widget:{optionNodeIds:[textId(saved,f.sources,"demoref2")],selectedIndex:0}}),/作用域|radio/);
 });
 test("source variables use instance scopes while local additions share their containing scope",()=>{
-  const f=fixture();f.source.pages[0].nodes[1].variableName="message";
+  const f=fixture();f.source.pages[0].nodes.find(node=>node.id==="cardtext")!.variableName="message";
   const c=composeCanvasPage(f.document,f.document.pages[0],f.sources);assert.equal(c.errors.size,0);
   assert.notEqual(c.info.get(textId(f.document,f.sources))!.scope,c.info.get(textId(f.document,f.sources,"demoref2"))!.scope);
   assert.throws(()=>editCanvasPage(f.document,f.pageId,f.sources,page=>({...page,nodes:[...page.nodes,{id:"varlocal",name:"冲突",type:"text",variableName:"message",parentId:"demoref1",frame:{x:0,y:0,width:10,height:10}}]})),/重名/);
@@ -224,12 +224,12 @@ test("new cyclic references and unknown unset fields cannot enter an editing tra
 });
 
 test("nested overrides apply to the direct definition layer and reset exposes inner values",()=>{
-  const f=fixture(), inner=structuredClone(f.source.pages[0]);inner.id="innerpg1";inner.componentRootId="innerbox";inner.nodes[0].id="innerbox";inner.nodes[1].id="innertxt";inner.nodes[1].parentId="innerbox";
+  const f=fixture(), inner=structuredClone(f.source.pages[0]);inner.nodes=inner.nodes.filter(node=>node.id==="cardroot"||node.id==="cardtext");inner.id="innerpg1";inner.componentRootId="innerbox";inner.nodes[0].id="innerbox";inner.nodes[1].id="innertxt";inner.nodes[1].parentId="innerbox";
   f.source.pages.push(inner);f.source.pages[0].nodes.push({id:"nested01",name:"嵌套",type:"container",parentId:"cardroot",frame:{x:0,y:0,width:100,height:40},prefab:{source:"",documentId:f.source.documentId,pageId:inner.id}});
   const c=composeCanvasPage(f.document,f.document.pages[0],f.sources), [id,meta]=[...c.info].find(([,m])=>m.ownerId==="demoref1"&&m.target.path.at(-1)?.nodeId==="innertxt")!;
   let next=change(f.document,f.sources,id,{text:"外层覆盖"});
   const plan=planCanvasApply(next,f.sources,{pageId:f.pageId,ownerId:"demoref1",target:meta.target});
-  assert.equal(plan.sourceDocument.pages[1].nodes[1].text,inner.nodes[1].text);
+  assert.equal(plan.sourceDocument.pages[1].nodes.find(node=>node.id==="innertxt")!.text,inner.nodes[1].text);
   assert.equal(plan.sourceDocument.pages[0].nodes.find(n=>n.id==="nested01")!.instanceEdits!.overrides[0].set.text,"外层覆盖");
   const updatedSources={...f.sources,"shared-components.gameflow.json":{source:"shared-components.gameflow.json",document:plan.sourceDocument}};
   const result=composeCanvasPage(plan.document,plan.document.pages[0],updatedSources);assert.equal(result.errors.size,0);assert.equal(result.page.nodes.find(n=>n.id===id)!.text,"外层覆盖");assert.equal(result.info.get(id)!.overrides.length,0);
@@ -259,8 +259,8 @@ test("inherited radio member overrides resolve nullable slots and preserve selec
 });
 test("source reparent keeps addresses while incompatible content overrides suspend without data loss",()=>{
   const f=fixture(),id=textId(f.document,f.sources),next=change(f.document,f.sources,id,{text:"保留覆盖"});
-  f.source.pages[0].nodes.push({id:"newparent",name:"新父级",type:"container",parentId:"cardroot",frame:{x:0,y:0,width:50,height:50}});f.source.pages[0].nodes[1].parentId="newparent";
+  f.source.pages[0].nodes.push({id:"newparent",name:"新父级",type:"container",parentId:"cardroot",frame:{x:0,y:0,width:50,height:50}});f.source.pages[0].nodes.find(node=>node.id==="cardtext")!.parentId="newparent";
   assert.equal(composeCanvasPage(next,next.pages[0],f.sources).page.nodes.find(n=>n.id===id)!.text,"保留覆盖");
-  f.source.pages[0].nodes[1].type="image";delete f.source.pages[0].nodes[1].text;
+  f.source.pages[0].nodes.find(node=>node.id==="cardtext")!.type="image";delete f.source.pages[0].nodes.find(node=>node.id==="cardtext")!.text;
   const changed=composeCanvasPage(next,next.pages[0],f.sources);assert.match(changed.errors.get("demoref1")!,/类型已变化/);assert.equal(changed.page.nodes.find(n=>n.id===id)!.text,undefined);assert.equal(owner(next).instanceEdits!.overrides[0].set.text,"保留覆盖");
 });

@@ -20,6 +20,7 @@ import { CanvasDots } from "./components/canvas-dots";
 import { Popover, PopoverContent, PopoverTrigger } from "./components/ui/popover";
 import { Separator } from "./components/ui/separator";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./components/ui/tooltip";
+import { CanvasExportActions } from "./editor/canvas-export-actions";
 import { Inspector } from "./editor/inspector";
 import { CanvasReferencePicker } from "./editor/canvas-reference-picker";
 import { LayerTree, NodeIcon } from "./editor/layer-tree";
@@ -63,6 +64,7 @@ function IconTool({ label, active, disabled, onClick, children }: { label: strin
 
 export function App() {
   const [mode, setMode] = useState<WorkspaceMode>("prototype");
+  const [resourceMode, setResourceMode] = useState<import("../shared/image-slots").ResourceMode>("prototype");
   const psdEditor = usePsdEditor(() => setMode("slice"));
   const settings = useWorkbenchSettings();
   const [documentActions, setDocumentActions] = useState<HTMLDivElement | null>(null);
@@ -105,7 +107,7 @@ export function App() {
     return [...previous.filter(a => a.documentId !== asset.documentId), asset];
   }), []);
   const resourcePages = useMemo(() => canvasDocument?.pages.map(p => composeCanvasPage(canvasDocument, p, sources).page) ?? [], [canvasDocument, sources]);
-  const runtimeResources = useRuntimeResources(psdAssets, resourcePages, settings.settings.resourceDirectory);
+  const runtimeResources = useRuntimeResources(psdAssets, resourcePages, settings.settings.resourceDirectory, resourceMode);
   const pageLayout = (page: GameFlowPage) => resolvePageLayout(page, runtimeResources.sizes);
   const canonicalPage = canvasDocument?.pages.find((item) => item.id === (editingId ?? selectedPageId)) ?? null;
   const composition = useMemo(() => canvasDocument && canonicalPage ? composeCanvasPage(canvasDocument, canonicalPage, sources) : null, [canvasDocument, canonicalPage, sources]);
@@ -592,7 +594,7 @@ export function App() {
       {mode === "prototype" && editingId && page ? <><Button size="sm" variant="ghost" onClick={back}><ArrowLeft size={14} />总览</Button><span className="breadcrumb">/</span></> : null}
       <span className="document-title">{mode === "prototype" ? editingId ? page?.name : canvasDocument?.title ?? "正在打开画布" : "美术工作区"}</span>
       <nav className="mode-switcher" aria-label="工作模式">{([{ id: "prototype", label: "原型", icon: LayoutPanelTop }, { id: "merge", label: "PSD 合并", icon: GitMerge }, { id: "slice", label: "PSD 切图", icon: Scissors }] as const).map(({ icon: Icon, ...item }) => <Tooltip key={item.id}><TooltipTrigger asChild><Button size="icon" variant="ghost" aria-label={item.label} aria-pressed={mode === item.id} className={mode === item.id ? "mode-active" : ""} onClick={() => switchMode(item.id)}><Icon size={16} aria-hidden="true" /></Button></TooltipTrigger><TooltipContent side="bottom">{item.label}</TooltipContent></Tooltip>)}</nav>
-      <div className="workbench-right"><div ref={setExportActions} className="workbench-export-actions" /><IconTool label="运行预览" disabled={!canvasDocument?.pages.length} onClick={() => { switchMode("prototype"); setRuntimeOpen(true); }}><Play size={16} /></IconTool><WorkbenchSettingsButton settings={settings} /></div>
+      <div className="workbench-right">{mode === "prototype" && canvasDocument && (page ?? resourcePages.find(p=>p.id===selectedPageId) ?? resourcePages[0]) ? <CanvasExportActions document={canvasDocument} page={(page ?? resourcePages.find(p=>p.id===selectedPageId) ?? resourcePages[0])!} resources={runtimeResources} settings={settings} assets={psdAssets} disabled={pending || !!composition?.errors.size} onPage={transform=>updatePage((page ?? resourcePages.find(p=>p.id===selectedPageId) ?? resourcePages[0])!.id,transform)} onNotice={setNotice} /> : null}<div ref={setExportActions} className="workbench-export-actions" /><IconTool label="运行预览" disabled={!canvasDocument?.pages.length} onClick={() => { switchMode("prototype"); setRuntimeOpen(true); }}><Play size={16} /></IconTool><WorkbenchSettingsButton settings={settings} /></div>
     </header>
     <WorkbenchSettingsPanel settings={settings} file={canvasDocument ? { directory: canvasDocument.exportDirectory, name: resourceName || canvasDocument.title, change: exportDirectory => edit(document => ({ ...document, exportDirectory })) } : undefined} />
     <div ref={viewport} tabIndex={-1} hidden={mode !== "prototype"} className={cn("canvas-viewport", (tool === "hand" || spaceHand) && "hand-tool", preview?.kind === "pan" && "is-panning", (preview?.kind === "node" || preview?.kind === "page") && "is-moving")} aria-label={editingId ? "页面编辑画布" : "页面总览画布"}
@@ -658,7 +660,7 @@ export function App() {
           <CanvasViewItems onFit={()=>{setCanvasMenu(null);fit([page],true);}} onBack={()=>{setCanvasMenu(null);if(scopeId){const current=scopePath.at(-1)!;navigateScope(current.parentId ?? null,current.id);}else back();}} backLabel={scopeId ? "返回上一级" : "返回总览"}/>
         </LayerMenu> : <CanvasOverviewMenu target={canvasMenu?.kind === "overview" ? canvasMenu.target : null} page={canvasDocument.pages.find(item=>item.id===canvasMenu?.pageId)} onClose={()=>setCanvasMenu(null)} onRestoreFocus={restoreCanvasFocus}
           onEnter={()=>{const target=canvasDocument.pages.find(item=>item.id===canvasMenu?.pageId);if(target)enter(target);}} onRename={()=>beginCanvasRename()} onDuplicate={duplicate} onDelete={remove} onAddPage={addPage} onFit={()=>fit(canvasDocument.pages,false)} />}
-        {page && inspectorOpen ? <Inspector onPsd={() => switchMode("slice")} variablePage={{...page,nodes:page.nodes.filter(node=>composition?.info.get(node.id)?.scope===selectedMeta?.scope)}} referenceMeta={selectedMeta} referenceName={referenceName} overrideManager={overrideManager} overrideActions={overrideActions} onOpenSource={() => { if (selectedNode) openSource(selectedNode.id); }} referenceError={selectedMeta?.ownerId ? composition?.errors.get(selectedMeta.ownerId) : undefined} onColorPreview={setColorPreview} selectedNodes={page.nodes.filter(node => selectedNodeIds.includes(node.id))} onCreateParts={() => { if (editingId && selectedNodeId) { const makeId = newIds(); updatePage(editingId, item => createControlParts(item, selectedNodeId, makeId)); } }} panelRef={panels.rightRef} panelStyle={panels.rightStyle} page={page} node={selectedNode} editingPage={!!editingId} onNode={patchNode} onPage={(transform) => updatePage(page.id, transform)} onClose={() => setInspectorOpen(false)} onEnter={() => enter(page)} onImport={requestImport} /> : null}
+        {page && inspectorOpen ? <Inspector makeId={newIds()} onPsd={() => switchMode("slice")} variablePage={{...page,nodes:page.nodes.filter(node=>composition?.info.get(node.id)?.scope===selectedMeta?.scope)}} referenceMeta={selectedMeta} referenceName={referenceName} overrideManager={overrideManager} overrideActions={overrideActions} onOpenSource={() => { if (selectedNode) openSource(selectedNode.id); }} referenceError={selectedMeta?.ownerId ? composition?.errors.get(selectedMeta.ownerId) : undefined} onColorPreview={setColorPreview} selectedNodes={page.nodes.filter(node => selectedNodeIds.includes(node.id))} onCreateParts={() => { if (editingId && selectedNodeId) { const makeId = newIds(); updatePage(editingId, item => createControlParts(item, selectedNodeId, makeId)); } }} panelRef={panels.rightRef} panelStyle={panels.rightStyle} page={page} node={selectedNode} editingPage={!!editingId} onNode={patchNode} onPage={(transform) => updatePage(page.id, transform)} onClose={() => setInspectorOpen(false)} onEnter={() => enter(page)} onImport={requestImport} /> : null}
         <div className="canvas-context">{editingId ? scopePath.at(-1) ? `编辑 ${scopePath.at(-1)!.name} 的子节点` : "页面编辑" : `${canvasDocument.pages.length} 个页面`}<span>{tool === "select" ? editingId ? directSelection ? "点击直接选择子节点 · 双击容器进入" : "双击容器进入 · 双击空白退一级" : "双击页面进入编辑" : tool === "hand" || spaceHand ? "拖动画布" : `点击页面放置${NODE_LABELS[tool]}`}</span></div>
         {canvasDocument.pages.length === 0 ? <div className="empty-canvas"><LayoutPanelTop size={32} /><strong>从第一个页面开始</strong><p>用底部 + 添加游戏界面</p><Button onClick={() => addPage()}><Plus size={15} />添加页面</Button></div> : null}
         <div className="canvas-toolbar floating-panel" onPointerDown={(event) => event.stopPropagation()}>
@@ -672,6 +674,7 @@ export function App() {
             <div className="insert-grid" role="group" aria-label="添加控件">{TOOLS.map(({ type, icon: Icon }) => <button key={type} disabled={!editingId} onClick={() => chooseInsertTool(type)}><Icon size={16} /><span>{NODE_LABELS[type]} <small className="menu-class">({COMPONENTS[type].laya})</small></span></button>)}</div>
           </PopoverContent></Popover>
           <div className="direct-tools">{TOOLS.filter((item) => item.key).map(({ type, icon: Icon, key }) => <IconTool key={type} label={`${NODE_LABELS[type]} (${key})`} disabled={!editingId} active={tool === type} onClick={() => chooseInsertTool(type)}><Icon size={19} /></IconTool>)}</div>
+          <Separator orientation="vertical" /><div className="resource-mode-tools" role="group" aria-label="资源显示模式">{([{ id: "prototype", label: "原型", icon: LayoutDashboard }, { id: "art", label: "美术 PSD", icon: Layers3 }, { id: "prefab", label: "预制体", icon: Box }] as const).map(({ id, label, icon: Icon }) => <IconTool key={id} label={label + "资源"} active={resourceMode === id} onClick={() => { setResourceMode(id); runtimeResources.refresh(); }}><Icon size={17} /></IconTool>)}</div>
           <Separator orientation="vertical" /><IconTool label={inspectorOpen ? "隐藏属性面板" : "显示属性面板"} disabled={!page} active={!!page && inspectorOpen} onClick={() => setInspectorOpen(!inspectorOpen)}><PanelRight size={18} /></IconTool>
         </div>
       </>}
@@ -687,7 +690,7 @@ export function App() {
     </div>
     <PsdWorkspace mode="merge" active={mode === "merge"} settings={settings} />
     <PsdWorkspace mode="slice" active={mode === "slice" && !runtimeOpen} binding={psdEditor.binding} documentActions={documentActions} exportActions={exportActions} settings={settings} exportPending={pending} onAsset={observePsd} />
-    {runtimeOpen ? <RuntimePreview pages={resourcePages} initialPageId={editingId ?? selectedPageId ?? undefined} assets={psdAssets} onClose={() => setRuntimeOpen(false)} /> : null}
+    {runtimeOpen ? <RuntimePreview resourceMode={resourceMode} onResourceMode={setResourceMode} pages={resourcePages} initialPageId={editingId ?? selectedPageId ?? undefined} assets={psdAssets} onClose={() => setRuntimeOpen(false)} /> : null}
     {psdEditor.initialError && mode === "slice" ? <div className="psd-status psd-warning" role="alert">{psdEditor.initialError}</div> : null}
   </main></TooltipProvider></SliceResourcesProvider>;
 }
