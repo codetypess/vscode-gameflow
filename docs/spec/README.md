@@ -30,8 +30,11 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 | [01-product-workspace.md](01-product-workspace.md) | Planning workspace, infinite canvas, page groups and editing scope |
 | [10-extension-architecture.md](10-extension-architecture.md) | Extension host, Webview, shared contracts, document authority and evolution boundary |
 | [11-prototype-ui-layout.md](11-prototype-ui-layout.md) | Prototype UI components, shared layout geometry, control references and v1/v2/v3/v4/v5 persistence |
+| [12-internal-extension-distribution.md](12-internal-extension-distribution.md) | Internal VSIX publication, signed catalogs and standalone updater |
 
 ## Active Work Items
+
+- [internal-extension-updates.md](internal-extension-updates.md) — Verifying：vsix.bitserver.wang 的分发容器、签名目录、发布工具和更新器已部署；333 项原测试、10 项分发测试及 Windows 真机插件/更新器自身升级通过；等待主机 Nginx 的 sudo reload 完成域名入口验收。
 
 - [prototype-art-prefab-resource-modes.md](prototype-art-prefab-resource-modes.md) — Verifying：三种资源模式、69 张内置 PNG、UIButton 三态、控件图片部件、横向/圆形进度、PSD 生成/稳定关联和 Prefab 输出已实现，示例已直接更新；349 项共享测试、10 项浏览器、41 项 PSD/资源宿主、6 项实例宿主检查及生产构建通过。真实 Laya 工程和 Photoshop 往返待验收，复杂 PSD 变换与 imageFit 的目标映射边界已记录。
 

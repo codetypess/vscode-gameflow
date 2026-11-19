@@ -1,0 +1,56 @@
+{
+  "name": "internal-updater",
+  "displayName": "Bit 内部插件更新器",
+  "description": "管理、安装和更新 Bit 内部 VS Code 插件。",
+  "publisher": "codetypes",
+  "version": "0.1.1",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.105.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "extensionKind": [
+    "ui"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "internalUpdater.manage",
+        "title": "管理插件",
+        "category": "Bit 内部插件"
+      },
+      {
+        "command": "internalUpdater.browse",
+        "title": "浏览与安装插件",
+        "category": "Bit 内部插件"
+      },
+      {
+        "command": "internalUpdater.checkNow",
+        "title": "立即检查更新",
+        "category": "Bit 内部插件"
+      },
+      {
+        "command": "internalUpdater.showLog",
+        "title": "查看更新日志",
+        "category": "Bit 内部插件"
+      }
+    ],
+    "configuration": {
+      "title": "Bit 内部插件",
+      "properties": {
+        "internalUpdater.serverUrl": {
+          "type": "string",
+          "default": "http://vsix.bitserver.wang/",
+          "scope": "application",
+          "description": "内部插件分发地址。目录必须通过更新器内置公钥的签名验证。仅读取用户设置，不读取工作区设置。"
+        }
+      }
+    }
+  }
+}

@@ -45,7 +45,14 @@
       {
         "viewType": "gameflow.psdEditor",
         "displayName": "GameFlow PSD 切图配置",
-        "selector": [{ "filenamePattern": "*.psd" }, { "filenamePattern": "*.PSD" }],
+        "selector": [
+          {
+            "filenamePattern": "*.psd"
+          },
+          {
+            "filenamePattern": "*.PSD"
+          }
+        ],
         "priority": "option"
       },
       {
@@ -76,7 +83,12 @@
     "build:dev": "node esbuild.js --dev && vite build --mode development",
     "dev:webview": "vite --host 127.0.0.1",
     "watch:ext": "node esbuild.js --watch",
-    "watch:webview": "vite build --watch --mode development"
+    "watch:webview": "vite build --watch --mode development",
+    "build:distribution": "node tools/internal-extensions/build.cjs",
+    "package:vsix": "node tools/internal-extensions/package.cjs gameflow",
+    "package:updater": "npm run build:distribution && node tools/internal-extensions/package.cjs updater",
+    "publish:internal": "node tools/internal-extensions/publish.cjs",
+    "test:distribution": "node --test tools/internal-extensions/test.cjs"
   },
   "dependencies": {
     "@radix-ui/react-dropdown-menu": "^2.2.1",
@@ -102,11 +114,18 @@
     "@types/react-dom": "^18.3.1",
     "@types/vscode": "^1.105.0",
     "@vitejs/plugin-react": "^4.3.4",
+    "@vscode/vsce": "4.1.1",
     "autoprefixer": "^10.4.20",
     "esbuild": "^0.28.2",
     "postcss": "^8.4.49",
+    "semver": "7.8.6",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.7.2",
-    "vite": "^6.0.5"
+    "vite": "^6.0.5",
+    "yauzl": "3.4.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/codetypess/vscode-gameflow.git"
   }
 }

@@ -1,0 +1,16 @@
+"use strict";
+const fs = require("node:fs");
+const path = require("node:path");
+const cp = require("node:child_process");
+const root = path.resolve(__dirname, "../..");
+const target = process.argv[2];
+if (!["gameflow", "updater"].includes(target)) throw new Error("Expected gameflow or updater");
+const cwd = target === "updater" ? path.join(root, "internal-updater") : root;
+const manifest = JSON.parse(fs.readFileSync(path.join(cwd, "package.json"), "utf8"));
+const output = path.join(root, "dist/packages", `${manifest.publisher}.${manifest.name}-${manifest.version}.vsix`);
+fs.mkdirSync(path.dirname(output), { recursive: true });
+const cli = path.join(path.dirname(require.resolve("@vscode/vsce/package.json")), "vsce");
+const result = cp.spawnSync(process.execPath, [cli, "package", "--no-dependencies", "--allow-missing-repository", "--out", output], { cwd, stdio: "inherit", windowsHide: true });
+if (result.error) throw result.error;
+if (result.status) process.exit(result.status);
+console.log(output);

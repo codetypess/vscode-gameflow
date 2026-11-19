@@ -4,3 +4,4 @@ dist/
 *.vsix
 *.tgz
 *.tsbuildinfo
+internal-updater/dist/

@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Bit 内部插件</title><link rel="stylesheet" href="/style.css"><script src="/app.js" defer></script></head>
+<body>
+<header><a class="brand" href="/">bit<span>/</span>extensions</a><span class="badge">内部工具</span></header>
+<main>
+<section class="intro"><p class="eyebrow">为团队准备的 VS Code 插件</p><h1>安装一次，<br>保持更新。</h1><p class="lead">通过统一更新器安装和管理内部插件。版本更新会自动检查，工作进度由你掌控。</p><a id="updater" class="button" aria-disabled="true">正在获取更新器…</a><p class="hint">适用于 Windows、macOS 本地桌面版 VS Code 1.105+</p></section>
+<section class="steps" aria-label="安装步骤"><article><span>01</span><h2>安装更新器</h2><p>下载上方 VSIX，在 VS Code 扩展面板的“…”菜单中选择“从 VSIX 安装”。</p></article><article><span>02</span><h2>选择你的插件</h2><p>打开命令面板，运行“Bit 内部插件: 浏览与安装插件”，选择需要的工具。</p></article><article><span>03</span><h2>后续自动更新</h2><p>只更新已加入托管的插件。需要重载时，先保存文档，再按 VS Code 提示操作。</p></article></section>
+<section class="library"><div class="section-title"><h2>插件目录</h2><span id="revision">正在读取版本目录</span></div><div id="catalog" class="cards" aria-live="polite"></div><p id="error" role="alert" hidden></p></section>
+<aside>需要保留某个版本？在更新器中可以暂停更新、固定版本或手动回退。服务暂时不可用时，已经安装的插件仍可继续使用。</aside>
+</main>
+<footer><span>Bit · 内部插件分发</span><span>版本目录与安装包由更新器验证签名和摘要</span></footer>
+</body></html>

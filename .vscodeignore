@@ -1,16 +1,8 @@
-.agents/**
-.vscode/**
-docs/**
-sample/**
-src/**
-shared/**
-test/**
-webview/**
-.gitignore
-esbuild.js
-tsconfig.json
-tsconfig.webview.json
-vite.config.ts
-*.tsbuildinfo
-node_modules/**
-!node_modules/.package-lock.json
+# Ship only the extension runtime and its bundled webview.
+**
+!package.json
+!README.md
+!LICENSE
+!schemas/**
+!dist/extension.js
+!dist/webview/**
