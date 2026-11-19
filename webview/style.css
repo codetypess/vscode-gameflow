@@ -286,14 +286,11 @@ button svg { flex-shrink: 0; }
 .insert-menu button span { flex: 1; }.insert-menu kbd { font: 10px var(--vscode-font-family, "Segoe UI", sans-serif); color: var(--muted-foreground); }
 .canvas-zoom { display: flex; flex-shrink: 0; align-items: center; font-size: 11px; }
 .canvas-zoom .toolbar-button { width: 25px; height: 26px; }.canvas-zoom > span { width: 38px; text-align: center; font-variant-numeric: tabular-nums; }
-.canvas-context { position: absolute; bottom: 30px; left: 17px; color: var(--muted-foreground); font-size: 11px; pointer-events: none; }
-.canvas-context span { display: block; margin-top: 4px; font-size: 10px; opacity: 0.7; }
 .editor-notice { position: absolute; left: 50%; top: 14px; transform: translateX(-50%); max-width: 70%; z-index: 50; padding: 10px 16px; border: 1px solid var(--border); background: var(--popover); box-shadow: 0 3px 12px #0005; font-size: 12px; white-space: pre-wrap; }
 .empty-canvas, .loading-state { position: absolute; left: 50%; top: 44%; transform: translate(-50%, -50%); color: var(--muted-foreground); }
 .empty-canvas { display: flex; flex-direction: column; align-items: center; gap: 12px; }.empty-canvas strong { font-size: 16px; color: var(--foreground); }.empty-canvas p { margin: 0 0 8px; font-size: 12px; }.empty-canvas button { gap: 6px; }
-@media (max-width: 1150px) { .canvas-context { bottom: 77px; } }
-@media (max-width: 800px) { .layer-panel { width: 176px; left: 8px; top: 8px; max-height: 45%; }.inspector { width: 230px; right: 8px; top: 8px; max-height: calc(100% - 128px); }.canvas-toolbar { bottom: 12px; }.canvas-context { bottom: 72px; }.canvas-top-controls { top: 8px; left: 8px; max-width: calc(100% - 16px); }.toolbar-button { width: 29px; height: 30px; } }
-@media (max-width: 540px) { .direct-tools { display: none; }.sync-status { font-size: 10px; }.topbar { gap: 6px; }.canvas-context span { display: none; }.layer-panel { width: 150px; }.inspector { width: 210px; }.topbar > strong { display: none; } }
+@media (max-width: 800px) { .layer-panel { width: 176px; left: 8px; top: 8px; max-height: 45%; }.inspector { width: 230px; right: 8px; top: 8px; max-height: calc(100% - 128px); }.canvas-toolbar { bottom: 12px; }.canvas-top-controls { top: 8px; left: 8px; max-width: calc(100% - 16px); }.toolbar-button { width: 29px; height: 30px; } }
+@media (max-width: 540px) { .direct-tools { display: none; }.sync-status { font-size: 10px; }.topbar { gap: 6px; }.layer-panel { width: 150px; }.inspector { width: 210px; }.topbar > strong { display: none; } }
 
 /* Prototype component and layout properties retain the compact VS Code shell. */
 .property-details { border-top: 1px solid var(--vscode-panel-border, #353535); padding-top: 8px; }
