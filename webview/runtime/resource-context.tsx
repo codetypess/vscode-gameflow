@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { resolveSliceResource, type SliceResourceRef, type SliceResourceState } from "../../shared/slice-resources";
-import type { ResourceMode } from "../../shared/image-slots";
+import { paintBuiltin } from "./paint-builtin";
+import type { BuiltinImage, ResourceMode } from "../../shared/image-slots";
 import { paintSlice } from "./paint-slice";
 
 export type RuntimeResource = SliceResourceState<HTMLCanvasElement | HTMLImageElement>;
@@ -20,14 +21,15 @@ const Context = createContext<Resources>(empty);
 export const useSliceResources = () => useContext(Context);
 export function SliceResourcesProvider({ value, children }: { value: Resources; children: ReactNode }) { return <Context.Provider value={value}>{children}</Context.Provider>; }
 
-export function ResourceCanvas({ resource, width, height, fit = "fill", label, raw = false, progress }: { resource: Extract<RuntimeResource, { status: "ready" }>; width: number; height: number; fit?: "fill" | "contain" | "cover"; label: string; raw?: boolean; progress?: { ratio: number; mode: "horizontal" | "circular"; fullWidth: number } }) {
+export function ResourceCanvas({ resource, width, height, fit = "fill", label, raw = false, progress, builtin }: { resource: Extract<RuntimeResource, { status: "ready" }>; width: number; height: number; fit?: "fill" | "contain" | "cover"; label: string; raw?: boolean; builtin?: BuiltinImage; progress?: { ratio: number; mode: "horizontal" | "circular"; fullWidth: number } }) {
   const canvas = useRef<HTMLCanvasElement>(null), [error, setError] = useState("");
   useEffect(() => {
     try {
       const target = canvas.current!;
+      const paint = (target: HTMLCanvasElement, w: number, h: number, noGrid = raw) => builtin ? paintBuiltin(target, resource.pixels, { ...builtin, nineGrid: noGrid ? null : builtin.nineGrid }, w, h, fit) : paintSlice(target, resource.pixels, { ...resource.description, nineGrid: noGrid ? null : resource.description.nineGrid }, w, h, fit);
       if (progress && (progress.mode === "circular" || !resource.description.nineGrid)) {
         const source = document.createElement("canvas");
-        paintSlice(source, resource.pixels, { ...resource.description, nineGrid: raw || progress.mode === "circular" ? null : resource.description.nineGrid }, progress.fullWidth, height, fit);
+        paint(source, progress.fullWidth, height, raw || progress.mode === "circular");
         const scale = Math.min(1, 4096 / Math.max(1,width,height), Math.sqrt(8_000_000 / Math.max(1,width*height)));
         target.width = Math.max(1, Math.round(width*scale)); target.height = Math.max(1, Math.round(height*scale));
         const context = target.getContext("2d")!;
@@ -39,10 +41,10 @@ export function ResourceCanvas({ resource, width, height, fit = "fill", label, r
         }
         if (progress.ratio > 0) context.drawImage(source, 0, 0, progress.fullWidth, height);
         context.restore();
-      } else paintSlice(target, resource.pixels, { ...resource.description, nineGrid: raw ? null : resource.description.nineGrid }, width, height, fit);
+      } else paint(target, width, height);
       setError("");
     }
     catch (error) { setError(error instanceof Error ? error.message : String(error)); }
-  }, [resource, width, height, fit, raw, progress?.ratio, progress?.mode, progress?.fullWidth]);
+  }, [resource, width, height, fit, raw, builtin, progress?.ratio, progress?.mode, progress?.fullWidth]);
   return <>{error ? <span className="slice-resource-error" role="status">{error}</span> : null}<canvas ref={canvas} role="img" aria-label={label} data-resource-path={resource.description.path} style={{ width: "100%", height: "100%", display: error ? "none" : "block" }} /></>;
 }

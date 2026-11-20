@@ -94,6 +94,34 @@ test("no-PSD prefab export writes real builtin PNGs ledger importer metadata and
   const resources=memoryDirectory(),prefabs=memoryDirectory();await exportPrefabToDirectories(resources.io,prefabs.io,plan.batch,codec);
   const result=await readExportedSlice("builtin/button/gray.png",{read:resources.io.read,hash,encode:bytes=>Buffer.from(bytes).toString("base64")});assert.equal(result.error,undefined);assert.ok(prefabs.files.has("登录.lh"));assert.ok(resources.files.has("builtin/button/gray.png.meta"));
 });
+test("default placeholder exports solved dimensions with independent resources and preserves configured art",async()=>{
+  const large={...makeNode("image","large",0,0),frame:{x:0,y:0,width:20,height:20},layout:{left:0,right:0,top:0,bottom:0},image:{builtin:"image/default"}};
+  const wide={...makeNode("image","wide",0,0),frame:{x:0,y:0,width:200,height:40},image:{builtin:"image/default"}};
+  const art={...makeNode("image","art",0,0),image:{builtin:"image/default",art:{path:"unclassified/art.png"}}};
+  const p=page([large,wide,{...wide,id:"repeat"},art]),d=doc(p),renders:{path:string;width:number;height:number}[]=[];
+  const plan=await planPrefabExport(d,p,async(ref,render)=>{
+    if(!render)return {status:"error",error:"missing configured art"};
+    renders.push({path:ref.path,width:render.width,height:render.height});
+    const image=render.builtin;
+    return {status:"ready",image:{path:ref.path,base64:image.dataUri.split(",")[1],description:{path:ref.path,width:render.width,height:render.height,nineGrid:null,source:{documentId:"gameflow-builtin",psdName:"builtin.psd",sourceHash:"0".repeat(64)},layerId:image.id,layerName:image.name,shared:true}}};
+  });
+  assert.deepEqual(renders,[{path:"builtin/image/default_400x600.png",width:400,height:600},{path:"builtin/image/default_200x40.png",width:200,height:40}]);
+  assert.equal(plan.batch.images.length,2);assert.equal(plan.missing.length,1);assert.equal(plan.missing[0].path,"unclassified/art.png");
+  const nodes=plan.batch.prefab._$child as Record<string,unknown>[];
+  assert.equal(nodes[0].skin,resourceUrl(renders[0].path));assert.equal(nodes[1].skin,nodes[2].skin);assert.equal(nodes[3].skin,"unclassified/art.png");
+  assert.deepEqual(imageSlotRequest(large.image,"prefab",{width:400,height:600}),{kind:"resource",ref:{path:renders[0].path}});
+  assert.equal(builtinPath("button/gray",{width:400,height:600}),"builtin/button/gray.png");
+  assert.notEqual(builtinPath("image/default",{width:8000,height:8000}),builtinPath("image/default",{width:16000,height:16000}));
+  assert.notEqual(builtinPath("image/default",{width:20.1,height:40}),builtinPath("image/default",{width:20.2,height:40}));
+});
+test("default progress placeholder exports the full image before value clipping",async()=>{
+  const p=page(makeComponent("progress","progress",0,0,id)),root=p.nodes[0];
+  root.frame={x:0,y:0,width:200,height:20};root.widget={...root.widget,min:0,max:1,value:.25};
+  const skin=p.nodes.find(n=>n.id===root.widget!.skinNodeId)!;skin.image={builtin:"image/default"};
+  let width=0;
+  await planPrefabExport(doc(p),p,async(_ref,render)=>{width=render!.width;return{status:"error",error:"fixture"};});
+  assert.equal(resolvePageLayout(p).nodes.get(skin.id)!.local.width,50);assert.equal(width,200);
+});
 test("missing configured art never falls back to builtin and continuing retains the broken reference",async()=>{
   const button=makeNode("button","button",0,0);button.normalSkin={builtin:"button/gray",art:{path:"unclassified/deleted.png"}};button.selectedSkin=null;
   const d=doc(page([button])),plan=await planPrefabExport(d,d.pages[0],missing);assert.equal(plan.missing.length,1);assert.equal(plan.missing[0].slot,"normalSkin");assert.equal(plan.batch.images.length,0);assert.equal((plan.batch.prefab._$child as Record<string,unknown>[])[0].normalSkin,"unclassified/deleted.png");
@@ -112,7 +140,7 @@ test("prefab export validates paths and restores images ledger and prefab after 
 });
 test("PSD mapping uses stable node and slot identities despite renamed groups",()=>{
   const button=makeNode("button","button",0,0),p=page([button]),d=doc(p);const asset:PsdAsset={name:"test.psd",documentId:"psd",sourceHash:"0".repeat(64),hasEmbeddedIdentity:true,width:400,height:600,preview:"",layers:[{key:0,nativeId:1,parentKey:null,name:"美术改过名称",group:true,left:0,top:0,width:100,height:40,hidden:false,identityOrigin:"embedded",metadata:{namespace:"com.codetypes.gameflow",version:1,documentId:"psd",layerId:"normal",prototype:{documentId:d.documentId,pageId:p.id,nodeId:button.id,slot:"normalSkin"}},config:{enabled:true,name:"normal",exportName:"login_normal",nineGrid:null}}]};
-  const bound=bindPrototypePsd(p,d.documentId,asset);assert.deepEqual(bound.nodes[0].normalSkin,{builtin:"button/gray",art:{path:"unclassified/login_normal.png",source:{documentId:"psd",layerId:"normal"}}});assert.deepEqual(bindPrototypePsd(p,"another",asset),p);
+  const bound=bindPrototypePsd(p,d.documentId,asset);assert.deepEqual(bound.nodes[0].normalSkin,{builtin:"button/gray",art:{path:"unclassified/test_login_normal.png",source:{documentId:"psd",layerId:"normal"}}});assert.deepEqual(bindPrototypePsd(p,"another",asset),p);
   assert.throws(()=>bindPrototypePsd(p,d.documentId,{...asset,layers:[...asset.layers,{...asset.layers[0],key:1}]}),/多个 PSD 图层/);
 });
 

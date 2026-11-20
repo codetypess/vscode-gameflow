@@ -1,5 +1,6 @@
 import { initializeCanvas, writePsdUint8Array, type Layer, type Psd } from "ag-psd";
 import type { GameFlowDocument, GameFlowNode, GameFlowPage } from "../../shared/model";
+import { PSD_SLOT_MARKERS } from "../../shared/psd-slot-markers";
 import { builtinImage } from "../../shared/image-slots";
 import { nodeSlots, resourceUuid } from "../../shared/prefab-export";
 import { parsePsdBinary, patchPsdMetadata } from "../../shared/psd-binary";
@@ -8,7 +9,8 @@ import { resolvePageLayout } from "../../shared/ui-layout";
 import { controlHidden } from "../../shared/ui-parts";
 import { layoutLabel } from "../../shared/label-text";
 import { loadSliceImage } from "../psd/slice-render";
-import { paintSlice } from "./paint-slice";
+import { paintBuiltin } from "./paint-builtin";
+import { imageRenderSize } from "../../shared/image-rendering";
 
 export async function generatePrototypePsd(document:GameFlowDocument,page:GameFlowPage):Promise<Uint8Array>{
   if(page.frame.width>4096||page.frame.height>4096||page.frame.width*page.frame.height>8_000_000)throw new Error("生成 PSD 支持 4096 边长、800 万像素以内的画布。");
@@ -23,10 +25,9 @@ export async function generatePrototypePsd(document:GameFlowDocument,page:GameFl
     const [field,value]=slot;if(!value?.builtin)return null;const builtin=builtinImage(value.builtin);if(!builtin)throw new Error(node.name+" 的内置图片不存在。");
     const geometry=layout.nodes.get(node.id)!;const local=geometry.local;
     // Fill resources are authored at full size. Progress only changes how the runtime displays them.
-    const owner=page.nodes.find(n=>n.type==="progress"&&n.widget?.skinNodeId===node.id),parent=owner?layout.nodes.get(owner.id):undefined;
-    const width=owner&&parent?Math.max(0,parent.local.width-(owner.layout?.paddingLeft??0)-(owner.layout?.paddingRight??0)):local.width;
-    const source=makeCanvas(width,local.height);paintSlice(source,await loadSliceImage(builtin.dataUri),builtin,width,local.height,node.widget?.imageFit??"fill");
-    const m=meta(node.id,field);m.slicing={enabled:true,name,exportName:"img_"+resourceUuid(document.documentId+":"+page.id+":"+node.id+":"+field).replaceAll("-",""),nineGrid:builtin.nineGrid};
+    const {width}=imageRenderSize(page,node,layout);
+    const source=makeCanvas(width,local.height);paintBuiltin(source,await loadSliceImage(builtin.dataUri),builtin,width,local.height,node.widget?.imageFit??"fill");
+    const m=meta(node.id,field);m.slicing={enabled:true,name,nineGrid:builtin.nineGrid};
     const layer=withMeta({name,left:Math.round(geometry.matrix[4]),top:Math.round(geometry.matrix[5]),canvas:source,hidden:node.hidden||field==="selectedSkin"||field==="disabledSkin"||controlHidden(page,node)},m);
     if(!layer.hidden){compositeContext.save();compositeContext.transform(...geometry.matrix);compositeContext.globalAlpha=node.style?.opacity??1;compositeContext.drawImage(source,0,0,width,local.height);compositeContext.restore();}
     return layer;
@@ -46,7 +47,7 @@ export async function generatePrototypePsd(document:GameFlowDocument,page:GameFl
     if(node.type==="text"||node.type==="input")return label(node);
     if(node.type==="image")return await raster(node,nodeSlots(node)[0],node.name)??withMeta({name:node.name,children:[]},meta(node.id));
     const children:Layer[]=[];
-    if(node.type==="button")for(const slot of nodeSlots(node)){const layer=await raster(node,slot,slot[0]==="normalSkin"?"@normal":slot[0]==="selectedSkin"?"@selected":"@disabled");if(layer)children.push(layer);}
+    if(node.type==="button")for(const slot of nodeSlots(node)){const layer=await raster(node,slot,PSD_SLOT_MARKERS[slot[0]]);if(layer)children.push(layer);}
     for(const child of page.nodes.filter(child=>child.parentId===node.id))children.push(await build(child));
     return withMeta({name:node.name,opened:true,children,hidden:node.hidden},meta(node.id));
   };

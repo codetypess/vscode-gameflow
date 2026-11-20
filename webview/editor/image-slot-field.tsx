@@ -6,21 +6,28 @@ import { BUILTIN_CATEGORIES, BUILTIN_IMAGES, builtinImage, type ImageSlot, type 
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { useOverrideAttributes } from "./override-properties";
-import { SliceBindingField } from "../runtime/binding-field";
+import { useSliceResources } from "../runtime/resource-context";
+import { PSD_SLOT_MARKERS } from "../../shared/psd-slot-markers";
 
-export function ImageSlotField({ node, field, label, disabled, onChange, onPsd }: { node: GameFlowNode; field: ImageSlotField; label: string; disabled: boolean; onChange(slot: ImageSlot | null): void; onPsd(): void }) {
+export function ImageSlotField({ node, field, label, disabled, onChange }: { node: GameFlowNode; field: ImageSlotField; label: string; disabled: boolean; onChange(slot: ImageSlot | null): void }) {
   const override = useOverrideAttributes(label, [field]);
-  const slot = node[field], image = slot?.builtin ? builtinImage(slot.builtin) : undefined;
-  const [open, setOpen] = useState(false), [artOpen, setArtOpen] = useState(false);
+  const { mode } = useSliceResources();
+  const slot = node[field] ?? (field === "image" && node.image === undefined && node.sliceResource ? { art: node.sliceResource } : null), image = slot?.builtin ? builtinImage(slot.builtin) : undefined;
+  const [open, setOpen] = useState(false);
+  if (mode === "art" || mode === "prefab") {
+    const path = slot?.art?.path;
+    const name = path?.split("/").pop()?.replace(/\.png$/, "");
+    return <section className="image-slot-field" data-image-slot={field}>
+      <label className="property-field"><span>{label}</span><input readOnly value={name ?? (slot?.builtin ? "未匹配 PSD 切图" : "无 (Image)")} title={path ?? `${node.name}/${PSD_SLOT_MARKERS[field]}`} /></label>
+    </section>;
+  }
   return <section {...override} className="image-slot-field" data-image-slot={field}>
-    <div className="property-field image-slot-row"><span>{label}</span><div className="image-slot-control" data-disabled={disabled || undefined} data-filled={!!slot || undefined}>
+    <div className="property-field image-slot-row"><span>{label}</span><div className="image-slot-control" data-disabled={disabled || undefined} data-filled={!!slot?.builtin || undefined}>
       <button className="image-slot-value" type="button" disabled={disabled} aria-label={"选择" + label} title={image?.name ?? "无 (Image)"} onClick={() => setOpen(true)}>
         {image ? <img src={image.dataUri} alt="" /> : null}<span>{image?.name ?? "无 (Image)"}</span><SquareMousePointer className="image-slot-browse" size={14} aria-hidden="true" />
       </button>
-      <button className="image-slot-clear" type="button" disabled={disabled || !slot} aria-label={"清空" + label} title={"清空" + label} onClick={() => onChange(null)}><X size={12} /></button>
+      <button className="image-slot-clear" type="button" disabled={disabled || !slot?.builtin} aria-label={"清空" + label} title={"清空" + label} onClick={() => onChange(slot?.art ? { art: slot.art } : null)}><X size={12} /></button>
     </div></div>
-    <button className="image-slot-art-toggle" type="button" title={slot?.art ? "已绑定美术：" + slot.art.path : "美术 PSD 绑定"} aria-expanded={artOpen} onClick={() => setArtOpen(!artOpen)}>{slot?.art ? "已绑定美术：" + slot.art.path : "美术 PSD 绑定"}</button>
-    {artOpen ? <SliceBindingField overrideField={field} node={{ ...node, type: "image", sliceResource: slot?.art }} disabled={disabled} onPsd={onPsd} onChange={art => onChange(art || slot?.builtin ? { ...(slot?.builtin ? { builtin: slot.builtin } : {}), ...(art ? { art } : {}) } : null)} /> : null}
     {open && !disabled ? <ImagePicker initial={image?.category} onClose={() => setOpen(false)} onSelect={builtin => { onChange({ ...slot, builtin }); setOpen(false); }} /> : null}
   </section>;
 }

@@ -4,6 +4,7 @@ const path = require("node:path");
 const os = require("node:os");
 const ag = require("ag-psd");
 const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwright");
+const sharedUrl = file => "/@fs/" + path.resolve(__dirname, "../shared", file).split(path.sep).join("/");
 (async()=>{
   const browser=await chromium.launch({channel:"msedge",headless:true});
   const context=await browser.newContext({viewport:{width:1500,height:1000},acceptDownloads:true});
@@ -16,20 +17,21 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
     assert.equal(await page.getByRole("button",{name:"原型资源",exact:true}).getAttribute("aria-pressed"),"true");
     await page.locator('canvas[data-resource-path^="builtin/"]').first().waitFor();
     await page.getByRole("button",{name:"预制体资源",exact:true}).click();
-    await page.locator('[data-resource-status="error"]').first().waitFor();
+    await page.locator('[data-art-state="unbound"]').first().waitFor();
     await page.getByRole("button",{name:"原型资源",exact:true}).click();
     await page.locator('canvas[data-resource-path^="builtin/"]').first().waitFor();
     // Exercise generation and parsing in the real browser Canvas/worker environment.
-    const generated=await page.evaluate(async()=>{
+    const generated=await page.evaluate(async exportModule=>{
       const generator=await import("/runtime/prototype-psd.ts"),io=await import("/psd/io.ts");
-      const document={schemaVersion:5,documentId:"browser-modes-test",title:"测试",requirements:[],interactions:[],pages:[{id:"page",name:"登录",kind:"screen",frame:{x:0,y:0,width:320,height:240},nodes:[{id:"button",name:"登录按钮",type:"button",frame:{x:20,y:20,width:180,height:48},normalSkin:{builtin:"button/green"},selectedSkin:{builtin:"button/yellow"}},{id:"caption",name:"登录文字",type:"text",text:"登录",parentId:"button",frame:{x:0,y:0,width:180,height:48},widget:{valign:"middle"},style:{fontSize:22,textAlign:"center",color:"#333333"}}]}]};
+      const document={schemaVersion:5,documentId:"browser-modes-test",title:"测试",requirements:[],interactions:[],pages:[{id:"page",name:"登录",kind:"screen",frame:{x:0,y:0,width:320,height:240},nodes:[{id:"button",name:"登录按钮",type:"button",variableName:"startButton",frame:{x:20,y:20,width:180,height:48},normalSkin:{builtin:"button/green"},selectedSkin:{builtin:"button/yellow"}},{id:"caption",name:"登录文字",type:"text",text:"登录",parentId:"button",frame:{x:0,y:0,width:180,height:48},widget:{valign:"middle"},style:{fontSize:22,textAlign:"center",color:"#333333"}}]}]};
+      const {effectiveExportName}=await import(exportModule);
       const bytes=await generator.generatePrototypePsd(document,document.pages[0]);
       const asset=await io.openPsd(new File([bytes],"login.psd"));
       const base64=btoa(Array.from(bytes,b=>String.fromCharCode(b)).join(""));
-      return {base64,layers:asset.asset.layers.map(l=>({name:l.name,metadata:l.metadata,enabled:l.config.enabled,image:!!l.image}))};
-    });
-    assert.ok(generated.layers.some(l=>l.name==="@normal"&&l.enabled&&l.image));
-    assert.ok(generated.layers.some(l=>l.name==="@selected"&&l.enabled&&l.image));
+      return {base64,layers:asset.asset.layers.map(l=>({name:l.name,metadata:l.metadata,enabled:l.config.enabled,image:!!l.image,exportName:effectiveExportName(asset.asset,l)}))};
+    }, sharedUrl("psd-export.ts"));
+    assert.ok(generated.layers.some(l=>l.name==="@normal"&&l.enabled&&l.image&&l.exportName==="login_dlan_normal"));
+    assert.ok(generated.layers.some(l=>l.name==="@selected"&&l.enabled&&l.image&&l.exportName==="login_dlan_selected"));
     assert.ok(generated.layers.some(l=>l.name==="登录文字"&&!l.enabled));
     fs.writeFileSync(path.join(output,"login.psd"),Buffer.from(generated.base64,"base64"));
     ag.initializeCanvas(()=>{throw new Error("unused canvas");},(width,height)=>({width,height,data:new Uint8ClampedArray(width*height*4)}));
@@ -50,7 +52,8 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
     await page.getByRole("button",{name:"导出 Prefab",exact:true}).click();
     await page.waitForFunction(()=>window.testRoots?.[1]?.entries.size>0);
     await page.getByRole("button",{name:"预制体资源",exact:true}).click();
-    await page.locator('canvas[data-resource-path^="builtin/"]').first().waitFor();
+    await page.locator('[data-art-state="unbound"]').first().waitFor();
+    await page.getByRole("button",{name:"原型资源",exact:true}).click();
     // Enter editing, choose a button, open its builtin picker and inspect all categories.
     const firstPage=page.locator(".page-group").first();await firstPage.locator(".page-caption").dblclick();
     await page.waitForSelector(".page-editing");
@@ -106,9 +109,40 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
     await picker.waitFor();
     assert.deepEqual(await picker.boundingBox(),pickerBounds,"reopening keeps picker bounds stable");
     await page.getByRole("button",{name:"关闭图片资源",exact:true}).click();
-    await page.locator('.image-slot-field[data-image-slot="normalSkin"] .image-slot-art-toggle').click();
-    await page.getByRole("textbox",{name:"资源路径",exact:true}).fill("unclassified/missing.png");
-    await page.getByRole("textbox",{name:"资源路径",exact:true}).press("Enter");
+    const owner = await page.locator(".selection-label").innerText();
+    const artFile = (broken = false) => ag.writePsdBuffer({width:16,height:16,imageData:rgba(16,16,[0,0,0,0]),children:[{name:owner,children:[
+      {name:"@normal",blendMode:broken ? "multiply" : "normal",imageData:rgba(16,16,[10,30,200,255])},
+      {name:"@selected",hidden:true,imageData:rgba(16,16,[200,30,10,255])}
+    ]}]},{generateThumbnail:false});
+    const bindFile = async (button, name, bytes) => {
+      const chooser = page.waitForEvent("filechooser"); await button.click();
+      await (await chooser).setFiles({name,mimeType:"image/vnd.adobe.photoshop",buffer:bytes});
+    };
+    await page.getByRole("button",{name:"美术 PSD资源",exact:true}).click();
+    await bindFile(page.getByRole("button",{name:"绑定 PSD",exact:true}),"login.psd",artFile());
+    const ownerStem = await page.evaluate(async ({name,module}) => (await import(module)).psdNameInitials(name), {name:owner,module:sharedUrl("psd-naming.ts")});
+    const normalName = `login_${ownerStem}_normal`;
+    const normalPath = `unclassified/${normalName}.png`;
+    const brokenName = `broken_${ownerStem}_normal`;
+    const painted = page.locator(`.page-editing canvas[data-resource-path="${normalPath}"]`);
+    await painted.waitFor();
+    for (const mode of ["美术 PSD资源", "预制体资源"]) {
+      await page.getByRole("button",{name:mode,exact:true}).click();
+      await button.click({position:{x:3,y:3}});
+      for (const [label,name] of [["普通图片",normalName],["选中图片",`login_${ownerStem}_selected`],["禁用图片","无 (Image)"]]) {
+        const field=page.getByRole("textbox",{name:label,exact:true});
+        assert.equal(await field.inputValue(),name);assert.equal(await field.isEditable(),false);
+      }
+      assert.equal(await page.getByRole("button",{name:"选择普通图片"}).count(),0);
+      assert.equal(await page.getByRole("textbox",{name:"普通图片",exact:true}).getAttribute("title"),normalPath);
+      if (mode === "美术 PSD资源") {
+        await page.getByRole("button",{name:"导出 Prefab",exact:true}).click();
+        await page.waitForFunction(name=>window.testRoots[0].entries.get("unclassified")?.entries.has(name), `${normalName}.png`);
+      } else await painted.waitFor();
+    }
+    await page.getByRole("button",{name:"更多",exact:true}).click();
+    await bindFile(page.getByRole("menuitem",{name:"重新绑定 PSD",exact:true}),"broken.psd",artFile(true));
+    await page.waitForFunction(name=>document.querySelector('[data-image-slot="normalSkin"] input')?.value === name, brokenName);
     const beforeCancel=await page.evaluate(()=>Array.from(window.testRoots[1].entries.values()).map(file=>Array.from(file.bytes)));
     await page.getByRole("button",{name:"导出 Prefab",exact:true}).click();
     const missingDialog=page.getByRole("dialog",{name:"有资源缺失，是否继续导出？",exact:true});await missingDialog.waitFor();
@@ -116,7 +150,7 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
     assert.deepEqual(await page.evaluate(()=>Array.from(window.testRoots[1].entries.values()).map(file=>Array.from(file.bytes))),beforeCancel);
     await page.getByRole("button",{name:"导出 Prefab",exact:true}).click();
     await missingDialog.getByRole("button",{name:"仍然导出",exact:true}).click();
-    await page.waitForFunction(()=>Array.from(window.testRoots[1].entries.values()).some(file=>new TextDecoder().decode(file.bytes).includes("unclassified/missing.png")));
+    await page.waitForFunction(path=>Array.from(window.testRoots[1].entries.values()).some(file=>new TextDecoder().decode(file.bytes).includes(path)), `unclassified/${brokenName}.png`);
     await page.getByRole("button",{name:"原型资源",exact:true}).click();
     await page.getByRole("button",{name:"运行预览",exact:true}).click();
     const preview=page.getByRole("dialog",{name:"运行预览"});await preview.waitFor();
@@ -129,8 +163,111 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
     const alpha=await ring.evaluate(c=>{const ctx=c.getContext("2d");return{right:ctx.getImageData(Math.round(c.width*.88),Math.round(c.height*.5),1,1).data[3],left:ctx.getImageData(Math.round(c.width*.12),Math.round(c.height*.5),1,1).data[3]};});
     assert.ok(alpha.right>0);assert.equal(alpha.left,0);
     await page.screenshot({path:path.join(output,"runtime-preview.png")});
+    await preview.getByRole("button", {name:"关闭运行预览",exact:true}).click();
+    await page.getByRole("button", {name:"PSD 切图",exact:true}).click();
+    await page.getByLabel("打开切图 PSD", {exact:true}).setInputFiles(path.join(__dirname,"../examples/star-sea-login/Star-Sea-Login-750x1334.psd"));
+    const slicing = page.getByRole("region", {name:"PSD 切图工作区"});
+    const documentRow = slicing.getByRole("button", {name:"Star-Sea-Login-750x1334.psd",exact:true});
+    const documentSettings = slicing.getByRole("region", {name:"文档配置",exact:true});
+    const atlas = documentSettings.getByRole("textbox", {name:"图集名",exact:true});
+    const independent = documentSettings.getByRole("checkbox", {name:"使用独立目录",exact:true});
+    const normalLayer = slicing.getByRole("button", {name:"@normal",exact:true});
+    const exportName = slicing.getByRole("textbox", {name:"导出名称",exact:true});
+    const variableName = slicing.getByRole("textbox", {name:"变量名称",exact:true});
+    await documentSettings.waitFor();
+    assert.equal(await documentRow.getAttribute("aria-pressed"),"true");
+    assert.equal(await atlas.inputValue(),"login");
+    assert.equal(await exportName.count(),0);
+    await normalLayer.click();
+    assert.equal(await documentSettings.count(),0);
+    assert.equal(await documentRow.getAttribute("aria-pressed"),"false");
+    assert.equal(await exportName.inputValue(),"login_start_normal");
+    assert.equal(await exportName.isEditable(),false);
+    assert.equal(await variableName.isEditable(),false);
+    await variableName.focus();
+    await page.screenshot({path:path.join(output,"psd-readonly-names.png")});
+    const buttonGroup = slicing.getByRole("button", {name:"开始远征 (UIButton)",exact:true});
+    await buttonGroup.click();
+    const settingsSection = slicing.getByRole("region", {name:"导出设置",exact:true});
+    const shared = settingsSection.getByRole("checkbox", {name:"共享资源",exact:true});
+    const settingsBounds = await settingsSection.boundingBox();
+    const checkboxBounds = await shared.boundingBox();
+    assert.ok(settingsBounds && checkboxBounds);
+    assert.equal(await shared.isChecked(),false);
+    await page.mouse.click(settingsBounds.x + settingsBounds.width * 0.7, checkboxBounds.y + checkboxBounds.height / 2);
+    assert.equal(await shared.isChecked(),false,"blank space beside the checkbox must not toggle it");
+    await settingsSection.getByText("共享资源", {exact:true}).click();
+    assert.equal(await shared.isChecked(),true);
+    await shared.press("Space");
+    assert.equal(await shared.isChecked(),false);
+    assert.equal(await exportName.inputValue(),"login_start");
+    assert.equal(await variableName.getAttribute("placeholder"),"ksyz");
+    assert.equal(await exportName.isEditable(),false);
+    assert.equal(await variableName.isEditable(),true);
+    assert.equal(await variableName.inputValue(),"start");
+    await variableName.fill("launch_expedition");
+    await slicing.getByRole("button", {name:"@normal",exact:true}).click();
+    assert.equal(await exportName.inputValue(),"login_launch_expedition_normal");
+    assert.equal(await exportName.isEditable(),false);
+    await page.getByRole("button",{name:"导出",exact:true}).click();
+    await page.waitForFunction(()=>window.testRoots[0].entries.get("unclassified")?.entries.has("login_launch_expedition_normal.png"));
+    await page.screenshot({path:path.join(output,"fixed-psd-export-name.png")});
+    await buttonGroup.click();
+    assert.equal(await exportName.inputValue(),"login_launch_expedition");
+    await documentRow.click();
+    await atlas.fill("menu");
+    await independent.check();
+    await buttonGroup.click();
+    assert.equal(await documentSettings.count(),0);
+    assert.equal(await exportName.inputValue(),"menu_launch_expedition");
+    assert.equal(await variableName.getAttribute("placeholder"),"ksyz");
+    await documentRow.click();
+    assert.equal(await atlas.inputValue(),"menu");
+    assert.equal(await independent.isChecked(),true);
+    await atlas.fill("shared");
+    await normalLayer.click();
+    assert.equal(await documentSettings.count(),0);
+    assert.equal(await page.getByRole("button",{name:"导出",exact:true}).isDisabled(),true);
+    await slicing.getByRole("region", {name:"PSD 画布",exact:true}).click({position:{x:2,y:2}});
+    await documentSettings.waitFor();
+    assert.equal(await atlas.inputValue(),"shared");
+    await atlas.fill("login");
+    await independent.uncheck();
+    await buttonGroup.click();
+    await variableName.fill("");
+    assert.equal(await variableName.getAttribute("placeholder"),"ksyz");
+    await slicing.getByRole("button", {name:"@normal",exact:true}).click();
+    assert.equal(await exportName.inputValue(),"login_ksyz_normal");
+    assert.equal(await exportName.isEditable(),false);
+    await slicing.getByRole("button", {name:"服务器底板 · 像素",exact:true}).click();
+    assert.equal(await exportName.isEditable(),false);
+    assert.equal(await variableName.isEditable(),true);
+    await slicing.getByRole("button", {name:"底部提示 (UILabel)",exact:true}).click();
+    assert.equal(await variableName.inputValue(),"");
+    assert.equal(await variableName.getAttribute("placeholder"),"dbts");
+    assert.equal(await exportName.inputValue(),"login_dbts");
+    const variableBounds = await variableName.boundingBox(), exportBounds = await exportName.boundingBox();
+    assert.ok(variableBounds && exportBounds && exportBounds.y > variableBounds.y);
+    assert.equal(variableBounds.x,exportBounds.x);
+    await variableName.fill("footer");
+    assert.equal(await exportName.inputValue(),"login_footer");
+    await shared.check();
+    assert.equal(await exportName.inputValue(),"login_footer");
+    await shared.uncheck();
+    await variableName.fill("btn_manual");
+    assert.equal(await exportName.inputValue(),"login_btn_manual");
+    await variableName.fill("");
+    assert.equal(await exportName.inputValue(),"login_dbts");
+    await page.setViewportSize({width:520,height:760});
+    await exportName.scrollIntoViewIfNeeded();
+    const narrowInput = await exportName.boundingBox(), narrowPanel = await slicing.locator(".psd-properties").boundingBox();
+    assert.ok(narrowInput && narrowPanel && narrowInput.x >= narrowPanel.x && narrowInput.x + narrowInput.width <= narrowPanel.x + narrowPanel.width);
+    await page.screenshot({path:path.join(output,"psd-variable-narrow.png")});
+    await page.setViewportSize({width:1500,height:1000});
+    await exportName.scrollIntoViewIfNeeded();
+    await page.screenshot({path:path.join(output,"psd-variable-export.png")});
     assert.deepEqual(errors,[]);
-    console.log(JSON.stringify({passed:true,checks:["default prototype mode","missing disk diagnostic","PSD state layers and editable labels roundtrip","builtin Prefab actual export","exported disk resource preview","compact image resource field within narrow inspector","five-category picker with 28 icons","fixed picker bounds across categories and empty search","responsive picker at 420x600, 360x480 and 600x320","block selection and picker reopening","three-mode runtime preview","grouped PSD state composition","cancel and continue missing-resource dialog","circular progress pixel clipping"],output},null,2));
+    console.log(JSON.stringify({passed:true,checks:["default prototype mode","unbound PSD gate","PSD state layers and editable labels roundtrip","builtin Prefab actual export","public PSD state names and exported disk preview","star-sea PSD custom parent name drives read-only state export","PSD document settings follow selection and retain validation","PSD checkbox ignores blank space and keeps label and keyboard activation","compact image resource field within narrow inspector","five-category picker with 28 icons","fixed picker bounds across categories and empty search","responsive picker at 420x600, 360x480 and 600x320","block selection and picker reopening","three-mode runtime preview","grouped PSD state composition","cancel and continue missing-resource dialog","circular progress pixel clipping"],output},null,2));
   }catch(error){await page.screenshot({path:path.join(output,"failure.png")});console.error("Browser artifacts:",output);console.error("Page errors:",errors);throw error;}
   finally{await browser.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});

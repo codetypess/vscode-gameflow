@@ -474,7 +474,6 @@ body.vscode-high-contrast .layer-reference, body.vscode-high-contrast-light .lay
 .inspector-content .image-slot-clear { position: absolute; top: 3px; right: 22px; display: grid; place-items: center; width: 18px; height: 19px; min-height: 19px; padding: 0; border-radius: 1px; color: var(--muted-foreground); opacity: 0; pointer-events: none; }
 .image-slot-control:hover .image-slot-clear:enabled, .image-slot-control:focus-within .image-slot-clear:enabled { opacity: 1; pointer-events: auto; }
 .image-slot-clear:hover { background: var(--accent); color: var(--foreground); }
-.inspector-content .image-slot-art-toggle { display: block; max-width: calc(100% - var(--property-label-width) - var(--property-column-gap)); height: 18px; min-height: 18px; margin: 3px 0 0 calc(var(--property-label-width) + var(--property-column-gap)); padding: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted-foreground); text-align: left; font-size: 10px; }
 .builtin-image-picker { width: min(600px, calc(100vw - 32px)); height: min(520px, calc(100dvh - 32px)); max-height: calc(100dvh - 32px); overflow: hidden; }
 .builtin-image-picker[open] { display: flex; flex-direction: column; }
 .builtin-image-picker > header { flex-shrink: 0; }

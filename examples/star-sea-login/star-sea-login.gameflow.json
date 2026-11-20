@@ -414,7 +414,7 @@
           "normalSkin": {
             "builtin": "button/yellow",
             "art": {
-              "path": "unclassified/button_bg.png",
+              "path": "unclassified/btn_login_start_normal.png",
               "source": {
                 "documentId": "47061573-175a-4735-986e-15e5faa87890",
                 "layerId": "c6ni4g0w"

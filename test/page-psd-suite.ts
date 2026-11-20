@@ -3,7 +3,8 @@ import type * as vscode from "vscode";
 import { createDefaultGameFlowDocument, isPagePsdBinding, isPagePsdSource, parseGameFlowDocument, serializeGameFlowDocument, validateGameFlowDocument, type GameFlowPage } from "../shared/model";
 import { bindPagePsd, pagePsdKey } from "../shared/page-psd";
 import { isWebviewToHostMessage } from "../shared/protocol";
-import type { PsdAsset } from "../shared/psd-meta";
+import { effectiveExportName, makeSliceExportBatch } from "../shared/psd-export";
+import type { PsdAsset, PsdLayer } from "../shared/psd-meta";
 import { makeNode } from "../shared/editor-ops";
 import { PagePsdController, rebasePagePsds } from "../src/page-psd-controller";
 import type { PsdEditorProvider } from "../src/psd-editor-provider";
@@ -36,7 +37,98 @@ test("explicit binding maps stable slots, preserves builtins and does not guess 
   assert.equal(other.nodes[0].normalSkin?.art, undefined); assert.equal(other.artPsd?.documentId, "art");
   const replacement = bindPagePsd(bound, f.document.documentId, "new.psd", { ...f.asset, documentId: "new", layers: [] });
   assert.equal(replacement.nodes[0].normalSkin?.art, undefined); assert.equal(replacement.nodes[0].normalSkin?.builtin, "button/gray");
-  assert.deepEqual(bindPagePsd(bound, f.document.documentId, "moved.psd", { ...f.asset, layers: [] }).nodes, bound.nodes);
+  assert.deepEqual(bindPagePsd(bound, f.document.documentId, "moved.psd", { ...f.asset, layers: [] }).nodes, f.page.nodes, "removed layers release their derived slots");
+});
+test("public PSD groups resolve direct state and image markers, without prototype metadata", () => {
+  const { document, page, asset } = fixture();
+  const button = { ...page.nodes[0], name: "登录按钮" };
+  const icon = { ...makeNode("image", "icon", 0, 0), name: "头像" };
+  page.nodes = [button, icon];
+  const layer = (key: number, parentKey: number | null, name: string, group = false): PsdLayer => ({
+    ...asset.layers[0], key, parentKey, name, group, image: "data:image/png;base64,AAAA",
+    config: { enabled: !group, name, nineGrid: null },
+    metadata: { namespace: "com.codetypes.gameflow", version: 1, documentId: asset.documentId, layerId: String(key) }
+  });
+  const normal = layer(2, 1, "@normal"), selected = layer(3, 1, "@selected"), image = layer(5, 4, "@image");
+  selected.config.exportName = "CUSTOM_SELECTED";
+  asset.layers = [layer(1, null, button.name, true), normal, selected, layer(4, null, icon.name, true), image];
+  const bind = () => bindPagePsd(page, document.documentId, asset.name, asset);
+  const bound = bind();
+  assert.equal(bound.nodes[0].normalSkin?.art?.path, "unclassified/login_dlan_normal.png");
+  assert.equal(bound.nodes[0].selectedSkin?.art?.path, "unclassified/login_dlan_selected.png");
+  assert.equal(bound.nodes[0].disabledSkin, undefined);
+  assert.equal(bound.nodes[1].image?.art?.path, "unclassified/login_tx.png");
+  asset.atlasName = "Menu";
+  assert.equal(bind().nodes[0].normalSkin?.art?.path, "unclassified/menu_dlan_normal.png");
+  normal.config.shared = true;
+  assert.equal(bind().nodes[0].normalSkin?.art?.path, "shared/menu_dlan_normal.png");
+  normal.config.shared = false;
+  asset.layers.push(layer(6, null, "退出按钮", true), layer(7, 6, "@normal"));
+  const ordinary = layer(9, null, "普通切图");
+  ordinary.config.exportName = "custom_image";
+  asset.layers.push(ordinary);
+  const batch = makeSliceExportBatch(asset);
+  assert.equal(effectiveExportName(asset, normal), "menu_dlan_normal");
+  assert.equal(bind().nodes[0].normalSkin?.art?.path, "unclassified/menu_dlan_normal.png");
+  assert.ok(batch.items.some(item => item.name === "menu_dlan_selected"));
+  assert.ok(batch.items.some(item => item.name === "menu_custom_image"));
+  assert.ok(batch.items.some(item => item.name === "menu_tcan_normal"));
+  asset.layers.push(layer(8, 1, "@normal"));
+  assert.throws(bind, /登录按钮.*@normal.*多个 PSD 图层/);
+  asset.layers.pop();
+  page.nodes.push({ ...button, id: "second" });
+  assert.throws(bind, /多个同名控件/);
+});
+test("button state export and page binding follow the parent group's custom export name", () => {
+  const { asset, page, document } = fixture();
+  const base = asset.layers[0];
+  page.nodes[0].name = "Expedition";
+  const owner: PsdLayer = {
+    ...base, name: page.nodes[0].name, group: true,
+    metadata: { ...base.metadata, layerId: "button-owner", variableName: "startButton" },
+    config: { enabled: false, name: page.nodes[0].name, exportName: "BTN_Launch_Expedition", nineGrid: null }
+  };
+  const states = ["normal", "selected", "disabled"] as const;
+  asset.layers = [owner, ...states.map((state, index) => ({
+    ...base, key: index + 1, parentKey: owner.key, name: `@${state}`, image: "data:image/png;base64,AAAA",
+    metadata: { ...base.metadata, layerId: state },
+    config: { enabled: true, name: `@${state}`, exportName: "old_override", nineGrid: null }
+  }))];
+  const assertNames = (button: string) => {
+    const groupName = `login_${button}`;
+    assert.equal(effectiveExportName(asset, owner), groupName);
+    const names = states.map(state => `${groupName}_${state}`);
+    assert.deepEqual(makeSliceExportBatch(asset).items.map(item => item.name), names);
+    const node = bindPagePsd(page, document.documentId, asset.name, asset).nodes[0];
+    assert.deepEqual([node.normalSkin, node.selectedSkin, node.disabledSkin].map(slot => slot?.art?.path),
+      names.map(name => `unclassified/${name}.png`));
+  };
+  assertNames("launch_expedition");
+  owner.config.exportName = "continue";
+  assertNames("continue");
+  owner.config.variableName = "login_special";
+  assertNames("login_special");
+  owner.config.variableName = "btn_manual";
+  assertNames("btn_manual");
+  asset.layers[1].config.variableName = "ignored_child";
+  assertNames("btn_manual");
+  owner.config.variableName = "";
+  assertNames("expedition");
+  owner.name = "Journey";
+  page.nodes[0].name = owner.name;
+  assertNames("journey");
+});
+
+test("PSD image markers follow the parent variable and keep atlas names in shared exports", () => {
+  const { asset } = fixture(), base = asset.layers[0];
+  const owner: PsdLayer = { ...base, group: true, name: "头像 (UIImage)", config: { ...base.config, enabled: false, exportName: undefined, variableName: "portrait" } };
+  const image: PsdLayer = { ...base, key: 1, parentKey: owner.key, name: "@image", image: "data:image/png;base64,AAAA", metadata: { ...base.metadata, layerId: "portrait-image" }, config: { ...base.config, variableName: "ignored", shared: true } };
+  asset.layers = [owner, image];
+  assert.equal(makeSliceExportBatch(asset).items[0].name, "login_portrait");
+  owner.config.variableName = "";
+  assert.equal(makeSliceExportBatch(asset).items[0].name, "login_tx");
+  asset.atlasName = "menu";
+  assert.equal(makeSliceExportBatch(asset).items[0].name, "menu_tx");
 });
 test("page PSD protocol constrains requests and requires an explicit load binding", () => {
   const base = { type: "pagePsd", requestId: "request", pageId: "page" };
@@ -47,9 +139,9 @@ test("page PSD protocol constrains requests and requires an explicit load bindin
   assert.ok(isWebviewToHostMessage({ ...base, action: "generate", name: "a.psd", base64: "YWJj" }));
   for (const name of ["CON.psd", "a..psd", "../a.psd"]) assert.equal(isWebviewToHostMessage({ ...base, action: "generate", name, base64: "YWJj" }), false);
 });
-function hostFixture() {
+function hostFixture(uri = new Uri("/workspace/layouts/main.gameflow.json")) {
   referenceHost.reset(); const f = fixture(); let text = serializeGameFlowDocument(f.document), opens = 0;
-  const doc = { uri: new Uri("/workspace/layouts/main.gameflow.json"), psds: new Map(), currentPsd: { marker: "active editor" }, disposed: false, getText: () => text } as unknown as WorkbenchDocument;
+  const doc = { uri, psds: new Map(), currentPsd: { marker: "active editor" }, disposed: false, getText: () => text } as unknown as WorkbenchDocument;
   const psd = { documents: new Map(), async openCustomDocument(uri: Uri) { ++opens; return { uri, bytes: Buffer.from("PSD"), model: { asset: f.asset, dirty: false }, dispose() {} }; } } as unknown as PsdEditorProvider;
   const controller = new PagePsdController(psd);
   return { ...f, doc, controller, get opens() { return opens; }, setDocument: (document: typeof f.document) => { text = serializeGameFlowDocument(document); } };
@@ -88,4 +180,38 @@ test("host choice and generation return the selected file for the captured page"
     assert.equal(f.opens, 1); assert.equal(parseGameFlowDocument(f.doc.getText()).pages[0].artPsd, undefined);
     assert.equal(referenceHost.files.get("/workspace/art/chosen.psd"), action === "generate" ? "abc" : undefined);
   }
+});
+
+test("Windows page PSD choice and generation ignore drive and common directory casing", async () => {
+  for (const action of ["choose", "generate"] as const) {
+    const f = hostFixture(new Uri("/d:/Users/Bite/Project/layouts/main.gameflow.json"));
+    referenceHost.picked = new Uri("/D:/users/bite/project/Art/登录.PSD");
+    const result = await f.controller.handle(f.doc, { type: "pagePsd", requestId: action, pageId: "page", action, name: "登录.PSD", base64: "YWJj" });
+    assert.equal(result.error, undefined); assert.equal(result.source, "../Art/登录.PSD");
+    assert.equal(f.opens, 1); assert.equal(parseGameFlowDocument(f.doc.getText()).pages[0].artPsd, undefined);
+    assert.equal(referenceHost.files.get(referenceHost.picked.path), action === "generate" ? "abc" : undefined);
+  }
+});
+test("Windows page PSD rejects a genuinely different drive before loading or generating", async () => {
+  for (const action of ["choose", "generate"] as const) {
+    const f = hostFixture(new Uri("/d:/project/layouts/main.gameflow.json"));
+    referenceHost.picked = new Uri("/E:/project/art/login.psd");
+    const before = f.doc.getText();
+    const result = await f.controller.handle(f.doc, { type: "pagePsd", requestId: action, pageId: "page", action, name: "login.psd", base64: "YWJj" });
+    assert.match(result.error!, /同一磁盘/); assert.equal(f.opens, 0); assert.equal(referenceHost.files.size, 0);
+    assert.equal(f.doc.getText(), before);
+  }
+});
+test("Windows save as rebases page PSD with mixed drive casing and preserves target spelling", () => {
+  const f = fixture(); f.page.artPsd = { source: "../Art/登录.PSD", documentId: "art" };
+  const rebased = rebasePagePsds(f.document, new Uri("/d:/Project/layouts/main.gameflow.json") as unknown as vscode.Uri, new Uri("/D:/project/copy/deep/main.gameflow.json") as unknown as vscode.Uri);
+  assert.equal(rebased.pages[0].artPsd?.source, "../../Art/登录.PSD");
+  assert.equal(f.page.artPsd.source, "../Art/登录.PSD");
+});
+test("remote POSIX page PSD paths preserve case-sensitive directory identity", async () => {
+  const owner = new Uri("/workspace/Layouts/main.gameflow.json"), target = new Uri("/workspace/layouts/Art/login.PSD");
+  owner.scheme = target.scheme = "vscode-remote"; owner.authority = target.authority = "ssh-remote+test";
+  const f = hostFixture(owner); referenceHost.picked = target;
+  const result = await f.controller.handle(f.doc, { type: "pagePsd", requestId: "remote", pageId: "page", action: "choose" });
+  assert.equal(result.error, undefined); assert.equal(result.source, "../layouts/Art/login.PSD");
 });

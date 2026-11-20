@@ -98,7 +98,7 @@ export function usePagePsds(document: GameFlowDocument | null, read: () => GameF
       const now = latest.current.read(), target = now?.pages.find(page => page.id === pageId);
       if (now?.documentId !== current.documentId || !target || pagePsdKey(target.artPsd) !== expected) { latest.current.notice("页面关联已变化，本次结果未应用。"); return; }
       // Validate mappings before applying one atomic edit.
-      bindPagePsd(target, current.documentId, result.source, result.asset);
+      bindPagePsd(latest.current.project(now, target), current.documentId, result.source, result.asset);
       latest.current.observe(result.asset);
       setAssets(previous => ({ ...previous, [pageId]: result.asset }));
       loads.current.set(pageId, { key: current.documentId + pagePsdKey({ source: result.source, documentId: result.asset.documentId }), token });

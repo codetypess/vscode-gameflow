@@ -37,42 +37,34 @@ class MemoryDirectory implements ResourceDirectory {
   manifest() { return parseResourceManifest(JSON.parse(new TextDecoder().decode(this.files.get(RESOURCE_MANIFEST)))); }
 }
 export const psdExportTests: { name: string; run: () => void | Promise<void> }[] = [
-  { name: "PSD default export names use Chinese syllable initials and retain ASCII/numbers", run() {
-    assert.equal(defaultExportName("登录页面.PSD", "按钮底图"), "btn_dlym_andt");
-    assert.equal(defaultExportName("重庆登录.psd", "按钮2"), "btn_cqdl_an2");
-    assert.equal(defaultExportName("Login-UI2.psd", "确认 OK"), "img_login_ui2_qr_ok");
-    assert.equal(defaultExportName("登录页面.psd", "服务器底板"), "img_dlym_fwqdb");
-    assert.equal(defaultExportName("按钮页面.psd", "图标"), "img_anym_tb");
-    assert.equal(defaultExportName("登录页面.psd", "按钮底图", "Common"), "btn_common_andt");
-    assert.equal(defaultExportName("登录页面.psd", "服务器底板", "公共资源"), "img_ggzy_fwqdb");
-    assert.equal(defaultExportName(".psd", "按钮", "Common"), "btn_common_an");
-    assert.equal(defaultExportName("登录页面.psd", "按钮底图", undefined, true), "btn_andt");
-    assert.equal(defaultExportName("登录页面.psd", "按钮底图", "Common", true), "btn_andt");
-    assert.equal(defaultExportName("登录页面.psd", "服务器底板", "公共资源", true), "img_fwqdb");
-    assert.equal(defaultExportName(".psd", "按钮", undefined, true), "btn_an");
-    assert.equal(defaultExportName("登录页面.psd", "★", "Common", true), "");
-    assert.equal(defaultExportName("登录页面.psd", "★", "Common"), "");
-    assert.equal(defaultExportName(".psd", "按钮"), "");
-    assert.equal(defaultExportName("登录.psd", "★"), "");
+  { name: "PSD default names combine atlas and public layer initials without type prefixes", run() {
+    for (const [psd, layerName, atlas, expected] of [
+      ["登录页面.PSD", "按钮底图", undefined, "dlym_andt"],
+      ["重庆登录.psd", "按钮2", undefined, "cqdl_an2"],
+      ["Login-UI2.psd", "确认 OK", undefined, "login_ui2_qr_ok"],
+      ["登录页面.psd", "底部提示 (UILabel)", "login", "login_dbts"],
+      ["按钮页面.psd", "图标", undefined, "anym_tb"],
+      ["登录页面.psd", "按钮底图", "Common", "common_andt"],
+      ["登录页面.psd", "服务器底板", "公共资源", "ggzy_fwqdb"],
+      [".psd", "按钮", "Common", "common_an"],
+      ["登录页面.psd", "★", "Common", ""], [".psd", "按钮", undefined, ""]
+    ]) assert.equal(defaultExportName(psd!, layerName!, atlas), expected);
     assert.equal(exportNameError("btn_01"), null);
     for (const name of ["", "中文", "a.png", "a/b", "a b", "CON", "a".repeat(121)]) assert.ok(exportNameError(name));
   } },
-  { name: "PSD custom name overrides the placeholder without changing legacy names", run() {
+  { name: "PSD variable overrides compose with the atlas, preserve typed prefixes and clear legacy fallback", run() {
     const l = layer(), a = asset(l);
-    assert.equal(effectiveExportName(a, l), "btn_dlym_andt"); assert.equal(l.config.exportName, undefined);
-    l.config.exportName = "CUSTOM_01"; assert.equal(effectiveExportName(a, l), "custom_01");
-    l.config.exportName = ""; assert.equal(effectiveExportName(a, l), "btn_dlym_andt");
-    l.config.shared = true; assert.equal(effectiveExportName(a, l), "btn_andt");
-    a.atlasName = "Common"; assert.equal(effectiveExportName(a, l), "btn_andt");
-    l.config.exportName = "CUSTOM_01"; assert.equal(effectiveExportName(a, l), "custom_01");
-    l.config.shared = false; assert.equal(effectiveExportName(a, l), "custom_01");
-    l.config.exportName = ""; assert.equal(effectiveExportName(a, l), "btn_common_andt");
-    l.config.shared = true; l.config.exportName = "CUSTOM_01";
-    assert.equal(effectiveExportName(a, l), "custom_01");
-    l.config.exportName = ""; assert.equal(effectiveExportName(a, l), "btn_andt");
-    l.config.shared = false; assert.equal(effectiveExportName(a, l), "btn_common_andt");
-    assert.equal(a.atlasName, "Common");
-    assert.equal(l.config.name, "按钮底图");
+    assert.equal(effectiveExportName(a, l), "dlym_andt"); assert.equal(l.config.variableName, undefined);
+    l.config.exportName = "CUSTOM_01"; assert.equal(effectiveExportName(a, l), "dlym_custom_01");
+    l.config.variableName = "BTN_Start"; assert.equal(effectiveExportName(a, l), "dlym_btn_start");
+    l.config.shared = true; assert.equal(effectiveExportName(a, l), "dlym_btn_start");
+    a.atlasName = "Common"; assert.equal(effectiveExportName(a, l), "common_btn_start");
+    l.config.variableName = "img_icon"; assert.equal(effectiveExportName(a, l), "common_img_icon");
+    l.config.variableName = ""; assert.equal(effectiveExportName(a, l), "common_andt");
+    l.config.shared = false; assert.equal(effectiveExportName(a, l), "common_andt");
+    l.name = "底部提示 (UILabel)"; assert.equal(effectiveExportName(a, l), "common_dbts");
+    l.config.variableName = "bad/name"; assert.ok(sliceExportIssues(a).some(issue => issue.message.includes("导出名称")));
+    l.config.variableName = "a".repeat(115); assert.throws(() => makeSliceExportBatch(a), /120/);
   } },
   { name: "PSD name/shared settings roundtrip through sidecar and empty override remains empty", run() {
     const a = asset(); a.layers[0].config = { ...a.layers[0].config, exportName: "", shared: true };
@@ -128,20 +120,21 @@ export const psdExportTests: { name: string; run: () => void | Promise<void> }[]
     await exportSlicesToDirectory(d, batch(), codec);
     assert.equal(d.manifest().resources.length, 2);
   } },
-  { name: "PSD shared defaults ignore different PSD and atlas names and preserve custom names", async run() {
+  { name: "PSD shared names retain atlas identity and matching atlases transfer provenance", async run() {
     const d = new MemoryDirectory(), first = asset(); first.layers[0].config.shared = true;
     const second = asset(); second.name = "设置界面.psd"; second.documentId = "psd-b"; second.layers[0].config.shared = true;
     first.atlasName = "Login UI"; second.atlasName = "Settings UI";
     const a = makeSliceExportBatch(first), b = makeSliceExportBatch(second);
-    assert.equal(a.items[0].name, "btn_andt"); assert.equal(b.items[0].name, a.items[0].name);
-    assert.equal(first.layers[0].config.exportName, undefined);
+    assert.equal(a.items[0].name, "login_ui_andt"); assert.equal(b.items[0].name, "settings_ui_andt");
     await exportSlicesToDirectory(d, a, codec); await exportSlicesToDirectory(d, b, codec);
-    assert.deepEqual([...d.files.keys()].sort(), ["shared/btn_andt.png", RESOURCE_MANIFEST].sort());
-    assert.equal(d.manifest().resources[0].source.psdName, "设置界面.psd");
-    second.layers[0].config.exportName = "custom_button";
-    assert.equal(makeSliceExportBatch(second).items[0].name, "custom_button");
-    second.layers[0].config.exportName = ""; second.layers[0].config.shared = false;
-    assert.equal(makeSliceExportBatch(second).items[0].name, "btn_settings_ui_andt");
+    assert.equal(d.manifest().resources.length, 2);
+    second.atlasName = first.atlasName;
+    await exportSlicesToDirectory(d, makeSliceExportBatch(second), codec);
+    assert.equal(d.manifest().resources.find(r => r.name === "login_ui_andt")?.source.psdName, "设置界面.psd");
+    second.layers[0].config.variableName = "custom_button";
+    assert.equal(makeSliceExportBatch(second).items[0].name, "login_ui_custom_button");
+    second.layers[0].config.variableName = ""; second.layers[0].config.shared = false;
+    assert.equal(makeSliceExportBatch(second).items[0].name, "login_ui_andt");
   } },
   { name: "PSD unmanaged files require explicit sharing and malformed provenance is rejected", async run() {
     const d = new MemoryDirectory(), b = batch(); d.files.set(sliceExportPath(b, b.items[0]), png);
@@ -206,16 +199,16 @@ export const psdExportTests: { name: string; run: () => void | Promise<void> }[]
     const b = makeSliceExportBatch(a), d = new MemoryDirectory();
     assert.equal(b.directory, "common_ui"); assert.equal(isSliceExportBatch(b), true);
     await exportSlicesToDirectory(d, b, codec);
-    assert.deepEqual(d.manifest().resources.map(r => r.file), ["common_ui/img_same.png", "shared/img_same.png"]);
+    assert.deepEqual(d.manifest().resources.map(r => r.file), ["common_ui/common_ui_img_same.png", "shared/common_ui_img_same.png"]);
     assert.equal(d.manifest().version, 2);
     assert.ok(["builtin", "shared", "unclassified", "common_ui"].every(folder => d.folders.has(folder)));
     delete a.independentDirectory;
     await exportSlicesToDirectory(d, makeSliceExportBatch(a), codec);
-    assert.deepEqual(d.manifest().resources.map(r => r.file), ["common_ui/img_same.png", "shared/img_same.png", "unclassified/img_same.png"]);
-    assert.deepEqual(d.files.get("common_ui/img_same.png"), new Uint8Array(png));
+    assert.deepEqual(d.manifest().resources.map(r => r.file), ["common_ui/common_ui_img_same.png", "shared/common_ui_img_same.png", "unclassified/common_ui_img_same.png"]);
+    assert.deepEqual(d.files.get("common_ui/common_ui_img_same.png"), new Uint8Array(png));
   } },
   { name: "PSD mixed-folder batch restores both folders when an image or root ledger write fails", async run() {
-    for (const failed of ["shared/img_two.png", RESOURCE_MANIFEST]) {
+    for (const failed of ["shared/common_img_two.png", RESOURCE_MANIFEST]) {
       const one = layer(0, "图标一"), two = layer(1, "图标二");
       one.config.exportName = "img_one"; two.config.exportName = "img_two"; two.config.shared = true;
       const b = makeSliceExportBatch({ ...asset(one, two), atlasName: "common", independentDirectory: true }), d = new MemoryDirectory();

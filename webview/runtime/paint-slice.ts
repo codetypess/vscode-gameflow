@@ -1,10 +1,11 @@
+import { rasterSize } from "../../shared/image-rendering";
 import { nineGridPatches } from "../../shared/nine-grid";
 import type { NineGrid } from "../../shared/psd-meta";
 
 /** Shared by assembled pages, product checks and PSD nine-grid editing. */
 export function paintSlice(canvas: HTMLCanvasElement, source: CanvasImageSource, size: { width: number; height: number; nineGrid: NineGrid | null }, width: number, height: number, fit: "fill" | "contain" | "cover" = "fill") {
-  const scale = Math.min(1, 4096 / Math.max(1, width, height), Math.sqrt(8_000_000 / Math.max(1, width * height)));
-  canvas.width = Math.max(1, Math.round(width * scale)); canvas.height = Math.max(1, Math.round(height * scale));
+  const raster = rasterSize(width, height);
+  canvas.width = raster.width; canvas.height = raster.height;
   const ctx = canvas.getContext("2d"); if (!ctx) throw new Error("无法创建资源渲染画布。");
   if (width <= 0 || height <= 0) return;
   ctx.scale(canvas.width / width, canvas.height / height);

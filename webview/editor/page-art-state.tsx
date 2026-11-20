@@ -1,11 +1,15 @@
 import { FileImage, Link2, RotateCcw } from "lucide-react";
 import type { GameFlowPage } from "../../shared/model";
+import type { ResourceMode } from "../../shared/image-slots";
 import { pagePsdKey } from "../../shared/page-psd";
 import type { PagePsdActions } from "../runtime/page-psd";
 import { Button } from "../components/ui/button";
 export function pageArtReady(page: GameFlowPage, actions: PagePsdActions) {
   const state = actions.states[page.id];
   return !!page.artPsd && state?.key === pagePsdKey(page.artPsd) && state.status === "ready";
+}
+export function pagePreviewBlocked(page: GameFlowPage, actions: PagePsdActions, mode: ResourceMode) {
+  return mode !== "prototype" && !pageArtReady(page, actions);
 }
 export function PageArtState({ page, actions, zoom = 1 }: { page: GameFlowPage; actions: PagePsdActions; zoom?: number }) {
   const state = actions.states[page.id], bound = !!page.artPsd, current = state?.key === pagePsdKey(page.artPsd) ? state : undefined;

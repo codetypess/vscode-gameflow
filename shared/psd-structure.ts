@@ -1,3 +1,4 @@
+import { psdSlotField } from "./psd-slot-markers";
 import { allocateElementId } from "./element-id";
 import type { ParsedPsd } from "./psd-binary";
 import { inheritLayerVisibility, validAtlasName, validConfig, validIndependentDirectory, type PsdAsset, type PsdLayerMeta, type SliceConfig } from "./psd-meta";
@@ -37,7 +38,7 @@ export function createPsdStructure(raw: ParsedPsd, name: string, sourceHash: str
     const r = {...record,...bounds(record)};
     const embedded = existing[i];
     const m: PsdLayerMeta = embedded ?? { namespace: "com.codetypes.gameflow", version: 1, documentId, layerId: allocateElementId(reserved) };
-    let config: SliceConfig = { enabled: false, name: r.name, nineGrid: null };
+    let config: SliceConfig = { enabled: r.parentKey !== null && !!psdSlotField(r.name), name: r.name, nineGrid: null };
     if (m.slicing !== undefined) {
       if (!validConfig(m.slicing, r.width, r.height)) throw new Error(`${r.name} 的切图配置无效或超出当前图片。`);
       config = m.slicing;

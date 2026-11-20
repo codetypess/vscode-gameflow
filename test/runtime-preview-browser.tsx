@@ -20,7 +20,7 @@ for (let y = 0; y < 3; y++) for (let x = 0; x < 3; x++) { ctx.fillStyle = colors
 ctx.fillStyle = "#ffffff"; ctx.fillRect(3, 2, 1, 1); ctx.fillRect(2, 3, 1, 1);
 const asset: PsdAsset = { documentId: "test-psd", name: "预览.psd", sourceHash: "a".repeat(64), hasEmbeddedIdentity: true, width: 6, height: 6, preview: source.toDataURL(), layers: [{ key: 0, parentKey: null, nativeId: 1, name: "按钮", group: false, left: 0, top: 0, width: 6, height: 6, hidden: false, identityOrigin: "embedded", metadata: { namespace: "com.codetypes.gameflow", version: 1, documentId: "test-psd", layerId: "test-layer" }, image: source.toDataURL(), config: { enabled: true, name: "按钮", exportName: "btn_test", nineGrid: { left: 3, right: 3, top: 3, bottom: 3, repeat: true }, region: { x: -1, y: -1, width: 8, height: 8 } } }] };
 const page: GameFlowPage = { artPsd: { source: "preview.psd", documentId: asset.documentId }, id: "preview-page", name: "切图装载验收", kind: "screen", frame: { x: 0, y: 0, width: 240, height: 200 }, nodes: [
-  { id: "image", name: "九宫格按钮", type: "image", frame: { x: 20, y: 20, width: 100, height: 60 }, style: { fill: "transparent", borderWidth: 0, radius: 0 }, sliceResource: { path: "unclassified/btn_test.png", source: { documentId: "test-psd", layerId: "test-layer" } } },
+  { id: "image", name: "九宫格按钮", type: "image", frame: { x: 20, y: 20, width: 100, height: 60 }, style: { fill: "transparent", borderWidth: 0, radius: 0 }, sliceResource: { path: "unclassified/yl_btn_test.png", source: { documentId: "test-psd", layerId: "test-layer" } } },
   { id: "check", name: "选择", type: "checkbox", text: "临时复选", frame: { x: 20, y: 100, width: 100, height: 30 }, widget: { selected: false } },
   { id: "slider", name: "滑块", type: "slider", frame: { x: 20, y: 150, width: 180, height: 20 }, widget: { min: 0, max: 100, value: 20 } }
 ] };
@@ -79,7 +79,7 @@ async function checkPixels() {
   // Exercise the assembled node, so a source-layer bypass would fail these pixel assertions.
   const mount = document.createElement("div"), nodeRoot = createRoot(mount); document.body.append(mount);
   const modified = document.createElement("canvas"); modified.width = modified.height = 8; modified.getContext("2d")!.drawImage(product.pixels, 0, 0);
-  const renderProduct = (entry: RuntimeResource) => flushSync(() => nodeRoot.render(<SliceResourcesProvider value={{ entries: new Map([["unclassified/btn_test.png", entry]]), sizes: new Map(), resolve: () => entry, refresh() {} }}><NodeView page={page} node={page.nodes[0]} /></SliceResourcesProvider>));
+  const renderProduct = (entry: RuntimeResource) => flushSync(() => nodeRoot.render(<SliceResourcesProvider value={{ entries: new Map([["unclassified/yl_btn_test.png", entry]]), sizes: new Map(), resolve: () => entry, refresh() {} }}><NodeView page={page} node={page.nodes[0]} /></SliceResourcesProvider>));
   try {
     const current = { ...product, pixels: modified };
     renderProduct(current); await new Promise(requestAnimationFrame);

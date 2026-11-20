@@ -19,8 +19,8 @@ export const psdAtlasTests = [
     assert.equal(defaultAtlasName("Login.UI.PSD"), "login_ui");
     for (const value of [asset, sidecar, draft]) assert.equal(Object.hasOwn(value, "atlasName"), false);
     assert.ok(sidecar.layers.every(l => !Object.hasOwn(l.metadata, "atlasName")));
-    assert.equal(defaultExportName(asset.name, "按钮底图", asset.atlasName), "btn_dlym_andt");
-    assert.equal(defaultExportName("Other.psd", "按钮底图"), "btn_other_andt");
+    assert.equal(defaultExportName(asset.name, "按钮底图", asset.atlasName), "dlym_andt");
+    assert.equal(defaultExportName("Other.psd", "按钮底图"), "other_andt");
   } },
   { name: "PSD atlas override roundtrips through sidecar and embedded metadata without changing pixels", run() {
     const asset = structure(); asset.atlasName = "Common";
@@ -30,7 +30,7 @@ export const psdAtlasTests = [
     const patched = patchPsdMetadata(bytes, new Map(meta.layers.map(l => [l.sourceKey, l.metadata])));
     const raw = parsePsdBinary(patched), embedded = createPsdStructure(raw, "Renamed.psd", bytesHash(patched));
     assert.equal(embedded.atlasName, "common");
-    assert.equal(defaultExportName(embedded.name, "按钮底图", embedded.atlasName), "btn_common_andt");
+    assert.equal(defaultExportName(embedded.name, "按钮底图", embedded.atlasName), "common_andt");
     assert.deepEqual(patched.subarray(raw.recordsEnd), new Uint8Array(bytes.subarray(parsePsdBinary(bytes).recordsEnd)));
     delete embedded.atlasName;
     const cleared = makeSidecar(embedded);
@@ -69,6 +69,33 @@ export const psdAtlasTests = [
     raw.layers[1].metadata = { ...asset.layers[1].metadata, atlasName: 42 };
     assert.throws(() => createPsdStructure(raw, asset.name, asset.sourceHash), /图集名格式/);
   } },
+  { name: "PSD variables survive history, draft, sidecar and embedded metadata while clearing restores defaults", run() {
+    const asset = structure(), model = new PsdDocumentModel(asset, null), before = model.baseline;
+    const next = makePsdDraft(asset); next.layers[0].config.variableName = "Custom_01";
+    assert.ok(isPsdEditorRequest({ type: "psdEditorEdit", requestId: "variable", baseVersion: 1, draft: next }));
+    model.update(next, model.version);
+    assert.equal(model.dirty, true); assert.notEqual(sliceGenerationStamp(asset), sliceGenerationStamp(model.asset));
+    model.restore(before); assert.equal(model.asset.layers[0].config.variableName, undefined);
+    model.restore(next);
+    const sidecar = makeSidecar(model.asset);
+    const restored = applySidecar(structure(), JSON.parse(JSON.stringify(sidecar)));
+    assert.equal(restored.layers[0].config.variableName, "Custom_01");
+    assert.equal(effectiveExportName(restored, restored.layers[0]), "dlym_custom_01");
+    assert.equal(applyPsdDraft(structure(), JSON.parse(JSON.stringify(next))).layers[0].config.variableName, "Custom_01");
+    const patched = patchPsdMetadata(bytes, new Map(sidecar.layers.map(l => [l.sourceKey, l.metadata])));
+    const embedded = createPsdStructure(parsePsdBinary(patched), asset.name, bytesHash(patched));
+    assert.equal(embedded.layers[0].config.variableName, "Custom_01");
+    assert.equal(effectiveExportName(embedded, embedded.layers[0]), "dlym_custom_01");
+    for (const variableName of [null, 5, "a".repeat(121)]) {
+      const bad = structuredClone(next); Object.assign(bad.layers[0].config, { variableName });
+      assert.equal(isPsdDraft(bad), false);
+      const badSidecar = structuredClone(sidecar); Object.assign(badSidecar.layers[0].config, { variableName });
+      assert.throws(() => applySidecar(structure(), badSidecar), /切图/);
+    }
+    restored.layers[0].config.exportName = "old_override"; restored.layers[0].config.variableName = "";
+    const cleared = applySidecar(structure(), JSON.parse(JSON.stringify(makeSidecar(restored))));
+    assert.equal(effectiveExportName(cleared, cleared.layers[0]), defaultExportName(asset.name, cleared.layers[0].name));
+  } },
   { name: "PSD atlas names share lowercase, separator and pinyin normalization with placeholders and exports", run() {
     for (const [input, expected] of [
       ["Common UI", "common_ui"], ["公共资源", "ggzy"], ["登录_按钮", "dl_an"],
@@ -77,7 +104,7 @@ export const psdAtlasTests = [
       assert.equal(normalizeAtlasName(input), expected);
       assert.equal(normalizeAtlasName(expected), expected);
       assert.equal(defaultAtlasName(input + ".PSD"), expected);
-      assert.equal(defaultExportName("Other.psd", "按钮底图", input), `btn_${expected}_andt`);
+      assert.equal(defaultExportName("Other.psd", "按钮底图", input), `${expected}_andt`);
     }
     for (const input of [undefined, "", "   ", "__!-"]) assert.equal(normalizeAtlasName(input), undefined);
   } },
@@ -103,13 +130,13 @@ export const psdAtlasTests = [
     for (const layer of edited.layers.filter(l => !l.group)) {
       assert.equal(effectiveExportName(edited, layer), defaultExportName(edited.name, layer.name, "Common"));
       const sharedLayer = { ...layer, config: { ...layer.config, shared: true } };
-      assert.equal(effectiveExportName(edited, sharedLayer), defaultExportName(edited.name, layer.name, undefined, true));
-      assert.equal(effectiveExportName(edited, sharedLayer), effectiveExportName(original, sharedLayer));
+      assert.equal(effectiveExportName(edited, sharedLayer), defaultExportName(edited.name, layer.name, "Common"));
+      assert.notEqual(effectiveExportName(edited, sharedLayer), effectiveExportName(original, sharedLayer));
     }
     const layer = edited.layers.find(l => !l.group)!;
     const sharedAsset = { ...edited, layers: edited.layers.map(l => l.key === layer.key ? { ...l, config: { ...l.config, shared: true } } : l) };
     assert.notEqual(sliceGenerationStamp(edited), sliceGenerationStamp(sharedAsset));
-    assert.equal(effectiveExportName(edited, { ...layer, config: { ...layer.config, exportName: "CUSTOM" } }), "custom");
+    assert.equal(effectiveExportName(edited, { ...layer, config: { ...layer.config, exportName: "CUSTOM" } }), "common_custom");
     assert.equal(effectiveExportName(edited, { ...layer, config: { ...layer.config, exportName: "" } }), defaultExportName(edited.name, layer.name, "Common"));
   } }
 ];

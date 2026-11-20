@@ -2,7 +2,8 @@ import type { OverrideActions } from "./editor/override-properties";
 import { canvasPropertyLabel } from "./editor/override-properties";
 import type { CanvasOverrideGroup, CanvasOverrideManager } from "./editor/override-panel";
 import { sliderOwner } from "../shared/ui-parts";
-import { ArrowLeft, Box, Check, ChevronDown, ChevronRight, Focus, GitMerge, Layers3, LayoutDashboard, LayoutPanelTop, Minus, MousePointerClick, Play, Plus, Redo2, Save, Scissors, SquareDashed, Undo2 } from "lucide-react";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import { ArrowLeft, Box, Check, ChevronDown, ChevronRight, Focus, FileImage, GitMerge, Layers3, LayoutDashboard, LayoutPanelTop, Link2, Minus, MoreHorizontal, MousePointerClick, Play, Plus, Redo2, Save, Scissors, SquareDashed, Undo2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import type { Frame, GameFlowNode, GameFlowPage, PageRootType } from "../shared/model";
 import { allocateElementId, reserveDocumentElementIds } from "../shared/element-id";
@@ -17,6 +18,7 @@ import type { HostToWebviewMessage } from "../shared/protocol";
 import { COMPONENT_TOOLS } from "./editor/component-tools";
 import { Button } from "./components/ui/button";
 import { CanvasDots } from "./components/canvas-dots";
+import { PrototypeIcon } from "./components/prototype-icon";
 import { Popover, PopoverContent, PopoverTrigger } from "./components/ui/popover";
 import { Separator } from "./components/ui/separator";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./components/ui/tooltip";
@@ -47,8 +49,10 @@ import type { PsdAsset } from "../shared/psd-meta";
 import { sliceGenerationStamp } from "./psd/slice-render";
 import { useRuntimeResources } from "./runtime/resources";
 import { SliceResourcesProvider } from "./runtime/resource-context";
+import { bindPrototypePsd } from "../shared/psd-prototype";
+import { pagePsdKey } from "../shared/page-psd";
 import { usePagePsds } from "./runtime/page-psd";
-import { PageArtState, pageArtReady } from "./editor/page-art-state";
+import { PageArtState, pagePreviewBlocked } from "./editor/page-art-state";
 import { RuntimePreview } from "./runtime/preview";
 
 type Tool = "select" | "hand" | InsertType;
@@ -108,10 +112,26 @@ export function App() {
     if (index >= 0 && sliceGenerationStamp(previous[index]) === sliceGenerationStamp(asset)) return previous;
     return [...previous.filter(a => a.documentId !== asset.documentId), asset];
   }), []);
-  const resourcePages = useMemo(() => canvasDocument?.pages.map(p => composeCanvasPage(canvasDocument, p, sources).page) ?? [], [canvasDocument, sources]);
+  const compositions = useMemo(() => new Map(canvasDocument?.pages.map(p => [p.id, composeCanvasPage(canvasDocument, p, sources)])), [canvasDocument, sources]);
+  const updatePage = (id: string, transform: (page: GameFlowPage) => GameFlowPage) => edit(document => { try { return editCanvasPage(document, id, sources, transform); } catch (error) { setNotice(error instanceof Error ? error.message : String(error)); return document; } });
+  const loadedPsds = usePagePsds(canvasDocument, read, updatePage, observePsd, setNotice, (document, page) => composeCanvasPage(document, page, sources).page);
+  const { resourcePages, mappingErrors } = useMemo(() => {
+    const mappingErrors: typeof loadedPsds.states = {};
+    const resourcePages = Array.from(compositions.values(), ({ page }) => {
+      const asset = loadedPsds.assets[page.id];
+      if (!asset || !canvasDocument) return page;
+      try { return bindPrototypePsd(page, canvasDocument.documentId, asset); }
+      catch (error) {
+        mappingErrors[page.id] = { key: pagePsdKey(page.artPsd), status: "error", error: String(error) };
+        return page;
+      }
+    });
+    return { resourcePages, mappingErrors };
+  }, [compositions, loadedPsds.assets, canvasDocument]);
+  const pagePsds = { ...loadedPsds, states: { ...loadedPsds.states, ...mappingErrors } };
   const canonicalPage = canvasDocument?.pages.find((item) => item.id === (editingId ?? selectedPageId)) ?? null;
-  const composition = useMemo(() => canvasDocument && canonicalPage ? composeCanvasPage(canvasDocument, canonicalPage, sources) : null, [canvasDocument, canonicalPage, sources]);
-  const page = composition?.page ?? null;
+  const composition = canonicalPage ? compositions.get(canonicalPage.id) : undefined;
+  const page = resourcePages.find(item => item.id === canonicalPage?.id) ?? null;
   const readPage = (id: string | null) => { const current = read(), target = current?.pages.find(item => item.id === id); return current && target ? composeCanvasPage(current, target, sources).page : undefined; };
   const currentSelection = page && editingId ? reconcileSelection(page, selection) : singleSelection(null);
   const selectedNodeIds = currentSelection.ids, selectedNodeId = currentSelection.primaryId;
@@ -119,8 +139,6 @@ export function App() {
   const selectedMeta = selectedNode ? composition?.info.get(selectedNode.id) : undefined;
   const scopePath = page && editingId ? selectedNodeIds.length ? canvasScopePath(page, commonSelectionParent(page, selectedNodeIds)) : reconcileCanvasScope(page, scopeIds, null).path : [];
   const scopeId = scopePath.at(-1)?.id ?? null;
-  const updatePage = (id: string, transform: (page: GameFlowPage) => GameFlowPage) => edit(document => { try { return editCanvasPage(document, id, sources, transform); } catch (error) { setNotice(error instanceof Error ? error.message : String(error)); return document; } });
-  const pagePsds = usePagePsds(canvasDocument, read, updatePage, observePsd, setNotice, (document, page) => composeCanvasPage(document, page, sources).page);
   const runtimeResources = useRuntimeResources(psdAssets, resourcePages, settings.settings.resourceDirectory, resourceMode, pagePsds.assets);
   const pageLayout = (page: GameFlowPage) => resolvePageLayout(page, (runtimeResources.forPage?.(page) ?? runtimeResources).sizes);
   const selectedResources = page ? runtimeResources.forPage?.(page) ?? runtimeResources : runtimeResources;
@@ -552,8 +570,9 @@ export function App() {
   if (renderPage && preview?.nodeId && preview.pageId === renderPage.id) renderPage = editNodeFrame(renderPage, preview.nodeId, preview.next, preview.kind === "resize" ? "resize" : "move", runtimeResources.sizes);
   if (renderPage) renderPage = applyColorPreview(renderPage, colorPreview);
   const renderedNode = renderPage?.nodes.find((node) => node.id === selectedNodeId);
+  const selectionBlocked = !!renderPage && pagePreviewBlocked(renderPage, pagePsds, resourceMode);
   const selectionLayout = renderPage ? pageLayout(renderPage) : null;
-  const selectedGeometry = selectedNodeIds.length === 1 && editingId && renderPage && renderedNode && !inheritedFlag(renderPage, renderedNode, "hidden") ? selectionLayout!.nodes.get(renderedNode.id)! : null;
+  const selectedGeometry = !selectionBlocked && selectedNodeIds.length === 1 && editingId && renderPage && renderedNode && !inheritedFlag(renderPage, renderedNode, "hidden") ? selectionLayout!.nodes.get(renderedNode.id)! : null;
   const selectionX = selectedGeometry ? Math.hypot(selectedGeometry.matrix[0], selectedGeometry.matrix[1]) : 1;
   const selectionY = selectedGeometry ? Math.hypot(selectedGeometry.matrix[2], selectedGeometry.matrix[3]) : 1;
   const selectionWidth = (selectedGeometry?.local.width ?? 0)*selectionX*visibleCamera.zoom;
@@ -561,6 +580,13 @@ export function App() {
   const selectionAnchor = selectedGeometry ? mapPoint(selectedGeometry.matrix, { x: (renderedNode?.transform?.anchorX ?? 0)*selectedGeometry.local.width, y: (renderedNode?.transform?.anchorY ?? 0)*selectedGeometry.local.height }) : null;
   const unlocked = renderPage && renderedNode && !inheritedFlag(renderPage, renderedNode, "locked");
   const zoomAtCenter = (factor: number) => { const rect = viewport.current?.getBoundingClientRect(); if (!rect) return; setCamera((previous) => { const zoom = clampZoom(previous.zoom * factor), x = rect.width / 2, y = rect.height / 2; return { x: x - (x - previous.x) / previous.zoom * zoom, y: y - (y - previous.y) / previous.zoom * zoom, zoom }; }); };
+  const switchResourceMode = (next: import("../shared/image-slots").ResourceMode) => {
+    if (next !== resourceMode) {
+      setSelectedNodeId(null); setCanvasMenu(null); gesture.current = null; setPreview(null);
+      setResourceMode(next);
+    }
+    runtimeResources.refresh();
+  };
   const switchMode = (next: WorkspaceMode) => { setCanvasMenu(null); setRenameTarget(null); gesture.current = null; setPreview(null); setSpaceHand(false); setInsertOpen(false); setMode(next); };
 
   const referenceOwner=canvasDocument && selectedMeta?.ownerId ? findOwnedCanvasNode(canvasDocument,selectedMeta.ownerId) : undefined;
@@ -587,6 +613,9 @@ export function App() {
     onRevert:selections=>changeOverrideSelection(selections,false),onApply:selections=>changeOverrideSelection(selections,true)
   } : undefined;
 
+  const resourcePage = page ?? resourcePages.find(p => p.id === selectedPageId) ?? resourcePages[0];
+  const psdActionDisabled = !page || pending || !!composition?.errors.size || pagePsds.busy.has(page.id);
+
   return <SliceResourcesProvider value={{ ...selectedResources, forPage: runtimeResources.forPage }}><TooltipProvider delayDuration={300}><main className="app-shell">
     <header className="topbar"><span className="brand-mark"><Layers3 size={18} /></span><strong>工作台</strong><Separator orientation="vertical" className="topbar-separator" />
       <div ref={setDocumentActions} className="workbench-document-actions" role="group" aria-label="文档操作">{mode === "prototype" ? <>
@@ -598,7 +627,7 @@ export function App() {
       {mode === "prototype" && editingId && page ? <><Button size="sm" variant="ghost" onClick={back}><ArrowLeft size={14} />总览</Button><span className="breadcrumb">/</span></> : null}
       <span className="document-title">{mode === "prototype" ? editingId ? page?.name : canvasDocument?.title ?? "正在打开画布" : "美术工作区"}</span>
       <nav className="mode-switcher" aria-label="工作模式">{([{ id: "prototype", label: "原型", icon: LayoutPanelTop }, { id: "merge", label: "PSD 合并", icon: GitMerge }, { id: "slice", label: "PSD 切图", icon: Scissors }] as const).map(({ icon: Icon, ...item }) => <Tooltip key={item.id}><TooltipTrigger asChild><Button size="icon" variant="ghost" aria-label={item.label} aria-pressed={mode === item.id} className={mode === item.id ? "mode-active" : ""} onClick={() => switchMode(item.id)}><Icon size={16} aria-hidden="true" /></Button></TooltipTrigger><TooltipContent side="bottom">{item.label}</TooltipContent></Tooltip>)}</nav>
-      <div className="workbench-right">{mode === "prototype" && canvasDocument && (page ?? resourcePages.find(p=>p.id===selectedPageId) ?? resourcePages[0]) ? <CanvasExportActions document={canvasDocument} page={(page ?? resourcePages.find(p=>p.id===selectedPageId) ?? resourcePages[0])!} resources={runtimeResources} settings={settings} pagePsds={pagePsds} disabled={pending || !!composition?.errors.size} onNotice={setNotice} /> : null}<div ref={setExportActions} className="workbench-export-actions" /><IconTool label="运行预览" disabled={!canvasDocument?.pages.length} onClick={() => { switchMode("prototype"); setRuntimeOpen(true); }}><Play size={16} /></IconTool><WorkbenchSettingsButton settings={settings} /></div>
+      <div className="workbench-right">{mode === "prototype" && canvasDocument && resourcePage ? <CanvasExportActions document={canvasDocument} page={resourcePage} resources={runtimeResources} settings={settings} disabled={pending || !!composition?.errors.size || !!mappingErrors[resourcePage.id]} onNotice={setNotice} /> : null}<div ref={setExportActions} className="workbench-export-actions" /><IconTool label="运行预览" disabled={!canvasDocument?.pages.length} onClick={() => { switchMode("prototype"); setRuntimeOpen(true); }}><Play size={16} /></IconTool><WorkbenchSettingsButton settings={settings} /></div>
     </header>
     <WorkbenchSettingsPanel settings={settings} file={canvasDocument ? { directory: canvasDocument.exportDirectory, name: resourceName || canvasDocument.title, change: exportDirectory => edit(document => ({ ...document, exportDirectory })) } : undefined} />
     <div ref={viewport} tabIndex={-1} hidden={mode !== "prototype"} className={cn("canvas-viewport", (tool === "hand" || spaceHand) && "hand-tool", preview?.kind === "pan" && "is-panning", (preview?.kind === "node" || preview?.kind === "page") && "is-moving")} aria-label={editingId ? "页面编辑画布" : "页面总览画布"}
@@ -620,10 +649,10 @@ export function App() {
       {scopeId && !directSelection ? <div className="canvas-scope-dimmer" aria-hidden="true" /> : null}
       {!canvasDocument ? <div className="loading-state">{error ?? "正在载入画布…"}</div> : <>
         <div className="canvas-world" style={{ transform: `translate(${visibleCamera.x}px, ${visibleCamera.y}px) scale(${visibleCamera.zoom})` }}>
-          {(editingId ? renderPage ? [renderPage] : [] : canvasDocument.pages.map(item => applyColorPreview(item, colorPreview))).map((item) => {
+          {(editingId ? renderPage ? [renderPage] : [] : resourcePages.map(item => applyColorPreview(item, colorPreview))).map((item) => {
             const frame = preview?.kind === "page" && preview.pageId === item.id ? preview.next : item.frame;
-            const projection = editingId ? null : composeCanvasPage(canvasDocument, item, sources), visualPage = projection?.page ?? item;
-            const geometry = pageLayout(visualPage), artBlocked = resourceMode === "art" && !pageArtReady(visualPage, pagePsds);
+            const visualPage = item, projection = compositions.get(item.id);
+            const geometry = pageLayout(visualPage), artBlocked = pagePreviewBlocked(visualPage, pagePsds, resourceMode);
             const nodes = orderedNodes(visualPage), activeNodes = editingId && scopeId && !directSelection ? descendants(visualPage, scopeId) : null;
             const backgroundNodes = nodes.filter(node => !activeNodes?.has(node.id));
             const foregroundNodes = activeNodes ? nodes.filter(node => activeNodes.has(node.id)) : [];
@@ -648,7 +677,7 @@ export function App() {
             {scopePath.map((node, index) => <span className="canvas-scope-step" key={node.id}><ChevronRight size={12} aria-hidden="true" /><button type="button" title={`编辑 ${node.name} 的子节点 · ${COMPONENTS[node.type].laya}`} aria-current={index === scopePath.length - 1 ? "location" : undefined} onClick={() => navigateScope(node.id)}><NodeIcon type={node.type} /><span>{node.name}</span></button></span>)}
           </nav> : null}
         </div>
-        {selectedNodeIds.length > 1 && renderPage ? selectedNodeIds.map(id => {
+        {!selectionBlocked && selectedNodeIds.length > 1 && renderPage ? selectedNodeIds.map(id => {
           const node = renderPage!.nodes.find(item => item.id === id)!, g = selectionLayout!.nodes.get(id)!;
           if (!g.inverse || inheritedFlag(renderPage!, node, "hidden")) return null;
           return <div key={id} className="selection-box multi-selection-box" data-selected-node-id={id} style={{ left: 0, top: 0, width: g.local.width, height: g.local.height, transformOrigin: "0 0", transform: `matrix(${g.matrix.slice(0,4).map(v => v * visibleCamera.zoom).join(",")},${visibleCamera.x+g.matrix[4]*visibleCamera.zoom},${visibleCamera.y+g.matrix[5]*visibleCamera.zoom})` }} />;
@@ -666,12 +695,12 @@ export function App() {
           <CanvasViewItems onFit={()=>{setCanvasMenu(null);fit([page],true);}} onBack={()=>{setCanvasMenu(null);if(scopeId){const current=scopePath.at(-1)!;navigateScope(current.parentId ?? null,current.id);}else back();}} backLabel={scopeId ? "返回上一级" : "返回总览"}/>
         </LayerMenu> : <CanvasOverviewMenu target={canvasMenu?.kind === "overview" ? canvasMenu.target : null} page={canvasDocument.pages.find(item=>item.id===canvasMenu?.pageId)} onClose={()=>setCanvasMenu(null)} onRestoreFocus={restoreCanvasFocus}
           onEnter={()=>{const target=canvasDocument.pages.find(item=>item.id===canvasMenu?.pageId);if(target)enter(target);}} onRename={()=>beginCanvasRename()} onDuplicate={duplicate} onDelete={remove} onAddPage={addPage} onFit={()=>fit(canvasDocument.pages,false)} />}
-        {page && inspectorOpen ? <Inspector makeId={newIds()} onPsd={() => switchMode("slice")} variablePage={{...page,nodes:page.nodes.filter(node=>composition?.info.get(node.id)?.scope===selectedMeta?.scope)}} referenceMeta={selectedMeta} referenceName={referenceName} overrideManager={overrideManager} overrideActions={overrideActions} onOpenSource={() => { if (selectedNode) openSource(selectedNode.id); }} referenceError={selectedMeta?.ownerId ? composition?.errors.get(selectedMeta.ownerId) : undefined} onColorPreview={setColorPreview} selectedNodes={page.nodes.filter(node => selectedNodeIds.includes(node.id))} onCreateParts={() => { if (editingId && selectedNodeId) { const makeId = newIds(); updatePage(editingId, item => createControlParts(item, selectedNodeId, makeId)); } }} panelRef={panels.rightRef} panelStyle={panels.rightStyle} page={page} node={selectedNode} editingPage={!!editingId} onNode={patchNode} onPage={(transform) => updatePage(page.id, transform)} onClose={() => setInspectorOpen(false)} onEnter={() => enter(page)} onImport={requestImport} /> : null}
+        {page && inspectorOpen ? <Inspector makeId={newIds()} variablePage={{...page,nodes:page.nodes.filter(node=>composition?.info.get(node.id)?.scope===selectedMeta?.scope)}} referenceMeta={selectedMeta} referenceName={referenceName} overrideManager={overrideManager} overrideActions={overrideActions} onOpenSource={() => { if (selectedNode) openSource(selectedNode.id); }} referenceError={selectedMeta?.ownerId ? composition?.errors.get(selectedMeta.ownerId) : undefined} onColorPreview={setColorPreview} selectedNodes={selectionBlocked ? [] : page.nodes.filter(node => selectedNodeIds.includes(node.id))} onCreateParts={() => { if (editingId && selectedNodeId) { const makeId = newIds(); updatePage(editingId, item => createControlParts(item, selectedNodeId, makeId)); } }} panelRef={panels.rightRef} panelStyle={panels.rightStyle} page={page} node={selectionBlocked ? null : selectedNode} editingPage={!!editingId} onNode={patchNode} onPage={(transform) => updatePage(page.id, transform)} onClose={() => setInspectorOpen(false)} onEnter={() => enter(page)} onImport={requestImport} /> : null}
         {canvasDocument.pages.length === 0 ? <div className="empty-canvas"><LayoutPanelTop size={32} /><strong>从第一个页面开始</strong><p>用底部 + 添加游戏界面</p><Button onClick={() => addPage()}><Plus size={15} />添加页面</Button></div> : null}
         <div className="canvas-toolbar floating-panel" onPointerDown={(event) => event.stopPropagation()}>
           <IconTool label="直选模式" active={directSelection} onClick={() => setDirectSelection(value => !value)}><MousePointerClick size={19} /></IconTool>
           <IconTool label="虚线框" active={showContainerOutlines} onClick={() => setShowContainerOutlines(value => !value)}><SquareDashed size={19} /></IconTool>
-          <Separator orientation="vertical" /><div className="resource-mode-tools" role="group" aria-label="资源显示模式">{([{ id: "prototype", label: "原型", icon: LayoutDashboard }, { id: "art", label: "美术 PSD", icon: Layers3 }, { id: "prefab", label: "预制体", icon: Box }] as const).map(({ id, label, icon: Icon }) => <IconTool key={id} label={label + "资源"} active={resourceMode === id} onClick={() => { setResourceMode(id); runtimeResources.refresh(); }}><Icon size={17} /></IconTool>)}</div>
+          <Separator orientation="vertical" /><div className="resource-mode-tools" role="group" aria-label="资源显示模式">{([{ id: "prototype", label: "原型", icon: PrototypeIcon }, { id: "art", label: "美术 PSD", icon: Layers3 }, { id: "prefab", label: "预制体", icon: Box }] as const).map(({ id, label, icon: Icon }) => <IconTool key={id} label={label + "资源"} active={resourceMode === id} onClick={() => switchResourceMode(id)}><Icon size={17} /></IconTool>)}</div>
           <Separator orientation="vertical" /><Popover open={insertOpen} onOpenChange={setInsertOpen}><PopoverTrigger asChild><Button size="icon" variant="ghost" className="toolbar-button insert-trigger" aria-label="添加页面或控件"><Plus size={20} /><ChevronDown size={9} /></Button></PopoverTrigger><PopoverContent side="top" align="start" collisionPadding={12} className="insert-menu" aria-label="添加页面或控件菜单">
             <div className="menu-heading">添加到画布</div>
             <div className="insert-grid" role="group" aria-label="添加到画布">{PAGE_ROOT_TYPES.map((type) => { const Icon = type === "UIBox" ? LayoutDashboard : LayoutPanelTop; return <button key={type} onClick={() => addPage(type)}><Icon size={16} /><span>{PAGE_ROOTS[type].label} <small className="menu-class">({type})</small></span></button>; })}</div>
@@ -680,6 +709,13 @@ export function App() {
             <div className="insert-grid" role="group" aria-label="添加控件">{TOOLS.map(({ type, icon: Icon }) => <button key={type} disabled={!editingId} onClick={() => chooseInsertTool(type)}><Icon size={16} /><span>{NODE_LABELS[type]} <small className="menu-class">({COMPONENTS[type].laya})</small></span></button>)}</div>
           </PopoverContent></Popover>
           <div className="direct-tools">{TOOLS.filter((item) => item.key).map(({ type, icon: Icon, key }) => <IconTool key={type} label={`${NODE_LABELS[type]} (${key})`} disabled={!editingId} active={tool === type} onClick={() => chooseInsertTool(type)}><Icon size={19} /></IconTool>)}</div>
+          <Separator orientation="vertical" /><DropdownMenu.Root modal={false}>
+            <Tooltip><TooltipTrigger asChild><DropdownMenu.Trigger asChild><Button size="icon" variant="ghost" className="toolbar-button" aria-label="更多"><MoreHorizontal size={19} /></Button></DropdownMenu.Trigger></TooltipTrigger><TooltipContent side="top">更多</TooltipContent></Tooltip>
+            <DropdownMenu.Portal><DropdownMenu.Content loop side="top" align="end" sideOffset={8} collisionPadding={12} className="layer-context-menu" onPointerDown={event => event.stopPropagation()} onKeyDown={event => event.stopPropagation()}>
+              <DropdownMenu.Item disabled={psdActionDisabled} onSelect={() => { if (page && !psdActionDisabled) void pagePsds.run(page.id, "generate"); }}><FileImage size={15} /><span>生成 PSD</span></DropdownMenu.Item>
+              <DropdownMenu.Item disabled={psdActionDisabled} onSelect={() => { if (page && !psdActionDisabled) void pagePsds.run(page.id, "choose"); }}><Link2 size={15} /><span>{page?.artPsd ? "重新绑定 PSD" : "绑定 PSD"}</span></DropdownMenu.Item>
+            </DropdownMenu.Content></DropdownMenu.Portal>
+          </DropdownMenu.Root>
         </div>
       </>}
       {notice || (canvasDocument && error) ? <div className="editor-notice" role="status">{notice || error}</div> : null}
@@ -694,7 +730,7 @@ export function App() {
     </div>
     <PsdWorkspace mode="merge" active={mode === "merge"} settings={settings} />
     <PsdWorkspace mode="slice" active={mode === "slice" && !runtimeOpen} binding={psdEditor.binding} documentActions={documentActions} exportActions={exportActions} settings={settings} exportPending={pending} onAsset={observePsd} />
-    {runtimeOpen ? <RuntimePreview pagePsds={pagePsds} resourceMode={resourceMode} onResourceMode={setResourceMode} pages={resourcePages} initialPageId={editingId ?? selectedPageId ?? undefined} onClose={() => setRuntimeOpen(false)} /> : null}
+    {runtimeOpen ? <RuntimePreview pagePsds={pagePsds} resourceMode={resourceMode} onResourceMode={switchResourceMode} pages={resourcePages} initialPageId={editingId ?? selectedPageId ?? undefined} onClose={() => setRuntimeOpen(false)} /> : null}
     {psdEditor.initialError && mode === "slice" ? <div className="psd-status psd-warning" role="alert">{psdEditor.initialError}</div> : null}
   </main></TooltipProvider></SliceResourcesProvider>;
 }

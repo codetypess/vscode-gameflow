@@ -1,6 +1,8 @@
 import type { GameFlowDocument, GameFlowNode, GameFlowPage } from "./model";
+import { DEFAULT_IMAGE_ID, imageRenderSize } from "./image-rendering";
+import { resolvePageLayout } from "./ui-layout";
 import { COMPONENTS, pageRootType } from "./ui-components";
-import { builtinImage, builtinPath, IMAGE_SLOT_FIELDS, type ImageSlot, type ImageSlotField } from "./image-slots";
+import { builtinImage, builtinPath, IMAGE_SLOT_FIELDS, nodeImageSlot, type BuiltinImage, type ImageSlot, type ImageSlotField } from "./image-slots";
 import { isSliceResourcePath, type SliceResourceDescription, type SliceResourceRef } from "./slice-resources";
 import { parseResourceManifest, RESOURCE_MANIFEST, type ResourceManifest } from "./psd-export";
 import { exportDirectoryError } from "./export-directory";
@@ -10,7 +12,7 @@ export interface PrefabImage { path: string; base64: string; description: SliceR
 export interface PrefabExportBatch { name: string; directory?: string; prefab: Record<string, unknown>; images: PrefabImage[] }
 export interface MissingImage { nodeId: string; nodeName: string; slot: ImageSlotField; path: string; error: string }
 export interface PrefabPlan { batch: PrefabExportBatch; missing: MissingImage[] }
-export type ExportImageResolver = (ref: SliceResourceRef) => Promise<{ status: "ready"; image: PrefabImage } | { status: "error"; error: string }>;
+export type ExportImageResolver = (ref: SliceResourceRef, render?: { builtin: BuiltinImage; width: number; height: number }) => Promise<{ status: "ready"; image: PrefabImage } | { status: "error"; error: string }>;
 
 /** Stable importer identity: every reference to the same portable resource path uses the same UUID. */
 export function resourceUuid(path: string): string {
@@ -32,6 +34,7 @@ export function prefabFileName(page: GameFlowPage): string {
 
 export async function planPrefabExport(document: GameFlowDocument, page: GameFlowPage, resolve: ExportImageResolver): Promise<PrefabPlan> {
   const images = new Map<string,PrefabImage>(), refs = new Map<string,string>(), missing: MissingImage[] = [];
+  const placeholders: {node:GameFlowNode;field:ImageSlotField;builtin:BuiltinImage}[] = [];
   for (const node of page.nodes) for (const [field,slot] of nodeSlots(node)) {
     if (!slot) continue;
     const path = slot.art?.path ?? (slot.builtin ? builtinPath(slot.builtin) : undefined);
@@ -44,7 +47,26 @@ export async function planPrefabExport(document: GameFlowDocument, page: GameFlo
     } else {
       const builtin = builtinImage(slot.builtin!);
       if (!builtin) { missing.push({nodeId:node.id,nodeName:node.name,slot:field,path,error:"内置图片不存在"}); continue; }
+      if (builtin.id === DEFAULT_IMAGE_ID) { placeholders.push({node,field,builtin}); continue; }
       images.set(path,{path,base64:builtin.dataUri.split(",")[1],description:{path,width:builtin.width,height:builtin.height,nineGrid:builtin.nineGrid,source:{documentId:"gameflow-builtin",psdName:"builtin.psd",sourceHash:"0".repeat(64)},layerId:builtin.id,layerName:builtin.name,shared:true}});
+    }
+  }
+  // Geometry follows the resources being exported, independently of the active preview mode.
+  if (placeholders.length) {
+    const sizes = new Map<string,{width:number;height:number}>();
+    for (const node of page.nodes) {
+      const slot = nodeImageSlot(node, "art"), art = slot?.art ?? (node.image === undefined ? node.sliceResource : undefined);
+      const image = art ? images.get(art.path)?.description : slot?.builtin ? builtinImage(slot.builtin) : undefined;
+      if (image) sizes.set("@node:" + node.id, "logicalSize" in image && image.logicalSize ? image.logicalSize : image);
+    }
+    const layout = resolvePageLayout(page, sizes);
+    for (const {node,field,builtin} of placeholders) {
+      const size = imageRenderSize(page,node,layout), path = builtinPath(builtin.id,size);
+      refs.set(node.id+":"+field,path);
+      if (images.has(path)) continue;
+      const result = await resolve({path},{builtin,...size});
+      if (result.status === "error") missing.push({nodeId:node.id,nodeName:node.name,slot:field,path,error:result.error});
+      else images.set(path,result.image);
     }
   }
   // Missing references retain their portable path; successful images use importer UUIDs.

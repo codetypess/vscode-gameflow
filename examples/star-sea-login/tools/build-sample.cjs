@@ -20,7 +20,7 @@ let shared;
 try {
   const out = path.join(temp, "shared.cjs");
   require("esbuild").buildSync({
-    stdin: { contents: 'export * from "./shared/model"; export * from "./shared/element-id"; export * from "./shared/ui-layout"; export * from "./shared/ui-components"; export * from "./shared/psd-meta"; export * from "./shared/psd-binary";', resolveDir: repo },
+    stdin: { contents: 'export * from "./shared/model"; export * from "./shared/element-id"; export * from "./shared/ui-layout"; export * from "./shared/ui-components"; export * from "./shared/psd-meta"; export * from "./shared/psd-binary"; export * from "./shared/psd-export";', resolveDir: repo },
     bundle: true, platform: "node", format: "cjs", outfile: out,
   });
   shared = require(out);
@@ -38,6 +38,9 @@ const pageId = id("elements", "page");
 const transparent = { fill: "transparent", borderColor: "transparent", borderWidth: 0, radius: 0, fontWeight: 400 };
 const assetOut = path.join(root, "assets");
 fs.mkdirSync(assetOut, { recursive: true });
+const atlasName = "login";
+const startButtonExportName = "start";
+const startNormalName = `btn_${atlasName}_${startButtonExportName}_normal`;
 const nodes = design.nodes.map(n => {
   const node = {
     id: id("elements", n.key), name: n.name, variableName: n.variableName, type: n.type,
@@ -50,7 +53,7 @@ const nodes = design.nodes.map(n => {
     node.image = { ...n.image, art: { path: "unclassified/" + n.key + ".png", source: { documentId: ids.psdDocumentId, layerId: id("layers", n.key + ".pixels") } } };
     node.widget = { imageFit: "fill" };
   } else if (n.type === "button") {
-    node.normalSkin = { ...n.normalSkin, art: { path: "unclassified/" + n.normalAsset + ".png", source: { documentId: ids.psdDocumentId, layerId: id("layers", n.normalAsset + ".pixels") } } };
+    node.normalSkin = { ...n.normalSkin, art: { path: `unclassified/${startNormalName}.png`, source: { documentId: ids.psdDocumentId, layerId: id("layers", n.normalAsset + ".pixels") } } };
     fs.copyFileSync(path.join(assetsDir, n.normalAsset + ".png"), path.join(assetOut, n.normalAsset + ".png"));
   } else if (n.type === "text") {
     node.text = n.text;
@@ -106,7 +109,7 @@ handler.write = (w, target, ...args) => {
 let nativeId = 200;
 const bindings = [];
 function meta(key, role, extra = {}) {
-  return { namespace: "com.codetypes.gameflow", version: 1, documentId: ids.psdDocumentId, layerId: id("layers", key), role, ...extra };
+  return { namespace: "com.codetypes.gameflow", version: 1, documentId: ids.psdDocumentId, layerId: id("layers", key), role, atlasName, ...extra };
 }
 function prototypeRef(key, layaClass) {
   return { documentId: ids.prototypeDocumentId, pageId, nodeId: id("elements", key), layaClass };
@@ -134,8 +137,9 @@ function layer(n) {
     binding.asset = { path: `assets/${n.key}.png`, rasterLayerId: base.children[0].gameflowMetadata.layerId, nativeId: pixelId, nineGrid: n.nineGrid ?? null };
   } else if (n.type === "button") {
     base.opened = true;
+    base.gameflowMetadata.slicing = { enabled: false, name: base.name, exportName: startButtonExportName, nineGrid: null };
     const key = n.normalAsset, definition = design.resources.find(r => r.key === key), pixelId = ++nativeId;
-    base.children = [{ id: pixelId, name: "@normal", ...raster(key), gameflowMetadata: meta(key + ".pixels", "asset.raster", { prototype: { ...ref, slot: "normalSkin" }, slicing: { enabled: true, name: "@normal", exportName: key, nineGrid: definition.nineGrid ?? null } }) }, ...design.nodes.filter(child => child.parent === n.key).map(layer)];
+    base.children = [{ id: pixelId, name: "@normal", ...raster(key), gameflowMetadata: meta(key + ".pixels", "asset.raster", { prototype: { ...ref, slot: "normalSkin" }, slicing: { enabled: true, name: "@normal", nineGrid: definition.nineGrid ?? null } }) }, ...design.nodes.filter(child => child.parent === n.key).map(layer)];
     binding.asset = { path: "assets/" + key + ".png", slot: "normalSkin", rasterLayerId: base.children[0].gameflowMetadata.layerId, nativeId: pixelId, nineGrid: definition.nineGrid ?? null };
   } else if (n.type === "text") {
     Object.assign(base, raster(n.key), { text: assets[n.key].text });
@@ -192,13 +196,14 @@ for (const binding of bindings) {
   }
 }
 const hash = createHash("sha256").update(bytes).digest("hex");
-const asset = { name: psdName, sourceHash: hash, documentId: ids.psdDocumentId, hasEmbeddedIdentity: true,
+const asset = { name: psdName, atlasName, sourceHash: hash, documentId: ids.psdDocumentId, hasEmbeddedIdentity: true,
   width: design.width, height: design.height, preview: "", layers: parsed.layers.map(r => ({
     key: r.key, nativeId: r.nativeId, parentKey: r.parentKey, name: r.name, group: !!r.divider,
     left: r.left, top: r.top, width: r.width, height: r.height, hidden: r.hidden,
     identityOrigin: "embedded", metadata: r.metadata,
     config: r.metadata.slicing ?? { enabled: false, name: r.name, nineGrid: null },
   })) };
+assert.equal(shared.effectiveExportName(asset, asset.layers.find(l => l.name === "@normal")), startNormalName);
 const sidecar = shared.makeSidecar(asset);
 assert.deepEqual(shared.makeSidecar(shared.applySidecar(asset, sidecar)), sidecar);
 fs.writeFileSync(path.join(root, "Star-Sea-Login-750x1334.meta.json"), JSON.stringify(sidecar, null, 2) + "\n");

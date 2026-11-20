@@ -34,13 +34,15 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 
 ## Active Work Items
 
+- [page-psd-layer-conventions.md](page-psd-layer-conventions.md) — Done：PSD 变量与只读导出名拆行，统一图集/变量命名、状态继承与灰色只读展示；368 项共享测试、VS Code 宿主、两项 Edge 回归及生产构建通过。
+
 - [page-psd-binding.md](page-psd-binding.md) — Done：页面独立保存 PSD 文件关联；美术模式未绑定入口、生成即绑定、后台装载、多页文件资源隔离和保存重开完成。358 项共享测试、46 项原生宿主检查、新增页面浏览器/7 项像素及既有 14 组浏览器回归、生产构建通过。
 
 - [internal-extension-updates.md](internal-extension-updates.md) — Verifying：vsix.bitserver.wang 的分发容器、签名目录、发布工具和更新器已部署；333 项原测试、10 项分发测试及 Windows 真机插件/更新器自身升级通过；等待主机 Nginx 的 sudo reload 完成域名入口验收。
 
 - [prototype-art-prefab-resource-modes.md](prototype-art-prefab-resource-modes.md) — Verifying：三种资源模式、69 张内置 PNG、UIButton 三态、控件图片部件、横向/圆形进度、PSD 生成/稳定关联和 Prefab 输出已实现，示例已直接更新；350 项共享测试、14 组浏览器、41 项 PSD/资源宿主、6 项实例宿主检查及生产构建通过。真实 Laya 工程和 Photoshop 往返待验收，复杂 PSD 变换与 imageFit 的目标映射边界已记录。
 
-- [psd-atlas-name.md](psd-atlas-name.md) — Done：文件级图集名默认仅作 placeholder，小写/下划线/拼音首字母统一用于输入、旧配置回读与导出；共享默认名省略图集名，取消共享恢复当前图集；自定义值进入配置/草稿/PSD 副本/历史并刷新运行预览。322 项共享测试、生产构建、真实 PSD 中英文输入/下划线/跨图层/清空及此前窄窗口验收通过。
+- [psd-atlas-name.md](psd-atlas-name.md) — Done：文件级图集名默认仅作 placeholder，小写/下划线/拼音首字母统一用于输入、旧配置回读与导出；普通/共享资源统一包含图集名，变量与导出名分行（见 page-psd-layer-conventions）；自定义值进入配置/草稿/PSD 副本/历史并刷新运行预览。322 项共享测试、生产构建、真实 PSD 中英文输入/下划线/跨图层/清空及此前窄窗口验收通过。
 
 - [psd-slice-region.md](psd-slice-region.md) — Done：独立导出尺寸、拖动图片/四边线、方向键微调、滚轮缩放、居中/透明留白/裁剪、九宫格区域适配及配置持久化；313 项共享测试、3 项既有浏览器像素检查、生产构建及真实 PSD/360px 窄窗口/草稿重载验收通过；输入框对齐、外侧聚焦框及方向文字移除，弹窗标题栏普通指针拖动与右下角缩放完成。
 
@@ -62,7 +64,7 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 
 - [canvas-context-menu.md](canvas-context-menu.md) — Done：总览画板/空白、页内节点/当前层空白右键菜单，复用图层命令及保护；含右键位置新增、重命名对话框和键盘菜单。244 项测试、生产构建及总览/页内/多选/保护/窄窗口浏览器验收通过。
 
-- [psd-export-names.md](psd-export-names.md) — Done：按图层名选择 btn/img 前缀，非共享默认名包含图集与图层缩写，共享默认名只含图层缩写（图集规则见 psd-atlas-name）；自定义优先，图层树标记冲突，分类目录输出 PNG 及根清单，共享导出覆盖并更新来源。333 项共享测试和生产构建通过；共享命名开关/不同图集同名输出及真实 PSD 验收通过，原生目录选择器端到端联调未覆盖。
+- [psd-export-names.md](psd-export-names.md) — Done：变量与只读导出名称拆行，统一 `{图集名}_{变量名}`，共享也保留图集，不自动添加 btn/img；详见 [page-psd-layer-conventions.md](page-psd-layer-conventions.md)。保留冲突检测、分类目录和来源清单。
 
 - [canvas-instance-editing.md](canvas-instance-editing.md) — Done：v5 引用实例展开、局部覆盖/附加节点、专色与“+”标记、属性右键还原/应用到源及继承结构保护；引用区简化为单行，覆盖属性默认双栏，支持跨节点逐字段勾选还原/应用。261 项回归、生产构建、浏览器交互及真实 VS Code 跨文件关联撤销/保存验收通过，保留 v1–v4 读取。
 
@@ -111,7 +113,7 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 - [laya-control-asset-bindings.md](laya-control-asset-bindings.md) — Draft：按当前 xq-client 节点皮肤契约设计 Slider/CheckBox/Radio 部件、RadioGroup 引用，以及原型、PSD 切图与 Prefab 的资产绑定闭环。
 - [psd-three-way-merge.md](psd-three-way-merge.md) — Draft：左侧两份 PSD 的图层树/预览、右侧合并结果；共同基础版本、逐节点采用、PSD 依赖和结果输出。
 
-The completed [psd-independent-directory.md](psd-independent-directory.md) defines root-level shared/unclassified/atlas routing, reserved names, a path-based v2 root ledger, transactional writes and legacy reads. [psd-inspector-sections.md](psd-inspector-sections.md) separates always-editable document settings from layer sections and shares prototype top alignment and overlay scrolling across properties and both layer trees. These changes passed 333 shared tests, production build, 39 native host checks and real PSD/prototype browser checks. [psd-layer-tree-density.md](psd-layer-tree-density.md) and [psd-zoom-top-left.md](psd-zoom-top-left.md) record the compact shared marker and top-left zoom controls; lasting rules are incorporated in the baselines.
+The completed [psd-independent-directory.md](psd-independent-directory.md) defines root-level shared/unclassified/atlas routing, reserved names, a path-based v2 root ledger, transactional writes and legacy reads. [psd-inspector-sections.md](psd-inspector-sections.md) shows document settings for the PSD selection and slice properties for a layer selection and shares prototype top alignment and overlay scrolling across properties and both layer trees. These changes passed 333 shared tests, production build, 39 native host checks and real PSD/prototype browser checks. [psd-layer-tree-density.md](psd-layer-tree-density.md) and [psd-zoom-top-left.md](psd-zoom-top-left.md) record the compact shared marker and top-left zoom controls; lasting rules are incorporated in the baselines.
 
 The completed [workspace-modes-psd-slicing.md](workspace-modes-psd-slicing.md) records three compact icon modes, real PSD import, slice/nine-grid configuration, same-name sidecars, metadata-only PSD copies and manual selection preview trees. Build, 35 shared tests, browser interactions and independent PSD output parsing passed. Extension Host/Photoshop validation and full merge/export delivery remain separate follow-ups.
 
@@ -165,6 +167,14 @@ Add active work items as direct children of this directory using lowercase kebab
 Remove completed work items from this list after their lasting decisions have been incorporated into the relevant baseline specs. Git history remains the audit trail.
 
 [PSD 工作区启动与页面绑定隔离](psd-workspace-startup-regression.md) 修复恢复 PSD 抢占原型画布，明确切图打开、页面绑定与保存的独立边界。
+
+[页面 PSD 的 Windows 相对路径修复](page-psd-windows-path-regression.md) — Done：同盘盘符和目录大小写不再误判为跨盘；共享宿主控制器回归与真实 VS Code 另存为验证通过。
+
+- [default-image-rendering.md](default-image-rendering.md) — Done：默认图片灰白背景加居中等比图标，PSD 与尺寸对应的 Prefab PNG 一致；覆盖磁盘读取、内容测量布局及临时预览缩放。364 项共享测试、生产构建及浏览器像素回归通过。
+
+- [resource-mode-selection.md](resource-mode-selection.md) — Done：切换三种资源模式清空编辑器和运行预览节点选择，保留页面、相机及临时控件状态；浏览器验收通过。
+
+- [页面 PSD 图层约定](page-psd-layer-conventions.md) — Done。按公开组名与状态标记自动匹配，两个预览模式使用页面 PSD 并显示导出名。
 
 ## Source Of Truth
 

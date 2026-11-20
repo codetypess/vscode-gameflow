@@ -1,4 +1,5 @@
-import { defaultAtlasName, identityProblems, sliceRegion, validConfig, validGrid, type NineGrid, type PsdAsset } from "./psd-meta";
+import { defaultAtlasName, identityProblems, sliceRegion, validConfig, validGrid, type NineGrid, type PsdAsset, type PsdLayer } from "./psd-meta";
+import { psdSlotField } from "./psd-slot-markers";
 import { atlasNameError, normalizeAtlasName, psdNameInitials } from "./psd-naming";
 import { exportDirectoryError } from "./export-directory";
 
@@ -30,20 +31,51 @@ const hash = (v: unknown): v is string => typeof v === "string" && /^[a-f0-9]{64
 const text = (v: unknown, max = 512): v is string => typeof v === "string" && v.length > 0 && v.length <= max;
 const sourceValid = (v: unknown): v is ExportSource => record(v) && text(v.documentId, 128) && text(v.psdName) && !/[\\/]/.test(v.psdName) && /\.psd$/i.test(v.psdName) && hash(v.sourceHash);
 
-export function defaultExportName(psdName: string, layerName: string, atlasName?: string, shared = false): string {
-  const prefix = layerName.includes("按钮") ? "btn" : "img", layer = psdNameInitials(layerName);
-  if (!layer) return "";
-  if (shared) return `${prefix}_${layer}`;
+export function defaultVariableName(layerName: string): string {
+  return psdNameInitials(layerName.replace(/\s*\(UI[A-Za-z]+\)\s*$/, ""));
+}
+export function defaultExportName(psdName: string, layerName: string, atlasName?: string): string {
+  const layer = defaultVariableName(layerName);
   const atlas = normalizeAtlasName(atlasName) ?? defaultAtlasName(psdName);
-  return atlas ? `${prefix}_${atlas}_${layer}` : "";
+  return atlas && layer ? `${atlas}_${layer}` : "";
 }
 export function exportNameError(value: string): string | null {
   if (!/^[a-zA-Z0-9_]{1,120}$/.test(value)) return "导出名称须为 1–120 位英文字母、数字或下划线，不含扩展名。";
   if (/^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i.test(value)) return "导出名称不能使用系统保留名称。";
   return null;
 }
-export function effectiveExportName(asset: Pick<PsdAsset, "name" | "atlasName">, layer: PsdAsset["layers"][number]): string {
-  return (layer.config.exportName || defaultExportName(asset.name, layer.name, asset.atlasName, layer.config.shared)).toLowerCase();
+function markerOwner(asset: PsdAsset, layer: PsdLayer) {
+  return psdSlotField(layer.name) && asset.layers.find(parent => parent.group && parent.key === layer.parentKey);
+}
+export function isLayerVariableNameFixed(asset: PsdAsset, layer: PsdLayer): boolean {
+  return !!markerOwner(asset, layer);
+}
+
+export function exportLayerName(asset: PsdAsset, layer: PsdLayer): string {
+  const owner = markerOwner(asset, layer);
+  return owner ? `${owner.name}/${layer.name.trim()}` : layer.name;
+}
+/** Read old overrides without applying legacy prefix rules to newly entered variables. */
+export function layerVariableOverride(asset: PsdAsset, layer: PsdLayer): string {
+  if (layer.config.variableName !== undefined) return layer.config.variableName;
+  const legacy = layer.config.exportName ?? "";
+  const buttonGroup = layer.group && asset.layers.some(child => child.parentKey === layer.key &&
+    psdSlotField(child.name) !== undefined && psdSlotField(child.name) !== "image");
+  return buttonGroup ? legacy.replace(/^btn_/i, "") : legacy;
+}
+export function defaultLayerVariableName(asset: PsdAsset, layer: PsdLayer): string {
+  const owner = markerOwner(asset, layer);
+  if (!owner) return defaultVariableName(layer.name);
+  const variable = effectiveVariableName(asset, owner);
+  return !variable || psdSlotField(layer.name) === "image" ? variable : `${variable}_${layer.name.trim().slice(1)}`;
+}
+export function effectiveVariableName(asset: PsdAsset, layer: PsdLayer): string {
+  return (!isLayerVariableNameFixed(asset, layer) && layerVariableOverride(asset, layer).toLowerCase()) || defaultLayerVariableName(asset, layer);
+}
+export function effectiveExportName(asset: PsdAsset, layer: PsdLayer): string {
+  const atlas = normalizeAtlasName(asset.atlasName) ?? defaultAtlasName(asset.name);
+  const variable = effectiveVariableName(asset, layer);
+  return atlas && variable ? `${atlas}_${variable}` : "";
 }
 /** The optional independent atlas directory, always directly below the resource root. */
 export function psdExportDirectory(asset: Pick<PsdAsset, "name" | "atlasName" | "independentDirectory">): string | undefined {
@@ -77,7 +109,7 @@ export function sliceExportIssues(asset: PsdAsset): ExportIssue[] {
     if (identities.includes(l.metadata.layerId)) issues.push({ keys: [l.key], message: `${l.name}：图层 ID 重复，请先分配新身份。` });
     if (!validConfig(l.config, l.width, l.height)) issues.push({ keys: [l.key], message: `${l.name}：切图区域或九宫格范围无效。` });
   }
-  for (const [label, keyOf] of [["同名图层", (l: typeof layers[number]) => layerNameKey(l.name)], ["导出名称", (l: typeof layers[number]) => `${l.config.shared ? "shared" : directory}/${effectiveExportName(asset, l)}`]] as const) {
+  for (const [label, keyOf] of [["同名图层", (l: typeof layers[number]) => layerNameKey(exportLayerName(asset, l))], ["导出名称", (l: typeof layers[number]) => `${l.config.shared ? "shared" : directory}/${effectiveExportName(asset, l)}`]] as const) {
     const groups = new Map<string, typeof layers>();
     for (const l of layers) { const key = keyOf(l); groups.set(key, [...groups.get(key) ?? [], l]); }
     for (const [key, items] of groups) if (items.length > 1) issues.push({ keys: items.map(l => l.key), message: `${label}“${key}”重复导出：${items.map(l => `${l.name}（${l.nativeId ?? l.key}）`).join("、")}。请只保留一个导出来源。` });
@@ -98,7 +130,7 @@ export function makeSliceExportBatch(asset: PsdAsset, products?: ReadonlyMap<num
       if (!image?.startsWith("data:image/png;base64,")) throw new Error(`${l.name}：没有有效的 PNG 切图。`);
       const { width, height } = sliceRegion(l);
       const geometry = product?.geometry ?? { width, height, nineGrid: l.config.nineGrid };
-      return { name: effectiveExportName(asset, l), layerId: l.metadata.layerId, layerName: l.name, shared: l.config.shared === true,
+      return { name: effectiveExportName(asset, l), layerId: l.metadata.layerId, layerName: exportLayerName(asset, l), shared: l.config.shared === true,
         width: geometry.width, height: geometry.height, nineGrid: geometry.nineGrid,
         ...(geometry.logicalSize && { logicalSize: geometry.logicalSize }), base64: image.slice("data:image/png;base64,".length) };
     })

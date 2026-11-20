@@ -1,21 +1,65 @@
-import type { GameFlowPage } from "./model";
+import type { GameFlowNode, GameFlowPage } from "./model";
 import { IMAGE_SLOT_FIELDS, type ImageSlotField } from "./image-slots";
-import { effectiveExportName, psdSliceDirectory } from "./psd-export";
-import type { PsdAsset } from "./psd-meta";
+import { effectiveExportName, layerNameKey, psdSliceDirectory } from "./psd-export";
+import type { PsdAsset, PsdLayer } from "./psd-meta";
+import { psdSlotField } from "./psd-slot-markers";
 import { sliceResourcePath } from "./slice-resources";
-export interface PrototypeLayerRef { documentId:string; pageId:string; nodeId:string; slot?:ImageSlotField }
-export function prototypeLayerRef(value:unknown):value is PrototypeLayerRef {
-  if(!value || typeof value!=="object")return false;
-  const ref=value as PrototypeLayerRef;
-  return [ref.documentId,ref.pageId,ref.nodeId].every(v=>typeof v==="string"&&!!v)&&(ref.slot===undefined||IMAGE_SLOT_FIELDS.includes(ref.slot));
+
+export interface PrototypeLayerRef { documentId: string; pageId: string; nodeId: string; slot?: ImageSlotField }
+export function prototypeLayerRef(value: unknown): value is PrototypeLayerRef {
+  if (!value || typeof value !== "object") return false;
+  const ref = value as PrototypeLayerRef;
+  return [ref.documentId, ref.pageId, ref.nodeId].every(v => typeof v === "string" && !!v) &&
+    (ref.slot === undefined || IMAGE_SLOT_FIELDS.includes(ref.slot));
 }
-/** Only explicit stable identities link art to slots; duplicate names never identify controls. */
-export function bindPrototypePsd(page:GameFlowPage,documentId:string,asset:PsdAsset):GameFlowPage {
-  const bindings=new Map<string,Map<ImageSlotField,PsdAsset["layers"][number]>>();
-  for(const layer of asset.layers){const ref=layer.metadata.prototype;if(!prototypeLayerRef(ref)||ref.documentId!==documentId||ref.pageId!==page.id||!ref.slot||!layer.config.enabled)continue;const slots=bindings.get(ref.nodeId)??new Map();if(slots.has(ref.slot))throw new Error("同一控件图片槽位关联了多个 PSD 图层，请先处理重复身份。");slots.set(ref.slot,layer);bindings.set(ref.nodeId,slots);}
-  return {...page,nodes:page.nodes.map(node=>{
-    const slots=bindings.get(node.id);if(!slots)return node;const next={...node};
-    for(const[field,layer]of slots){if(field==="image"?node.type!=="image":node.type!=="button")continue;next[field]={...node[field],art:{path:sliceResourcePath(psdSliceDirectory(asset,layer.config.shared),effectiveExportName(asset,layer)),source:{documentId:asset.documentId,layerId:layer.metadata.layerId}}};}
-    return next;
-  })};
+
+function matchSlot(layer: PsdLayer, layers: ReadonlyMap<number, PsdLayer>, page: GameFlowPage, documentId: string):
+    { node: GameFlowNode; field: ImageSlotField } | undefined {
+  const parent = layer.parentKey === null ? undefined : layers.get(layer.parentKey);
+  const marker = psdSlotField(layer.name);
+  if (marker && !parent?.group) return;
+  const ref = layer.metadata.prototype;
+  const legacy = prototypeLayerRef(ref) && ref.documentId === documentId && ref.pageId === page.id ? ref : undefined;
+  const field = marker ?? legacy?.slot ?? "image";
+  const publicName = layerNameKey(marker && parent ? parent.name : layer.name);
+  const candidates = page.nodes.filter(node => node.type === (field === "image" ? "image" : "button"));
+  const named = candidates.filter(node => layerNameKey(node.name) === publicName);
+  const byId = legacy?.slot === field ? candidates.find(node => node.id === legacy.nodeId) : undefined;
+  if (named.length === 1) return { node: named[0], field };
+  if (named.length > 1) {
+    if (byId && named.includes(byId)) return { node: byId, field };
+    throw new Error(`页面有多个同名控件“${publicName}”，请区分控件名与对应 PSD 图层名。`);
+  }
+  // Older generated PSDs embed slot identities and sometimes decorate group names with the runtime class.
+  if (byId && (!marker || publicName === `${byId.name} (${byId.type === "button" ? "UIButton" : "UIImage"})`)) return { node: byId, field };
+}
+
+/** Resolve public PSD names on each load. Embedded identities also support older generated PSDs. */
+export function bindPrototypePsd(page: GameFlowPage, documentId: string, asset: PsdAsset): GameFlowPage {
+  const layers = new Map(asset.layers.map(layer => [layer.key, layer]));
+  const bindings = new Map<string, Map<ImageSlotField, PsdLayer>>();
+  for (const layer of asset.layers) {
+    if (!layer.config.enabled) continue;
+    const target = matchSlot(layer, layers, page, documentId);
+    if (!target) continue;
+    const { node, field } = target;
+    const slots = bindings.get(node.id) ?? new Map<ImageSlotField, PsdLayer>();
+    if (slots.has(field)) throw new Error(`“${node.name}”的 ${layer.name} 对应多个 PSD 图层，请保留一个导出来源。`);
+    slots.set(field, layer);
+    bindings.set(node.id, slots);
+  }
+  return { ...page, nodes: page.nodes.map(node => {
+    const result = { ...node };
+    for (const field of IMAGE_SLOT_FIELDS) {
+      const layer = bindings.get(node.id)?.get(field);
+      const slot = node[field];
+      if (layer) {
+        const path = sliceResourcePath(psdSliceDirectory(asset, layer.config.shared), effectiveExportName(asset, layer));
+        result[field] = { ...slot, art: { path, source: { documentId: asset.documentId, layerId: layer.metadata.layerId } } };
+      } else if (slot?.art) {
+        result[field] = slot.builtin ? { builtin: slot.builtin } : null;
+      }
+    }
+    return result;
+  }) };
 }

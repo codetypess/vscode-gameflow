@@ -1,4 +1,5 @@
 import builtinImages from "./builtin-images.json";
+import { DEFAULT_IMAGE_ID } from "./image-rendering";
 import type { GameFlowNode } from "./model";
 import { isSliceResourceRef, type SliceResourceRef } from "./slice-resources";
 import type { NineGrid } from "./psd-meta";
@@ -9,7 +10,10 @@ export interface BuiltinImage { id: string; name: string; category: string; widt
 export const BUILTIN_IMAGES = builtinImages as BuiltinImage[];
 export const BUILTIN_CATEGORIES = ["按钮", "色块", "圆形", "图标", "单选/复选"] as const;
 export const builtinImage = (id: string) => BUILTIN_IMAGES.find(image => image.id === id);
-export const builtinPath = (id: string) => "builtin/" + id.replace(/-/g, "_") + ".png";
+export const builtinPath = (id: string, size?: { width: number; height: number }) => {
+  const suffix = id === DEFAULT_IMAGE_ID && size ? "_" + String(size.width).replace(".", "p") + "x" + String(size.height).replace(".", "p") : "";
+  return "builtin/" + id.replace(/-/g, "_") + suffix + ".png";
+};
 export function isImageSlot(value: unknown): value is ImageSlot | null {
   if (value === null) return true;
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
@@ -32,13 +36,13 @@ export function nodeArtRefs(node: GameFlowNode): SliceResourceRef[] {
   return [...(node.sliceResource ? [node.sliceResource] : []), ...IMAGE_SLOT_FIELDS.flatMap(field => node[field]?.art ? [node[field]!.art!] : [])];
 }
 export type SlotRequest = { kind: "empty" } | { kind: "builtin"; image: BuiltinImage } | { kind: "resource"; ref: SliceResourceRef } | { kind: "error"; error: string };
-export function imageSlotRequest(slot: ImageSlot | null | undefined, mode: ResourceMode): SlotRequest {
+export function imageSlotRequest(slot: ImageSlot | null | undefined, mode: ResourceMode, size?: { width: number; height: number }): SlotRequest {
   if (!slot) return { kind: "empty" };
   if (mode !== "prototype" && slot.art) return { kind: "resource", ref: slot.art };
   if (!slot.builtin) return { kind: "empty" };
   const image = builtinImage(slot.builtin);
   if (!image) return { kind: "error", error: "内置图片不存在：" + slot.builtin };
-  return mode === "prefab" ? { kind: "resource", ref: { path: builtinPath(image.id) } } : { kind: "builtin", image };
+  return mode === "prefab" ? { kind: "resource", ref: { path: builtinPath(image.id, size) } } : { kind: "builtin", image };
 }
 export const progressRatio = (node: GameFlowNode) => {
   const min = node.widget?.min ?? 0, max = node.widget?.max ?? 1;

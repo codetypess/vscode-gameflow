@@ -4,7 +4,7 @@ export { defaultAtlasName } from "./psd-naming";
 
 export type NineGrid = { top: number; right: number; bottom: number; left: number; repeat: boolean };
 export type SliceRegion = { x: number; y: number; width: number; height: number };
-export type SliceConfig = { enabled: boolean; name: string; exportName?: string; shared?: boolean; region?: SliceRegion; nineGrid: NineGrid | null };
+export type SliceConfig = { enabled: boolean; name: string; variableName?: string; /** Legacy variable override. */ exportName?: string; shared?: boolean; region?: SliceRegion; nineGrid: NineGrid | null };
 export type PsdLayerMeta = Record<string, unknown> & { namespace: "com.codetypes.gameflow"; version: 1; documentId: string; layerId: string; atlasName?: string; independentDirectory?: boolean; slicing?: SliceConfig };
 export type PsdLayer = { key: number; nativeId: number | null; parentKey: number | null; name: string; group: boolean; left: number; top: number; width: number; height: number; hidden: boolean; identityOrigin: "embedded" | "new"; metadata: PsdLayerMeta; config: SliceConfig; image?: string; text?: boolean; limitation?: string };
 export type PsdAsset = { name: string; atlasName?: string; independentDirectory?: boolean; sourceHash: string; documentId: string; hasEmbeddedIdentity: boolean; width: number; height: number; layers: PsdLayer[]; preview: string };
@@ -62,7 +62,7 @@ export function setGridEdge(grid: NineGrid, edge: "top" | "right" | "bottom" | "
 export function validConfig(value: unknown, width: number, height: number): value is SliceConfig {
   if (!record(value) || (value.region !== undefined && !validSliceRegion(value.region))) return false;
   const region = value.region as SliceRegion | undefined;
-  return typeof value.enabled === "boolean" && typeof value.name === "string" && value.name.length <= 120 && (value.exportName === undefined || typeof value.exportName === "string" && value.exportName.length <= 120) && (value.shared === undefined || typeof value.shared === "boolean") && (value.nineGrid === null || validGrid(value.nineGrid, region?.width ?? width, region?.height ?? height));
+  return typeof value.enabled === "boolean" && typeof value.name === "string" && value.name.length <= 120 && (value.variableName === undefined || typeof value.variableName === "string" && value.variableName.length <= 120) && (value.exportName === undefined || typeof value.exportName === "string" && value.exportName.length <= 120) && (value.shared === undefined || typeof value.shared === "boolean") && (value.nineGrid === null || validGrid(value.nineGrid, region?.width ?? width, region?.height ?? height));
 }
 export function identityProblems(asset: PsdAsset): string[] {
   const counts = new Map<string, number>();

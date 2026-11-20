@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type PointerEvent } from "react";
-import { Box, Layers3, LayoutDashboard, RotateCcw, X } from "lucide-react";
+import { Box, Layers3, RotateCcw, X } from "lucide-react";
 import type { GameFlowNode, GameFlowPage } from "../../shared/model";
 import { sliceRegion, type PsdAsset } from "../../shared/psd-meta";
 import { resolvePageLayout } from "../../shared/ui-layout";
@@ -7,13 +7,15 @@ import { mapPoint } from "../../shared/ui-transform";
 import { previewControl } from "../../shared/preview-session";
 import { NodeView, orderedNodes } from "../editor/node-view";
 import { Button } from "../components/ui/button";
+import { PrototypeIcon } from "../components/prototype-icon";
 import { pagePsdKey } from "../../shared/page-psd";
-import { PageArtState, pageArtReady } from "../editor/page-art-state";
+import { PageArtState, pagePreviewBlocked } from "../editor/page-art-state";
 import type { PagePsdActions } from "./page-psd";
 import { SliceResourcesProvider, ResourceCanvas, useSliceResources } from "./resource-context";
 import "./preview.css";
 
 import { imageSlotRequest, nodeImageSlot, type ResourceMode } from "../../shared/image-slots";
+import { imageRenderSize } from "../../shared/image-rendering";
 import { nodeSlots } from "../../shared/prefab-export";
 
 export function RuntimePreview({ pagePsds, resourceMode, onResourceMode, pages, initialPageId, onClose }: { pagePsds: PagePsdActions; resourceMode?:ResourceMode; onResourceMode?(mode:ResourceMode):void; pages: GameFlowPage[]; initialPageId?: string; onClose(): void }) {
@@ -24,11 +26,11 @@ export function RuntimePreview({ pagePsds, resourceMode, onResourceMode, pages, 
   const page = session.baseline === baseline ? session.page : baseline;
   const [zoom, setZoom] = useState(1), [compare, setCompare] = useState(false);
   const allResources = useSliceResources(), resources = page ? allResources.forPage?.(page) ?? allResources : allResources, sizes = resources.sizes;
-  const artBlocked = !!page && resourceMode === "art" && !pageArtReady(page, pagePsds);
+  const artBlocked = !!page && pagePreviewBlocked(page, pagePsds, resourceMode ?? resources.mode ?? "art");
   const geometry = page ? resolvePageLayout(page, sizes) : null;
-  const selected = page?.nodes.find(n => n.id === nodeId), selectedGeometry = selected && geometry?.nodes.get(selected.id);
+  const selected = artBlocked ? undefined : page?.nodes.find(n => n.id === nodeId), selectedGeometry = selected && geometry?.nodes.get(selected.id);
   const selectedSlot = selected ? nodeImageSlot(selected, resources.mode) : undefined;
-  const selectedRequest = imageSlotRequest(selectedSlot, resources.mode ?? "art");
+  const selectedRequest = imageSlotRequest(selectedSlot, resources.mode ?? "art", page && selected && geometry ? sizes.get("@builtin:" + selected.id) ?? imageRenderSize(page, selected, geometry) : undefined);
   const selectedResource = selectedRequest.kind === "resource" ? resources.resolve(selectedRequest.ref) : selected?.image === undefined && selected?.sliceResource && resources.mode !== "prototype" ? resources.resolve(selected.sliceResource) : undefined;
   const update = (transform: (p: GameFlowPage) => GameFlowPage) => { if (page) setSession({ baseline, page: transform(page) }); };
   const reset = () => { setSession({ baseline, page: baseline }); setCompare(false); };
@@ -75,7 +77,7 @@ export function RuntimePreview({ pagePsds, resourceMode, onResourceMode, pages, 
   const product = selectedResource?.status === "ready" ? selectedResource : undefined;
   const design = baseline && selected ? resolvePageLayout(baseline, sizes).nodes.get(selected.id)?.local : undefined;
   return <SliceResourcesProvider value={resources}><dialog ref={dialog} className="runtime-preview" aria-label="运行预览" onCancel={e => { e.preventDefault(); onClose(); }} onKeyDown={e => e.stopPropagation()}>
-    <header className="runtime-heading"><strong>运行预览</strong>{onResourceMode ? <div className="resource-mode-tools" role="group" aria-label="预览资源显示模式">{([{id:"prototype",label:"原型",icon:LayoutDashboard},{id:"art",label:"美术 PSD",icon:Layers3},{id:"prefab",label:"预制体",icon:Box}] as const).map(({id,label,icon:Icon})=><Button key={id} size="icon" variant="ghost" aria-label={label+"资源"} aria-pressed={resourceMode===id} title={label} onClick={()=>{onResourceMode(id);resources.refresh();}}><Icon size={16}/></Button>)}</div> : null}<select aria-label="预览页面" value={page?.id ?? ""} onChange={e => { setPageId(e.target.value); setNodeId(""); setCompare(false); }}>{pages.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select><span className="runtime-session-note">临时状态</span>
+    <header className="runtime-heading"><strong>运行预览</strong>{onResourceMode ? <div className="resource-mode-tools" role="group" aria-label="预览资源显示模式">{([{id:"prototype",label:"原型",icon:PrototypeIcon},{id:"art",label:"美术 PSD",icon:Layers3},{id:"prefab",label:"预制体",icon:Box}] as const).map(({id,label,icon:Icon})=><Button key={id} size="icon" variant="ghost" aria-label={label+"资源"} aria-pressed={resourceMode===id} title={label} onClick={()=>{if(id!==resourceMode){setNodeId("");setCompare(false);}onResourceMode(id);}}><Icon size={16}/></Button>)}</div> : null}<select aria-label="预览页面" value={page?.id ?? ""} onChange={e => { setPageId(e.target.value); setNodeId(""); setCompare(false); }}>{pages.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select><span className="runtime-session-note">临时状态</span>
       <Button size="icon" variant="ghost" aria-label="重置预览状态" title="重置预览状态" onClick={reset}><RotateCcw size={15} /></Button><Button size="icon" variant="ghost" aria-label="关闭运行预览" onClick={onClose}><X size={17} /></Button></header>
     <div className="runtime-content"><div className="runtime-main"><div className="runtime-view-tools"><label>缩放 <input aria-label="预览缩放" type="number" min={5} max={300} value={Math.round(zoom * 100)} onChange={e => setZoom(Math.max(.05, Math.min(3, Number(e.target.value) / 100)))} />%</label><Button size="sm" variant="ghost" onClick={fit}>适应窗口</Button><label><input type="checkbox" checked={compare} disabled={!psd} onChange={e => setCompare(e.target.checked)} />PSD 原图对照</label></div>
       <div className="runtime-stage checkerboard" ref={stage}>
@@ -89,7 +91,7 @@ export function RuntimePreview({ pagePsds, resourceMode, onResourceMode, pages, 
           {!artBlocked && selectedGeometry ? <div className="runtime-node-outline" style={{ width: selectedGeometry.local.width, height: selectedGeometry.local.height, transform: `matrix(${selectedGeometry.matrix.join(",")})`, borderWidth: 1 / zoom }} /> : null}
         </div></div> : <p>当前没有可预览页面。</p>}
       </div></div>
-      <aside className="runtime-inspector"><label className="runtime-field">检查控件<select aria-label="预览检查控件" value={selected?.id ?? ""} onChange={e => setNodeId(e.target.value)}><option value="">选择控件</option>{page?.nodes.map(n => <option key={n.id} value={n.id}>{n.name}</option>)}</select></label>
+      <aside className="runtime-inspector"><label className="runtime-field">检查控件<select disabled={artBlocked} aria-label="预览检查控件" value={selected?.id ?? ""} onChange={e => setNodeId(e.target.value)}><option value="">选择控件</option>{page?.nodes.map(n => <option key={n.id} value={n.id}>{n.name}</option>)}</select></label>
         {selected && selectedGeometry ? <><strong>{selected.name}</strong><div className="runtime-size-inputs"><label>宽<input aria-label="临时控件宽度" type="number" min={1} max={4096} value={Math.round(selectedGeometry.local.width)} onChange={e => resizeSelected(Math.max(1, Math.min(4096, Number(e.target.value))), selectedGeometry.local.height)} /></label><label>高<input aria-label="临时控件高度" type="number" min={1} max={4096} value={Math.round(selectedGeometry.local.height)} onChange={e => resizeSelected(selectedGeometry.local.width, Math.max(1, Math.min(4096, Number(e.target.value))))} /></label></div>
           {design ? <div className="runtime-size-presets">{[{ label: "设计尺寸", w: design.width, h: design.height }, { label: "加宽", w: design.width * 1.5, h: design.height }, { label: "加高", w: design.width, h: design.height * 1.5 }, { label: "双轴", w: design.width * 1.5, h: design.height * 1.5 }, { label: "小尺寸", w: Math.max(1, (product?.description.nineGrid?.left ?? 8) + (product?.description.nineGrid?.right ?? 8) - 1), h: Math.max(1, (product?.description.nineGrid?.top ?? 8) + (product?.description.nineGrid?.bottom ?? 8) - 1) }].map(p => <Button key={p.label} size="sm" variant="outline" onClick={() => resizeSelected(p.w, p.h)}>{p.label}</Button>)}</div> : null}
           {selected.type === "slider" || selected.type === "progress" ? <label className="runtime-field">当前值<input aria-label={selected.type === "progress" ? "临时进度值" : "临时滑块值"} type="range" min={selected.widget?.min ?? 0} max={selected.widget?.max ?? 1} step="any" disabled={selected.widget?.disabled} value={selected.widget?.value ?? selected.widget?.min ?? 0} onChange={e => update(p => previewControl(p, selected.id, Number(e.target.value)))} /></label> : null}

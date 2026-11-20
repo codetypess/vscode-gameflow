@@ -5,7 +5,6 @@ import { ChevronDown, ChevronUp, ImagePlus, LockKeyhole, X } from "lucide-react"
 import type { Frame, GameFlowNode, GameFlowPage, NodeStyle, PageRootType } from "../../shared/model";
 import { addBackgroundImage, defaultStyle, inheritedFlag, NODE_LABELS } from "../../shared/editor-ops";
 import { Button } from "../components/ui/button";
-import { Separator } from "../components/ui/separator";
 import { ScrollArea } from "../components/ui/scroll-area";
 import { Field, ColorField, NumericPropertyRow, SliderPropertyRow } from "./fields";
 import { VariableField } from "./variable-field";
@@ -21,10 +20,9 @@ import type { CanvasNodeInfo } from "../../shared/canvas-instances";
 import { TextControls } from "./text-controls";
 import { ReferenceBar } from "./reference-bar";
 import type { CanvasOverrideManager } from "./override-panel";
-import { SliceBindingField } from "../runtime/binding-field";
 import { useSliceResources } from "../runtime/resource-context";
 
-export function Inspector({ makeId, page, variablePage = page, node, selectedNodes = [], editingPage, onNode, onPage, onColorPreview, onClose, onEnter, onImport, onCreateParts, panelRef, panelStyle, referenceError, referenceName, overrideManager, onOpenSource, referenceMeta, overrideActions, onPsd }: {
+export function Inspector({ makeId, page, variablePage = page, node, selectedNodes = [], editingPage, onNode, onPage, onColorPreview, onClose, onEnter, onImport, onCreateParts, panelRef, panelStyle, referenceError, referenceName, overrideManager, onOpenSource, referenceMeta, overrideActions }: {
   makeId?: () => string;
   variablePage?: GameFlowPage;
   page: GameFlowPage; node: GameFlowNode | null; editingPage: boolean;
@@ -35,7 +33,6 @@ export function Inspector({ makeId, page, variablePage = page, node, selectedNod
   onColorPreview: (preview: ColorPreview | null) => void;
   onClose: () => void; onEnter: () => void; onImport: () => void;
   onCreateParts: () => void;
-  onPsd: () => void;
   referenceError?: string; onOpenSource: () => void;
   referenceName?: string; overrideManager?: CanvasOverrideManager;
   referenceMeta?: CanvasNodeInfo; overrideActions?: OverrideActions;
@@ -93,10 +90,10 @@ export function Inspector({ makeId, page, variablePage = page, node, selectedNod
           <Field label="字号" type="number" min={1} max={300} value={appearance.fontSize} disabled={locked} onCommit={(fontSize) => setStyle({ fontSize: Number(fontSize) })} />
           <ColorField label="文字颜色" value={appearance.color} disabled={locked} onPreview={value => previewColor("color", value)} onCommit={(color) => setStyle({ color })} />
           <TextControls style={appearance} valign={node.widget?.valign ?? (node.type === "text" ? "top" : "middle")} disabled={locked} onStyle={setStyle} onVertical={valign => onNode(node.id, { widget: { ...node.widget, valign } })} />
-          <LabelProperties node={node} locked={locked} onNode={onNode} /><Separator />
+          <LabelProperties node={node} locked={locked} onNode={onNode} />
         </> : null}
-        {node.type === "image" ? <ImageSlotField node={node} field="image" label="图片" disabled={locked} onChange={image => onNode(node.id, { image })} onPsd={onPsd} /> : null}
-        {node.type === "button" ? <><ImageSlotField node={node} field="normalSkin" label="普通图片" disabled={locked} onChange={normalSkin => onNode(node.id, { normalSkin })} onPsd={onPsd} /><ImageSlotField node={node} field="selectedSkin" label="选中图片" disabled={locked} onChange={selectedSkin => onNode(node.id, { selectedSkin })} onPsd={onPsd} /><ImageSlotField node={node} field="disabledSkin" label="禁用图片" disabled={locked} onChange={disabledSkin => onNode(node.id, { disabledSkin })} onPsd={onPsd} />{!node.normalSkin ? <p className="property-hint">普通图片为空，按钮保留点击区域。</p> : null}</> : null}
+        {node.type === "image" ? <ImageSlotField node={node} field="image" label="图片" disabled={locked} onChange={image => onNode(node.id, { image })} /> : null}
+        {node.type === "button" ? <><ImageSlotField node={node} field="normalSkin" label="普通图片" disabled={locked} onChange={normalSkin => onNode(node.id, { normalSkin })} /><ImageSlotField node={node} field="selectedSkin" label="选中图片" disabled={locked} onChange={selectedSkin => onNode(node.id, { selectedSkin })} /><ImageSlotField node={node} field="disabledSkin" label="禁用图片" disabled={locked} onChange={disabledSkin => onNode(node.id, { disabledSkin })} />{!node.normalSkin ? <p className="property-hint">普通图片为空，按钮保留点击区域。</p> : null}</> : null}
         {!node.prefab && COMPONENTS[node.type].children && node.type !== "button" && flowType(node) === "free" ? <><div className="property-section-title">外观</div><Button variant="outline" size="sm" disabled={locked} onClick={() => onPage(item => {
           const reserved = new Set(item.nodes.map(child => child.id)); return addBackgroundImage(item, node.id, makeId ?? (() => allocateElementId(reserved)));
         })}><ImagePlus size={14} />添加背景图片</Button></> : null}

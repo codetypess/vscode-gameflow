@@ -40,7 +40,7 @@ GameFlow 当前 `WidgetProps` 只有横向/纵向 direction，没有 ProgressBar
 - 打开原型文件时，默认进入“原型”模式。
 - 用户主动清空的图片槽位保持为空，不因进入原型模式而自动补图；未配置的 UIButton selected/disabled 状态仍按三态规则回退到 normal。
 - **美术 PSD**：使用各页面明确绑定的 PSD 生成的内存资源。未绑定页面显示生成/绑定入口，详见 [页面级 PSD 绑定](page-psd-binding.md)。
-- **预制体**：使用原型结构装载已经导出到磁盘的资源；不宣称验证真实 Prefab 结构。
+- **预制体**：页面需先绑定并成功加载 PSD，再使用原型结构装载已经导出到磁盘的资源；不宣称验证真实 Prefab 结构。
 - 没有 PSD 时，Prefab 导出使用内置资源，不因缺少美术文件而阻断结构交付。
 
 ### 4.2 UIBox 外观
@@ -204,7 +204,7 @@ GameFlow 当前 `WidgetProps` 只有横向/纵向 direction，没有 ProgressBar
 
 ## 9. Acceptance Criteria
 
-- 原型默认只显示内置 PNG；美术模式使用内存切图，预制体模式使用导出磁盘图片。
+- 原型默认只显示内置资源（默认图片按背景与图标分别绘制，见 [默认图片渲染](default-image-rendering.md)）；美术模式使用内存切图，预制体模式使用导出磁盘图片。
 - UIBox 本身透明，每次添加背景增加普通 UIImage；UIButton 自身持有三态图片，UILabel 独立。
 - Radio/Checkbox 显隐标记，Slider 移动滑块，ProgressBar 横向/圆形填充，以及 ComboBox textLabel 均可编辑、保存并预览。
 - 无 PSD 可导出内置资源；绑定失效显示错误，用户确认继续后保留缺失引用。

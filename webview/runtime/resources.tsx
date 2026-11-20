@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { nodeArtRefs, IMAGE_SLOT_FIELDS, builtinPath, builtinImage, nodeImageSlot, imageSlotRequest, type ResourceMode } from "../../shared/image-slots";
+import { resolvePageLayout } from "../../shared/ui-layout";
+import { DEFAULT_IMAGE_ID, imageRenderSize } from "../../shared/image-rendering";
 import type { GameFlowPage } from "../../shared/model";
-import { effectiveExportName, psdSliceDirectory } from "../../shared/psd-export";
+import { effectiveExportName, exportLayerName, psdSliceDirectory } from "../../shared/psd-export";
 import type { PsdAsset } from "../../shared/psd-meta";
 import { resolveSliceResource, sliceResourcePath, sourceKey, type SliceResourceDescription, type SliceResourceRef } from "../../shared/slice-resources";
 import { generateSliceProducts, loadSliceImage, sliceGenerationStamp } from "../psd/slice-render";
@@ -11,7 +13,7 @@ import type { Resources, RuntimeResource } from "./resource-context";
 function description(asset: PsdAsset, layer: PsdAsset["layers"][number]): SliceResourceDescription {
   const region = layer.config.region ?? layer;
   return { path: sliceResourcePath(psdSliceDirectory(asset, layer.config.shared), effectiveExportName(asset, layer)), width: region.width, height: region.height, nineGrid: layer.config.nineGrid,
-    source: { documentId: asset.documentId, psdName: asset.name, sourceHash: asset.sourceHash }, layerId: layer.metadata.layerId, layerName: layer.name, shared: layer.config.shared === true };
+    source: { documentId: asset.documentId, psdName: asset.name, sourceHash: asset.sourceHash }, layerId: layer.metadata.layerId, layerName: exportLayerName(asset, layer), shared: layer.config.shared === true };
 }
 function merge(entries: Map<string, RuntimeResource>, entry: RuntimeResource, owner: number) {
   if (entry.description) entries.set(owner + ":" + entry.description.path, entry);
@@ -46,9 +48,17 @@ export function useRuntimeResources(observedAssets: PsdAsset[], pages: GameFlowP
     return () => { cancelled = true; };
   }, [stamp]);
   const memory = generated.stamp === stamp ? generated.entries : pending;
-  const paths = useMemo(() => [...new Set([...Array.from(memory.values(), entry => entry.description!.path), ...pages.flatMap(p => p.nodes.flatMap(n => [...nodeArtRefs(n).map(ref => ref.path), ...IMAGE_SLOT_FIELDS.flatMap(field => n[field]?.builtin ? [builtinPath(n[field]!.builtin!)] : [])]))])].sort(), [memory, pages]);
+  const [disk, setDisk] = useState<{ stamp: string; root?: string; entries: Map<string, RuntimeResource>; owners: Map<string, { exists: boolean; documentId?: string }> }>({ stamp: "", entries: new Map(), owners: new Map() });
+  const paths = useMemo(() => {
+    return [...new Set([...Array.from(memory.values(), entry => entry.description!.path), ...pages.flatMap(page => {
+      const sizes = new Map<string, {width:number;height:number}>(), asset = pageAssets[page.id], owner = asset ? assets.indexOf(asset) : -1;
+      if (disk.root === root) for (const [path, entry] of disk.entries) if (entry.status === "ready") sizes.set(path, entry.description.logicalSize ?? entry.description);
+      if (mode !== "prefab") for (const [key, entry] of memory) if (key.startsWith(owner + ":") && entry.status === "ready" && entry.description.source.documentId === page.artPsd?.documentId) sizes.set(entry.description.path, entry.description.logicalSize ?? entry.description);
+      const layout = resolvePageLayout(page, sizes);
+      return page.nodes.flatMap(node => [...nodeArtRefs(node).map(ref => ref.path), ...IMAGE_SLOT_FIELDS.flatMap(field => node[field]?.builtin ? [builtinPath(node[field]!.builtin!, imageRenderSize(page, node, layout))] : [])]);
+    })])].sort();
+  }, [memory, pages, pageAssets, assets, disk.entries, disk.root, root, mode]);
   const pathsKey = JSON.stringify(paths), diskStamp = JSON.stringify([pathsKey, root, revision]);
-  const [disk, setDisk] = useState<{ stamp: string; entries: Map<string, RuntimeResource>; owners: Map<string, { exists: boolean; documentId?: string }> }>({ stamp: "", entries: new Map(), owners: new Map() });
   useEffect(() => {
     const controller = new AbortController();
     void (async () => {
@@ -68,7 +78,7 @@ export function useRuntimeResources(observedAssets: PsdAsset[], pages: GameFlowP
           }
         }
       } catch (error) { for (const path of paths) entries.set(path, { status: "error", error: error instanceof Error ? error.message : String(error) }); }
-      if (!controller.signal.aborted) setDisk({ stamp: diskStamp, entries, owners });
+      if (!controller.signal.aborted) setDisk({ stamp: diskStamp, root, entries, owners });
     })();
     return () => controller.abort();
   }, [diskStamp]);
@@ -96,6 +106,10 @@ export function useRuntimeResources(observedAssets: PsdAsset[], pages: GameFlowP
         const request = imageSlotRequest(nodeImageSlot(node, mode), mode);
         if (request.kind === "builtin") sizes.set("@node:" + node.id, request.image);
         if (request.kind === "resource") { const resource = resolve(request.ref); if (resource.status === "ready") sizes.set("@node:" + node.id, resource.description.logicalSize ?? resource.description); }
+      }
+      if (page.nodes.some(node => IMAGE_SLOT_FIELDS.some(field => node[field]?.builtin === DEFAULT_IMAGE_ID))) {
+        const layout = resolvePageLayout(page, sizes);
+        for (const node of page.nodes) sizes.set("@builtin:" + node.id, imageRenderSize(page, node, layout));
       }
       const resolveForExport = (ref: SliceResourceRef) => scoped.has(ref.path) || ref.source && sources.has(sourceKey(ref.source)) ? resolveSliceResource(ref, scoped, sources) : resolveSliceResource(ref, diskEntries);
       return { mode, entries, memoryEntries: scoped, diskEntries, sizes, resolve, resolveForExport, refresh: () => setRevision(n => n + 1) };

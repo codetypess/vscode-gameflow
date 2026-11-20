@@ -52,7 +52,7 @@ export function NodeView({ page, node, geometry, hitId, referenceError }: { page
   return <div className={`node-body node-${node.type}${referenceError ? " reference-broken" : ""}`} data-node-id={hitId ?? node.id} data-reference-error={referenceError} data-locked={inheritedFlag(page, node, "locked")} style={style}>
     {referenceError ? <span className="reference-error-label" role="status">组件引用失效<br />{referenceError}</span> : null}
     {node.type === "image" || node.type === "button" ? node.type === "button" || node.image !== undefined
-      ? <SlotImage slot={nodeImageSlot(node, resources.mode)} width={bounds.width} height={bounds.height} label={node.name} fit={widget.imageFit ?? "fill"} progress={progress} />
+      ? <SlotImage sourceSize={resources.sizes.get("@builtin:" + node.id)} slot={nodeImageSlot(node, resources.mode)} width={bounds.width} height={bounds.height} label={node.name} fit={widget.imageFit ?? "fill"} progress={progress} />
       : resource ? resource.status === "ready" ? <ResourceCanvas resource={resource} width={bounds.width} height={bounds.height} fit={widget.imageFit ?? "fill"} label={node.name} progress={progress} />
         : <span className="slice-resource-placeholder" role="status" data-resource-status={resource.status}>{resource.status === "error" ? "切图异常\n" + resource.error : "装载中…"}</span>
       : resources.mode !== "prototype" && node.imageData ? <img src={node.imageData} alt={node.name} draggable={false} style={{ objectFit: widget.imageFit ?? "fill" }} />

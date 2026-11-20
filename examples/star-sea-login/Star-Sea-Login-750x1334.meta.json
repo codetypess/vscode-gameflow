@@ -2,9 +2,10 @@
   "schema": "gameflow.psd-meta",
   "version": 1,
   "documentId": "47061573-175a-4735-986e-15e5faa87890",
+  "atlasName": "login",
   "source": {
     "name": "Star-Sea-Login-750x1334.psd",
-    "sha256": "07148bfd1a32ad4f6aac198b0260ca0dd87b8222e77603aa58e5e90027b93680",
+    "sha256": "51e44c5e1e3d1a56ace0443762586d206d43e0ccf8d3907eaf99b432592a6e51",
     "width": 750,
     "height": 1334
   },
@@ -31,6 +32,7 @@
           "nodeId": "umlxcxo4",
           "layaClass": "UIStack"
         },
+        "atlasName": "login",
         "slicing": {
           "enabled": false,
           "name": "星海远征 · 登录 (UIStack)",
@@ -60,6 +62,7 @@
           "nodeId": "bz0nfn04",
           "layaClass": "UILabel"
         },
+        "atlasName": "login",
         "slicing": {
           "enabled": false,
           "name": "底部提示 (UILabel)",
@@ -75,7 +78,8 @@
       "config": {
         "enabled": false,
         "name": "开始远征 (UIButton)",
-        "nineGrid": null
+        "nineGrid": null,
+        "exportName": "start"
       },
       "metadata": {
         "namespace": "com.codetypes.gameflow",
@@ -89,10 +93,12 @@
           "nodeId": "fud92jz0",
           "layaClass": "UIButton"
         },
+        "atlasName": "login",
         "slicing": {
           "enabled": false,
           "name": "开始远征 (UIButton)",
-          "nineGrid": null
+          "nineGrid": null,
+          "exportName": "start"
         }
       }
     },
@@ -118,6 +124,7 @@
           "nodeId": "92i5vexr",
           "layaClass": "UILabel"
         },
+        "atlasName": "login",
         "slicing": {
           "enabled": false,
           "name": "按钮文案 (UILabel)",
@@ -133,7 +140,6 @@
       "config": {
         "enabled": true,
         "name": "@normal",
-        "exportName": "button_bg",
         "nineGrid": {
           "top": 20,
           "right": 20,
@@ -158,7 +164,6 @@
         "slicing": {
           "enabled": true,
           "name": "@normal",
-          "exportName": "button_bg",
           "nineGrid": {
             "top": 20,
             "right": 20,
@@ -166,7 +171,8 @@
             "left": 20,
             "repeat": false
           }
-        }
+        },
+        "atlasName": "login"
       }
     },
     {
@@ -191,6 +197,7 @@
           "nodeId": "k865l2ly",
           "layaClass": "UIBox"
         },
+        "atlasName": "login",
         "slicing": {
           "enabled": false,
           "name": "服务器信息 (UIBox)",
@@ -220,6 +227,7 @@
           "nodeId": "wy3s8pwe",
           "layaClass": "UILabel"
         },
+        "atlasName": "login",
         "slicing": {
           "enabled": false,
           "name": "服务器名称 (UILabel)",
@@ -249,6 +257,7 @@
           "nodeId": "3zt548wx",
           "layaClass": "UIImage"
         },
+        "atlasName": "login",
         "slicing": {
           "enabled": false,
           "name": "连接状态灯 (UIImage)",
@@ -286,7 +295,8 @@
           "name": "status_dot",
           "exportName": "status_dot",
           "nineGrid": null
-        }
+        },
+        "atlasName": "login"
       }
     },
     {
@@ -311,6 +321,7 @@
           "nodeId": "i57rqmsq",
           "layaClass": "UIImage"
         },
+        "atlasName": "login",
         "slicing": {
           "enabled": false,
           "name": "服务器底板 (UIImage)",
@@ -360,7 +371,8 @@
             "left": 12,
             "repeat": false
           }
-        }
+        },
+        "atlasName": "login"
       }
     },
     {
@@ -385,6 +397,7 @@
           "nodeId": "5amcsa7u",
           "layaClass": "UIBox"
         },
+        "atlasName": "login",
         "slicing": {
           "enabled": false,
           "name": "标题区 (UIBox)",
@@ -414,6 +427,7 @@
           "nodeId": "3y70xjmg",
           "layaClass": "UILabel"
         },
+        "atlasName": "login",
         "slicing": {
           "enabled": false,
           "name": "副标题 (UILabel)",
@@ -443,6 +457,7 @@
           "nodeId": "2uij4u4o",
           "layaClass": "UILabel"
         },
+        "atlasName": "login",
         "slicing": {
           "enabled": false,
           "name": "游戏标题 (UILabel)",
@@ -472,6 +487,7 @@
           "nodeId": "3o30ft4g",
           "layaClass": "UIImage"
         },
+        "atlasName": "login",
         "slicing": {
           "enabled": false,
           "name": "星海徽记 (UIImage)",
@@ -509,7 +525,8 @@
           "name": "emblem",
           "exportName": "emblem",
           "nineGrid": null
-        }
+        },
+        "atlasName": "login"
       }
     },
     {
@@ -534,6 +551,7 @@
           "nodeId": "ofnub76o",
           "layaClass": "UIBox"
         },
+        "atlasName": "login",
         "slicing": {
           "enabled": false,
           "name": "背景 (UIBox)",
@@ -563,6 +581,7 @@
           "nodeId": "ct08f7f6",
           "layaClass": "UIImage"
         },
+        "atlasName": "login",
         "slicing": {
           "enabled": false,
           "name": "星点与轨道 (UIImage)",
@@ -600,7 +619,8 @@
           "name": "stars",
           "exportName": "stars",
           "nineGrid": null
-        }
+        },
+        "atlasName": "login"
       }
     },
     {
@@ -625,6 +645,7 @@
           "nodeId": "ptkmcxds",
           "layaClass": "UIImage"
         },
+        "atlasName": "login",
         "slicing": {
           "enabled": false,
           "name": "深空渐变 (UIImage)",
@@ -662,7 +683,8 @@
           "name": "deep_space",
           "exportName": "deep_space",
           "nineGrid": null
-        }
+        },
+        "atlasName": "login"
       }
     }
   ]

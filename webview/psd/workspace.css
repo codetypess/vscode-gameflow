@@ -42,6 +42,9 @@
 .psd-tree-row input, .psd-check input, .repeat-toggle input { accent-color: var(--primary); width: 13px; height: 13px; flex-shrink: 0; align-self: center; cursor: pointer; }
 .psd-tree-label { display: flex; align-items: center; text-align: left; gap: 6px; min-width: 0; padding: 4px 0; flex: 1; color: inherit; border: 0; background: none; font-size: 11px; }
 .psd-tree-label > svg { flex-shrink: 0; }
+.psd-document-row { flex: 0 0 auto; min-height: 28px; padding: 4px 12px; }
+.psd-document-row:hover { background: var(--vscode-list-hoverBackground, #2a2d2e); }
+.psd-document-row[aria-pressed="true"] { background: var(--vscode-list-activeSelectionBackground, #04395e); }
 .psd-tree-label span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .psd-document-preview { flex: 1; display: flex; align-items: center; justify-content: center; min-width: 0; min-height: 0; overflow: hidden; background-image: radial-gradient(circle, var(--canvas-grid) .7px, transparent .9px); background-size: 24px 24px; }
 .psd-page-preview { position: relative; box-shadow: 0 2px 16px #0005; }
@@ -68,9 +71,10 @@
 .psd-property > span { flex-shrink: 0; width: 52px; color: var(--muted-foreground); }
 .psd-property code { font-size: 11px; color: var(--muted-foreground); overflow: hidden; text-overflow: ellipsis; }
 .psd-property input { min-width: 0; height: 27px; font-size: 12px; border-radius: 2px; background: var(--vscode-input-background, #313131); }
+.psd-property input[readonly] { color: var(--muted-foreground); cursor: default; font-size: 11px; padding: 3px 4px; box-shadow: none; }
 .psd-layer-image { min-height: 80px; max-height: 180px; display: flex; align-items: center; justify-content: center; border: 1px solid var(--border); }
 .psd-layer-image img, .psd-layer-image canvas { max-width: 100%; max-height: 178px; object-fit: contain; }
-.psd-check { display: flex; gap: 8px; align-items: center; font-size: 12px; }
+.psd-check { display: flex; align-self: flex-start; gap: 8px; align-items: center; font-size: 12px; }
 .psd-grid-summary { font-size: 11px; color: var(--muted-foreground); line-height: 1.7; }
 .psd-grid-summary small { display: block; }
 .psd-warning { color: var(--vscode-editorWarning-foreground, #cca700); font-size: 11px; line-height: 1.7; }

@@ -6,16 +6,17 @@ Scope: 切图属性的视觉分区，与控件属性面板保持一致。
 
 ## Behavior and design
 
-- 最顶部单独放置文档配置（图集名、使用独立目录及普通资源目录提示），其后为图层信息与预览、导出设置、九宫格、导出区域，组间使用控件属性面板相同的 Separator 横线。
-- 复用 property-section-title 标题样式和 10px 组内节奏；文档配置始终显示，即使没有选中图层仍可编辑；导出名称、标记切图和共享选项属于所选图层，放入导出设置。最新文档/图层分离要求替代此前导出名称紧接图集名的排序。
+- 打开 PSD 时选中文档。点击图层面板顶部的 PSD 文件名或画布空白处可回到文档选择。选中文档时，属性面板显示图集名、使用独立目录及普通资源目录提示。
+- 选中图层时显示图层信息与预览、导出设置、九宫格和导出区域。导出设置分为变量名称与只读导出名称两行；状态变量亦只读，采用「尺寸来源」同款灰色文字、小字号和紧凑内边距，聚焦不显示编辑高亮。组间沿用横线分隔。文档配置随选择隐藏，文档级输入草稿和校验状态继续生效。
 - 两侧面板与 PSD 画板顶边跟随对齐，沿用原型面板的 400px 最小可用高度规则；右侧内容变长时缩减内部滚动区域，不因内容高度将整个面板向上抬。画板过低时两侧一起停靠到仍可操作的位置，移回时恢复跟随。标题栏沿用共用 floating-heading 的高度与内边距。
 - PSD 属性面板、PSD 图层树及原型图层树复用原型属性面板的 ScrollArea：滚动条覆盖内容边缘，不占用内容宽度；滚动时显示，停止约 800ms 后淡出，拖动滑块期间保持可见。标题、搜索栏、根节点及底部提示留在滚动区域外。图层搜索重置、画布选层定位和拖动边缘自动滚动使用真实 viewport，行为保留；复用 PSD 树的合并面板沿用同样滚动条。
 - 保留所有输入、校验、配置持久化、历史及导出行为。较矮窗口沿用面板内滚动。
+- 复选框的鼠标点击区域限于方框和紧邻的标签文字。点击属性行右侧空白时保留当前设置。
 
 ## Acceptance
 
-1. 各区域边界清楚，横线颜色、标题与控件属性一致；输入框对齐，文档配置与图层配置以横线明确分离。
-2. 没有选中图层时文档配置仍可编辑，图集/目录开关影响整个 PSD；选择其他图层时保留这些值。
+1. 初次打开显示文档配置。点击图层后显示对应属性，点击 PSD 文件名或画布空白返回文档配置。
+2. 图集与独立目录设置在切换选择后保留。输入保留图集名后切到图层，导出继续禁用，返回文档后可修正。
 3. 普通图层和已有九宫格图层的按钮、预览及提示仍位于所属区域。
 4. 普通图层与九宫格图层切换、面板内容增减和平移画板时，左右面板顶边始终一致；内部滚动不平移或缩放画布。
 5. 属性面板与两种图层树的滚轮、滑块拖动及键盘滚动可用；滚动与停止前后内容宽度一致，停止后滚动条隐藏，标题栏保持固定。原型树搜索/选层定位/拖动滚动仍有效。
@@ -28,6 +29,10 @@ Scope: 切图属性的视觉分区，与控件属性面板保持一致。
 - Regression verification uses the real browser component: wheel/drag/End/Home inside both overflowing panels must leave the outer stage scrollTop at 0 and the image geometry unchanged. The repository has no automated DOM interaction runner for these panels; retain these concrete manual steps rather than adding a test that only checks CSS source text.
 
 ## Verification
+
+- 星海 PSD 浏览器回归复现了点击「共享资源」行右侧空白触发勾选。收窄标签后，空白点击保留勾选状态，标签文字和空格键均可切换。浏览器回归和生产构建通过。
+
+- 星海 PSD 浏览器回归覆盖初次打开、通过文件名及画布空白切回文档、选中图层后隐藏文档配置，以及图集、独立目录和输入校验在选择切换后保留。366 项共享测试、两项浏览器回归及生产构建通过。
 
 - `npm run build` passed after the final overlay-scroll and canvas-clipping changes, including both TypeScript projects. The existing Vite chunk-size advisory remains.
 - `npm test`: 333 shared tests passed, including two new placement checks for stable common tops across content-height changes and shared docking/resumed following at the 400px threshold.

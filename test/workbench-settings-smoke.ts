@@ -91,10 +91,10 @@ export async function settingsChecks(api: { psd: PsdEditorProvider }, root: stri
     assert.equal(isolatedPreview.error, undefined); assert.equal(isolatedPreview.description?.source.documentId, asset.documentId);
     isolatedAsset.layers[0].config.shared = true;
     const sharedBatch = makeSliceExportBatch(isolatedAsset), sharedFile = sharedBatch.items[0].name + ".png";
-    assert.equal(sharedFile, "img_tb.png");
+    assert.equal(sharedFile, "ggzy_tb.png");
     assert.equal(await isolated.export(sharedBatch), 1);
     assert.ok(existsSync(join(second.fsPath, "shared", sharedFile)));
-    assert.equal(existsSync(join(second.fsPath, "ggzy", sharedFile)), false);
+    assert.equal(existsSync(join(second.fsPath, "ggzy", sharedFile)), true);
     sharedBatch.source = { ...sharedBatch.source, documentId: "shared-replacement", psdName: "Replacement.psd" };
     assert.equal(await isolated.export(sharedBatch), 1);
     const ledger = JSON.parse(readFileSync(join(second.fsPath, RESOURCE_MANIFEST), "utf8"));
@@ -104,13 +104,13 @@ export async function settingsChecks(api: { psd: PsdEditorProvider }, root: stri
     isolatedAsset.layers[0].config.shared = false; isolatedAsset.layers[0].config.exportName = "custom_icon";
     isolatedAsset.atlasName = "Other";
     assert.equal(await isolated.export(makeSliceExportBatch(isolatedAsset)), 1);
-    assert.ok(existsSync(join(second.fsPath, "other/custom_icon.png")));
+    assert.ok(existsSync(join(second.fsPath, "other/other_custom_icon.png")));
     delete isolatedAsset.independentDirectory;
     assert.equal(await isolated.export(makeSliceExportBatch(isolatedAsset)), 1);
-    assert.ok(existsSync(join(second.fsPath, "unclassified/custom_icon.png")));
+    assert.ok(existsSync(join(second.fsPath, "unclassified/other_custom_icon.png")));
     await settings.set("resources", first);
     assert.equal(await isolated.export(makeSliceExportBatch(isolatedAsset)), 1);
-    assert.ok(existsSync(join(first.fsPath, "unclassified/custom_icon.png")));
+    assert.ok(existsSync(join(first.fsPath, "unclassified/other_custom_icon.png")));
     assert.equal(isolated.directoryLabel, first.fsPath);
     for (const atlasName of ["builtin", "SHARED", "Unclassified"]) {
       isolatedAsset.atlasName = atlasName;

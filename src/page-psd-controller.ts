@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { posix } from "node:path";
+import { posix, win32 } from "node:path";
 import { isPagePsdSource, parseGameFlowDocument, type GameFlowDocument } from "../shared/model";
 import { pagePsdKey } from "../shared/page-psd";
 import { makePsdDraft } from "../shared/psd-draft";
@@ -9,7 +9,10 @@ import type { WorkbenchDocument } from "./workbench-document";
 import type { PsdDocument, PsdEditorProvider } from "./psd-editor-provider";
 function relativeSource(owner: vscode.Uri, target: vscode.Uri) {
   if (owner.scheme !== target.scheme || owner.authority !== target.authority) throw new Error("PSD 与 GameFlow 必须位于同一文件系统。");
-  const source = posix.relative(posix.dirname(owner.path), target.path);
+  const windowsFiles = owner.scheme === "file" && /^\/[a-z]:\//i.test(owner.path) && /^\/[a-z]:\//i.test(target.path);
+  const source = windowsFiles
+    ? win32.relative(win32.dirname(owner.path.slice(1)), target.path.slice(1)).replaceAll("\\", "/")
+    : posix.relative(posix.dirname(owner.path), target.path);
   if (!isPagePsdSource(source)) throw new Error("无法保存此 PSD 的相对路径，请选择 GameFlow 同一磁盘中的文件。");
   return source;
 }

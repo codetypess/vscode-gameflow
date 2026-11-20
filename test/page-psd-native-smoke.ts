@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { writePsdUint8Array } from "ag-psd";
 import type { GameFlowEditorProvider } from "../src/gameflow-editor-provider";
 import type { PsdEditorProvider } from "../src/psd-editor-provider";
-import type { PagePsdController } from "../src/page-psd-controller";
+import { rebasePagePsds, type PagePsdController } from "../src/page-psd-controller";
 import { parseGameFlowDocument, serializeGameFlowDocument } from "../shared/model";
 export async function pagePsdChecks(api: { workbench: GameFlowEditorProvider; psd: PsdEditorProvider }, root: string, directory: string): Promise<string[]> {
   const checks: string[] = [], cancel = new vscode.CancellationTokenSource();
@@ -31,7 +31,15 @@ export async function pagePsdChecks(api: { workbench: GameFlowEditorProvider; ps
     const reopened = await load(); assert.equal(reopened.error, undefined); assert.equal(reopened.draft?.documentId, result.draft?.documentId); assert.equal(doc.currentPsd, undefined);
     checks.push("native save and reopen retain page PSD binding and stable source identity");
     const folder = vscode.Uri.file(join(directory, "page-copy")); await vscode.workspace.fs.createDirectory(folder);
-    const destination = vscode.Uri.joinPath(folder, "saved.gameflow.json");
+    let destination = vscode.Uri.joinPath(folder, "saved.gameflow.json");
+    if (process.platform === "win32") {
+      assert.match(uri.path, /^\/[a-z]:\//i);
+      const drive = uri.path[1], otherCase = drive === drive.toLowerCase() ? drive.toUpperCase() : drive.toLowerCase();
+      destination = destination.with({ path: "/" + otherCase + destination.path.slice(2) });
+      assert.notEqual(destination.path[1], uri.path[1]);
+      assert.equal(rebasePagePsds(document, uri, destination).pages[0].artPsd?.source, "../page-art.psd");
+      checks.push("real Windows file URIs with mixed drive casing keep a portable page PSD path");
+    }
     await api.workbench.saveCustomDocumentAs(doc, destination, cancel.token);
     const savedAs = parseGameFlowDocument(readFileSync(destination.fsPath, "utf8")); assert.equal(savedAs.pages[0].artPsd?.source, "../page-art.psd");
     checks.push("native save as rebases relative PSD paths");

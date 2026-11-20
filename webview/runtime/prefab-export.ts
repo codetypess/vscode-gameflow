@@ -3,6 +3,8 @@ import { exportPrefabToDirectories } from "../../shared/prefab-export";
 import type { ResourceDirectory } from "../../shared/psd-export-directory";
 import { browserDirectory, type BrowserDirectory } from "../browser-directories";
 import { isBrowserPreview, postHostMessage } from "../vscode-api";
+import { paintBuiltin } from "./paint-builtin";
+import { loadSliceImage } from "../psd/slice-render";
 import type { Resources } from "./resource-context";
 export const bytesBase64 = (bytes:Uint8Array) => { let result=""; for(let i=0;i<bytes.length;i+=8192)result+=String.fromCharCode(...bytes.subarray(i,i+8192)); return btoa(result); };
 export const browserHash = async (bytes:Uint8Array) => [...new Uint8Array(await crypto.subtle.digest("SHA-256",new Uint8Array(bytes)))].map(b=>b.toString(16).padStart(2,"0")).join("");
@@ -19,7 +21,14 @@ export function browserResourceDirectory(root:BrowserDirectory):ResourceDirector
   };
 }
 export function exportImageResolver(resources:Resources):ExportImageResolver {
-  return async ref=>{
+  return async (ref,render)=>{
+    if(render) {
+      try {
+        const canvas=document.createElement("canvas");
+        paintBuiltin(canvas,await loadSliceImage(render.builtin.dataUri),render.builtin,render.width,render.height);
+        return {status:"ready",image:{path:ref.path,base64:canvas.toDataURL("image/png").split(",")[1],description:{path:ref.path,width:canvas.width,height:canvas.height,nineGrid:null,source:{documentId:"gameflow-builtin",psdName:"builtin.psd",sourceHash:"0".repeat(64)},layerId:render.builtin.id,layerName:render.builtin.name,shared:true}}};
+      } catch(error) { return {status:"error",error:String(error)}; }
+    }
     const resource=resources.resolveForExport?.(ref) ?? resources.resolve(ref);
     if(resource.status!=="ready")return {status:"error",error:resource.status==="error"?resource.error:"资源正在装载，请稍后重试"};
     try{const canvas=document.createElement("canvas");canvas.width=resource.description.width;canvas.height=resource.description.height;canvas.getContext("2d")!.drawImage(resource.pixels,0,0);return {status:"ready",image:{path:ref.path,description:resource.description,base64:canvas.toDataURL("image/png").split(",")[1]}};}catch(error){return {status:"error",error:String(error)};}
