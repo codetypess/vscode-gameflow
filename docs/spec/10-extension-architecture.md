@@ -106,4 +106,4 @@ GameFlow 页面通过可选 artPsd 保存 PSD 相对文件路径及稳定文档�
 
 PagePsdController 复用工作台管理的 PsdDocument，后台加载不改变 currentPsd 或发送活动编辑器初始化。已有草稿与 sidecar 仍由原 PSD 模型负责；新建无内嵌身份 PSD 需要保存 sidecar 以持久化分配的身份，已有内嵌身份的纯预览不产生 dirty。PSD 配置编辑、撤销重做通过 pagePsdChanged 失效相应页面缓存。保存重开按页面明确绑定装载；另存为重算路径。每页资源上下文仅接收该页面加载成功的文件资产，内存条目按资产实例隔离，避免同名切图和复制 PSD 的同身份互相污染。详见 [page-psd-binding.md](page-psd-binding.md)。PSD 切图与页面资源使用 `{图集}_{变量}` 命名。变量来自图层的切图配置或其公开图层名。按钮状态子层的变量由父组变量加状态后缀生成。`SliceConfig.variableName` 保存手填变量；显式清空恢复图层名默认值，旧 exportName 仅作兼容读取。普通和共享切图均带图集段，不自动添加类型前缀。导出名称在属性面板只读显示，派生的状态变量也只读，并沿用尺寸来源的灰色展示样式。详见 [page-psd-layer-conventions.md](page-psd-layer-conventions.md)。
 
-页面可持久化 psdSync 共同基线，按原型文档、页面及 PSD 身份隔离。页面同步从已绑定文件取当前版本，审阅与副本输出分别走 pagePsd 的 review 和 syncCopy 请求。副本通过重读校验后随页面编辑更新绑定与基线。[文字与结构同步](page-psd-sync.md)
+页面可持久化 psdSync 共同基线，按原型文档、页面及 PSD 身份隔离。页面同步从已绑定文件取当前版本，审阅与副本输出分别走 pagePsd 的 review 和 syncCopy 请求。原生宿主在 Webview HTML 中声明支持的页面同步协议。新版界面遇到旧宿主时只展示已加载页面的只读预览，并提示重载窗口。副本通过重读校验后随页面编辑更新绑定与基线。[文字与结构同步](page-psd-sync.md)

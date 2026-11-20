@@ -734,7 +734,10 @@ export function App() {
     </div>
     <PsdWorkspace mode="merge" active={mode === "merge"} settings={settings} />
     <PsdWorkspace mode="slice" active={mode === "slice" && !runtimeOpen} binding={psdEditor.binding} documentActions={documentActions} exportActions={exportActions} settings={settings} exportPending={pending} onAsset={observePsd} />
-    {syncSession && <PageSyncDialog session={syncSession} close={()=>setSyncSession(null)} apply={(updated,checkOnly)=>{
+    {syncSession && <PageSyncDialog session={syncSession} loadedAsset={
+      canvasDocument?.documentId === syncSession.document.documentId && loadedPsds.states[syncSession.page.id]?.key === pagePsdKey(syncSession.page.artPsd)
+        ? loadedPsds.assets[syncSession.page.id] : undefined
+    } close={()=>setSyncSession(null)} apply={(updated,checkOnly)=>{
       const current=read();
       const prepare=(document:GameFlowDocument)=>{
         const target=document.pages.find(p=>p.id===updated.id);

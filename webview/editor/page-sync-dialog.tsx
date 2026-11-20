@@ -5,6 +5,7 @@ import { compareTrees, plannedTrees, coordinatedBase, currentSyncBase, prototype
 import { draftStamp } from "../../shared/psd-draft";
 import type { PsdAsset } from "../../shared/psd-meta";
 import { requestPsd, sourceBytes } from "../runtime/page-psd";
+import { isBrowserPreview } from "../vscode-api";
 import { psdTask } from "../psd/io";
 import { NodeView, orderedNodes } from "./node-view";
 import { resolvePageLayout } from "../../shared/ui-layout";
@@ -50,17 +51,20 @@ function Preview({page,asset,nodes,selected,changes,old}:{page:GameFlowPage;asse
   </div>;
 }
 export interface SyncSession { document:GameFlowDocument; page:GameFlowPage; makeId:()=>string }
-interface Props { session:SyncSession; close():void; apply(page:GameFlowPage,checkOnly?:boolean):void }
-export function PageSyncDialog({session,close,apply}:Props) {
+interface Props { session:SyncSession; loadedAsset?:PsdAsset; close():void; apply(page:GameFlowPage,checkOnly?:boolean):void }
+export function PageSyncDialog({session,loadedAsset,close,apply}:Props) {
   const {page,document:doc}=session, dialog=useRef<HTMLDialogElement>(null);
   const [size,setSize]=useState(savedSize), drag=useRef<{x:number;y:number;w:number;h:number}|null>(null);
-  const [asset,setAsset]=useState<PsdAsset>(), [error,setError]=useState(""), [busy,setBusy]=useState(false);
+  const canReview = isBrowserPreview || !!document.querySelector('meta[name="gameflow-page-psd-sync"][content="1"]');
+  const [reviewedAsset,setAsset]=useState<PsdAsset>(), [error,setError]=useState(""), [busy,setBusy]=useState(false);
+  const asset = canReview ? reviewedAsset : loadedAsset;
   const [pairs,setPairs]=useState(new Map<string,string>()), [candidate,setCandidate]=useState("");
   const [selected,select]=useState(""), [expanded,setExpanded]=useState(new Set<string>([""]));
   const [choices,setChoices]=useState<Record<string,Decision>>({}), [result,setResult]=useState(false), [review,setReview]=useState(false);
   const [reload,setReload]=useState(0);
   useEffect(()=>{const d=dialog.current!;d.showModal();return ()=>d.close();},[]);
   useEffect(()=>{
+    if (!canReview) return;
     let active=true;
     setAsset(undefined);setError("");setChoices({});setPairs(new Map());setReview(false);
     requestPsd({action:"review",pageId:page.id,expected:page.artPsd}).then(r=>{
@@ -68,7 +72,7 @@ export function PageSyncDialog({session,close,apply}:Props) {
       if(active) setAsset(r.asset);
     }).catch(e=>{if(active)setError(String(e));});
     return ()=>{active=false;};
-  },[session,reload]);
+  },[session,reload,canReview]);
   const ids=useRef(new Map<string,string>());
   const comparison=useMemo(()=>{
     if(!asset) return {};
@@ -149,7 +153,7 @@ export function PageSyncDialog({session,close,apply}:Props) {
     return n[ch.field] || "（空）";
   }
   async function commit() {
-    if(busy || !asset || !c || !plan.proto || !plan.trees)return;
+    if(!canReview || busy || !asset || !c || !plan.proto || !plan.trees)return;
     setBusy(true);setError("");
     try {
       let next={...plan.proto,psdSync:plan.base};
@@ -188,23 +192,24 @@ export function PageSyncDialog({session,close,apply}:Props) {
       <div className="sync-legend"><b data-kind="add">+ 新增</b><b data-kind="delete">− 删除</b><b data-kind="edit">~ 修改</b></div>
       <button className="sync-root" onClick={()=>{toggle("");select("");}} aria-expanded={expanded.has("")}>{expanded.has("")?"▾":"▸"} {page.name}</button>{expanded.has("") && tree("",new Set())}</nav>
       <section className="sync-body"><div className="sync-bar"><strong>{node?.name??page.name}</strong>
-        <div><button aria-pressed={!result} disabled={busy} onClick={()=>{setResult(false);setReview(false);}}>当前</button><button aria-pressed={result} disabled={busy} onClick={()=>setResult(true)}>同步后</button></div></div>
+        <div><button aria-pressed={!result} disabled={busy} onClick={()=>{setResult(false);setReview(false);}}>当前</button><button aria-pressed={result} disabled={busy || !canReview} onClick={()=>setResult(true)}>同步后</button></div></div>
+        {!canReview && <p role="alert">当前扩展宿主版本较旧，仅可查看已加载的页面。请按 F1 执行「开发人员: 重新加载窗口」，再打开同步。</p>}
         {asset && shown && <div className="sync-boards"><figure><figcaption>原型 · 内置资源</figcaption><Preview page={result && plan.proto?plan.proto:page} nodes={shown.proto} selected={selected} changes={changes} old={c?.base?.nodes??[]}/></figure>
         <figure><figcaption>美术 PSD</figcaption>{result && plan.push && !copy ? <div className="sync-preview">{copyIssue?"此项暂无法写出":"正在生成同步预览…"}</div>:<Preview page={page} asset={result && plan.push?copy?.asset:asset} nodes={shown.psd} selected={selected} changes={changes} old={c?.base?.nodes??[]}/>}</figure></div>}
-        {!asset && !error && <p>正在读取绑定的 PSD…</p>}
-        {needBase && <p>首次对照。确认对应关系后可建立共同基线。</p>}
+        {canReview && !asset && !error && <p>正在读取绑定的 PSD…</p>}
+        {canReview && needBase && <p>首次对照。确认对应关系后可建立共同基线。</p>}
         {c && !changes.length && <p>文字与结构已一致</p>}
-        {items.map(ch=><fieldset disabled={busy} key={ch.key}><legend>{fieldNames[ch.field]} · {c?.base?({add:"新增",delete:"删除",edit:"修改"}[ch.kind]):"首次对照"}</legend>
+        {items.map(ch=><fieldset disabled={busy || !canReview} key={ch.key}><legend>{fieldNames[ch.field]} · {c?.base?({add:"新增",delete:"删除",edit:"修改"}[ch.kind]):"首次对照"}</legend>
           <p>{c?.base && <>上次　{fieldValue(ch,c.base.nodes)}　</>}原型　{fieldValue(ch,c!.proto)}　/　PSD　{fieldValue(ch,c!.psd)}</p>
           {ch.field==="exist" && !!artChildren?.length && <p>随组处理　{artChildren.join("、")}</p>}
           {(["proto","psd","skip"] as const).map(v=><button key={v} aria-pressed={decisions[ch.key]===v} onClick={()=>choose(ch.key,v)}>{describe(ch,v)}</button>)}</fieldset>)}
-        {asset && c && node && !c.psd.some(n=>n.id===node.id) && c.proto.some(n=>n.id===node.id) && <fieldset disabled={busy}><legend>对应已有 PSD 图层</legend>
+        {asset && c && node && !c.psd.some(n=>n.id===node.id) && c.proto.some(n=>n.id===node.id) && <fieldset disabled={busy || !canReview}><legend>对应已有 PSD 图层</legend>
           <select aria-label="对应 PSD 图层" value={candidate} onChange={e=>setCandidate(e.target.value)}><option value="">选择图层</option>{asset.layers.filter(l=>!c.psd.some(n=>n.layer===l.metadata.layerId && page.nodes.some(p=>p.id===n.id))).map(l=><option key={l.key} value={l.metadata.layerId}>{l.name}</option>)}</select>
           <button disabled={!candidate} onClick={()=>{setPairs(p=>new Map(p).set(candidate,selected));setCandidate("");setChoices({});}}>关联</button></fieldset>}
         {review && <fieldset><legend>本轮应用明细</legend>{changes.map(ch=><p key={ch.key}>{nodeList.find(n=>n.id===ch.id)?.name} · {fieldNames[ch.field]}　{describe(ch,decisions[ch.key])}</p>)}</fieldset>}
-        {message && <p role="alert">{message} <button disabled={busy} onClick={()=>setReload(n=>n+1)}>重新比较</button></p>}
+        {message && <p role="alert">{message} {canReview && <button disabled={busy} onClick={()=>setReload(n=>n+1)}>重新比较</button>}</p>}
       </section></div>
-    <footer><span>待决定 {pending} 项　·　已选 {count} 项</span><button disabled={busy || !c || pending>0 || (!count && !plan.baselineChanged) || !!plan.issue || !!(review && plan.push && !copy)}
+    <footer><span>待决定 {pending} 项　·　已选 {count} 项</span><button disabled={!canReview || busy || !c || pending>0 || (!count && !plan.baselineChanged) || !!plan.issue || !!(review && plan.push && !copy)}
       onClick={()=>{if(review)void commit();else {setError("");setReview(true);setResult(true);}}}>{busy?"正在应用…":review?"确认应用":!count && plan.baselineChanged?(needBase?"建立基线":"记录一致变更"):"预演应用"}</button>
       <button className="sync-resize" aria-label="拖动调整同步窗口大小" onPointerDown={e=>{e.preventDefault();const r=dialog.current!.getBoundingClientRect();drag.current={x:e.clientX,y:e.clientY,w:r.width,h:r.height};e.currentTarget.setPointerCapture(e.pointerId);}}
         onPointerMove={e=>{const d=drag.current;if(d)setSize({width:Math.min(innerWidth-16,Math.max(360,d.w+2*(e.clientX-d.x))),height:Math.min(innerHeight-16,Math.max(300,d.h+2*(e.clientY-d.y)))});}}
