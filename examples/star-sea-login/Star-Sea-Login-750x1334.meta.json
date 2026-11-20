@@ -5,7 +5,7 @@
   "atlasName": "login",
   "source": {
     "name": "Star-Sea-Login-750x1334.psd",
-    "sha256": "51e44c5e1e3d1a56ace0443762586d206d43e0ccf8d3907eaf99b432592a6e51",
+    "sha256": "0ca1443e145688bf22b5a1c8282e486e1816e77be0095971d21f037f4dc01212",
     "width": 750,
     "height": 1334
   },
@@ -14,10 +14,10 @@
       "id": "bh86004z",
       "sourceKey": 30,
       "nativeId": 201,
-      "name": "星海远征 · 登录 (UIStack)",
+      "name": "星海远征 · 登录",
       "config": {
         "enabled": false,
-        "name": "星海远征 · 登录 (UIStack)",
+        "name": "星海远征 · 登录",
         "nineGrid": null
       },
       "metadata": {
@@ -26,16 +26,16 @@
         "documentId": "47061573-175a-4735-986e-15e5faa87890",
         "layerId": "bh86004z",
         "role": "screen",
+        "atlasName": "login",
         "prototype": {
           "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
           "pageId": "umlxcxo4",
           "nodeId": "umlxcxo4",
           "layaClass": "UIStack"
         },
-        "atlasName": "login",
         "slicing": {
           "enabled": false,
-          "name": "星海远征 · 登录 (UIStack)",
+          "name": "星海远征 · 登录",
           "nineGrid": null
         }
       }
@@ -44,10 +44,10 @@
       "id": "kek8zl77",
       "sourceKey": 29,
       "nativeId": 221,
-      "name": "底部提示 (UILabel)",
+      "name": "底部提示",
       "config": {
         "enabled": false,
-        "name": "底部提示 (UILabel)",
+        "name": "底部提示",
         "nineGrid": null
       },
       "metadata": {
@@ -56,16 +56,16 @@
         "documentId": "47061573-175a-4735-986e-15e5faa87890",
         "layerId": "kek8zl77",
         "role": "text",
+        "atlasName": "login",
         "prototype": {
           "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
           "pageId": "umlxcxo4",
           "nodeId": "bz0nfn04",
           "layaClass": "UILabel"
         },
-        "atlasName": "login",
         "slicing": {
           "enabled": false,
-          "name": "底部提示 (UILabel)",
+          "name": "底部提示",
           "nineGrid": null
         }
       }
@@ -74,12 +74,12 @@
       "id": "hnof2wq6",
       "sourceKey": 28,
       "nativeId": 218,
-      "name": "开始远征 (UIButton)",
+      "name": "开始远征",
       "config": {
         "enabled": false,
-        "name": "开始远征 (UIButton)",
-        "nineGrid": null,
-        "exportName": "start"
+        "name": "开始远征",
+        "variableName": "start",
+        "nineGrid": null
       },
       "metadata": {
         "namespace": "com.codetypes.gameflow",
@@ -87,18 +87,18 @@
         "documentId": "47061573-175a-4735-986e-15e5faa87890",
         "layerId": "hnof2wq6",
         "role": "button",
+        "atlasName": "login",
         "prototype": {
           "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
           "pageId": "umlxcxo4",
           "nodeId": "fud92jz0",
           "layaClass": "UIButton"
         },
-        "atlasName": "login",
         "slicing": {
           "enabled": false,
-          "name": "开始远征 (UIButton)",
-          "nineGrid": null,
-          "exportName": "start"
+          "name": "开始远征",
+          "variableName": "start",
+          "nineGrid": null
         }
       }
     },
@@ -106,10 +106,10 @@
       "id": "zbat2hl1",
       "sourceKey": 27,
       "nativeId": 220,
-      "name": "按钮文案 (UILabel)",
+      "name": "按钮文案",
       "config": {
         "enabled": false,
-        "name": "按钮文案 (UILabel)",
+        "name": "按钮文案",
         "nineGrid": null
       },
       "metadata": {
@@ -118,16 +118,16 @@
         "documentId": "47061573-175a-4735-986e-15e5faa87890",
         "layerId": "zbat2hl1",
         "role": "text",
+        "atlasName": "login",
         "prototype": {
           "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
           "pageId": "umlxcxo4",
           "nodeId": "92i5vexr",
           "layaClass": "UILabel"
         },
-        "atlasName": "login",
         "slicing": {
           "enabled": false,
-          "name": "按钮文案 (UILabel)",
+          "name": "按钮文案",
           "nineGrid": null
         }
       }
@@ -154,6 +154,7 @@
         "documentId": "47061573-175a-4735-986e-15e5faa87890",
         "layerId": "c6ni4g0w",
         "role": "asset.raster",
+        "atlasName": "login",
         "prototype": {
           "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
           "pageId": "umlxcxo4",
@@ -171,18 +172,17 @@
             "left": 20,
             "repeat": false
           }
-        },
-        "atlasName": "login"
+        }
       }
     },
     {
       "id": "58ys93tj",
       "sourceKey": 24,
       "nativeId": 212,
-      "name": "服务器信息 (UIBox)",
+      "name": "服务器信息",
       "config": {
         "enabled": false,
-        "name": "服务器信息 (UIBox)",
+        "name": "服务器信息",
         "nineGrid": null
       },
       "metadata": {
@@ -191,16 +191,16 @@
         "documentId": "47061573-175a-4735-986e-15e5faa87890",
         "layerId": "58ys93tj",
         "role": "container",
+        "atlasName": "login",
         "prototype": {
           "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
           "pageId": "umlxcxo4",
           "nodeId": "k865l2ly",
           "layaClass": "UIBox"
         },
-        "atlasName": "login",
         "slicing": {
           "enabled": false,
-          "name": "服务器信息 (UIBox)",
+          "name": "服务器信息",
           "nineGrid": null
         }
       }
@@ -209,10 +209,10 @@
       "id": "evdrys20",
       "sourceKey": 23,
       "nativeId": 217,
-      "name": "服务器名称 (UILabel)",
+      "name": "服务器名称",
       "config": {
         "enabled": false,
-        "name": "服务器名称 (UILabel)",
+        "name": "服务器名称",
         "nineGrid": null
       },
       "metadata": {
@@ -221,16 +221,16 @@
         "documentId": "47061573-175a-4735-986e-15e5faa87890",
         "layerId": "evdrys20",
         "role": "text",
+        "atlasName": "login",
         "prototype": {
           "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
           "pageId": "umlxcxo4",
           "nodeId": "wy3s8pwe",
           "layaClass": "UILabel"
         },
-        "atlasName": "login",
         "slicing": {
           "enabled": false,
-          "name": "服务器名称 (UILabel)",
+          "name": "服务器名称",
           "nineGrid": null
         }
       }
@@ -239,10 +239,10 @@
       "id": "tiv2cail",
       "sourceKey": 22,
       "nativeId": 215,
-      "name": "连接状态灯 (UIImage)",
+      "name": "连接状态灯",
       "config": {
         "enabled": false,
-        "name": "连接状态灯 (UIImage)",
+        "name": "连接状态灯",
         "nineGrid": null
       },
       "metadata": {
@@ -251,16 +251,16 @@
         "documentId": "47061573-175a-4735-986e-15e5faa87890",
         "layerId": "tiv2cail",
         "role": "asset.export-group",
+        "atlasName": "login",
         "prototype": {
           "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
           "pageId": "umlxcxo4",
           "nodeId": "3zt548wx",
           "layaClass": "UIImage"
         },
-        "atlasName": "login",
         "slicing": {
           "enabled": false,
-          "name": "连接状态灯 (UIImage)",
+          "name": "连接状态灯",
           "nineGrid": null
         }
       }
@@ -269,11 +269,10 @@
       "id": "zht8rdqu",
       "sourceKey": 21,
       "nativeId": 216,
-      "name": "连接状态灯 · 像素",
+      "name": "@image",
       "config": {
         "enabled": true,
-        "name": "status_dot",
-        "exportName": "status_dot",
+        "name": "@image",
         "nineGrid": null
       },
       "metadata": {
@@ -282,6 +281,7 @@
         "documentId": "47061573-175a-4735-986e-15e5faa87890",
         "layerId": "zht8rdqu",
         "role": "asset.raster",
+        "atlasName": "login",
         "exportGroupId": "tiv2cail",
         "prototype": {
           "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
@@ -292,21 +292,19 @@
         },
         "slicing": {
           "enabled": true,
-          "name": "status_dot",
-          "exportName": "status_dot",
+          "name": "@image",
           "nineGrid": null
-        },
-        "atlasName": "login"
+        }
       }
     },
     {
       "id": "o0mva3gk",
       "sourceKey": 19,
       "nativeId": 213,
-      "name": "服务器底板 (UIImage)",
+      "name": "服务器底板",
       "config": {
         "enabled": false,
-        "name": "服务器底板 (UIImage)",
+        "name": "服务器底板",
         "nineGrid": null
       },
       "metadata": {
@@ -315,16 +313,16 @@
         "documentId": "47061573-175a-4735-986e-15e5faa87890",
         "layerId": "o0mva3gk",
         "role": "asset.export-group",
+        "atlasName": "login",
         "prototype": {
           "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
           "pageId": "umlxcxo4",
           "nodeId": "i57rqmsq",
           "layaClass": "UIImage"
         },
-        "atlasName": "login",
         "slicing": {
           "enabled": false,
-          "name": "服务器底板 (UIImage)",
+          "name": "服务器底板",
           "nineGrid": null
         }
       }
@@ -333,11 +331,10 @@
       "id": "zes4xdk1",
       "sourceKey": 18,
       "nativeId": 214,
-      "name": "服务器底板 · 像素",
+      "name": "@image",
       "config": {
         "enabled": true,
-        "name": "server_bg",
-        "exportName": "server_bg",
+        "name": "@image",
         "nineGrid": {
           "top": 12,
           "right": 12,
@@ -352,6 +349,7 @@
         "documentId": "47061573-175a-4735-986e-15e5faa87890",
         "layerId": "zes4xdk1",
         "role": "asset.raster",
+        "atlasName": "login",
         "exportGroupId": "o0mva3gk",
         "prototype": {
           "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
@@ -362,8 +360,7 @@
         },
         "slicing": {
           "enabled": true,
-          "name": "server_bg",
-          "exportName": "server_bg",
+          "name": "@image",
           "nineGrid": {
             "top": 12,
             "right": 12,
@@ -371,18 +368,17 @@
             "left": 12,
             "repeat": false
           }
-        },
-        "atlasName": "login"
+        }
       }
     },
     {
       "id": "mnqc6mbj",
       "sourceKey": 15,
       "nativeId": 207,
-      "name": "标题区 (UIBox)",
+      "name": "标题区",
       "config": {
         "enabled": false,
-        "name": "标题区 (UIBox)",
+        "name": "标题区",
         "nineGrid": null
       },
       "metadata": {
@@ -391,16 +387,16 @@
         "documentId": "47061573-175a-4735-986e-15e5faa87890",
         "layerId": "mnqc6mbj",
         "role": "container",
+        "atlasName": "login",
         "prototype": {
           "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
           "pageId": "umlxcxo4",
           "nodeId": "5amcsa7u",
           "layaClass": "UIBox"
         },
-        "atlasName": "login",
         "slicing": {
           "enabled": false,
-          "name": "标题区 (UIBox)",
+          "name": "标题区",
           "nineGrid": null
         }
       }
@@ -409,10 +405,10 @@
       "id": "mpcgmcrj",
       "sourceKey": 14,
       "nativeId": 211,
-      "name": "副标题 (UILabel)",
+      "name": "副标题",
       "config": {
         "enabled": false,
-        "name": "副标题 (UILabel)",
+        "name": "副标题",
         "nineGrid": null
       },
       "metadata": {
@@ -421,16 +417,16 @@
         "documentId": "47061573-175a-4735-986e-15e5faa87890",
         "layerId": "mpcgmcrj",
         "role": "text",
+        "atlasName": "login",
         "prototype": {
           "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
           "pageId": "umlxcxo4",
           "nodeId": "3y70xjmg",
           "layaClass": "UILabel"
         },
-        "atlasName": "login",
         "slicing": {
           "enabled": false,
-          "name": "副标题 (UILabel)",
+          "name": "副标题",
           "nineGrid": null
         }
       }
@@ -439,10 +435,10 @@
       "id": "cwqbzioa",
       "sourceKey": 13,
       "nativeId": 210,
-      "name": "游戏标题 (UILabel)",
+      "name": "游戏标题",
       "config": {
         "enabled": false,
-        "name": "游戏标题 (UILabel)",
+        "name": "游戏标题",
         "nineGrid": null
       },
       "metadata": {
@@ -451,16 +447,16 @@
         "documentId": "47061573-175a-4735-986e-15e5faa87890",
         "layerId": "cwqbzioa",
         "role": "text",
+        "atlasName": "login",
         "prototype": {
           "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
           "pageId": "umlxcxo4",
           "nodeId": "2uij4u4o",
           "layaClass": "UILabel"
         },
-        "atlasName": "login",
         "slicing": {
           "enabled": false,
-          "name": "游戏标题 (UILabel)",
+          "name": "游戏标题",
           "nineGrid": null
         }
       }
@@ -469,10 +465,10 @@
       "id": "79m7v9xo",
       "sourceKey": 12,
       "nativeId": 208,
-      "name": "星海徽记 (UIImage)",
+      "name": "星海徽记",
       "config": {
         "enabled": false,
-        "name": "星海徽记 (UIImage)",
+        "name": "星海徽记",
         "nineGrid": null
       },
       "metadata": {
@@ -481,16 +477,16 @@
         "documentId": "47061573-175a-4735-986e-15e5faa87890",
         "layerId": "79m7v9xo",
         "role": "asset.export-group",
+        "atlasName": "login",
         "prototype": {
           "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
           "pageId": "umlxcxo4",
           "nodeId": "3o30ft4g",
           "layaClass": "UIImage"
         },
-        "atlasName": "login",
         "slicing": {
           "enabled": false,
-          "name": "星海徽记 (UIImage)",
+          "name": "星海徽记",
           "nineGrid": null
         }
       }
@@ -499,11 +495,10 @@
       "id": "1jjds7jk",
       "sourceKey": 11,
       "nativeId": 209,
-      "name": "星海徽记 · 像素",
+      "name": "@image",
       "config": {
         "enabled": true,
-        "name": "emblem",
-        "exportName": "emblem",
+        "name": "@image",
         "nineGrid": null
       },
       "metadata": {
@@ -512,6 +507,7 @@
         "documentId": "47061573-175a-4735-986e-15e5faa87890",
         "layerId": "1jjds7jk",
         "role": "asset.raster",
+        "atlasName": "login",
         "exportGroupId": "79m7v9xo",
         "prototype": {
           "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
@@ -522,21 +518,19 @@
         },
         "slicing": {
           "enabled": true,
-          "name": "emblem",
-          "exportName": "emblem",
+          "name": "@image",
           "nineGrid": null
-        },
-        "atlasName": "login"
+        }
       }
     },
     {
       "id": "nb4bl6n7",
       "sourceKey": 8,
       "nativeId": 202,
-      "name": "背景 (UIBox)",
+      "name": "背景",
       "config": {
         "enabled": false,
-        "name": "背景 (UIBox)",
+        "name": "背景",
         "nineGrid": null
       },
       "metadata": {
@@ -545,16 +539,16 @@
         "documentId": "47061573-175a-4735-986e-15e5faa87890",
         "layerId": "nb4bl6n7",
         "role": "container",
+        "atlasName": "login",
         "prototype": {
           "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
           "pageId": "umlxcxo4",
           "nodeId": "ofnub76o",
           "layaClass": "UIBox"
         },
-        "atlasName": "login",
         "slicing": {
           "enabled": false,
-          "name": "背景 (UIBox)",
+          "name": "背景",
           "nineGrid": null
         }
       }
@@ -563,10 +557,10 @@
       "id": "a7lcmr8w",
       "sourceKey": 7,
       "nativeId": 205,
-      "name": "星点与轨道 (UIImage)",
+      "name": "星点与轨道",
       "config": {
         "enabled": false,
-        "name": "星点与轨道 (UIImage)",
+        "name": "星点与轨道",
         "nineGrid": null
       },
       "metadata": {
@@ -575,16 +569,16 @@
         "documentId": "47061573-175a-4735-986e-15e5faa87890",
         "layerId": "a7lcmr8w",
         "role": "asset.export-group",
+        "atlasName": "login",
         "prototype": {
           "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
           "pageId": "umlxcxo4",
           "nodeId": "ct08f7f6",
           "layaClass": "UIImage"
         },
-        "atlasName": "login",
         "slicing": {
           "enabled": false,
-          "name": "星点与轨道 (UIImage)",
+          "name": "星点与轨道",
           "nineGrid": null
         }
       }
@@ -593,11 +587,10 @@
       "id": "g6aijsld",
       "sourceKey": 6,
       "nativeId": 206,
-      "name": "星点与轨道 · 像素",
+      "name": "@image",
       "config": {
         "enabled": true,
-        "name": "stars",
-        "exportName": "stars",
+        "name": "@image",
         "nineGrid": null
       },
       "metadata": {
@@ -606,6 +599,7 @@
         "documentId": "47061573-175a-4735-986e-15e5faa87890",
         "layerId": "g6aijsld",
         "role": "asset.raster",
+        "atlasName": "login",
         "exportGroupId": "a7lcmr8w",
         "prototype": {
           "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
@@ -616,21 +610,19 @@
         },
         "slicing": {
           "enabled": true,
-          "name": "stars",
-          "exportName": "stars",
+          "name": "@image",
           "nineGrid": null
-        },
-        "atlasName": "login"
+        }
       }
     },
     {
       "id": "dzf6b5bx",
       "sourceKey": 4,
       "nativeId": 203,
-      "name": "深空渐变 (UIImage)",
+      "name": "深空渐变",
       "config": {
         "enabled": false,
-        "name": "深空渐变 (UIImage)",
+        "name": "深空渐变",
         "nineGrid": null
       },
       "metadata": {
@@ -639,16 +631,16 @@
         "documentId": "47061573-175a-4735-986e-15e5faa87890",
         "layerId": "dzf6b5bx",
         "role": "asset.export-group",
+        "atlasName": "login",
         "prototype": {
           "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
           "pageId": "umlxcxo4",
           "nodeId": "ptkmcxds",
           "layaClass": "UIImage"
         },
-        "atlasName": "login",
         "slicing": {
           "enabled": false,
-          "name": "深空渐变 (UIImage)",
+          "name": "深空渐变",
           "nineGrid": null
         }
       }
@@ -657,11 +649,10 @@
       "id": "atbs1ky7",
       "sourceKey": 3,
       "nativeId": 204,
-      "name": "深空渐变 · 像素",
+      "name": "@image",
       "config": {
         "enabled": true,
-        "name": "deep_space",
-        "exportName": "deep_space",
+        "name": "@image",
         "nineGrid": null
       },
       "metadata": {
@@ -670,6 +661,7 @@
         "documentId": "47061573-175a-4735-986e-15e5faa87890",
         "layerId": "atbs1ky7",
         "role": "asset.raster",
+        "atlasName": "login",
         "exportGroupId": "dzf6b5bx",
         "prototype": {
           "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
@@ -680,11 +672,9 @@
         },
         "slicing": {
           "enabled": true,
-          "name": "deep_space",
-          "exportName": "deep_space",
+          "name": "@image",
           "nineGrid": null
-        },
-        "atlasName": "login"
+        }
       }
     }
   ]

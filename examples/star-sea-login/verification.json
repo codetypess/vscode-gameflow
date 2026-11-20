@@ -8,11 +8,35 @@
   "imageExportGroups": 5,
   "rasterLayers": 6,
   "taggedRecords": 21,
-  "psdBytes": 860219,
-  "sourceHash": "51e44c5e1e3d1a56ace0443762586d206d43e0ccf8d3907eaf99b432592a6e51",
+  "psdBytes": 859611,
+  "sourceHash": "0ca1443e145688bf22b5a1c8282e486e1816e77be0095971d21f037f4dc01212",
   "prototypeCodecAndLayout": "passed",
   "metadataIndependentReader": "passed",
   "savedCompositeBytes": "exact match",
   "imageGroupsExcludeLabels": "passed",
-  "photoshopRoundTrip": "not executed"
+  "publicSlotBinding": "passed",
+  "variableAndExportNames": "passed",
+  "exportNames": [
+    "login_start_normal",
+    "login_ljztd",
+    "login_fwqdb",
+    "login_xhhj",
+    "login_xdygd",
+    "login_skjb"
+  ],
+  "photoshopRoundTrip": "not executed",
+  "browser": {
+    "prototype": "passed",
+    "pageInitiallyUnbound": true,
+    "artResourcePaths": "six matching resources",
+    "readonlyNames": "passed",
+    "pageErrors": []
+  },
+  "regeneratedPixels": "byte-identical to previous PSD",
+  "repeatGeneration": "seven generated files byte-identical",
+  "sharedTests": 368,
+  "resourceModesBrowser": "passed",
+  "nativePsdHost": "passed",
+  "productionBuild": "passed",
+  "independentPsdTools": "not executed (dependency unavailable)"
 }

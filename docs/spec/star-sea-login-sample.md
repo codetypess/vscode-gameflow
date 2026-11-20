@@ -4,18 +4,28 @@ Status: Done
 Date: 2026-11-16
 Scope: 按截图及现有组件结构生成 750×1334 竖版原型、分层 PSD 和对应资源。
 
+## 2026-11-20 按当前命名规则重建
+
+本次同步生成脚本、两份 GameFlow、实际 PSD、sidecar、映射、验证报告、预览与 ZIP。保留画面设计、布局、文案和固定身份；页面初始未绑定 PSD。使用与原型一致的公开控件名，图片组的像素子层使用 `@image`，按钮使用 `@normal`，UILabel 保持独立文字层。
+
+PSD 不再写入旧 `exportName`。按钮父组显式设置 `variableName: start`，状态层自动派生；普通图片不设置变量，按其公开父组名生成拼音首字母。图集为 `login`，所有导出名通过生产共享函数生成 `{图集名}_{变量名}`。两份原型的资源路径和映射记录从实际生成的 PSD 推导，避免脚本手写一套命名规则。
+
+验收包括生成脚本的结构/像素/sidecar/变量/资源绑定断言、两次生成的稳定性、共享测试、真实浏览器的原型/PSD/变量字段/PNG 输出，以及 ZIP 与交付目录逐文件字节一致。独立 Python PSD 验证按当前可用依赖执行并如实记录。
+
+本次验收：368 项共享测试、资源模式 Edge 回归、独立示例浏览器验收、真实 VS Code PSD 宿主检查及生产构建通过。原型与明确绑定后的六张美术图片匹配；@image 与 @normal 的变量和导出名称只读。新旧所有图层像素缓存和合成图逐字节一致，重复两次生成的七份数据文件哈希一致。原型、PSD 工作台与对比预览均已刷新。ZIP 按当前目录重新打包并逐文件核对字节。当前 Python 依赖无 psd-tools，未声称重跑该独立合成；ag-psd 回读及独立二进制读取器验证通过。
+
 ## 1. Context and Goals
 
 用户要求重建“星海远征”登录界面的原型和 PSD，并明确改为 750×1334。沿用深蓝星空、金色徽记与按钮、标题/副标题、服务器状态及底部提示，重新安排竖版间距。
 
 ## 2. Structure and Delivery
 
-- 原型使用现有 schemaVersion 3、UIStack 页面、UIBox 容器、UIImage 及独立 UILabel。UIButton 是容器，包含 UIImage 底图和 UILabel 文案，根不保存重复 text。
+- 原型使用 schemaVersion 5、UIStack 页面、UIBox 容器、UIImage 及独立 UILabel。UIButton 自身持有 normalSkin，只有独立 UILabel 文案子节点，根不保存重复 text。
 - 背景、标题、服务器信息、开始按钮分别成组；连接状态灯拆为独立图片。坐标相对父容器，使用现有约束表达居中与贴边。
-- PSD 的控件/容器对应命名组；每个 UIImage 对应可独立导出的图片组，其内部包含像素层；UILabel 对应文字层。PSD 组可嵌套，普通像素/文字层不包含子层。
+- PSD 的控件/容器对应命名组；每个 UIImage 对应可独立导出的图片组，其内部包含 @image 像素层；按钮使用 @normal，UILabel 对应文字层。PSD 组可嵌套，普通像素/文字层不包含子层。
 - PSD 通过现有实验 shmd/gflw 载体写入唯一身份、role 和 slicing；外部映射记录原型 documentId/nodeId 与 PSD documentId/layerId，原生数字 ID 独立。图片切图不烘焙 UILabel；按钮底图设置九宫格。
 - 交付 sample/star-sea-login.gameflow.json、examples/star-sea-login/ 下的 PSD、图片资源、预览、配置/映射和中文说明，附可重建脚本。提供独立浏览器样例入口供工作台查看，存储与现有样例隔离。
-- `examples/Star-Sea-Login-750x1334.zip` 汇总 21 份交付文件，并校验压缩包内字节与源文件一致。原型预览裁自完整工作台 39% 缩放截图并放大至设计尺寸，另保留工作台原始截图。
+- `examples/Star-Sea-Login-750x1334.zip` 汇总当前交付目录文件，并校验压缩包内字节与源文件一致。原型预览裁自完整工作台 39% 缩放截图并放大至设计尺寸，另保留工作台原始截图。
 
 ## 3. Non-Goals
 

@@ -78,7 +78,7 @@
           "image": {
             "builtin": "block/fill-gray",
             "art": {
-              "path": "unclassified/deep_space.png",
+              "path": "unclassified/login_skjb.png",
               "source": {
                 "documentId": "47061573-175a-4735-986e-15e5faa87890",
                 "layerId": "atbs1ky7"
@@ -117,7 +117,7 @@
           "image": {
             "builtin": "image/default",
             "art": {
-              "path": "unclassified/stars.png",
+              "path": "unclassified/login_xdygd.png",
               "source": {
                 "documentId": "47061573-175a-4735-986e-15e5faa87890",
                 "layerId": "g6aijsld"
@@ -177,7 +177,7 @@
           "image": {
             "builtin": "icon/star",
             "art": {
-              "path": "unclassified/emblem.png",
+              "path": "unclassified/login_xhhj.png",
               "source": {
                 "documentId": "47061573-175a-4735-986e-15e5faa87890",
                 "layerId": "1jjds7jk"
@@ -307,7 +307,7 @@
           "image": {
             "builtin": "block/outline-gray",
             "art": {
-              "path": "unclassified/server_bg.png",
+              "path": "unclassified/login_fwqdb.png",
               "source": {
                 "documentId": "47061573-175a-4735-986e-15e5faa87890",
                 "layerId": "zes4xdk1"
@@ -344,7 +344,7 @@
           "image": {
             "builtin": "circle/fill-green",
             "art": {
-              "path": "unclassified/status_dot.png",
+              "path": "unclassified/login_ljztd.png",
               "source": {
                 "documentId": "47061573-175a-4735-986e-15e5faa87890",
                 "layerId": "zht8rdqu"
@@ -414,7 +414,7 @@
           "normalSkin": {
             "builtin": "button/yellow",
             "art": {
-              "path": "unclassified/btn_login_start_normal.png",
+              "path": "unclassified/login_start_normal.png",
               "source": {
                 "documentId": "47061573-175a-4735-986e-15e5faa87890",
                 "layerId": "c6ni4g0w"

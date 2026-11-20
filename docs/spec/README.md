@@ -84,7 +84,7 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 
 - [inspector-overlay-scrollbar.md](inspector-overlay-scrollbar.md) — Done：属性面板滚动条覆盖显示、停止后自动隐藏；字段宽度稳定，滚动交互、窄窗口、177 项测试及构建通过。
 
-- [star-sea-login-sample.md](star-sea-login-sample.md) — Done：750×1334“星海远征”原型与 PSD 样例，独立图片导出组和文案；177 项测试、生产构建、独立 PSD 回读及工作台验收通过。
+- [star-sea-login-sample.md](star-sea-login-sample.md) — Done：按最新变量/图集命名与 @image/@normal 约定重建原型、PSD、配置、映射、预览和 ZIP；368 项测试、浏览器及真实宿主检查与生产构建通过，像素保持一致。
 
 - [psd-file-drop.md](psd-file-drop.md) — Verifying：PSD 切图和合并来源 A/B 拖入入口已接入；177 项测试、生产构建及浏览器读取/保护回归通过，操作系统文件拖入手势待实测。
 

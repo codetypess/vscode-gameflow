@@ -20,7 +20,7 @@ let shared;
 try {
   const out = path.join(temp, "shared.cjs");
   require("esbuild").buildSync({
-    stdin: { contents: 'export * from "./shared/model"; export * from "./shared/element-id"; export * from "./shared/ui-layout"; export * from "./shared/ui-components"; export * from "./shared/psd-meta"; export * from "./shared/psd-binary"; export * from "./shared/psd-export";', resolveDir: repo },
+    stdin: { contents: 'export * from "./shared/model"; export * from "./shared/element-id"; export * from "./shared/ui-layout"; export * from "./shared/ui-components"; export * from "./shared/psd-meta"; export * from "./shared/psd-binary"; export * from "./shared/psd-structure"; export * from "./shared/psd-prototype"; export * from "./shared/psd-export";', resolveDir: repo },
     bundle: true, platform: "node", format: "cjs", outfile: out,
   });
   shared = require(out);
@@ -39,8 +39,7 @@ const transparent = { fill: "transparent", borderColor: "transparent", borderWid
 const assetOut = path.join(root, "assets");
 fs.mkdirSync(assetOut, { recursive: true });
 const atlasName = "login";
-const startButtonExportName = "start";
-const startNormalName = `btn_${atlasName}_${startButtonExportName}_normal`;
+const startButtonVariableName = "start";
 const nodes = design.nodes.map(n => {
   const node = {
     id: id("elements", n.key), name: n.name, variableName: n.variableName, type: n.type,
@@ -50,10 +49,10 @@ const nodes = design.nodes.map(n => {
   if (n.type === "image") {
     const png = fs.readFileSync(path.join(assetsDir, n.key + ".png"));
     fs.writeFileSync(path.join(assetOut, n.key + ".png"), png);
-    node.image = { ...n.image, art: { path: "unclassified/" + n.key + ".png", source: { documentId: ids.psdDocumentId, layerId: id("layers", n.key + ".pixels") } } };
+    node.image = { ...n.image };
     node.widget = { imageFit: "fill" };
   } else if (n.type === "button") {
-    node.normalSkin = { ...n.normalSkin, art: { path: `unclassified/${startNormalName}.png`, source: { documentId: ids.psdDocumentId, layerId: id("layers", n.normalAsset + ".pixels") } } };
+    node.normalSkin = { ...n.normalSkin };
     fs.copyFileSync(path.join(assetsDir, n.normalAsset + ".png"), path.join(assetOut, n.normalAsset + ".png"));
   } else if (n.type === "text") {
     node.text = n.text;
@@ -86,8 +85,6 @@ const button = nodes.find(n => n.type === "button");
 assert.equal(button.text, undefined);
 assert.deepEqual(nodes.filter(n => n.parentId === button.id).map(n => n.type), ["text"]);
 const prototypePath = path.join(repo, "sample/star-sea-login.gameflow.json");
-fs.writeFileSync(prototypePath, shared.serializeGameFlowDocument(document));
-fs.copyFileSync(prototypePath, path.join(root, "star-sea-login.gameflow.json"));
 
 ag.initializeCanvas(() => { throw new Error("Raster caches are supplied explicitly"); },
   (width, height) => ({ width, height, data: new Uint8ClampedArray(width * height * 4) }));
@@ -122,22 +119,21 @@ function raster(key) {
 function layer(n) {
   const layaClass = shared.COMPONENTS[n.type].laya;
   const ref = prototypeRef(n.key, layaClass);
-  const base = { id: ++nativeId, name: `${n.name} (${layaClass})`, gameflowMetadata: meta(n.key, n.type === "image" ? "asset.export-group" : n.type, { prototype: ref }) };
+  const base = { id: ++nativeId, name: n.name, gameflowMetadata: meta(n.key, n.type === "image" ? "asset.export-group" : n.type, { prototype: ref }) };
   const binding = { prototype: ref, psd: { documentId: ids.psdDocumentId, layerId: base.gameflowMetadata.layerId, nativeId: base.id }, name: n.name, frame: resolved.nodes.get(ref.nodeId).absolute };
   bindings.push(binding);
   if (n.type === "image") {
     const pixelId = ++nativeId;
     base.opened = false;
-    base.children = [{ id: pixelId, name: `${n.name} · 像素`, ...raster(n.key),
+    base.children = [{ id: pixelId, name: "@image", ...raster(n.key),
       gameflowMetadata: meta(n.key + ".pixels", "asset.raster", {
         exportGroupId: base.gameflowMetadata.layerId, prototype: { ...ref, slot: "image" },
-        slicing: { enabled: true, name: n.key, exportName: n.key, nineGrid: n.nineGrid ?? null },
-        ...(n.key === "button_bg" ? { state: "normal" } : {}),
+        slicing: { enabled: true, name: "@image", nineGrid: n.nineGrid ?? null },
       }) }];
     binding.asset = { path: `assets/${n.key}.png`, rasterLayerId: base.children[0].gameflowMetadata.layerId, nativeId: pixelId, nineGrid: n.nineGrid ?? null };
   } else if (n.type === "button") {
     base.opened = true;
-    base.gameflowMetadata.slicing = { enabled: false, name: base.name, exportName: startButtonExportName, nineGrid: null };
+    base.gameflowMetadata.slicing = { enabled: false, name: base.name, variableName: startButtonVariableName, nineGrid: null };
     const key = n.normalAsset, definition = design.resources.find(r => r.key === key), pixelId = ++nativeId;
     base.children = [{ id: pixelId, name: "@normal", ...raster(key), gameflowMetadata: meta(key + ".pixels", "asset.raster", { prototype: { ...ref, slot: "normalSkin" }, slicing: { enabled: true, name: "@normal", nineGrid: definition.nineGrid ?? null } }) }, ...design.nodes.filter(child => child.parent === n.key).map(layer)];
     binding.asset = { path: "assets/" + key + ".png", slot: "normalSkin", rasterLayerId: base.children[0].gameflowMetadata.layerId, nativeId: pixelId, nineGrid: definition.nineGrid ?? null };
@@ -149,7 +145,7 @@ function layer(n) {
   }
   return base;
 }
-const psdPage = { id: ++nativeId, name: "星海远征 · 登录 (UIStack)", opened: true,
+const psdPage = { id: ++nativeId, name: page.name, opened: true,
   gameflowMetadata: meta("page", "screen", { prototype: prototypeRef("page", "UIStack") }),
   children: design.nodes.filter(n => !n.parent).map(layer) };
 bindings.unshift({ prototype: prototypeRef("page", "UIStack"), psd: { documentId: ids.psdDocumentId, layerId: psdPage.gameflowMetadata.layerId, nativeId: psdPage.id }, name: page.name, frame: page.frame });
@@ -177,7 +173,10 @@ function verify(n, parent) {
   if (n.text) textCount++;
   if (n.children) groupCount++;
   if (n.imageData) rasterCount++;
-  if (n.imageData && !n.text) assert.ok((parent.children.length === 1 && parent.name.includes("UIImage")) || (n.name === "@normal" && parent.name.includes("UIButton")));
+  if (n.imageData && !n.text) {
+    const parentClass = parsed.layers.find(record => record.nativeId === parent.id)?.metadata.prototype?.layaClass;
+    assert.ok((n.name === "@image" && parent.children.length === 1 && parentClass === "UIImage") || (n.name === "@normal" && parentClass === "UIButton"));
+  }
   (n.children ?? []).forEach(child => verify(child, n));
 }
 decoded.children.forEach(n => verify(n, null));
@@ -196,14 +195,32 @@ for (const binding of bindings) {
   }
 }
 const hash = createHash("sha256").update(bytes).digest("hex");
-const asset = { name: psdName, atlasName, sourceHash: hash, documentId: ids.psdDocumentId, hasEmbeddedIdentity: true,
-  width: design.width, height: design.height, preview: "", layers: parsed.layers.map(r => ({
-    key: r.key, nativeId: r.nativeId, parentKey: r.parentKey, name: r.name, group: !!r.divider,
-    left: r.left, top: r.top, width: r.width, height: r.height, hidden: r.hidden,
-    identityOrigin: "embedded", metadata: r.metadata,
-    config: r.metadata.slicing ?? { enabled: false, name: r.name, nineGrid: null },
-  })) };
-assert.equal(shared.effectiveExportName(asset, asset.layers.find(l => l.name === "@normal")), startNormalName);
+const asset = shared.createPsdStructure(parsed, psdName, hash);
+for (const binding of bindings.filter(binding => binding.asset)) {
+  const raster = asset.layers.find(layer => layer.metadata.layerId === binding.asset.rasterLayerId);
+  raster.image = "data:image/png;base64," + fs.readFileSync(path.join(root, binding.asset.path)).toString("base64");
+  binding.asset.variableName = shared.effectiveVariableName(asset, raster);
+  binding.asset.exportName = shared.effectiveExportName(asset, raster);
+  binding.asset.exportPath = shared.psdSliceDirectory(asset, raster.config.shared) + "/" + binding.asset.exportName + ".png";
+}
+assert.equal(shared.effectiveExportName(asset, asset.layers.find(l => l.name === "@normal")), "login_start_normal");
+assert.ok(asset.layers.every(layer => layer.config.exportName === undefined));
+assert.equal(asset.layers.filter(layer => layer.config.variableName !== undefined).length, 1);
+const exportBatch = shared.makeSliceExportBatch(asset);
+assert.equal(exportBatch.items.length, 6);
+const bound = shared.bindPrototypePsd(page, document.documentId, asset);
+// Public names and markers must work even without the optional stable-identity fallback.
+const publicOnly = shared.bindPrototypePsd(page, document.documentId, { ...asset, layers: asset.layers.map(layer => ({ ...layer, metadata: { ...layer.metadata, prototype: undefined } })) });
+assert.deepEqual(bound, publicOnly);
+page.nodes = bound.nodes;
+assert.equal(page.artPsd, undefined);
+for (const binding of bindings.filter(binding => binding.asset)) {
+  const slot = page.nodes.find(node => node.id === binding.prototype.nodeId)[binding.asset.slot ?? "image"];
+  assert.equal(slot.art.path, binding.asset.exportPath);
+  assert.equal(slot.art.source.layerId, binding.asset.rasterLayerId);
+}
+fs.writeFileSync(prototypePath, shared.serializeGameFlowDocument(document));
+fs.copyFileSync(prototypePath, path.join(root, "star-sea-login.gameflow.json"));
 const sidecar = shared.makeSidecar(asset);
 assert.deepEqual(shared.makeSidecar(shared.applySidecar(asset, sidecar)), sidecar);
 fs.writeFileSync(path.join(root, "Star-Sea-Login-750x1334.meta.json"), JSON.stringify(sidecar, null, 2) + "\n");
@@ -214,6 +231,7 @@ const report = { width: design.width, height: design.height, prototypeNodes: nod
   groups: groupCount, editableTextRecords: textCount, imageExportGroups: 5, rasterLayers: rasterCount - textCount,
   taggedRecords: parsed.layers.length, psdBytes: bytes.length, sourceHash: hash,
   prototypeCodecAndLayout: "passed", metadataIndependentReader: "passed", savedCompositeBytes: "exact match",
-  imageGroupsExcludeLabels: "passed", photoshopRoundTrip: "not executed" };
+  imageGroupsExcludeLabels: "passed", publicSlotBinding: "passed", variableAndExportNames: "passed",
+  exportNames: exportBatch.items.map(item => item.name), photoshopRoundTrip: "not executed" };
 fs.writeFileSync(path.join(root, "verification.json"), JSON.stringify(report, null, 2) + "\n");
 console.log(JSON.stringify({ prototypePath, psdPath, ...report }, null, 2));

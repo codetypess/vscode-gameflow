@@ -4,7 +4,7 @@
   "experimental": true,
   "prototype": "star-sea-login.gameflow.json",
   "psd": "Star-Sea-Login-750x1334.psd",
-  "psdSha256": "51e44c5e1e3d1a56ace0443762586d206d43e0ccf8d3907eaf99b432592a6e51",
+  "psdSha256": "0ca1443e145688bf22b5a1c8282e486e1816e77be0095971d21f037f4dc01212",
   "bindings": [
     {
       "prototype": {
@@ -69,7 +69,10 @@
         "path": "assets/deep_space.png",
         "rasterLayerId": "atbs1ky7",
         "nativeId": 204,
-        "nineGrid": null
+        "nineGrid": null,
+        "variableName": "skjb",
+        "exportName": "login_skjb",
+        "exportPath": "unclassified/login_skjb.png"
       }
     },
     {
@@ -95,7 +98,10 @@
         "path": "assets/stars.png",
         "rasterLayerId": "g6aijsld",
         "nativeId": 206,
-        "nineGrid": null
+        "nineGrid": null,
+        "variableName": "xdygd",
+        "exportName": "login_xdygd",
+        "exportPath": "unclassified/login_xdygd.png"
       }
     },
     {
@@ -141,7 +147,10 @@
         "path": "assets/emblem.png",
         "rasterLayerId": "1jjds7jk",
         "nativeId": 209,
-        "nineGrid": null
+        "nineGrid": null,
+        "variableName": "xhhj",
+        "exportName": "login_xhhj",
+        "exportPath": "unclassified/login_xhhj.png"
       }
     },
     {
@@ -233,7 +242,10 @@
           "bottom": 12,
           "left": 12,
           "repeat": false
-        }
+        },
+        "variableName": "fwqdb",
+        "exportName": "login_fwqdb",
+        "exportPath": "unclassified/login_fwqdb.png"
       }
     },
     {
@@ -259,7 +271,10 @@
         "path": "assets/status_dot.png",
         "rasterLayerId": "zht8rdqu",
         "nativeId": 216,
-        "nineGrid": null
+        "nineGrid": null,
+        "variableName": "ljztd",
+        "exportName": "login_ljztd",
+        "exportPath": "unclassified/login_ljztd.png"
       }
     },
     {
@@ -312,7 +327,10 @@
           "bottom": 20,
           "left": 20,
           "repeat": false
-        }
+        },
+        "variableName": "start_normal",
+        "exportName": "login_start_normal",
+        "exportPath": "unclassified/login_start_normal.png"
       }
     },
     {

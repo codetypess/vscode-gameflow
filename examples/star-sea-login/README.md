@@ -8,7 +8,7 @@
 - **浏览器**：启动 `npm run dev:webview -- --port 5187`，访问 `http://127.0.0.1:5187/?sample=star-sea-login`。该样例使用独立浏览器存储；双击页面编辑内部节点。
 - **美术 PSD**：示例默认未绑定 PSD。切换“美术 PSD”，点击“绑定 PSD”并选择 `Star-Sea-Login-750x1334.psd`，随后按正常流程保存页面绑定。打开 PSD 切图只查看/编辑切图配置，不代表关联该页面。浏览器刷新后需要重新选择本地 PSD。
 - **预制体**：在“工作台设置”选择资源与预制体根目录，再用“导出 Prefab”。“预制体”资源模式通过原型布局读取导出的 PNG，不读取真实 Prefab 层级。没有打开 PSD 时，已绑定的美术资源需要存在于资源根目录；否则会进入缺图确认流程。
-- **预览资料**：`artwork-preview.png` 与当前 PSD 的保存合成图一致。`prototype-preview.jpg`、`workbench-preview.jpg` 和 `comparison-preview.png` 是旧版结构的历史截图，不作为本次资源模式改造的界面验收证据。
+- **预览资料**：`artwork-preview.png` 与当前 PSD 的保存合成图一致。`prototype-preview.jpg`、`workbench-preview.jpg`、`psd-workbench-preview.jpg` 和 `comparison-preview.png` 已按本次生成的文件重新截图；对比图左侧为内置资源原型，右侧为美术 PSD。
 
 ## 控件结构
 
@@ -32,30 +32,32 @@
 
 UIBox 透明；UIButton 自身持有 normalSkin，不再包含额外背景 UIImage，也没有自身 text 属性。文字由独立 UILabel 提供。标题区居中并固定上边距；服务器信息、开始按钮及底部提示使用居中和下边距约束。节点使用父容器局部坐标及独立变量名。
 
-PSD 中容器为命名组，UIImage 导出组内有对应像素层；UIButton 组内为 `@normal` 图片及独立文字层。新生成数据包含 **10 个分组、6 个像素层、5 个文字层**。
+PSD 的公开名称与原型控件名称一致，不附加 UI 类型后缀，类型保存在元数据中。UIImage 导出组内为 `@image` 像素层，UIButton 组内为 `@normal` 图片及独立文字层。生成数据包含 **10 个分组、6 个像素层、5 个文字层**。
 
 ## 图片与切图配置
 
-| 图片 | 文件 | 尺寸 | 九宫格上/右/下/左 |
-| --- | --- | --- | --- |
-| 深空渐变 | `assets/deep_space.png` | 750×1334 | 无 |
-| 星点与轨道 | `assets/stars.png` | 750×1334 | 无 |
-| 星海徽记 | `assets/emblem.png` | 216×80 | 无 |
-| 服务器底板 | `assets/server_bg.png` | 460×64 | 12/12/12/12 |
-| 连接状态灯 | `assets/status_dot.png` | 10×10 | 无 |
-| 按钮底图 | `assets/button_bg.png` | 490×94 | 20/20/20/20 |
+| 图片 | 生成素材 | 导出名称 | 尺寸 | 九宫格上/右/下/左 |
+| --- | --- | --- | --- | --- |
+| 深空渐变 | `assets/deep_space.png` | `login_skjb` | 750×1334 | 无 |
+| 星点与轨道 | `assets/stars.png` | `login_xdygd` | 750×1334 | 无 |
+| 星海徽记 | `assets/emblem.png` | `login_xhhj` | 216×80 | 无 |
+| 服务器底板 | `assets/server_bg.png` | `login_fwqdb` | 460×64 | 12/12/12/12 |
+| 连接状态灯 | `assets/status_dot.png` | `login_ljztd` | 10×10 | 无 |
+| 按钮底图 | `assets/button_bg.png` | `login_start_normal` | 490×94 | 20/20/20/20 |
+
+图集为 `login`。普通图片父组未设置变量，按其公开图层名生成拼音首字母；按钮父组手填变量 `start`。`@image` 沿用父组变量，`@normal` 追加 `_normal`。导出名称只读，统一为 `{图集名}_{变量名}`，不自动添加 btn/img；状态变量也只读。内嵌 slicing 和 sidecar 使用新的 `variableName` 字段，不再写入旧 `exportName`。两份原型的图片引用及映射中的 `exportPath` 都从实际 PSD 经生产命名/绑定函数计算。
 
 6 个像素层标记为切图，5 个文字层不勾选切图。按钮底图的九宫格保存在 `@normal` 状态层，其他图片保存在 UIImage 导出组内的像素层上。附带 PNG 是样例生成脚本的产物；通用 Prefab 导出会按当前槽位绑定输出图片、导入元数据和根目录来源清单。
 
 `Star-Sea-Login-750x1334.meta.json` 可通过“读取配置”载入，与 PSD 内嵌 slicing 配置一致。`prototype-psd-map.json` 记录页面与 14 个节点共 **15 项映射**，另记录像素层、按钮 normalSkin 槽位及 PNG 路径。原型节点 ID、GameFlow PSD 图层 ID、PSD 原生数字 ID 相互独立。
 
-元数据沿用 `shmd → 8BIM:gflw` UTF-8 JSON，含 namespace/version/documentId/layerId 和 prototype 引用。图片槽位映射使用稳定身份，不靠名称猜测；`identities.json` 固定生成身份，重复运行脚本会复用。本次直接更新示例和生成脚本，不通过打开旧文档时的自动转换调整结构。
+元数据沿用 `shmd → 8BIM:gflw` UTF-8 JSON，含 namespace/version/documentId/layerId 和 prototype 引用。图片槽位按公开名称和状态标记匹配，稳定身份用于来源追踪；生成器额外验证移除原型引用元数据后仍得到相同绑定。`identities.json` 固定生成身份，重复运行脚本会复用。本次直接更新示例和生成脚本，不通过打开旧文档时的自动转换调整结构。
 
 ## 验证记录
 
 - 本次生成器通过生产模型校验、布局解算和边界检查：1 个 UIStack 页面、14 个节点、5 个文字节点；UIButton 自身持有 normalSkin，只有独立 UILabel 子节点。
 - `ag-psd@34.2.0` 回读和独立二进制读取器确认 21 个唯一内嵌身份、15 项映射和有效九宫格；保存合成图与输入像素完全一致。详细数据及 PSD 哈希见 `verification.json`。
-- 本次资源改造通过 349 项共享测试、10 项实际浏览器验收、真实 VS Code PSD/资源及实例宿主测试、类型检查和生产构建。浏览器测试覆盖通用 PSD 的按钮状态层/独立文字回读、Prefab 输出与磁盘资源重载；不代表本示例已经在目标 Laya 工程装载。
+- 本次生成通过生产命名、配置往返、公开槽位匹配和资源路径断言；368 项共享测试、资源模式浏览器回归、真实 VS Code PSD 宿主检查和生产构建通过。实际浏览器打开本示例，确认原型、初始未绑定提示、明确绑定后的六张美术图片，以及灰色只读变量/导出名称。连续两次生成的七份数据文件字节一致，新旧 PSD 的所有像素缓存与保存合成图字节一致。最新验证见 `verification.json`。
 - 当前环境未安装 `psd-tools`，本次未重跑该 Python 独立合成验证。旧版节点数量及旧截图的验证记录不用于当前结构。
 - PSD 文字使用 Microsoft YaHei，并保留栅格预览缓存。尚未执行 Photoshop 打开/再次保存或真实 Laya 工程装载；本示例未附带生成后的 Prefab，也没有运行时点击逻辑。
 
@@ -69,4 +71,4 @@ node examples/star-sea-login/tools/build-sample.cjs "$env:TEMP/star-sea-build"
 python examples/star-sea-login/tools/verify-independent.py
 ```
 
-依赖安装在独立目录时，可把该目录作为 `verify-independent.py` 第一个参数。脚本重建像素、PSD、原型 JSON、映射和基础验证报告；工作台截图与人工验收记录需要另行更新。
+依赖安装在独立目录时，可把该目录作为 `verify-independent.py` 第一个参数。脚本重建像素、PSD、原型 JSON、映射和基础验证报告；工作台截图和浏览器验收记录需要另行更新。完成后可用 `Compress-Archive -Path examples/star-sea-login -DestinationPath examples/Star-Sea-Login-750x1334.zip -Force` 重新打包。
