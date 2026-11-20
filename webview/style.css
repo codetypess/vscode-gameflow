@@ -347,7 +347,7 @@ button svg { flex-shrink: 0; }
 .inspector-content .container-alignment button { width: 25px; height: 26px; min-height: 26px; padding: 3px; }
 .container-alignment button[aria-pressed=true] { background: var(--vscode-button-background, #0e639c); color: var(--vscode-button-foreground, #ffffff); }
 .property-hint { font-size: 10px; line-height: 1.6; opacity: .65; margin: 6px 0; }
-.property-toggle { display: flex; align-items: center; gap: var(--property-column-gap); min-height: 27px; font-size: 11px; }
+.property-toggle { display: flex; width: fit-content; max-width: 100%; align-items: center; gap: var(--property-column-gap); min-height: 27px; font-size: 11px; }
 .property-toggle > span { order: -1; flex: 0 0 var(--property-label-width); color: var(--muted-foreground); }
 .property-toggle input { margin: 0; accent-color: var(--vscode-focusBorder, #007acc); }
 .component-identity { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; font-size: 11px; color: var(--muted-foreground); }

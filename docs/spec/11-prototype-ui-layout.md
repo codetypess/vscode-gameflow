@@ -37,6 +37,8 @@ RadioGroup 为可含子节点的容器，`widget.optionNodeIds` 保存同页 Rad
 
 属性面板默认一个独立属性一行，最小值/最大值、描边宽度/圆角分别独占一行。普通输入、布尔属性、文字按钮、数值组合、滑块、padding 和容器对齐统一使用 60px 标签列及 7px 列间距，布尔属性为左标签、右复选框。坐标/尺寸/变换等轴分量、padding 四边、布局约束图、样式/对齐/语法等具有组合语义的控件保留成组呈现，窄面板按组换行。详见 [属性面板行与列统一](inspector-property-rows.md)。
 
+布尔属性 label 仅占文字列、间距与复选框所需宽度，右侧空白点击不切换属性；文字、复选框点击与键盘空格继续使用原生激活语义，锁定保护保持有效。该规则同样适用于控件部件的选中状态和文字换行，语法组保留紧凑排列。详见 [复选框点击范围](inspector-checkbox-hit-area.md)。
+
 UILabel 的文字区支持可选 `widget.leading/letterSpacing`（有限正负数，默认 0）、wordWrap、五种 overflow（visible/hidden/scroll/shrink/ellipsis）及 HTML/UBB/模板开关。保留已有原型缺省 wordWrap=true、overflow=hidden。语法按项目 UILabel 源码顺序处理：模板变量替换，再 UBB 转 HTML，再解析文本段；UBB 单独开启即解释 HTML。模板变量为 JSON 标量映射，null/缺省关闭；`{name=default}`、缺失值及反斜杠转义与目标一致。行距、字距、富文本换行和溢出共用目标纯排版算法；shrink/ellipsis 同时考虑宽高，scroll 通过 widget.scrollX/Y 静态偏移。普通文字可多行编辑，Enter 换行、失焦或 Ctrl/Cmd+Enter 一次提交、Escape 恢复。新增字段支持保存、历史与引用实例覆盖/还原。HTML 只生成受控绘制元素，链接不跳转，内联图片在资产路径解析接入前使用尺寸占位。详见 [UILabel 文字属性与语法](label-text-properties.md)。
 
 所有支持子节点的控件，其属性面板“容器布局”分区默认展开，并允许手动收起；复合控件与普通容器采用相同默认状态。

@@ -34,6 +34,8 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 
 ## Active Work Items
 
+- [inspector-checkbox-hit-area.md](inspector-checkbox-hit-area.md) — Done：收窄属性面板布尔 label 的点击范围，避免点击右侧空白误切换 checkbox；旧样式复现及修复后 Edge 交互/锁定/历史/窄窗口回归、368 项共享测试与生产构建通过。
+
 - [page-psd-layer-conventions.md](page-psd-layer-conventions.md) — Done：PSD 变量与只读导出名拆行，统一图集/变量命名、状态继承与灰色只读展示；368 项共享测试、VS Code 宿主、两项 Edge 回归及生产构建通过。
 
 - [page-psd-binding.md](page-psd-binding.md) — Done：页面独立保存 PSD 文件关联；美术模式未绑定入口、生成即绑定、后台装载、多页文件资源隔离和保存重开完成。358 项共享测试、46 项原生宿主检查、新增页面浏览器/7 项像素及既有 14 组浏览器回归、生产构建通过。
