@@ -34,6 +34,8 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 
 ## Active Work Items
 
+- [page-prefab-sync.md](page-prefab-sync.md) — Draft。按上次同步版本审阅原型与 Laya 预制体的双向改动，逐项预览写入并保留引擎组件。
+
 - [page-psd-sync.md](page-psd-sync.md) — Verifying。原型使用内置资源，仅同步文字和控件结构。完整节点树与双侧预览标示新增、删除和修改，支持逐项预演。
 
 - [inspector-checkbox-hit-area.md](inspector-checkbox-hit-area.md) — Done：收窄属性面板布尔 label 的点击范围，避免点击右侧空白误切换 checkbox；旧样式复现及修复后 Edge 交互/锁定/历史/窄窗口回归、368 项共享测试与生产构建通过。
