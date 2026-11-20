@@ -3,6 +3,9 @@ import { posix, win32 } from "node:path";
 import { isPagePsdSource, parseGameFlowDocument, type GameFlowDocument } from "../shared/model";
 import { pagePsdKey } from "../shared/page-psd";
 import { makePsdDraft } from "../shared/psd-draft";
+import { parsePsdBinary } from "../shared/psd-binary";
+import { createPsdStructure } from "../shared/psd-structure";
+import { applySidecar, sidecarName, type PsdSidecar } from "../shared/psd-meta";
 import type { PagePsdRequest, PagePsdResult } from "../shared/page-psd-protocol";
 import { bytesHash } from "./psd-document-model";
 import type { WorkbenchDocument } from "./workbench-document";
@@ -21,7 +24,36 @@ export function rebasePagePsds(document: GameFlowDocument, from: vscode.Uri, to:
 }
 export class PagePsdController {
   private pending = new Map<string, Promise<PsdDocument>>();
+  private snapshots = new WeakMap<WorkbenchDocument, Map<string,{stamp:string;draft:ReturnType<typeof makePsdDraft>}>>();
   constructor(private readonly psd: PsdEditorProvider) {}
+  private async review(doc:WorkbenchDocument, uri:vscode.Uri, expected:string) {
+    const name=uri.path.split("/").pop()!;
+    const bytes=await vscode.workspace.fs.readFile(uri);
+    const hash=bytesHash(bytes);
+    let config:Uint8Array|undefined;
+    try { config=await vscode.workspace.fs.readFile(vscode.Uri.joinPath(uri,"..",sidecarName(name))); }
+    catch(e) { if ((e as {code?:string}).code!=="FileNotFound") throw e; }
+    const configHash=config?bytesHash(config):null;
+    const live=doc.psds.get(uri.toString())?.model;
+    if(live && live.asset.sourceHash===hash && live.configHash===configHash && live.asset.documentId===expected)
+      return {bytes,name,draft:makePsdDraft(live.asset)};
+    if(live?.dirty) throw new Error("PSD 在外部已变化，当前还有未保存的切图配置。");
+    const cache=this.snapshots.get(doc)??new Map();
+    this.snapshots.set(doc,cache);
+    const stamp=JSON.stringify([hash,configHash,expected]), cached=cache.get(uri.toString());
+    if(cached?.stamp===stamp) return {bytes,name,draft:cached.draft};
+    let asset=createPsdStructure(parsePsdBinary(bytes),name,hash);
+    if(config) {
+      const sidecar=JSON.parse(new TextDecoder().decode(config)) as PsdSidecar;
+      if(asset.hasEmbeddedIdentity && sidecar.documentId===expected && sidecar.source?.sha256!==hash && Array.isArray(sidecar.layers)) {
+        const surviving=new Set(asset.layers.map(l=>l.metadata.layerId));
+        asset=applySidecar(asset,{...sidecar,layers:sidecar.layers.filter(l=>surviving.has(l.id))});
+      } else asset=applySidecar(asset,sidecar);
+    }
+    if(asset.documentId!==expected) throw new Error("PSD 身份已变化，请重新绑定页面。");
+    const draft=makePsdDraft(asset); cache.set(uri.toString(),{stamp,draft});
+    return {bytes,name,draft};
+  }
   private async ensure(doc: WorkbenchDocument, uri: vscode.Uri, explicit: boolean): Promise<PsdDocument> {
     const source = uri.toString(), key = doc.uri.toString() + "|" + source;
     const pending = this.pending.get(key); if (pending) return pending;
@@ -54,13 +86,30 @@ export class PagePsdController {
       const page = parseGameFlowDocument(doc.getText()).pages.find(page => page.id === request.pageId);
       if (!page) throw new Error("目标页面已删除。");
       if (pagePsdKey(page.artPsd) !== pagePsdKey(request.expected)) throw new Error("页面 PSD 关联已变化，请重试。");
+      if (request.action==="review") {
+        const binding=page.artPsd!, snapshot=await this.review(doc,vscode.Uri.joinPath(doc.uri,"..",binding.source),binding.documentId);
+        return {...result,name:snapshot.name,source:binding.source,draft:snapshot.draft,base64:Buffer.from(snapshot.bytes).toString("base64")};
+      }
       let uri: vscode.Uri | undefined;
       if (request.action === "load") uri = vscode.Uri.joinPath(doc.uri, "..", page.artPsd!.source);
       else if (request.action === "choose") uri = (await vscode.window.showOpenDialog({ canSelectMany: false, filters: { Photoshop: ["psd"] }, openLabel: "绑定此页面的 PSD", defaultUri: vscode.Uri.joinPath(doc.uri, "..") }))?.[0];
-      else uri = await vscode.window.showSaveDialog({ defaultUri: vscode.Uri.joinPath(doc.uri, "..", request.name!), filters: { Photoshop: ["psd"] }, saveLabel: "生成并绑定 PSD" });
+      else uri = await vscode.window.showSaveDialog({ defaultUri: vscode.Uri.joinPath(doc.uri, "..", request.name!), filters: { Photoshop: ["psd"] }, saveLabel: request.action === "syncCopy" ? "保存同步副本" : "生成并绑定 PSD" });
       if (!uri) return { ...result, cancelled: true };
       const source = relativeSource(doc.uri, uri);
-      if (request.action === "generate") {
+      if (request.action === "syncCopy") {
+        const input = vscode.Uri.joinPath(doc.uri, "..", page.artPsd!.source);
+        const snapshot=await this.review(doc,input,page.artPsd!.documentId);
+        if(snapshot.draft.sourceHash!==request.sourceHash || bytesHash(Buffer.from(JSON.stringify(snapshot.draft)))!==request.reviewStamp)
+          throw new Error("原 PSD 或配置已变化，请重新比较。");
+        const bytes=Buffer.from(request.base64!,"base64");
+        const output=createPsdStructure(parsePsdBinary(bytes),request.name!,bytesHash(bytes));
+        if(output.documentId!==page.artPsd!.documentId) throw new Error("同步副本的 PSD 身份不匹配。");
+        const temporary=vscode.Uri.joinPath(uri,"..","."+crypto.randomUUID()+".sync-tmp");
+        try {
+          await vscode.workspace.fs.writeFile(temporary,bytes);
+          await vscode.workspace.fs.rename(temporary,uri,{overwrite:false});
+        } finally {try {await vscode.workspace.fs.delete(temporary);} catch { /* Renamed or absent. */ }}
+      } else if (request.action === "generate") {
         if (this.psd.documents.has(uri.toString()) || vscode.workspace.textDocuments.some(text => text.uri.toString() === uri!.toString() && text.isDirty)) throw new Error("目标 PSD 正在使用，请选择其他文件名。");
         await vscode.workspace.fs.writeFile(uri, Buffer.from(request.base64!, "base64"));
       }

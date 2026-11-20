@@ -42,7 +42,7 @@ scope.onmessage = async ({ data }: MessageEvent<{ id: number; type: "read" | "pa
       if (l.name !== r.name || (l.id ?? null) !== r.nativeId) throw new Error("PSD 图层对应关系无法确认。");
       const unsupportedChild = (child:Layer):boolean => !child.hidden && (!!child.mask || !!child.vectorMask || !!child.effects || !!child.clipping || !!child.adjustment || !!child.placedLayer || child.opacity !== 1 || (child.blendMode !== "normal" && child.blendMode !== "pass through") || !!child.children?.some(unsupportedChild));
       const flatUnsupported = inheritedLimitation || !!l.children?.some(unsupportedChild);
-      layers.push({ ...structure.layers[i], image: await png(l.children ? groupPixels(l, structure.layers[i]) : l.imageData), text: !!l.text, limitation: flatUnsupported ? "此层含效果、蒙版、剪贴或特殊混合，单层图仅显示保存的基础像素。" : undefined });
+      layers.push({ ...structure.layers[i], image: await png(l.children ? groupPixels(l, structure.layers[i]) : l.imageData), text: !!l.text, textContent: l.text?.text?.replace(/\r\n?/g,"\n"), limitation: flatUnsupported ? "此层含效果、蒙版、剪贴或特殊混合，单层图仅显示保存的基础像素。" : undefined });
     }
     const result: PsdAsset = { ...structure, layers, preview: await png(decoded.imageData) };
     scope.postMessage({ id: data.id, result });

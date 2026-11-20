@@ -24,6 +24,12 @@ export async function pagePsdChecks(api: { workbench: GameFlowEditorProvider; ps
     assert.equal(doc.currentPsd, undefined); assert.equal(doc.dirty, false); assert.equal(doc.psds.size, 1);
     assert.equal(doc.getText(), boundText); assert.equal(readFileSync(file, "utf8"), boundDisk);
     checks.push("page art loads its saved file without opening, dirtying, rebinding or saving the prototype");
+    const review=await controller.handle(doc,{type:"pagePsd",requestId:"sync-review",action:"review",pageId:document.pages[0].id,expected:document.pages[0].artPsd});
+    assert.equal(review.error,undefined);
+    assert.deepEqual(review.draft,result.draft);
+    assert.equal(review.base64,source.toString("base64"));
+    assert.equal(doc.dirty,false);
+    checks.push("sync review reads the exact bound PSD and configuration in a native workbench without an edit");
     doc.replace(serializeGameFlowDocument({ ...document, title: "持久页面绑定" }));
     await api.workbench.saveCustomDocument(doc, cancel.token);
     assert.deepEqual(parseGameFlowDocument(readFileSync(file, "utf8")).pages[0].artPsd, document.pages[0].artPsd);

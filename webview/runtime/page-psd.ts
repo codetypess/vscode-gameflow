@@ -7,6 +7,7 @@ import type { PagePsdRequest, PagePsdResult } from "../../shared/page-psd-protoc
 import { prefabFileName } from "../../shared/prefab-export";
 import { openPsd, psdTask, saveOutput } from "../psd/io";
 import { isBrowserPreview, postHostMessage } from "../vscode-api";
+import { compareTrees, coordinatedBase, prototypeTree, psdTree } from "../../shared/page-sync";
 export type PagePsdState = { key: string; status: "loading" | "ready" | "error"; error?: string };
 export interface PagePsdActions {
   states: Record<string, PagePsdState>;
@@ -16,22 +17,28 @@ export interface PagePsdActions {
   retry(pageId: string): void;
 }
 const browserAssets = new Map<string, PsdAsset>();
+const syncBytes = new WeakMap<PsdAsset,Uint8Array>();
+export function sourceBytes(asset:PsdAsset) {
+  const bytes=syncBytes.get(asset);
+  if(!bytes) throw new Error("请重新打开同步窗口以读取 PSD 文件。");
+  return bytes;
+}
 function chooseFile(): Promise<File | undefined> {
   return new Promise(resolve => {
     const input = document.createElement("input"); input.type = "file"; input.accept = ".psd";
     input.onchange = () => resolve(input.files?.[0]); input.oncancel = () => resolve(undefined); input.click();
   });
 }
-async function requestPsd(request: Omit<PagePsdRequest, "type" | "requestId">, bytes?: Uint8Array): Promise<{ source: string; asset: PsdAsset } | undefined> {
+export async function requestPsd(request: Omit<PagePsdRequest, "type" | "requestId">, bytes?: Uint8Array): Promise<{ source: string; asset: PsdAsset } | undefined> {
   if (isBrowserPreview) {
-    if (request.action === "load") {
+    if (request.action === "load" || request.action === "review") {
       const asset = browserAssets.get(request.pageId + ":" + pagePsdKey(request.expected));
       if (!asset) throw new Error("浏览器刷新后需重新选择本地 PSD；请点击重新绑定 PSD。");
       return { source: request.expected!.source, asset };
     }
     let asset: PsdAsset, source: string;
-    if (request.action === "choose") { const file = await chooseFile(); if (!file) return; asset = (await openPsd(file)).asset; source = file.name; }
-    else { if (!await saveOutput(request.name!, "psd", bytes!)) return; source = request.name!; asset = await psdTask<PsdAsset>("read", new Uint8Array(bytes!).buffer, source); }
+    if (request.action === "choose") { const file = await chooseFile(); if (!file) return; const opened=await openPsd(file); asset=opened.asset; syncBytes.set(asset,new Uint8Array(opened.bytes)); source = file.name; }
+    else { source = request.name!; asset = await psdTask<PsdAsset>("read", new Uint8Array(bytes!).buffer, source); if (!await saveOutput(source, "psd", bytes!)) return; syncBytes.set(asset,bytes!); }
     browserAssets.set(request.pageId + ":" + pagePsdKey({ source, documentId: asset.documentId }), asset);
     return { source, asset };
   }
@@ -48,6 +55,7 @@ async function requestPsd(request: Omit<PagePsdRequest, "type" | "requestId">, b
   if (!result.base64 || !result.source || !result.name || !result.draft) throw new Error("PSD 返回数据不完整。");
   const decoded = Uint8Array.from(atob(result.base64), c => c.charCodeAt(0));
   const asset = applyPsdDraft(await psdTask<PsdAsset>("read", decoded.buffer, result.name), result.draft, true);
+  syncBytes.set(asset,decoded);
   return { source: result.source, asset };
 }
 export function usePagePsds(document: GameFlowDocument | null, read: () => GameFlowDocument | null, update: (id: string, transform: (page: GameFlowPage) => GameFlowPage) => void, observe: (asset: PsdAsset) => void, notice: (message: string) => void, project: (document: GameFlowDocument, page: GameFlowPage) => GameFlowPage = (_, page) => page): PagePsdActions {
@@ -102,7 +110,15 @@ export function usePagePsds(document: GameFlowDocument | null, read: () => GameF
       latest.current.observe(result.asset);
       setAssets(previous => ({ ...previous, [pageId]: result.asset }));
       loads.current.set(pageId, { key: current.documentId + pagePsdKey({ source: result.source, documentId: result.asset.documentId }), token });
-      latest.current.update(pageId, page => bindPagePsd(page, current.documentId, result.source, result.asset));
+      let generatedBase=undefined;
+      if(action==="generate") {
+        const projected=latest.current.project(current,page);
+        const proto=prototypeTree(projected), psd=psdTree(current.documentId,projected,result.asset,()=>crypto.randomUUID());
+        generatedBase=coordinatedBase(current.documentId,page.id,result.asset.documentId,compareTrees(proto,psd),{proto,psd});
+      }
+      const base=generatedBase;
+      latest.current.update(pageId, page => ({...bindPagePsd(page, current.documentId, result.source, result.asset),
+        psdSync:base ?? (pagePsdKey(page.artPsd)===pagePsdKey({source:result.source,documentId:result.asset.documentId})?page.psdSync:undefined)}));
       setStates(previous => ({ ...previous, [pageId]: { key: pagePsdKey({ source: result.source, documentId: result.asset.documentId }), status: "ready" } }));
       latest.current.notice((action === "generate" ? "已生成并绑定 PSD：" : "已绑定 PSD：") + result.source);
     } catch (error) { latest.current.notice(String(error)); }

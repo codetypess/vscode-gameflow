@@ -1,3 +1,4 @@
+import { validateGameFlowDocument, type GameFlowDocument } from "../shared/model";
 import type { OverrideActions } from "./editor/override-properties";
 import { canvasPropertyLabel } from "./editor/override-properties";
 import type { CanvasOverrideGroup, CanvasOverrideManager } from "./editor/override-panel";
@@ -52,6 +53,7 @@ import { SliceResourcesProvider } from "./runtime/resource-context";
 import { bindPrototypePsd } from "../shared/psd-prototype";
 import { pagePsdKey } from "../shared/page-psd";
 import { usePagePsds } from "./runtime/page-psd";
+import { PageSyncDialog, type SyncSession } from "./editor/page-sync-dialog";
 import { PageArtState, pagePreviewBlocked } from "./editor/page-art-state";
 import { RuntimePreview } from "./runtime/preview";
 
@@ -106,6 +108,7 @@ export function App() {
   const [pickerSource, setPickerSource] = useState<string | null>(null);
   const [clipboard, setClipboard] = useState<NodeClipboard | null>(null);
   const [runtimeOpen, setRuntimeOpen] = useState(false);
+  const [syncSession,setSyncSession]=useState<SyncSession|null>(null);
   const [psdAssets, setPsdAssets] = useState<PsdAsset[]>([]);
   const observePsd = useCallback((asset: PsdAsset) => setPsdAssets(previous => {
     const index = previous.findIndex(a => a.documentId === asset.documentId);
@@ -714,6 +717,7 @@ export function App() {
             <DropdownMenu.Portal><DropdownMenu.Content loop side="top" align="end" sideOffset={8} collisionPadding={12} className="layer-context-menu" onPointerDown={event => event.stopPropagation()} onKeyDown={event => event.stopPropagation()}>
               <DropdownMenu.Item disabled={psdActionDisabled} onSelect={() => { if (page && !psdActionDisabled) void pagePsds.run(page.id, "generate"); }}><FileImage size={15} /><span>生成 PSD</span></DropdownMenu.Item>
               <DropdownMenu.Item disabled={psdActionDisabled} onSelect={() => { if (page && !psdActionDisabled) void pagePsds.run(page.id, "choose"); }}><Link2 size={15} /><span>{page?.artPsd ? "重新绑定 PSD" : "绑定 PSD"}</span></DropdownMenu.Item>
+              <DropdownMenu.Item disabled={psdActionDisabled || !canonicalPage?.artPsd} onSelect={()=>{if(canvasDocument && composition && canonicalPage?.artPsd)setSyncSession({document:canvasDocument,page:composition.page,makeId:newIds()});}}><GitMerge size={15}/><span>同步文字与结构</span></DropdownMenu.Item>
             </DropdownMenu.Content></DropdownMenu.Portal>
           </DropdownMenu.Root>
         </div>
@@ -730,6 +734,21 @@ export function App() {
     </div>
     <PsdWorkspace mode="merge" active={mode === "merge"} settings={settings} />
     <PsdWorkspace mode="slice" active={mode === "slice" && !runtimeOpen} binding={psdEditor.binding} documentActions={documentActions} exportActions={exportActions} settings={settings} exportPending={pending} onAsset={observePsd} />
+    {syncSession && <PageSyncDialog session={syncSession} close={()=>setSyncSession(null)} apply={(updated,checkOnly)=>{
+      const current=read();
+      const prepare=(document:GameFlowDocument)=>{
+        const target=document.pages.find(p=>p.id===updated.id);
+        if(document.documentId!==syncSession.document.documentId || !target || JSON.stringify(composeCanvasPage(document,target,sources).page)!==JSON.stringify(syncSession.page))
+          throw new Error("原型页面已变化，请关闭并重新打开同步窗。");
+        const next=editCanvasPage(document,updated.id,sources,()=>updated);
+        const valid=validateGameFlowDocument(next);
+        if(!valid.ok) throw new Error(valid.errors.join("；"));
+        return next;
+      };
+      if(!current) throw new Error("文档已关闭。");
+      const next=prepare(current);
+      if(!checkOnly) {edit(()=>next);pagePsds.retry(updated.id);setNotice("已应用文字与结构同步");}
+    }}/>}
     {runtimeOpen ? <RuntimePreview pagePsds={pagePsds} resourceMode={resourceMode} onResourceMode={switchResourceMode} pages={resourcePages} initialPageId={editingId ?? selectedPageId ?? undefined} onClose={() => setRuntimeOpen(false)} /> : null}
     {psdEditor.initialError && mode === "slice" ? <div className="psd-status psd-warning" role="alert">{psdEditor.initialError}</div> : null}
   </main></TooltipProvider></SliceResourcesProvider>;

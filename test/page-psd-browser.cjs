@@ -159,7 +159,8 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
       await openMore();
       const menuBounds = await moreMenu.boundingBox();
       assert.ok(menuBounds && menuBounds.x >= 0 && menuBounds.x + menuBounds.width <= width && menuBounds.y >= 0 && menuBounds.y + menuBounds.height <= 760, "More menu stays in the narrow viewport");
-      assert.equal(await moreMenu.getByRole("menuitem").count(), 2);
+      assert.equal(await moreMenu.getByRole("menuitem").count(), 3);
+      assert.equal(await moreMenu.getByRole("menuitem", {name:"同步文字与结构"}).isEnabled(), true);
       await page.screenshot({ path: path.join(output, "narrow-" + width + ".png") });
       await page.keyboard.press("Escape");
     }

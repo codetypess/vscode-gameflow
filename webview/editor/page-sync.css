@@ -1,0 +1,44 @@
+.page-sync-dialog { position:fixed; inset:0; margin:auto; padding:0; max-width:calc(100vw - 16px); max-height:calc(100dvh - 16px); box-sizing:border-box; overflow:hidden; background:var(--vscode-editor-background,#202329); color:var(--vscode-foreground,#ddd); border:1px solid var(--vscode-panel-border,#525963); border-radius:6px; }
+.page-sync-dialog[open] { display:grid; grid-template-rows:auto minmax(0,1fr) auto; }
+.page-sync-dialog::backdrop { background:#0008; }
+.page-sync-dialog header,.page-sync-dialog footer,.sync-bar { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.page-sync-dialog header,.page-sync-dialog footer { padding:10px 14px; background:var(--vscode-sideBar-background,#25282f); }
+.page-sync-dialog header>div,.sync-bar strong { min-width:0; }
+.page-sync-dialog header span { display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:12px; }
+.page-sync-dialog h2 { font-size:16px; margin:0 0 3px; }
+.page-sync-dialog button,.page-sync-dialog select { color:inherit; font:inherit; padding:4px 7px; border:1px solid var(--vscode-panel-border,#555); border-radius:3px; background:transparent; }
+.page-sync-dialog select { background:var(--vscode-dropdown-background,#333); max-width:100%; }
+.page-sync-dialog button:disabled { opacity:.5; }
+.page-sync-dialog button[aria-pressed=true] { outline:1px solid var(--vscode-focusBorder,#5c9ddb); outline-offset:-1px; }
+.page-sync-dialog button svg { width:15px; height:15px; }
+.page-sync-dialog .sync-layout { display:grid; min-height:0; grid-template-columns:clamp(180px,29%,330px) minmax(0,1fr); }
+.page-sync-dialog nav,.page-sync-dialog .sync-body { min-height:0; min-width:0; overflow:auto; padding:12px; scrollbar-gutter:stable; }
+.page-sync-dialog nav { border-right:1px solid var(--vscode-panel-border,#555); }
+.sync-legend { display:flex; gap:8px; margin:8px 0; font-size:11px; }
+.page-sync-dialog [data-kind=add] {--tone:var(--vscode-gitDecoration-addedResourceForeground,#68b786);}
+.page-sync-dialog [data-kind=delete] {--tone:var(--vscode-gitDecoration-deletedResourceForeground,#e87775);}
+.page-sync-dialog [data-kind=edit] {--tone:var(--vscode-editorWarning-foreground,#dcae48);}
+.sync-tree-row [data-kind],.sync-legend b { color:var(--tone); background:color-mix(in srgb,var(--tone) 10%,transparent); }
+.page-sync-dialog nav ul { padding:0 0 0 8px; margin:0; list-style:none; }
+.sync-tree-row { display:flex; align-items:center; min-height:26px; }
+.sync-tree-row i,.sync-tree-row button:first-child:not([aria-pressed]) { width:18px; flex:none; padding:0; }
+.sync-tree-row button,.page-sync-dialog .sync-root { border:0; text-align:left; }
+.sync-tree-row button[aria-pressed] { flex:1; min-width:0; overflow-wrap:anywhere; }
+.sync-tree-row code { font-size:11px; opacity:.8; }
+.sync-boards { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin:12px 0; }
+.sync-boards figure { min-width:0; margin:0; border:1px solid var(--vscode-panel-border,#555); }
+.sync-boards figcaption { padding:4px 7px; }
+.sync-preview { height:clamp(100px,30vh,310px); display:grid; place-items:center; overflow:hidden; text-align:center; background:var(--vscode-sideBar-background,#292c33); }
+.sync-surface { overflow:hidden; transform-origin:0 0; position:absolute; top:0; left:0; }
+.sync-surface>img { display:block; width:100%;height:100%; }
+.sync-box { position:absolute; border:solid var(--tone,var(--vscode-focusBorder,#57a2ee)); pointer-events:none; text-align:left; }
+.sync-box[data-ghost=true] { border-style:dashed; }
+.sync-box b { background:var(--tone,#3687bd); color:#111; vertical-align:top; line-height:1; }
+.page-sync-dialog fieldset { margin:10px 0; padding:8px; min-width:0; border:1px solid var(--vscode-panel-border,#555); }
+.page-sync-dialog fieldset p { overflow-wrap:anywhere; margin:3px 0 7px; }
+.page-sync-dialog fieldset button { margin:2px; }
+.page-sync-dialog [role=alert] { color:var(--vscode-errorForeground,#ef8581); }
+.page-sync-dialog footer { justify-content:flex-end; border-top:1px solid var(--vscode-panel-border,#555); }
+.page-sync-dialog footer span { flex:1; }
+.page-sync-dialog .sync-resize { cursor:nwse-resize; touch-action:none; border:0; align-self:stretch; }
+@media(max-width:620px) { .page-sync-dialog .sync-layout { grid-template-columns:1fr; grid-template-rows:minmax(70px,32%) minmax(0,1fr); } .page-sync-dialog nav { border-right:none; border-bottom:1px solid var(--vscode-panel-border,#555); } }

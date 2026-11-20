@@ -6,6 +6,7 @@ import { isWebviewToHostMessage } from "../shared/protocol";
 import { effectiveExportName, makeSliceExportBatch } from "../shared/psd-export";
 import type { PsdAsset, PsdLayer } from "../shared/psd-meta";
 import { makeNode } from "../shared/editor-ops";
+import { prototypeTree, psdTree, compareTrees, coordinatedBase, plannedTrees } from "../shared/page-sync";
 import { PagePsdController, rebasePagePsds } from "../src/page-psd-controller";
 import type { PsdEditorProvider } from "../src/psd-editor-provider";
 import type { WorkbenchDocument } from "../src/workbench-document";
@@ -13,6 +14,24 @@ import { referenceHost, Uri } from "./vscode-reference-host";
 const tests: { name: string; run: () => void | Promise<void> }[] = [];
 const test = (name: string, run: () => void | Promise<void>) => tests.push({ name, run });
 export const pagePsdTests = tests;
+test("sync ignores skin sublayers and pixel geometry while tracking text and subtree deletions",()=>{
+  const {page,asset,document}=fixture();
+  const [button]=prototypeTree(page);
+  const art={...button,layer:"button-layer",frame:{...button.frame,x:200,width:300}};
+  const proto=[button], psd=[art];
+  const base=coordinatedBase(document.documentId,page.id,asset.documentId,compareTrees(proto,psd),{proto,psd});
+  assert.deepEqual(compareTrees(proto,psd,base).changes,[]);
+  assert.equal(compareTrees(proto,[],base).changes[0].kind,"delete");
+  assert.deepEqual(psdTree(document.documentId,page,asset,()=>{throw Error("art layer treated as a control");}),[]);
+});
+test("skipping an initial text disagreement does not assign it to one side on reopen",()=>{
+  const {page}=fixture();
+  const left={...prototypeTree(page)[0],type:"text" as const,text:"left"};
+  const proto=[left], psd=[{...left,text:"right"}];
+  const c=compareTrees(proto,psd), trees=plannedTrees(c,{[left.id+"/text"]:"skip"});
+  const base=coordinatedBase("d",page.id,"a",c,trees);
+  assert.equal(compareTrees(proto,psd,base).changes[0].suggested,undefined);
+});
 function fixture() {
   const page: GameFlowPage = { id: "page", name: "登录", kind: "screen", frame: { x: 0, y: 0, width: 320, height: 240 }, nodes: [makeNode("button", "button", 0, 0)] };
   const document = { ...createDefaultGameFlowDocument("prototype"), pages: [page], interactions: [] };
