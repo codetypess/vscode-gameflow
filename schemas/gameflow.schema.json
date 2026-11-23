@@ -39,6 +39,7 @@
           "kind": { "enum": ["screen","modal"] },
           "rootType": { "enum": ["UIStack","UITop","UIScene","UIBox"] },
           "componentRootId": { "type": "string", "minLength": 1 },
+          "prefabSync": {"type":"object","additionalProperties":false,"required":["version","documentId","pageId","target","nodes"],"properties":{"version":{"const":1},"documentId":{"type":"string"},"pageId":{"type":"string"},"target":{"type":"string","pattern":"\\.lh$"},"nodes":{"$ref":"#/properties/pages/items/properties/psdSync/properties/nodes"}}},
           "psdSync": {"type":"object","required":["version","documentId","pageId","psdId","nodes"],"additionalProperties":false,"properties":{"version":{"const":1},"documentId":{"type":"string"},"pageId":{"type":"string"},"psdId":{"type":"string"},"nodes":{"type":"array","items":{"type":"object","required":["id","type","name","parent","text","frame"],"properties":{"id":{"type":"string"},"type":{"type":"string"},"name":{"type":"string"},"parent":{"type":"string"},"text":{"type":"string"},"frame":{"$ref":"#/$defs/frame"},"variable":{"type":"string"},"layer":{"type":"string"}}}}}},
           "layout": { "$ref": "#/$defs/rootLayout" },
           "background": { "$ref": "#/$defs/color" },

@@ -1,16 +1,10 @@
 import * as vscode from "vscode";
 import { createHash } from "node:crypto";
-import { exportPrefabToDirectories, type PrefabExportBatch } from "../shared/prefab-export";
+import { exportPrefabToDirectories, readPrefabSnapshot, type PrefabTarget, type PrefabWriteGuard, type PrefabExportBatch } from "../shared/prefab-export";
 import type { ResourceDirectory } from "../shared/psd-export-directory";
 import type { WorkbenchSettingsController } from "./workbench-settings-controller";
 import { exportRootsInProgress as inProgress } from "./export-lock";
-export async function exportPrefab(settings: WorkbenchSettingsController, batch: PrefabExportBatch): Promise<number> {
-  const resources = settings.directory("resources"), prefabs = settings.directory("prefabs");
-  if (!resources || !prefabs) throw new Error("请先在工作台设置中选择资源和预制体导出根目录。");
-  const keys = [...new Set([resources.toString(), prefabs.toString()])];
-  if (keys.some(key => inProgress.has(key))) throw new Error("目录正在导出，请稍后重试。");
-  keys.forEach(key => inProgress.add(key));
-  const adapter = (root: vscode.Uri): ResourceDirectory => {
+const adapter = (root: vscode.Uri): ResourceDirectory => {
     const target = (name: string) => vscode.Uri.joinPath(root, ...name.split("/"));
     const ensureClean = (name: string) => { if (vscode.workspace.textDocuments.some(d => d.uri.toString() === target(name).toString() && d.isDirty)) throw new Error(name + " 有未保存修改。"); };
     return {
@@ -21,6 +15,20 @@ export async function exportPrefab(settings: WorkbenchSettingsController, batch:
       remove: async name => { ensureClean(name); try { await vscode.workspace.fs.delete(target(name)); } catch (e) { if (!(e instanceof vscode.FileSystemError && e.code === "FileNotFound")) throw e; } }
     };
   };
-  try { await vscode.workspace.fs.createDirectory(resources); await vscode.workspace.fs.createDirectory(prefabs); return await exportPrefabToDirectories(adapter(resources), adapter(prefabs), batch, { decode: value => Buffer.from(value,"base64"), hash: async bytes => createHash("sha256").update(bytes).digest("hex") }); }
+const hash = async (bytes:Uint8Array)=>createHash("sha256").update(bytes).digest("hex");
+export async function inspectPrefabFile(settings:WorkbenchSettingsController,target:PrefabTarget) {
+  const uri=settings.directory("prefabs");
+  if(!uri) throw new Error("请先选择预制体目录。");
+  const resources=settings.directory("resources");
+  return {...await readPrefabSnapshot(adapter(uri),target,hash,resources?adapter(resources):undefined),root:JSON.stringify([uri.toString(),resources?.toString()])};
+}
+export async function exportPrefab(settings: WorkbenchSettingsController, batch: PrefabExportBatch,guard?:PrefabWriteGuard,root?:string,finish?:()=>Promise<void>): Promise<number> {
+  const resources = settings.directory("resources"), prefabs = settings.directory("prefabs");
+  if (!resources || !prefabs) throw new Error("请先在工作台设置中选择资源和预制体导出根目录。");
+  if(root!==undefined && root!==JSON.stringify([prefabs.toString(),resources.toString()])) throw new Error("导出目录已变化，请重新比较。");
+  const keys = [...new Set([resources.toString(), prefabs.toString()])];
+  if (keys.some(key => inProgress.has(key))) throw new Error("目录正在导出，请稍后重试。");
+  keys.forEach(key => inProgress.add(key));
+  try { await vscode.workspace.fs.createDirectory(resources); await vscode.workspace.fs.createDirectory(prefabs); return await exportPrefabToDirectories(adapter(resources), adapter(prefabs), batch, { decode: value => Buffer.from(value,"base64"), hash },guard,finish); }
   finally { keys.forEach(key => inProgress.delete(key)); }
 }

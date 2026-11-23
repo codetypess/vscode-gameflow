@@ -167,7 +167,7 @@ export function duplicatePage(page: GameFlowPage, makeId: () => string): GameFlo
   const mapping = new Map(ownedCanvasNodes(page.nodes).map((node) => [node.id, makeId()]));
   const pageId = makeId();
   return {
-    ...page, psdSync: undefined, id: pageId, name: `${page.name} 副本`,
+    ...page, psdSync: undefined, prefabSync: undefined, id: pageId, name: `${page.name} 副本`,
     ...(page.componentRootId ? { componentRootId: mapping.get(page.componentRootId) ?? page.componentRootId } : {}),
     ...(page.layout ? { layout: { ...page.layout } } : {}),
     frame: { ...page.frame, x: page.frame.x + page.frame.width + 80 },

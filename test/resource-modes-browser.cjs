@@ -49,6 +49,7 @@ const sharedUrl = file => "/@fs/" + path.resolve(__dirname, "../shared", file).s
     await page.getByRole("button",{name:"选择资源导出根目录",exact:true}).click();
     await page.getByRole("button",{name:"选择预制体导出根目录",exact:true}).click();
     await page.getByRole("button",{name:"完成",exact:true}).click();
+    await page.locator(".page-caption").first().click();
     await page.getByRole("button",{name:"导出 Prefab",exact:true}).click();
     await page.waitForFunction(()=>window.testRoots?.[1]?.entries.size>0);
     await page.getByRole("button",{name:"预制体资源",exact:true}).click();
@@ -126,6 +127,17 @@ const sharedUrl = file => "/@fs/" + path.resolve(__dirname, "../shared", file).s
     const brokenName = `broken_${ownerStem}_normal`;
     const painted = page.locator(`.page-editing canvas[data-resource-path="${normalPath}"]`);
     await painted.waitFor();
+    // Each resource export scenario creates a fresh target. Existing .lh files
+    // enter the separately exercised two-way review workflow.
+    const chooseFreshOutput = async name => {
+      await page.getByRole("button",{name:"工作台设置",exact:true}).click();
+      await page.locator("#workbench-export-directory").fill(name);
+      await page.getByRole("button",{name:"完成",exact:true}).click();
+    };
+    const exportFresh = async directory => {
+      await page.getByRole("button",{name:"同步预制体",exact:true}).click();
+      await page.getByRole("button",{name:new RegExp("^使用 "+directory+"/")}).click();
+    };
     for (const mode of ["美术 PSD资源", "预制体资源"]) {
       await page.getByRole("button",{name:mode,exact:true}).click();
       await button.click({position:{x:3,y:3}});
@@ -136,21 +148,22 @@ const sharedUrl = file => "/@fs/" + path.resolve(__dirname, "../shared", file).s
       assert.equal(await page.getByRole("button",{name:"选择普通图片"}).count(),0);
       assert.equal(await page.getByRole("textbox",{name:"普通图片",exact:true}).getAttribute("title"),normalPath);
       if (mode === "美术 PSD资源") {
-        await page.getByRole("button",{name:"导出 Prefab",exact:true}).click();
+        await chooseFreshOutput("art");
+        await exportFresh("art");
         await page.waitForFunction(name=>window.testRoots[0].entries.get("unclassified")?.entries.has(name), `${normalName}.png`);
       } else await painted.waitFor();
     }
     await page.getByRole("button",{name:"更多",exact:true}).click();
     await bindFile(page.getByRole("menuitem",{name:"重新绑定 PSD",exact:true}),"broken.psd",artFile(true));
     await page.waitForFunction(name=>document.querySelector('[data-image-slot="normalSkin"] input')?.value === name, brokenName);
-    const beforeCancel=await page.evaluate(()=>Array.from(window.testRoots[1].entries.values()).map(file=>Array.from(file.bytes)));
-    await page.getByRole("button",{name:"导出 Prefab",exact:true}).click();
+    await chooseFreshOutput("broken");
+    await exportFresh("broken");
     const missingDialog=page.getByRole("dialog",{name:"有资源缺失，是否继续导出？",exact:true});await missingDialog.waitFor();
     await missingDialog.getByRole("button",{name:"取消",exact:true}).click();
-    assert.deepEqual(await page.evaluate(()=>Array.from(window.testRoots[1].entries.values()).map(file=>Array.from(file.bytes))),beforeCancel);
-    await page.getByRole("button",{name:"导出 Prefab",exact:true}).click();
+    assert.equal(await page.evaluate(()=>window.testRoots[1].entries.has("broken")),false);
+    await exportFresh("broken");
     await missingDialog.getByRole("button",{name:"仍然导出",exact:true}).click();
-    await page.waitForFunction(path=>Array.from(window.testRoots[1].entries.values()).some(file=>new TextDecoder().decode(file.bytes).includes(path)), `unclassified/${brokenName}.png`);
+    await page.waitForFunction(path=>Array.from(window.testRoots[1].entries.get("broken")?.entries.values()??[]).some(file=>new TextDecoder().decode(file.bytes).includes(path)), `unclassified/${brokenName}.png`);
     await page.getByRole("button",{name:"原型资源",exact:true}).click();
     await page.getByRole("button",{name:"运行预览",exact:true}).click();
     const preview=page.getByRole("dialog",{name:"运行预览"});await preview.waitFor();

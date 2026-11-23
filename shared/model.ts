@@ -4,7 +4,7 @@ import { canHaveChildren, COMPONENT_TYPES, PAGE_ROOT_TYPES } from "./ui-componen
 import { validateRootLayout, validateUIConfig } from "./ui-config";
 import type { ConstraintLayout, NodeLayout, WidgetProps } from "./ui-config";
 import { variableNameError } from "./node-variable";
-import { validSyncBase, type SyncBase } from "./page-sync";
+import { validSyncBase, type SyncBase, type SyncNode } from "./page-sync";
 import { exportDirectoryError } from "./export-directory";
 import { isSliceResourceRef, type SliceResourceRef } from "./slice-resources";
 import { validateControlReferences } from "./ui-parts";
@@ -106,6 +106,7 @@ export interface GameFlowPage {
   /** Explicit art source, relative to this GameFlow file. */
   artPsd?: PagePsdBinding;
   psdSync?: SyncBase;
+  prefabSync?: {version:1; documentId:string; pageId:string; target:string; nodes:SyncNode[]};
   id: string;
   name: string;
   /** Optional authored name for future Prefab generation, independent of the display name. */
@@ -398,6 +399,10 @@ function validatePage(
   if (!artPsdValid) errors.push(`${path}.artPsd must contain a relative PSD source and documentId`);
   const syncValid = value.psdSync === undefined || validSyncBase(value.psdSync);
   if (!syncValid) errors.push(`${path}.psdSync 同步基线无效`);
+  const prefab = value.prefabSync;
+  if (prefab !== undefined && !(isRecord(prefab) && typeof prefab.target==="string" && prefab.target.endsWith(".lh") && !exportDirectoryError(prefab.target) && validSyncBase({...prefab,psdId:prefab.target}))) {
+    errors.push(`${path}.prefabSync 同步记录无效`); return false;
+  }
   const layoutValid = validateRootLayout(value.layout, `${path}.layout`, errors);
   const componentValid = value.componentRootId === undefined || validateString(value.componentRootId, `${path}.componentRootId`, errors);
   const frameValid = validateFrame(value.frame, `${path}.frame`, errors);

@@ -12,10 +12,12 @@ import { isSliceExportBatch, type ResourceConflict, type SliceExportBatch } from
 import { isWorkbenchSettingsRequest, type WorkbenchSettingsRequest, type WorkbenchSettingsResult } from "./workbench-settings";
 import { isSliceResourcePath, type ExportedSliceResult } from "./slice-resources";
 
-import { isPrefabExportBatch, type PrefabExportBatch } from "./prefab-export";
+import { isPrefabExportBatch, validPrefabTarget, type PrefabExportBatch, type PrefabTarget, type PrefabSnapshot, type PrefabWriteGuard } from "./prefab-export";
 
 export type WebviewToHostMessage =
   | PagePsdRequest
+  | { type:"prefabInspect";requestId:string;target:PrefabTarget }
+  | { type:"prefabCommit";requestId:string;batch:PrefabExportBatch;guard:PrefabWriteGuard;root:string;baseVersion:number;document:GameFlowDocument }
   | { type: "prefabExport"; requestId: string; batch: PrefabExportBatch }
   | WorkbenchSettingsRequest
   | { type: "sliceResources"; requestId: string; paths: string[] }
@@ -37,6 +39,7 @@ export type WebviewToHostMessage =
 
 export type HostToWebviewMessage =
   | PagePsdResult
+  | {type:"prefabInspectResult";requestId:string;snapshot?:PrefabSnapshot;error?:string}
   | { type: "pagePsdChanged"; documentId: string }
   | { type: "prefabExportResult"; requestId: string; count?: number; error?: string }
   | WorkbenchSettingsResult
@@ -81,6 +84,13 @@ export function isWebviewToHostMessage(
   if (value.type === "sliceResources") return typeof value.requestId === "string" && value.requestId.length > 0 && value.requestId.length <= 80 &&
     Array.isArray(value.paths) && value.paths.length <= 128 && value.paths.every(isSliceResourcePath) && new Set(value.paths).size === value.paths.length;
   if (value.type === "prefabExport") return typeof value.requestId === "string" && value.requestId.length > 0 && value.requestId.length <= 80 && isPrefabExportBatch(value.batch);
+  if (value.type==="prefabInspect" || value.type==="prefabCommit") {
+    if(typeof value.requestId!=="string" || !value.requestId || value.requestId.length>80) return false;
+    if(value.type==="prefabInspect") return validPrefabTarget(value.target);
+    const g=value.guard;
+    return typeof value.root==="string" && Number.isInteger(value.baseVersion) && isRecord(g) && (g.hash===null || typeof g.hash==="string" && /^[a-f0-9]{64}$/.test(g.hash)) &&
+      typeof g.writePrefab==="boolean" && Array.isArray(g.added) && g.added.every(id=>typeof id==="string") && isPrefabExportBatch(value.batch) && validateGameFlowDocument(value.document).ok;
+  }
   if (value.type === "ready") {
     return true;
   }

@@ -9,14 +9,16 @@ import { psdSlotField } from "./psd-slot-markers";
 export interface SyncNode {
   id: string; name: string; type: NodeType; parent: string; text: string; frame: Frame;
   variable?: string; layer?: string; undecided?: Field[];
+  x?: number; y?: number; width?: number; height?: number;
 }
 export interface SyncBase { version: 1; documentId: string; pageId: string; psdId: string; nodes: SyncNode[] }
 export type Side = "proto" | "psd";
 export type Decision = Side | "skip";
-export type Field = "exist" | "text" | "name" | "parent" | "order";
+export const frameFields = ["x","y","width","height"] as const;
+export type Field = "exist" | "text" | "name" | "parent" | "order" | keyof Frame;
 export interface Change { key: string; id: string; field: Field; kind: "add" | "delete" | "edit"; suggested?: Decision; members: string[] }
 export interface Comparison { proto: SyncNode[]; psd: SyncNode[]; base?: SyncBase; changes: Change[] }
-export const fieldNames: Record<Field,string> = { exist:"控件结构", name:"节点名称", text:"文字内容", parent:"父节点", order:"同级顺序" };
+export const fieldNames: Record<Field,string> = { exist:"控件结构", name:"节点名称", text:"文字内容", parent:"父节点", order:"同级顺序", x:"横坐标", y:"纵坐标", width:"宽度", height:"高度" };
 
 export function validSyncBase(value: unknown): value is SyncBase {
   if (!value || typeof value !== "object") return false;
@@ -26,7 +28,8 @@ export function validSyncBase(value: unknown): value is SyncBase {
   return b.nodes.every(n => n && typeof n.id === "string" && !!n.id && !ids.has(n.id) && ids.add(n.id) &&
     COMPONENT_TYPES.includes(n.type) && [n.name,n.parent,n.text].every(v => typeof v === "string") &&
     (n.layer === undefined || typeof n.layer === "string") && (n.variable === undefined || typeof n.variable === "string") &&
-    (n.undecided === undefined || Array.isArray(n.undecided) && n.undecided.every(f=>["text","name","parent","order"].includes(f))) &&
+    frameFields.every(f=>n[f]===undefined || Number.isFinite(n[f])) &&
+    (n.undecided === undefined || Array.isArray(n.undecided) && n.undecided.every(f=>["text","name","parent","order",...frameFields].includes(f))) &&
     n.frame && [n.frame.x,n.frame.y,n.frame.width,n.frame.height].every(Number.isFinite));
 }
 export function prototypeTree(page: GameFlowPage): SyncNode[] {
@@ -77,13 +80,14 @@ export function syncSubtree(tree:SyncNode[], id:string): string[] {
   }
   return [...result];
 }
-export function compareTrees(proto:SyncNode[], psd:SyncNode[], base?:SyncBase): Comparison {
+export function compareTrees(proto:SyncNode[], psd:SyncNode[], base?:SyncBase, compareInitialOrder=false): Comparison {
   const changes:Change[] = [], bundled = new Set<string>();
   const maps = [proto,psd,base?.nodes ?? []].map(tree=>new Map(tree.map(n=>[n.id,n])));
   const [p,a,b] = maps;
   const all = new Set([...p.keys(),...a.keys(),...b.keys()]);
   const order = (tree:SyncNode[], n:SyncNode) => {
-    const common = tree.filter(s=>s.parent===n.parent && maps.every(m=>m.get(s.id)?.parent===n.parent));
+    const members=base?maps:[p,a];
+    const common = tree.filter(s=>s.parent===n.parent && members.every(m=>m.get(s.id)?.parent===n.parent));
     return common.slice(0,common.findIndex(s=>s.id===n.id)).map(s=>s.id).sort().join("|");
   };
   for (const id of all) {
@@ -101,8 +105,9 @@ export function compareTrees(proto:SyncNode[], psd:SyncNode[], base?:SyncBase): 
       continue;
     }
     if (left.type!==right.type) throw new Error("控件类型不一致，请重新确认关联："+left.name);
-    for (const field of ["name","text","parent","order"] as const) {
-      if (field==="order" && (!old || left.parent!==right.parent || old.parent!==left.parent)) continue;
+    for (const field of ["name","text","parent","order",...frameFields] as const) {
+      if (field!=="order" && frameFields.some(f=>f===field) && (left[field]===undefined || right[field]===undefined || left.parent!==right.parent)) continue;
+      if (field==="order" && ((!old && (!compareInitialOrder || base)) || left.parent!==right.parent || old && old.parent!==left.parent)) continue;
       const l=field==="order"?order(proto,left):left[field], r=field==="order"?order(psd,right):right[field];
       if (l===r) continue;
       const o=old && (field==="order"?order(base!.nodes,old):old[field]);
@@ -133,8 +138,12 @@ export function plannedTrees(c:Comparison, decisions:Record<string,Decision>) {
       } else if (from && index>=0) {
         if (change.field==="order" || change.field==="parent") {
           const [n]=target.splice(index,1);
-          insertFrom(source,target,{...n,parent:from.parent});
-        } else target[index][change.field]=from[change.field];
+          const moved={...n,parent:from.parent};
+          if(change.field==="parent") {
+            for(const f of ["x","y"] as const) if(from[f]!==undefined && n[f]!==undefined) moved[f]=from[f];
+          }
+          insertFrom(source,target,moved);
+        } else Object.assign(target[index],{[change.field]:from[change.field]});
       }
     }
   }
@@ -195,18 +204,18 @@ export function coordinatedBase(docId:string,pageId:string,psdId:string,c:Compar
     const art=trees.psd.find(a=>a.id===node.id), old=c.base?.nodes.find(n=>n.id===node.id);
     if (!art) {if(old) nodes.push(old);continue;}
     const baseline:SyncNode={...node,layer:art.layer};
-    for (const field of ["text","name","parent"] as const) if(node[field]!==art[field]) {
-      if(old) baseline[field]=old[field];
+    for (const field of ["text","name","parent",...frameFields] as const) if(node[field]!==art[field]) {
+      if(old) Object.assign(baseline,{[field]:old[field]});
       if(!old || old.undecided?.includes(field)) (baseline.undecided??=[]).push(field);
     }
     nodes.push(baseline);
   }
   for(const old of c.base?.nodes??[]) if (!nodes.some(n=>n.id===old.id) && trees.psd.some(n=>n.id===old.id)) nodes.push(old);
-  for(const ch of compareTrees(trees.proto,trees.psd,c.base).changes.filter(ch=>ch.field==="order")) {
+  for(const ch of compareTrees(trees.proto,trees.psd,c.base,!c.base && c.changes.some(ch=>ch.field==="order")).changes.filter(ch=>ch.field==="order")) {
     const item=nodes.find(n=>n.id===ch.id);
     if(item && c.base?.nodes.some(n=>n.id===ch.id)) {
       nodes.splice(nodes.indexOf(item),1);insertFrom(c.base.nodes,nodes,item);
-    }
+    } else if(item) (item.undecided??=[]).push("order");
   }
   return {version:1,documentId:docId,pageId,psdId,nodes};
 }

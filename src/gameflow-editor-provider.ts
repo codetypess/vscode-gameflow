@@ -11,7 +11,7 @@ import { WorkbenchDocument } from "./workbench-document";
 import { readWorkbenchSlices } from "./slice-resource-controller";
 
 import { PagePsdController, rebasePagePsds } from "./page-psd-controller";
-import { exportPrefab } from "./prefab-export-controller";
+import { exportPrefab, inspectPrefabFile } from "./prefab-export-controller";
 
 export const GAMEFLOW_EDITOR_VIEW_TYPE = "gameflow.canvasEditor";
 const explain = (error: unknown) => error instanceof Error ? error.message : String(error);
@@ -194,6 +194,23 @@ export class GameFlowEditorProvider implements vscode.CustomEditorProvider<Workb
             if (uri) { if ([...doc.psds.values()].some(psd=>psd.uri.toString()===uri.toString()&&psd.model.dirty)) throw new Error("目标 PSD 有未保存修改。"); if (vscode.workspace.textDocuments.some(d=>d.uri.toString()===uri.toString() && d.isDirty)) throw new Error("目标文件有未保存修改。"); await vscode.workspace.fs.writeFile(uri,Buffer.from(raw.base64,"base64")); }
             await panel.webview.postMessage({ type:"psdOutputResult",requestId:raw.requestId,saved:!!uri } satisfies HostToWebviewMessage);
           } catch (error) { await panel.webview.postMessage({ type:"psdOutputResult",requestId:raw.requestId,saved:false,error:explain(error) } satisfies HostToWebviewMessage); }
+        } else if(raw.type==="prefabInspect") {
+          try {
+            const version=doc.version;
+            const snapshot=await inspectPrefabFile(this.psd.settings,raw.target);
+            await panel.webview.postMessage({type:"prefabInspectResult",requestId:raw.requestId,snapshot:{...snapshot,version}} satisfies HostToWebviewMessage);
+          } catch(error) {await panel.webview.postMessage({type:"prefabInspectResult",requestId:raw.requestId,error:explain(error)} satisfies HostToWebviewMessage);}
+        } else if(raw.type==="prefabCommit") {
+          try {
+            const check=()=>{if(doc.disposed || doc.version!==raw.baseVersion || raw.document.documentId!==parseGameFlowDocument(doc.getText()).documentId) throw new Error("原型已变化，请重新比较。");};
+            check();
+            const text=serializeGameFlowDocument(raw.document);
+            const count=await exportPrefab(this.psd.settings,raw.batch,raw.guard,raw.root,async()=>{
+              check();
+              await this.apply(doc,[{document:doc,version:raw.baseVersion,text}]);
+            });
+            await panel.webview.postMessage({type:"prefabExportResult",requestId:raw.requestId,count} satisfies HostToWebviewMessage);
+          } catch(error) {await panel.webview.postMessage({type:"prefabExportResult",requestId:raw.requestId,error:explain(error)} satisfies HostToWebviewMessage);}
         } else if (raw.type === "prefabExport") {
           try { await panel.webview.postMessage({ type: "prefabExportResult", requestId: raw.requestId, count: await exportPrefab(this.psd.settings, raw.batch) } satisfies HostToWebviewMessage); }
           catch (error) { await panel.webview.postMessage({ type: "prefabExportResult", requestId: raw.requestId, error: explain(error) } satisfies HostToWebviewMessage); }

@@ -1,5 +1,7 @@
 import type { PrefabExportBatch, ExportImageResolver } from "../../shared/prefab-export";
-import { exportPrefabToDirectories } from "../../shared/prefab-export";
+import { exportPrefabToDirectories, readPrefabSnapshot, type PrefabSnapshot, type PrefabTarget, type PrefabWriteGuard } from "../../shared/prefab-export";
+import type { GameFlowDocument } from "../../shared/model";
+import type { HostToWebviewMessage, WebviewToHostMessage } from "../../shared/protocol";
 import type { ResourceDirectory } from "../../shared/psd-export-directory";
 import { browserDirectory, type BrowserDirectory } from "../browser-directories";
 import { isBrowserPreview, postHostMessage } from "../vscode-api";
@@ -34,11 +36,40 @@ export function exportImageResolver(resources:Resources):ExportImageResolver {
     try{const canvas=document.createElement("canvas");canvas.width=resource.description.width;canvas.height=resource.description.height;canvas.getContext("2d")!.drawImage(resource.pixels,0,0);return {status:"ready",image:{path:ref.path,description:resource.description,base64:canvas.toDataURL("image/png").split(",")[1]}};}catch(error){return {status:"error",error:String(error)};}
   };
 }
-export async function writePrefab(batch:PrefabExportBatch):Promise<number> {
-  if(isBrowserPreview){const resources=browserDirectory("resources"),prefabs=browserDirectory("prefabs");if(!resources||!prefabs)throw new Error("请先设置资源和预制体导出根目录。");return exportPrefabToDirectories(browserResourceDirectory(resources),browserResourceDirectory(prefabs),batch,{decode:value=>Uint8Array.from(atob(value),c=>c.charCodeAt(0)),hash:browserHash});}
-  const requestId=crypto.randomUUID();return new Promise((resolve,reject)=>{
-    const timer=window.setTimeout(()=>{window.removeEventListener("message",handler);reject(new Error("导出响应超时，请检查输出目录后重试。"));},60000);
-    const handler=({data}:MessageEvent)=>{if(data?.type!=="prefabExportResult"||data.requestId!==requestId)return;clearTimeout(timer);window.removeEventListener("message",handler);if(data.error)reject(new Error(data.error));else resolve(data.count??0);};
-    window.addEventListener("message",handler);postHostMessage({type:"prefabExport",requestId,batch});
+function request<T extends "prefabInspectResult"|"prefabExportResult">(message:Extract<WebviewToHostMessage,{type:"prefabCommit"|"prefabInspect"}>,type:T) {
+  return new Promise<Extract<HostToWebviewMessage,{type:T}>>((resolve,reject)=>{
+    const timer=window.setTimeout(()=>{window.removeEventListener("message",handler);reject(new Error("预制体操作超时，请重新比较。"));},60000);
+    const handler=({data}:MessageEvent)=>{
+      if(data?.type!==type || data.requestId!==message.requestId)return;
+      clearTimeout(timer);window.removeEventListener("message",handler);
+      if(data.error) reject(new Error(data.error)); else resolve(data);
+    };
+    window.addEventListener("message",handler);postHostMessage(message);
   });
+}
+type BrowserSnapshot=PrefabSnapshot & {directory?:BrowserDirectory;resources?:BrowserDirectory};
+export async function inspectPrefabTarget(target:PrefabTarget):Promise<BrowserSnapshot> {
+  if(isBrowserPreview) {
+    const directory=browserDirectory("prefabs");
+    if(!directory) throw new Error("请选择预制体目录。");
+    const resources=browserDirectory("resources");
+    return {...await readPrefabSnapshot(browserResourceDirectory(directory),target,browserHash,resources?browserResourceDirectory(resources):undefined),directory,resources,root:directory.name,version:0};
+  }
+  if(!document.querySelector('meta[name="gameflow-prefab-sync"]')) throw new Error("请重新加载 VS Code 窗口以启用预制体同步。");
+  const reply=await request({type:"prefabInspect",requestId:crypto.randomUUID(),target},"prefabInspectResult");
+  if(!reply.snapshot) throw new Error("未能读取目标预制体。");
+  return reply.snapshot;
+}
+const writing=new Set<BrowserDirectory>();
+export async function commitPrefab(batch:PrefabExportBatch,snapshot:BrowserSnapshot,guard:PrefabWriteGuard,document:GameFlowDocument,apply:()=>void) {
+  if(isBrowserPreview) {
+    const resources=browserDirectory("resources"),prefabs=browserDirectory("prefabs");
+    if(!resources || !prefabs || resources!==snapshot.resources || prefabs!==snapshot.directory) throw new Error("导出目录已变化，请重新比较。");
+    if(writing.has(prefabs) || writing.has(resources)) throw new Error("目录正在导出，请稍后重试。");
+    writing.add(prefabs);writing.add(resources);
+    try {return await exportPrefabToDirectories(browserResourceDirectory(resources),browserResourceDirectory(prefabs),batch,
+      {decode:value=>Uint8Array.from(atob(value),c=>c.charCodeAt(0)),hash:browserHash},guard,async()=>apply());}
+    finally {writing.delete(prefabs);writing.delete(resources);}
+  }
+  return (await request({type:"prefabCommit",requestId:crypto.randomUUID(),batch,guard,document,root:snapshot.root,baseVersion:snapshot.version},"prefabExportResult")).count??0;
 }

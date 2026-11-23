@@ -42,3 +42,5 @@
 .page-sync-dialog footer span { flex:1; }
 .page-sync-dialog .sync-resize { cursor:nwse-resize; touch-action:none; border:0; align-self:stretch; }
 @media(max-width:620px) { .page-sync-dialog .sync-layout { grid-template-columns:1fr; grid-template-rows:minmax(70px,32%) minmax(0,1fr); } .page-sync-dialog nav { border-right:none; border-bottom:1px solid var(--vscode-panel-border,#555); } }
+.prefab-sync-dialog { width: min(1050px, 96vw); height: min(720px, 92dvh); min-width:min(360px,92vw); min-height:min(300px,80dvh); resize:both; }
+.prefab-sync-dialog pre { white-space:pre-wrap; overflow-wrap:anywhere; font:inherit; }

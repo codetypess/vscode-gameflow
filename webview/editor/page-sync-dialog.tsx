@@ -25,7 +25,7 @@ function savedSize() {
   } catch { /* Use the default size if settings storage is unavailable. */ }
   return {width:Math.min(1050,innerWidth-24),height:Math.min(720,innerHeight-24)};
 }
-function Preview({page,asset,nodes,selected,changes,old}:{page:GameFlowPage;asset?:PsdAsset;nodes:SyncNode[];selected:string;changes:Change[];old:SyncNode[]}) {
+export function SyncPreview({page,asset,nodes,selected,changes,old,resourceMode="prototype"}:{page:GameFlowPage;asset?:PsdAsset;nodes:SyncNode[];selected:string;changes:Change[];old:SyncNode[];resourceMode?:"prototype"|"prefab"}) {
   const ref=useRef<HTMLDivElement>(null), [scale,setScale]=useState(.2);
   const resources=useSliceResources(), layout=useMemo(()=>resolvePageLayout(page),[page]);
   const w=asset?.width??page.frame.width,h=asset?.height??page.frame.height;
@@ -45,7 +45,7 @@ function Preview({page,asset,nodes,selected,changes,old}:{page:GameFlowPage;asse
   });
   return <div className="sync-preview" ref={ref}>
     <div style={{width:w*scale,height:h*scale,position:"relative"}}><div className="sync-surface" style={{width:w,height:h,transform:`scale(${scale})`,background:page.background??"#fff"}}>
-      {asset ? <img src={asset.preview} alt="美术 PSD 合成图"/> : <SliceResourcesProvider value={{...resources,mode:"prototype"}}>{orderedNodes(page).map(n=><NodeView key={n.id} node={n} page={page} geometry={layout.nodes.get(n.id)}/>)}</SliceResourcesProvider>}
+      {asset ? <img src={asset.preview} alt="美术 PSD 合成图"/> : <SliceResourcesProvider value={{...resources,mode:resourceMode}}>{orderedNodes(page).map(n=><NodeView key={n.id} node={n} page={page} geometry={layout.nodes.get(n.id)}/>)}</SliceResourcesProvider>}
       {overlays}
     </div></div>
   </div>;
@@ -194,8 +194,8 @@ export function PageSyncDialog({session,loadedAsset,close,apply}:Props) {
       <section className="sync-body"><div className="sync-bar"><strong>{node?.name??page.name}</strong>
         <div><button aria-pressed={!result} disabled={busy} onClick={()=>{setResult(false);setReview(false);}}>当前</button><button aria-pressed={result} disabled={busy || !canReview} onClick={()=>setResult(true)}>同步后</button></div></div>
         {!canReview && <p role="alert">当前扩展宿主版本较旧，仅可查看已加载的页面。请按 F1 执行「开发人员: 重新加载窗口」，再打开同步。</p>}
-        {asset && shown && <div className="sync-boards"><figure><figcaption>原型 · 内置资源</figcaption><Preview page={result && plan.proto?plan.proto:page} nodes={shown.proto} selected={selected} changes={changes} old={c?.base?.nodes??[]}/></figure>
-        <figure><figcaption>美术 PSD</figcaption>{result && plan.push && !copy ? <div className="sync-preview">{copyIssue?"此项暂无法写出":"正在生成同步预览…"}</div>:<Preview page={page} asset={result && plan.push?copy?.asset:asset} nodes={shown.psd} selected={selected} changes={changes} old={c?.base?.nodes??[]}/>}</figure></div>}
+        {asset && shown && <div className="sync-boards"><figure><figcaption>原型 · 内置资源</figcaption><SyncPreview page={result && plan.proto?plan.proto:page} nodes={shown.proto} selected={selected} changes={changes} old={c?.base?.nodes??[]}/></figure>
+        <figure><figcaption>美术 PSD</figcaption>{result && plan.push && !copy ? <div className="sync-preview">{copyIssue?"此项暂无法写出":"正在生成同步预览…"}</div>:<SyncPreview page={page} asset={result && plan.push?copy?.asset:asset} nodes={shown.psd} selected={selected} changes={changes} old={c?.base?.nodes??[]}/>}</figure></div>}
         {canReview && !asset && !error && <p>正在读取绑定的 PSD…</p>}
         {canReview && needBase && <p>首次对照。确认对应关系后可建立共同基线。</p>}
         {c && !changes.length && <p>文字与结构已一致</p>}
