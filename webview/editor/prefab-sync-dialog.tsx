@@ -52,7 +52,10 @@ export function PrefabSyncDialog({review,plan,skins,resourceRoot,close,commit,re
   const m=merged.data,trees=result && m?m.trees:c;
   const preview=useMemo(()=>{
     const paths={...skins};
-    if(result && m)for(const img of m.batch.images) paths[resourceUrl(img.path)]=img.path;
+    if(result && m)for(const img of m.batch.images) {
+      paths[resourceUrl(img.path)]=img.path;
+      if(img.expectedUuid) paths["res://"+img.expectedUuid]=img.path;
+    }
     return prefabPreviewPage(review,trees.psd,result && m?m.batch.prefab:review.root,paths);
   },[review,trees.psd,result,m,skins]);
   const pages=useMemo(()=>[preview],[preview]);
@@ -83,6 +86,7 @@ export function PrefabSyncDialog({review,plan,skins,resourceRoot,close,commit,re
   const unknownSkins=["skin","normalSkin","selectedSkin","disabledSkin"].map(k=>native?.[k]).filter((s):s is string=>
     typeof s==="string" && !!s && !skins?.[s] && !isSliceResourcePath(s));
   const pending=c.changes.filter(ch=>!choices[ch.key]).length, applied=c.changes.filter(ch=>choices[ch.key] && choices[ch.key]!=="skip");
+  const hasAssets=review.metadata?.prefabMetaChanged || !!m?.batch.images.length;
   const toggle=(key:string)=>setExpanded(prev=>{const next=new Set(prev);if(next.has(key))next.delete(key);else next.add(key);return next;});
   function rows(parent:string,path:Set<string>):ReactNode {
     return <ul>{[...union.values()].filter(n=>n.parent===parent && !path.has(n.id)).map(n=>{
@@ -108,6 +112,7 @@ export function PrefabSyncDialog({review,plan,skins,resourceRoot,close,commit,re
         {extra!==null && <fieldset><legend>仅预制体 · {review.engine.get(id)?.[extra]?.name}</legend><pre>{JSON.stringify(review.engine.get(id)?.[extra]?.value,null,2)}</pre></fieldset>}
         {!c.base && <p>首次对照。请确认单侧控件的对应关系和处理方向。</p>}
         {!c.changes.length && <p>可同步的控件与属性已一致。</p>}
+        {hasAssets && <p>待同步资源文件　{[...(review.metadata?.prefabMetaChanged?[review.target+".meta"]:[]),...m?.batch.images.map(i=>i.path)??[]].join("、")}</p>}
         {extra===null && selected.map(ch=><fieldset key={ch.key} disabled={busy}><legend>{fieldNames[ch.field]}</legend><p>上次　{c.base?value(c.base.nodes,ch):"无记录"}　原型　{value(c.proto,ch)}　预制体　{value(c.psd,ch)}</p>
           {ch.kind==="delete" && ch.members.some(i=>review.engine.has(i)) && <p>删除预制体节点会同时移除　{ch.members.flatMap(i=>review.engine.get(i)?.map(e=>e.name)??[]).join("、")}</p>}
           {(["proto","psd","skip"] as const).filter(d=>ch.kind!=="add" || d==="skip" || c[d].some(n=>n.id===ch.id)).map(d=><button key={d} aria-pressed={choices[ch.key]===d} onClick={()=>{choose({...choices,[ch.key]:d});setError("");setResult(true);setDetails(false);}}>{describe(ch,d,review)}</button>)}</fieldset>)}
@@ -116,6 +121,6 @@ export function PrefabSyncDialog({review,plan,skins,resourceRoot,close,commit,re
           {m.batch.images.map(i=><p key={i.path}>资源　{i.path}</p>)}<p>原型编辑与同步记录将进入工作台的保存和撤销历史。</p></fieldset>}
         {(error || merged.issue) && <p role="alert">{error || merged.issue} <button disabled={busy} onClick={()=>void run(reload)}>重新比较</button></p>}</section></div>
     <footer><span>待决定 {pending} 项　·　已选 {applied.length} 项</span>{details && <button disabled={busy} onClick={()=>setDetails(false)}>返回调整</button>}
-      <button disabled={busy || !!pending || !m || !applied.length && !m.baseChanged} onClick={()=>{if(details && m)void run(()=>commit(m));else{setDetails(true);setResult(true);}}}>{busy?"正在处理…":details?"确认应用":!c.base && !applied.length?"建立基线":"预演应用"}</button></footer>
+      <button disabled={busy || !!pending || !m || !applied.length && !m.baseChanged && !hasAssets} onClick={()=>{if(details && m)void run(()=>commit(m));else{setDetails(true);setResult(true);}}}>{busy?"正在处理…":details?"确认应用":!c.base && !applied.length?"建立基线":"预演应用"}</button></footer>
   </dialog>;
 }

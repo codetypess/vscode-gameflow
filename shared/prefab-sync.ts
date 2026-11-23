@@ -3,7 +3,7 @@ import { allocateElementId, reserveDocumentElementIds } from "./element-id";
 import { inheritedFlag, makeNode } from "./editor-ops";
 import { COMPONENTS, COMPONENT_TYPES, pageRootType } from "./ui-components";
 import { applyPrototypeTree, compareTrees, coordinatedBase, frameFields, plannedTrees, prototypeTree, type Decision, type SyncNode } from "./page-sync";
-import { type PrefabExportBatch, resourceUrl } from "./prefab-export";
+import { type PrefabExportBatch, type PrefabMetadataReview, resourceUrl } from "./prefab-export";
 import { variableNameError } from "./node-variable";
 import { isSliceResourcePath } from "./slice-resources";
 import { CONSTRAINTS } from "./ui-config";
@@ -41,7 +41,7 @@ function baseSignature(base:PrefabBase | undefined) {
   });
 }
 
-export function inspectPrefab(document:GameFlowDocument,page:GameFlowPage,target:string,root:RecordNode) {
+export function inspectPrefab(document:GameFlowDocument,page:GameFlowPage,target:string,root:RecordNode,metadata?:PrefabMetadataReview) {
   if (root._$id!==page.id || root._$type!==pageRootType(page)) throw new Error("目标文件的页面身份或根类型不匹配，请检查导出名称和目标文件。");
   const saved=page.prefabSync;
   const base=saved?.documentId===document.documentId && saved.pageId===page.id && saved.target===target ? {...saved,psdId:target} : undefined;
@@ -96,7 +96,7 @@ export function inspectPrefab(document:GameFlowDocument,page:GameFlowPage,target
     if(Array.isArray(node._$comp)) for(const component of node._$comp) extras.push({name:String(component?._$type??"组件"),value:component});
     if(extras.length) engine.set(id,extras);
   }
-  return {root,comparison,originals,nativeIds,allIds,target,page,document,engine};
+  return {root,comparison,originals,nativeIds,allIds,target,page,document,engine,metadata};
 }
 export type PrefabReview = ReturnType<typeof inspectPrefab>;
 
@@ -154,6 +154,7 @@ export function mergePrefab(review:PrefabReview,decisions:Record<string,Decision
   }
   const kept=new Set(trees.psd.map(n=>n.id));
   const refs=new Set<string>(), neededUrls=new Set<string>();
+  const imageByUrl=new Map(batch.images.map(image=>[resourceUrl(image.path),image.path]));
   function remapNew(value:unknown,key=""):unknown {
     if (Array.isArray(value)) return value.map(v=>remapNew(v));
     if (record(value)) return Object.fromEntries(Object.entries(value).map(([k,v])=>[k,remapNew(v,k)]));
@@ -177,6 +178,18 @@ export function mergePrefab(review:PrefabReview,decisions:Record<string,Decision
       if(before.name!==n.name && !node._$var) node.name=n.name;
       if(before.text!==n.text) node.text=n.text;
       for(const f of frameFields) if(n[f]!==undefined && before[f]!==n[f]) node[f]=n[f];
+      const generated=exported.get(n.id);
+      for(const key of ["skin","normalSkin","selectedSkin","disabledSkin"]) {
+        const planned=generated?.[key];
+        if(typeof planned!=="string") continue;
+        const path=imageByUrl.get(planned);
+        const meta=path && review.metadata?.images[path];
+        if(!meta) continue;
+        const url="res://"+meta.uuid;
+        if(node[key]!==url && node[key]!==planned && node[key]!==path) continue;
+        if(meta.changed || node[key]!==url) neededUrls.add(planned);
+        node[key]=url;
+      }
     } else {
       const generated=exported.get(n.id);
       if(!generated) throw new Error("缺少待新增控件："+n.name);
@@ -240,7 +253,10 @@ export function mergePrefab(review:PrefabReview,decisions:Record<string,Decision
   const base=coordinatedBase(review.document.documentId,page.id,review.target,c,{proto:prototypeNodes(proto),psd:trees.psd});
   const nodes=base.nodes.map(n=>({...n,layer:rawIds.get(n.id)??n.layer??n.id}));
   const prefabSync:PrefabBase={version:1,documentId:base.documentId,pageId:page.id,target:review.target,nodes};
-  const images=batch.images.filter(image=>neededUrls.has(resourceUrl(image.path)));
+  const images=batch.images.filter(image=>neededUrls.has(resourceUrl(image.path))).map(image=>{
+    const meta=review.metadata?.images[image.path];
+    return meta ? {...image,expectedUuid:meta.uuid} : image;
+  });
   const output={...batch,prefab,images};
   const baseChanged=baseSignature(prefabSync)!==baseSignature(page.prefabSync);
   return {page:{...proto,prefabSync},trees,batch:output,added:[...added],baseChanged,changed:JSON.stringify(prefab)!==JSON.stringify(review.root)};

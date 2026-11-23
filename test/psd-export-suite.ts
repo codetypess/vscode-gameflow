@@ -130,7 +130,33 @@ export const psdExportTests: { name: string; run: () => void | Promise<void> }[]
     const entry = d.manifest().resources[0];
     assert.deepEqual(entry.source, b.source); assert.equal(entry.layerId, b.items[0].layerId);
     assert.deepEqual(entry.nineGrid, b.items[0].nineGrid); assert.equal(entry.sha256, sha(png));
+    const metaPath=entry.file+".meta";
+    const first=JSON.parse(new TextDecoder().decode(d.files.get(metaPath)));
+    assert.match(first.uuid,/^[a-f0-9-]{36}$/);
+    assert.deepEqual(first.importer,{textureType:2,sizeGrid:[1,2,3,4,1]});
+    const uuid="8044e91d-d121-4bd3-b149-21a8f8e48a64";
+    d.files.set(metaPath,Buffer.from(JSON.stringify({uuid,custom:"from Laya",importer:{filterMode:0,sizeGrid:[1,2,3,4,1]}})));
+    b.items[0].nineGrid=null;
+    await exportSlicesToDirectory(d,b,codec);
+    assert.deepEqual(JSON.parse(new TextDecoder().decode(d.files.get(metaPath))),{uuid,custom:"from Laya",importer:{textureType:2,filterMode:0,sizeGrid:[0,0,0,0,0]}});
     assert.equal(d.writes.at(-1), RESOURCE_MANIFEST);
+  } },
+  { name: "PSD sidecar failures and invalid importer metadata preserve existing files", async run() {
+    const d=new MemoryDirectory(), b=batch(), metaPath=sliceExportPath(b,b.items[0])+".meta";
+    d.files.set(metaPath,new TextEncoder().encode('{"importer":{"filterMode":1}}'));
+    const before=new Map(d.files);
+    d.fail=metaPath;
+    await assert.rejects(exportSlicesToDirectory(d,b,codec),/已恢复/);
+    assert.deepEqual(d.files,before);
+    for(const bad of ["broken","[]",'{"uuid":"bad"}','{"importer":[]}']) {
+      d.files.set(metaPath,Buffer.from(bad));
+      const count=d.writes.length;
+      await assert.rejects(exportSlicesToDirectory(d,b,codec),/\.meta/);
+      assert.equal(d.writes.length,count);
+    }
+    d.files.delete(metaPath);
+    d.files.set(metaPath.toUpperCase().replace("UNCLASSIFIED","unclassified"),Buffer.from("{}"));
+    await assert.rejects(exportSlicesToDirectory(d,b,codec),/大小写冲突/);
   } },
   { name: "PSD same-source reexport updates one resource while nonshared foreign export never writes", async run() {
     const d = new MemoryDirectory(), b = batch(); await exportSlicesToDirectory(d, b, codec);

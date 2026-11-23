@@ -199,7 +199,7 @@ export class GameFlowEditorProvider implements vscode.CustomEditorProvider<Workb
         } else if(raw.type==="prefabInspect") {
           try {
             const version=doc.version;
-            const snapshot=await inspectPrefabFile(this.psd.settings,raw.target);
+            const snapshot=await inspectPrefabFile(this.psd.settings,raw.target,raw.images);
             await panel.webview.postMessage({type:"prefabInspectResult",requestId:raw.requestId,snapshot:{...snapshot,version}} satisfies HostToWebviewMessage);
           } catch(error) {await panel.webview.postMessage({type:"prefabInspectResult",requestId:raw.requestId,error:explain(error)} satisfies HostToWebviewMessage);}
         } else if(raw.type==="prefabCommit") {

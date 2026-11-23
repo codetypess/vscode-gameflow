@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import { createHash } from "node:crypto";
-import { exportPrefabToDirectories, readPrefabSnapshot, type PrefabTarget, type PrefabWriteGuard, type PrefabExportBatch } from "../shared/prefab-export";
+import { exportPrefabToDirectories, readPrefabSnapshot, type ImageMetaTarget, type PrefabTarget, type PrefabWriteGuard, type PrefabExportBatch } from "../shared/prefab-export";
 import type { ResourceDirectory } from "../shared/psd-export-directory";
 import type { WorkbenchSettingsController } from "./workbench-settings-controller";
 import { exportRootsInProgress as inProgress } from "./export-lock";
@@ -16,11 +16,11 @@ const adapter = (root: vscode.Uri): ResourceDirectory => {
     };
   };
 const hash = async (bytes:Uint8Array)=>createHash("sha256").update(bytes).digest("hex");
-export async function inspectPrefabFile(settings:WorkbenchSettingsController,target:PrefabTarget) {
+export async function inspectPrefabFile(settings:WorkbenchSettingsController,target:PrefabTarget,images?:ImageMetaTarget[]) {
   const uri=settings.directory("prefabs");
   if(!uri) throw new Error("请先选择预制体目录。");
   const resources=settings.directory("resources");
-  return {...await readPrefabSnapshot(adapter(uri),target,hash,resources?adapter(resources):undefined),root:JSON.stringify([uri.toString(),resources?.toString()])};
+  return {...await readPrefabSnapshot(adapter(uri),target,hash,resources?adapter(resources):undefined,images),root:JSON.stringify([uri.toString(),resources?.toString()])};
 }
 export async function exportPrefab(settings: WorkbenchSettingsController, batch: PrefabExportBatch,guard?:PrefabWriteGuard,root?:string,finish?:()=>Promise<void>): Promise<number> {
   const resources = settings.directory("resources"), prefabs = settings.directory("prefabs");

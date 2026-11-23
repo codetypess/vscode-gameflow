@@ -148,7 +148,7 @@ Variables use one scope per reference boundary: the root belongs to its parent s
 - Radio/Checkbox 保留底框与选中标记图片，`skinNodeId` 控制标记；UILabel 独立。Slider 轨道和滑块是图片。ProgressBar 的 `widget.mode` 为 horizontal/circular，`skinNodeId` 为不带相对约束的直接 UIImage 子节点，横向按比例改变宽度，圆形保持整图并按顺时针扇区绘制；模式、数值及引用均持久化。
 - ComboBox 可通过 `widget.textLabelNodeId` 引用直接 UILabel 子节点显示选项；背景与箭头普通图片手动添加。UITextInput 独立创建，不自动包装。图片槽位、进度模式和文本引用均支持实例覆盖、复制重映射、保存及撤销。
 - 生成原型 PSD 时按钮是组，状态图片分别叫 @normal / @selected / @disabled，UILabel 是独立文字层。图层元数据保留原型文档/页面/节点/槽位身份；页面按同名控件组及直接子层标记匹配槽位，同名 UIImage 切图或同名组下的 @image 对应图片。旧 PSD 可沿用内嵌身份。详见[页面 PSD 图层约定](page-psd-layer-conventions.md)。生成成功即绑定该页面；绑定与槽位关联进入同一撤销事务。简单正常混合的状态分组可合成切图，效果、蒙版和特殊混合继续报不支持。
-- Prefab 导出按槽位优先采用绑定美术，无绑定时采用内置；与当前显示模式无关。导出包含 `.lh`、PNG、PNG.meta 的九宫格/导入 UUID 及 image-files.meta.json。已存在的有效导入 UUID 保留。写入前校验两目录，失败恢复本次文件写入；原生切图与 Prefab 导出共用目录锁。
+- Prefab 导出按槽位优先采用绑定美术，无绑定时采用内置。预制体 UUID 写入相邻的 `.lh.meta`。Prefab 图片和 PSD 切图均在 `.png.meta` 写入 UUID 与九宫格，同时更新来源清单。已有导入信息按字段合并，沿用有效 UUID 并保留其他引擎设置。预制体审阅支持单独应用导入信息的变化，生成的皮肤引用使用磁盘 UUID。详见[预制体与图片导入信息](laya-export-metadata.md)。
 - 失效引用触发“有资源缺失，是否继续导出？”，列出节点/槽位/路径，允许取消或仍然导出。继续保留坏引用并跳过坏图片，空槽位与未配置可选态不误报。预制体模式使用原型结构装载磁盘图，并不检查实际 `.lh` 层级。
 
 底部「更多」菜单首项固定为「PSD 切图」。未选中页面或当前页面未绑定 PSD 时，该项置灰。总览选中或正在编辑的页面已绑定 PSD 时，点击后在当前工作台显示该文件的图层与切图配置。再次进入同一文件时保留当前图层和编辑状态。

@@ -33,13 +33,13 @@ export function CanvasExportActions({document,page,sourcePage,resources,settings
   async function load(chosen:PrefabTarget,refresh=false) {
     setBusy(true);setTargetChoice(false);
     try {
-      const snapshot=await inspectPrefabTarget(chosen);
       const scoped=resources.forPage?.(page)??resources;
       const plan=await planPrefabExport(document,page,exportImageResolver(scoped));
+      const snapshot=await inspectPrefabTarget(chosen,plan.batch.images.map(({path,description})=>({path,nineGrid:description.nineGrid})));
       Object.assign(plan.batch,{directory:chosen.directory,name:chosen.name});
       const path=prefabTarget(chosen);
       if(snapshot.prefab) {
-        const comparison=inspectPrefab(document,sourcePage,path,snapshot.prefab);
+        const comparison=inspectPrefab(document,sourcePage,path,snapshot.prefab,snapshot.metadata);
         setSession({doc:document,source:sourcePage,snapshot,plan,comparison});
       } else {
         const next={...sourcePage,prefabSync:initialPrefabBase(document,sourcePage,path)};

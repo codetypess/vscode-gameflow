@@ -1,4 +1,5 @@
 import { isSliceExportBatch, MAX_EXPORT_BYTES, parseResourceManifest, planSliceExport, RESOURCE_MANIFEST, sliceExportPath, type ResourceManifest, type SliceExportBatch } from "./psd-export";
+import { mergeLayaMeta } from "./laya-meta";
 
 export interface ResourceDirectory {
   list(folder?: string): Promise<string[]>;
@@ -9,7 +10,7 @@ export interface ResourceDirectory {
 }
 export interface ExportCodec { decode(base64: string): Uint8Array; hash(bytes: Uint8Array): Promise<string> }
 
-function validatePng(bytes: Uint8Array, width: number, height: number): void {
+export function validatePng(bytes: Uint8Array, width: number, height: number): void {
   const signature = [137, 80, 78, 71, 13, 10, 26, 10];
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   if (bytes.length < 33 || signature.some((v, i) => bytes[i] !== v) || view.getUint32(8) !== 13 || String.fromCharCode(...bytes.subarray(12, 16)) !== "IHDR" || view.getUint32(16) !== width || view.getUint32(20) !== height) throw new Error("切图 PNG 数据或尺寸无效。");
@@ -49,6 +50,14 @@ export async function exportSlicesToDirectory(directory: ResourceDirectory, batc
     const hash = await codec.hash(bytes);
     generatedHashes.set(file, hash);
     backups.set(file, previous);
+    const metaPath = file + ".meta";
+    if (files.some(name => name.toLowerCase() === metaPath && name !== metaPath)) throw new Error(metaPath + " 存在大小写冲突。");
+    const oldMeta = await directory.read(metaPath);
+    backupSize += oldMeta?.length ?? 0;
+    if (backupSize > MAX_EXPORT_BYTES) throw new Error("待替换文件总大小超过 48 MB。");
+    backups.set(metaPath, oldMeta);
+    const meta = mergeLayaMeta(file, oldMeta, item.nineGrid);
+    if (meta.bytes) outputs.set(metaPath, meta.bytes);
     if (item.builtin && previous) {
       if (await codec.hash(previous) !== hash) throw new Error(file + " 已有不同内容，无法复用内置资源。");
     } else outputs.set(file, bytes);

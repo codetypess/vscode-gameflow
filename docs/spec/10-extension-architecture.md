@@ -112,4 +112,6 @@ PagePsdController 复用工作台管理的 PsdDocument，后台加载不改变 c
 
 ## 页面预制体同步
 
+PSD 切图与预制体导出共用 `shared/laya-meta.ts` 合并 Laya 导入信息。相邻的 `.meta` 与产物一起预检和回滚。预制体审阅请求可携带待导出图片的相对路径和九宫格，宿主读取实际 UUID 与导入设置以识别单独的资源变化。[导入信息规范](laya-export-metadata.md)
+
 页面的可选 `prefabSync` 随 GameFlow 文档保存、撤销与恢复，复制页面时清除。同步前宿主读取导出根下的实际目标和资源映射，并返回文档版本与文件摘要。确认时复核版本、目录与摘要，使用现有导出锁和备份写入目标文件及新增资源，将原型改动及基线记为一次原生编辑。浏览器使用 File System Access 目录运行同一套比较与写入逻辑。[预制体同步](page-prefab-sync.md)

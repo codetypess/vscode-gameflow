@@ -63,7 +63,7 @@ async function checkRuntime(browser,root,prefab) {
     await p.evaluate(async()=>{
       const key="gameflow.prototype.v1",doc=JSON.parse(localStorage.getItem(key));
       doc.pages[0].nodes[0].text="进入游戏";
-      doc.pages[0].nodes.push({id:"help0001",name:"帮助",type:"button",frame:{x:10,y:10,width:50,height:30}});
+      doc.pages[0].nodes.push({id:"help0001",name:"帮助",type:"button",frame:{x:10,y:10,width:50,height:30},normalSkin:{builtin:"button/gray"}});
       localStorage.setItem(key,JSON.stringify(doc));
       const dir=await (await navigator.storage.getDirectory()).getDirectoryHandle("prefabs");
       const file=await dir.getFileHandle("登录.lh"),raw=JSON.parse(await (await file.getFile()).text());
@@ -87,6 +87,30 @@ async function checkRuntime(browser,root,prefab) {
     assert.equal(data.page.nodes.filter(n=>n.name==="公告").length,1);
     assert.equal(data.prefab._$child.filter(n=>n._$id==="help0001").length,1);
     assert.equal(data.prefab._$child[0]._$comp[0].interval,500);
+    const editedUuid="96f04853-16ab-4f90-b4e1-ee6a37780f93";
+    await p.evaluate(async uuid=>{
+      const disk=await navigator.storage.getDirectory(),dir=await disk.getDirectoryHandle("prefabs");
+      await dir.removeEntry("登录.lh.meta");
+      const resources=await disk.getDirectoryHandle("resources");
+      const folder=await (await resources.getDirectoryHandle("builtin")).getDirectoryHandle("button");
+      const meta=await folder.getFileHandle("gray.png.meta"),writer=await meta.createWritable();
+      await writer.write(JSON.stringify({uuid,importer:{filterMode:0,sizeGrid:[0,0,0,0,0]}}));
+      await writer.close();
+    },editedUuid);
+    await button("同步预制体").click();await dialog.waitFor();
+    assert.match(await dialog.innerText(),/登录\.lh\.meta/);
+    await button("预演应用").click();await button("确认应用").click();
+    await dialog.waitFor({state:"hidden"});
+    const repaired=await p.evaluate(async()=>{
+      const disk=await navigator.storage.getDirectory(),dir=await disk.getDirectoryHandle("prefabs");
+      const read=async(folder,name)=>JSON.parse(await (await (await folder.getFileHandle(name)).getFile()).text());
+      const resources=await disk.getDirectoryHandle("resources");
+      const folder=await (await resources.getDirectoryHandle("builtin")).getDirectoryHandle("button");
+      return {prefab:await read(dir,"登录.lh"),meta:await read(dir,"登录.lh.meta"),image:await read(folder,"gray.png.meta")};
+    });
+    assert.match(repaired.meta.uuid,/^[a-f0-9-]{36}$/);
+    assert.equal(repaired.prefab._$child.find(n=>n._$id==="help0001").normalSkin,"res://"+editedUuid);
+    assert.deepEqual(repaired.image,{uuid:editedUuid,importer:{filterMode:0,textureType:2,sizeGrid:[14,14,14,14,0]}});
     await button("同步预制体").click();await dialog.waitFor();
     assert.match(await dialog.innerText(),/0 项差异/);
     assert(await dialog.getByRole("button",{name:"预演应用"}).isDisabled());

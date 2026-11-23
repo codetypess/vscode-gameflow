@@ -1,41 +1,69 @@
 import type { GameFlowDocument, GameFlowNode, GameFlowPage } from "./model";
 import { DEFAULT_IMAGE_ID, imageRenderSize } from "./image-rendering";
-import { BUILTIN_SOURCE } from "./builtin-image";
 import { resolvePageLayout } from "./ui-layout";
 import { COMPONENTS, pageRootType } from "./ui-components";
-import { builtinImage, builtinPath, IMAGE_SLOT_FIELDS, nodeImageSlot, type BuiltinImage, type ImageSlot, type ImageSlotField } from "./image-slots";
+import { builtinImage, builtinPath, nodeImageSlot, type BuiltinImage, type ImageSlot, type ImageSlotField } from "./image-slots";
 import { isSliceResourcePath, type SliceResourceDescription, type SliceResourceRef } from "./slice-resources";
 import { parseResourceManifest, RESOURCE_MANIFEST, type ResourceManifest } from "./psd-export";
 import { exportDirectoryError } from "./export-directory";
-import type { ExportCodec, ResourceDirectory } from "./psd-export-directory";
+import { validatePng, type ExportCodec, type ResourceDirectory } from "./psd-export-directory";
+import { mergeLayaMeta, resourceUuid } from "./laya-meta";
+import type { NineGrid } from "./psd-meta";
+import { sameGrid } from "./psd-builtin";
+export { resourceUuid } from "./laya-meta";
 
-export interface PrefabImage { path: string; base64: string; description: SliceResourceDescription }
+export interface PrefabImage { path: string; base64: string; description: SliceResourceDescription; expectedUuid?:string }
 export interface PrefabExportBatch { name: string; directory?: string; prefab: Record<string, unknown>; images: PrefabImage[] }
 export interface PrefabTarget {name:string;directory?:string}
-export interface PrefabSnapshot {prefab:Record<string,unknown>|null;hash:string|null;root:string;version:number;skins?:Record<string,string>}
+export interface ImageMetaTarget {path:string; nineGrid:NineGrid|null}
+export interface PrefabMetadataReview {
+  prefabMetaChanged: boolean;
+  images: Record<string, {uuid:string; changed:boolean}>;
+}
+export interface PrefabSnapshot {prefab:Record<string,unknown>|null;hash:string|null;root:string;version:number;skins?:Record<string,string>;metadata?:PrefabMetadataReview}
 export interface PrefabWriteGuard {hash:string|null; writePrefab:boolean; added:string[]}
 export function validPrefabTarget(value:unknown):value is PrefabTarget {
   const t=value as PrefabTarget|undefined;
   return !!t && typeof t.name==="string" && /^[^\\/:*?"<>|\x00-\x1f]{1,128}\.lh$/.test(t.name) && !t.name.includes("..") && !/^(con|prn|aux|nul|com[1-9]|lpt[1-9])\./i.test(t.name) && !exportDirectoryError(t.directory);
 }
-export async function readPrefabSnapshot(directory:ResourceDirectory,target:PrefabTarget,hash:ExportCodec["hash"],resources?:ResourceDirectory) {
+export async function readPrefabSnapshot(directory:ResourceDirectory,target:PrefabTarget,hash:ExportCodec["hash"],resources?:ResourceDirectory,images:ImageMetaTarget[]=[]) {
   if(!validPrefabTarget(target)) throw new Error("预制体路径无效。");
-  const data=await directory.read([target.directory,target.name].filter(Boolean).join("/"));
+  const file = [target.directory,target.name].filter(Boolean).join("/");
+  const data=await directory.read(file);
   if(!data) return {prefab:null,hash:null};
   if(data.length>8*1024*1024) throw new Error("预制体超过 8 MB。");
   const prefab=JSON.parse(new TextDecoder().decode(data));
   if(!prefab || typeof prefab!=="object" || Array.isArray(prefab)) throw new Error("预制体根节点无效。");
   const skins:Record<string,string>={};
+  const metadata:PrefabMetadataReview = {prefabMetaChanged:!!mergeLayaMeta(file,await directory.read(file+".meta")).bytes, images:{}};
   if(resources) {
     const needed=new Set<string>();
     JSON.stringify(prefab,(key,value)=>{
       if(["skin","normalSkin","selectedSkin","disabledSkin"].includes(key) && typeof value==="string" && value.startsWith("res://")) needed.add(value);
       return value;
     });
-    const raw=needed.size ? await resources.read(RESOURCE_MANIFEST) : null;
-    if(raw && raw.length<=8*1024*1024) {
-      const ledger=parseResourceManifest(JSON.parse(new TextDecoder().decode(raw)));
-      const paths=ledger.resources.map(r=>r.file).filter(isSliceResourcePath).sort((a,b)=>Number(needed.has(resourceUrl(b)))-Number(needed.has(resourceUrl(a))));
+    const raw=needed.size || images.length ? await resources.read(RESOURCE_MANIFEST) : null;
+    if(raw && raw.length>8*1024*1024) throw new Error("资源来源清单超过 8 MB。");
+    const entries=raw ? parseResourceManifest(JSON.parse(new TextDecoder().decode(raw))).resources : [];
+    const records=new Map(entries.map(entry=>[entry.file,entry]));
+    const listings=new Map<string,Set<string>>();
+    for(const image of images) {
+      if(!isSliceResourcePath(image.path)) throw new Error("图片资源路径无效。");
+      const slash=image.path.lastIndexOf("/"),folder=slash<0?"":image.path.slice(0,slash);
+      let files=listings.get(folder);
+      if(!files) {
+        files=new Set(await resources.list(folder || undefined));
+        listings.set(folder,files);
+      }
+      const meta=mergeLayaMeta(image.path,await resources.read(image.path+".meta"),image.nineGrid);
+      const entry=records.get(image.path);
+      const changed=!!meta.bytes || !files.has(image.path.slice(slash+1)) || !entry || !sameGrid(entry.nineGrid,image.nineGrid);
+      metadata.images[image.path]={uuid:meta.uuid,changed};
+      const url="res://"+meta.uuid;
+      if(needed.delete(url)) skins[url]=image.path;
+    }
+    if(needed.size) {
+      const paths=entries.map(r=>r.file).filter(p=>isSliceResourcePath(p) && !metadata.images[p]).sort((a,b)=>Number(needed.has(resourceUrl(b)))-Number(needed.has(resourceUrl(a))));
       for(let i=0;i<paths.length && needed.size;i+=16) {
         await Promise.all(paths.slice(i,i+16).map(async path=>{
           const bytes=await resources.read(path+".meta");
@@ -47,20 +75,12 @@ export async function readPrefabSnapshot(directory:ResourceDirectory,target:Pref
       }
     }
   }
-  return {prefab:prefab as Record<string,unknown>,hash:await hash(data),skins};
+  return {prefab:prefab as Record<string,unknown>,hash:await hash(data),skins,metadata};
 }
 export interface MissingImage { nodeId: string; nodeName: string; slot: ImageSlotField; path: string; error: string }
 export interface PrefabPlan { batch: PrefabExportBatch; missing: MissingImage[] }
 export type ExportImageResolver = (ref: SliceResourceRef, render?: { builtin: BuiltinImage; width: number; height: number }) => Promise<{ status: "ready"; image: PrefabImage } | { status: "error"; error: string }>;
 
-/** Stable importer identity: every reference to the same portable resource path uses the same UUID. */
-export function resourceUuid(path: string): string {
-  const bytes = new TextEncoder().encode("gameflow-resource:" + path);
-  const hex = [2166136261, 2166136261 ^ 0x9e3779b9, 2166136261 ^ 0x85ebca6b, 2166136261 ^ 0xc2b2ae35].map(seed => {
-    let value = seed; for (const byte of bytes) value = Math.imul(value ^ byte, 16777619); return (value >>> 0).toString(16).padStart(8, "0");
-  }).join("");
-  return hex.slice(0,8) + "-" + hex.slice(8,12) + "-5" + hex.slice(13,16) + "-a" + hex.slice(17,20) + "-" + hex.slice(20);
-}
 export const resourceUrl = (path: string) => "res://" + resourceUuid(path);
 const scriptPath = (type: string) => "../src/game/app/core/ui/" + "ui-" + type.slice(2).replace(/([a-z0-9])([A-Z])/g, "$1-$2").toLowerCase() + ".ts";
 export const nodeSlots = (node: GameFlowNode): [ImageSlotField, ImageSlot | null | undefined][] => node.type === "button" ? [["normalSkin",node.normalSkin],["selectedSkin",node.selectedSkin],["disabledSkin",node.disabledSkin]] : node.type === "image" ? [["image",node.image === undefined && node.sliceResource ? { art: node.sliceResource } : node.image]] : [];
@@ -150,70 +170,125 @@ export function isPrefabExportBatch(value: unknown): value is PrefabExportBatch 
   const paths=new Set<string>();
   return batch.images.every(image=>{
     size+=typeof image?.base64==="string"?image.base64.length:Infinity;
-    if(!image || !isSliceResourcePath(image.path) || paths.has(image.path) || !/^[A-Za-z0-9+/]+={0,2}$/.test(image.base64) || image.base64.length%4 || size>48*1024*1024 || image.description?.path!==image.path) return false;
+    if(!image || !isSliceResourcePath(image.path) || paths.has(image.path) || !/^[A-Za-z0-9+/]+={0,2}$/.test(image.base64) || image.base64.length%4 || size>48*1024*1024 || image.description?.path!==image.path || (image.expectedUuid!==undefined && typeof image.expectedUuid!=="string")) return false;
     paths.add(image.path);
     try { parseResourceManifest({schema:"gameflow.resources",version:2,resources:[{...image.description,name:image.path.slice(image.path.lastIndexOf("/")+1,-4),file:image.path,sha256:"0".repeat(64)}]});return true;}catch{return false;}
   });
+}
+
+/** Older one-step callers have no review decisions. Merge generated nodes by identity
+ * while keeping the existing hierarchy, engine-only children and custom properties. */
+function mergeGeneratedPrefab(existing:Record<string,unknown>, generated:Record<string,unknown>) {
+  type Node = Record<string,unknown>;
+  const children=(node:Node):Node[]=>{
+    if(node._$child===undefined) return [];
+    if(!Array.isArray(node._$child) || node._$child.some(n=>!n || typeof n!=="object" || Array.isArray(n)))
+      throw new Error("预制体子节点格式无效。");
+    return node._$child;
+  };
+  function index(root:Node) {
+    const nodes=new Map<string,Node>();
+    const visit=(node:Node)=>{
+      if(typeof node._$id==="string") {
+        if(nodes.has(node._$id)) throw new Error("预制体节点 ID 重复："+node._$id);
+        nodes.set(node._$id,node);
+      }
+      children(node).forEach(visit);
+    };
+    visit(root);
+    return nodes;
+  }
+  if(existing._$id!==generated._$id || existing._$type!==generated._$type) throw new Error("预制体页面身份或根类型不匹配。");
+  const oldNodes=index(existing), newNodes=index(generated);
+  function merge(old:Node|undefined,next:Node|undefined):Node {
+    if(old && next && old._$type!==next._$type) throw new Error("预制体控件类型已变化："+old._$id);
+    const node={...old,...next};
+    if(old?._$child!==undefined || next?._$child!==undefined) {
+      const kept=old ? children(old).map(child=>merge(child,newNodes.get(String(child._$id)))) : [];
+      const added=next ? children(next).filter(child=>!oldNodes.has(String(child._$id))).map(child=>merge(undefined,child)) : [];
+      node._$child=[...kept,...added];
+    }
+    return node;
+  }
+  return merge(existing,generated);
 }
 
 /** Preflight both roots, then commit all images, importer metadata, ledger and prefab with rollback. */
 export async function exportPrefabToDirectories(resources:ResourceDirectory, prefabs:ResourceDirectory, batch:PrefabExportBatch, codec:ExportCodec,guard?:PrefabWriteGuard,finish?:()=>Promise<void>):Promise<number> {
   if(!isPrefabExportBatch(batch)) throw new Error("预制体导出请求无效。");
   const target=[batch.directory,batch.name].filter(Boolean).join("/");
+  const original=await prefabs.read(target);
+  const targetHash=guard ? guard.hash : original ? await codec.hash(original) : null;
   const assertReviewed=async(bytes:Uint8Array|null)=>{
-    if(guard && (bytes ? await codec.hash(bytes) : null)!==guard.hash) throw new Error("预制体在审阅后已变化，请重新比较。");
+    if((bytes ? await codec.hash(bytes) : null)!==targetHash) throw new Error("预制体目标已变化，请重新比较并合并。");
   };
-  if(guard) await assertReviewed(await prefabs.read(target));
+  if(guard) await assertReviewed(original);
   const incremental=!!guard?.hash;
   const ledgerBytes=!incremental || batch.images.length ? await resources.read(RESOURCE_MANIFEST) : null;
   if(ledgerBytes && ledgerBytes.length>8*1024*1024)throw new Error("资源来源清单超过 8 MB。");
   const ledger:ResourceManifest=ledgerBytes?parseResourceManifest(JSON.parse(new TextDecoder().decode(ledgerBytes))):{schema:"gameflow.resources",version:2,resources:[]};
   const records=new Map(ledger.resources.map(item=>[item.file,item]));
-  const writes:{directory:ResourceDirectory;path:string;bytes:Uint8Array;before:Uint8Array|null}[]=[];
+  const staged:{directory:ResourceDirectory;path:string;bytes:Uint8Array|null;before:Uint8Array|null}[]=[];
   const urls=new Map<string,string>();
-  const stage=async(directory:ResourceDirectory,path:string,bytes:Uint8Array)=>{
-    if(path===RESOURCE_MANIFEST && bytes.length>8*1024*1024)throw new Error("生成的来源清单超过 8 MB。");
+  const stage=async(directory:ResourceDirectory,path:string,bytes:Uint8Array|null,before:Uint8Array|null)=>{
+    if(path===RESOURCE_MANIFEST && bytes && bytes.length>8*1024*1024)throw new Error("生成的来源清单超过 8 MB。");
     const folder=path.includes("/")?path.slice(0,path.lastIndexOf("/")):undefined,name=path.slice(path.lastIndexOf("/")+1);
     for(const existing of await directory.list(folder)) if(existing.toLowerCase()===name.toLowerCase() && existing!==name) throw new Error(path+" 存在大小写冲突。");
-    writes.push({directory,path,bytes,before:await directory.read(path)});
+    staged.push({directory,path,bytes,before});
   };
+  let ledgerChanged=false;
   for(const image of batch.images){
-    const bytes=codec.decode(image.base64),view=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength),d=image.description;
-    if(bytes.length<33 || view.getUint32(0)!==0x89504e47 || view.getUint32(4)!==0x0d0a1a0a || view.getUint32(12)!==0x49484452 || view.getUint32(16)!==d.width || view.getUint32(20)!==d.height) throw new Error(image.path+" PNG 数据或尺寸无效。");
+    const bytes=codec.decode(image.base64),d=image.description;
+    validatePng(bytes,d.width,d.height);
     const previous=records.get(image.path),exists=await resources.read(image.path);
     if(exists && !d.shared && (!previous || previous.source.documentId!==d.source.documentId)) throw new Error(image.path+" 已有其他来源的资源，请先处理冲突。");
     const sha256=await codec.hash(bytes);
-    if(!incremental || !exists) {
-      const reuse = exists && d.source.documentId === BUILTIN_SOURCE.documentId && image.path.startsWith("builtin/") && await codec.hash(exists) === sha256;
-      records.set(image.path,{...d,name:image.path.slice(image.path.lastIndexOf("/")+1,-4),file:image.path,sha256});
-      if (!reuse) await stage(resources,image.path,bytes);
+    const diskHash=exists ? await codec.hash(exists) : null;
+    // A reviewed merge keeps engine-edited pixels. Changes to slice geometry can
+    // regenerate compacted pixels when the previous export still owns the file.
+    const gridChanged=previous && !sameGrid(previous.nineGrid,d.nineGrid);
+    const keepPixels=incremental && exists && !(gridChanged && previous.sha256===diskHash);
+    if(!previous || !incremental || gridChanged || !exists) {
+      if(keepPixels) validatePng(exists,d.width,d.height);
+      const record={...previous,...d,name:image.path.slice(image.path.lastIndexOf("/")+1,-4),file:image.path,sha256:keepPixels ? diskHash! : sha256};
+      if(!d.logicalSize) delete record.logicalSize;
+      records.set(image.path,record);
+      ledgerChanged=true;
     }
-    const grid=d.nineGrid;
     const oldMeta=await resources.read(image.path+".meta");
-    let existing:Record<string,unknown>={};
-    if(oldMeta){try{existing=JSON.parse(new TextDecoder().decode(oldMeta));}catch{throw new Error(image.path+".meta 已损坏。");} if(typeof existing?.uuid!=="string" || !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(existing.uuid)) throw new Error(image.path+".meta 的导入身份无效。");}
-    const importer={...(existing.importer && typeof existing.importer==="object" ? existing.importer : {}),textureType:2,...(grid?{sizeGrid:[grid.top,grid.right,grid.bottom,grid.left,grid.repeat?1:0]}:{sizeGrid:[0,0,0,0,0]})};
-    const meta={...existing,uuid:existing.uuid??resourceUuid(image.path),importer};
+    const meta=mergeLayaMeta(image.path,oldMeta,d.nineGrid);
+    if(image.expectedUuid!==undefined && image.expectedUuid!==meta.uuid) throw new Error(image.path+".meta 的 UUID 在审阅后已变化，请重新比较。");
     urls.set(resourceUrl(image.path),"res://"+meta.uuid);
-    if(!incremental || !oldMeta) await stage(resources,image.path+".meta",new TextEncoder().encode(JSON.stringify(meta,null,2)+"\n"));
+    await stage(resources,image.path+".meta",meta.bytes,oldMeta);
+    await stage(resources,image.path,diskHash===sha256 || keepPixels ? null : bytes,exists);
   }
-  if(!incremental || writes.some(w=>w.path.endsWith(".png"))) await stage(resources,RESOURCE_MANIFEST,new TextEncoder().encode(JSON.stringify({...ledger,version:2,resources:[...records.values()].sort((a,b)=>a.file.localeCompare(b.file))},null,2)+"\n"));
+  if(!incremental || ledgerChanged) await stage(resources,RESOURCE_MANIFEST,new TextEncoder().encode(JSON.stringify({...ledger,version:2,resources:[...records.values()].sort((a,b)=>a.file.localeCompare(b.file))},null,2)+"\n"),ledgerBytes);
+  const oldPrefabMeta=await prefabs.read(target+".meta");
+  await stage(prefabs,target+".meta",mergeLayaMeta(target,oldPrefabMeta).bytes,oldPrefabMeta);
   if(!guard || guard.writePrefab) {
     const added=new Set(guard?.added);
-    const prefab=JSON.parse(JSON.stringify(batch.prefab),function(key,value){
+    let prefab=JSON.parse(JSON.stringify(batch.prefab),function(key,value){
       return (!incremental || added.has(this._$id)) && ["skin","normalSkin","selectedSkin","disabledSkin"].includes(key) && typeof value==="string" && urls.has(value) ? urls.get(value) : value;
     });
-    await stage(prefabs,target,new TextEncoder().encode(JSON.stringify(prefab,null,2)+"\n"));
-    await assertReviewed(writes[writes.length-1].before);
+    if(!guard && original) prefab=mergeGeneratedPrefab(JSON.parse(new TextDecoder().decode(original)),prefab);
+    await stage(prefabs,target,new TextEncoder().encode(JSON.stringify(prefab,null,2)+"\n"),original);
   }
-  let backupSize=0;for(const item of writes){backupSize+=item.before?.length??0; if(backupSize>48*1024*1024)throw new Error("待替换文件总大小超过 48 MB。"); const now=await item.directory.read(item.path);if((now===null)!==(item.before===null)||now&&item.before&&await codec.hash(now)!==await codec.hash(item.before))throw new Error(item.path+" 在检查期间被修改。");}
-  const touched:typeof writes=[];
+  let backupSize=0;
+  for(const item of staged) {
+    if(item.bytes) backupSize+=item.before?.length??0;
+    if(backupSize>48*1024*1024) throw new Error("待替换文件总大小超过 48 MB。");
+    const now=await item.directory.read(item.path);
+    if((now===null)!==(item.before===null) || now && item.before && await codec.hash(now)!==await codec.hash(item.before))
+      throw new Error(item.path+" 在检查期间被修改。");
+  }
+  const touched:(typeof staged[number] & {bytes:Uint8Array})[]=[];
   try {
-    for(const item of writes) {
+    for(const item of staged) {
+      if(!item.bytes) continue;
       const folder=item.path.includes("/")?item.path.slice(0,item.path.lastIndexOf("/")):undefined;
       if(folder) await item.directory.mkdir(folder);
       if(item.directory===prefabs && item.path===target) await assertReviewed(await prefabs.read(target));
-      touched.push(item);await item.directory.write(item.path,item.bytes);
+      touched.push({...item,bytes:item.bytes});await item.directory.write(item.path,item.bytes);
     }
     if(guard && !guard.writePrefab) await assertReviewed(await prefabs.read(target));
     await finish?.();

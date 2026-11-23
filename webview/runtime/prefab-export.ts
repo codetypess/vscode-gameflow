@@ -1,4 +1,4 @@
-import type { PrefabExportBatch, ExportImageResolver } from "../../shared/prefab-export";
+import type { ImageMetaTarget, PrefabExportBatch, ExportImageResolver } from "../../shared/prefab-export";
 import { exportPrefabToDirectories, readPrefabSnapshot, type PrefabSnapshot, type PrefabTarget, type PrefabWriteGuard } from "../../shared/prefab-export";
 import type { GameFlowDocument } from "../../shared/model";
 import type { HostToWebviewMessage, WebviewToHostMessage } from "../../shared/protocol";
@@ -56,15 +56,15 @@ function request<T extends "prefabInspectResult"|"prefabExportResult">(message:E
   });
 }
 type BrowserSnapshot=PrefabSnapshot & {directory?:BrowserDirectory;resources?:BrowserDirectory};
-export async function inspectPrefabTarget(target:PrefabTarget):Promise<BrowserSnapshot> {
+export async function inspectPrefabTarget(target:PrefabTarget,images:ImageMetaTarget[]):Promise<BrowserSnapshot> {
   if(isBrowserPreview) {
     const directory=browserDirectory("prefabs");
     if(!directory) throw new Error("请选择预制体目录。");
     const resources=browserDirectory("resources");
-    return {...await readPrefabSnapshot(browserResourceDirectory(directory),target,browserHash,resources?browserResourceDirectory(resources):undefined),directory,resources,root:directory.name,version:0};
+    return {...await readPrefabSnapshot(browserResourceDirectory(directory),target,browserHash,resources?browserResourceDirectory(resources):undefined,images),directory,resources,root:directory.name,version:0};
   }
   if(!document.querySelector('meta[name="gameflow-prefab-sync"]')) throw new Error("请重新加载 VS Code 窗口以启用预制体同步。");
-  const reply=await request({type:"prefabInspect",requestId:crypto.randomUUID(),target},"prefabInspectResult");
+  const reply=await request({type:"prefabInspect",requestId:crypto.randomUUID(),target,images},"prefabInspectResult");
   if(!reply.snapshot) throw new Error("未能读取目标预制体。");
   return reply.snapshot;
 }

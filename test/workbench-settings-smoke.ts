@@ -33,6 +33,9 @@ export async function settingsChecks(api: { psd: PsdEditorProvider }, root: stri
     assert.equal(settings.directory("prefabs")?.toString(), prefab.toString());
     assert.equal(await exporter.export(batch), 1);
     assert.ok(existsSync(join(first.fsPath, filename))); assert.ok(existsSync(join(first.fsPath, RESOURCE_MANIFEST)));
+    const sliceMeta=JSON.parse(readFileSync(join(first.fsPath,filename+".meta"),"utf8"));
+    assert.match(sliceMeta.uuid,/^[a-f0-9-]{36}$/);
+    assert.deepEqual(sliceMeta.importer.sizeGrid,[0,0,0,0,0]);
     await settings.set("resources", second);
     assert.equal(await exporter.export(batch), 1);
     assert.ok(existsSync(join(second.fsPath, filename))); assert.ok(existsSync(join(second.fsPath, RESOURCE_MANIFEST)));
@@ -58,6 +61,7 @@ export async function settingsChecks(api: { psd: PsdEditorProvider }, root: stri
     assert.equal(await exportPrefab(settings, plan.batch), 1);
     const prefabFile = join(prefab.fsPath, plan.batch.name);
     const nativePrefab = JSON.parse(readFileSync(prefabFile, "utf8"));
+    assert.match(JSON.parse(readFileSync(prefabFile+".meta","utf8")).uuid,/^[a-f0-9-]{36}$/);
     assert.equal(nativePrefab._$child[0]._$type, "UIButton");
     assert.ok(nativePrefab._$child[0].normalSkin.startsWith("res://"));
     assert.equal(nativePrefab._$child[0].text, undefined);

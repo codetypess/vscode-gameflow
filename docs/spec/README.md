@@ -34,6 +34,8 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 
 ## Active Work Items
 
+- [laya-export-metadata.md](laya-export-metadata.md) — 生成预制体和切图时，按字段合并 Laya UUID 与九宫格。
+
 - [psd-builtin-slices.md](psd-builtin-slices.md) — PSD 切图按图层像素识别并复用内置图片。
 
 - [page-prefab-sync.md](page-prefab-sync.md) — Done。原型与实际 Laya 预制体支持双向审阅与合并，保留脚本和引擎字段。浏览器、原生宿主及 Laya 运行时加载验证通过。
