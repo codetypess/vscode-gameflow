@@ -7,7 +7,6 @@ import { createDefaultGameFlowDocument, parseGameFlowDocument, serializeGameFlow
 import { isSliceResourcePath, isSliceResourceRef, readExportedSlice, resolveSliceResource, sliceResourcePath, sourceKey, type SliceResourceDescription, type SliceResourceRef, type SliceResourceState } from "../shared/slice-resources";
 import { compactNineGrid, nineGridPatches } from "../shared/nine-grid";
 import { isSliceExportBatch, planSliceExport } from "../shared/psd-export";
-import { previewControl } from "../shared/preview-session";
 import { resolvePageLayout } from "../shared/ui-layout";
 import { convertNodeType, editNodeFrame, setNodeAnchor, setNodeConstraint } from "../shared/ui-edit";
 import { reparentNode } from "../shared/editor-ops";
@@ -16,7 +15,6 @@ import { composeCanvasPage, editCanvasPage, revertCanvasProperties } from "../sh
 import { extractCanvasComponent, makeCanvasInstance, type CanvasSources } from "../shared/canvas-references";
 import { isWebviewToHostMessage } from "../shared/protocol";
 import { NodeView } from "../webview/editor/node-view";
-import { controlSelected } from "../shared/ui-parts";
 
 type Test = { name: string; run(): void | Promise<void> };
 export const runtimePreviewTests: Test[] = [];
@@ -147,18 +145,6 @@ test("nine-grid compaction retains full edge strips and a complete repeat cycle"
   const repeatPixels = Uint32Array.from({ length: width * height }, (_, i) => i % width % 12);
   assert.equal(compactNineGrid(repeatPixels, width, height, { ...grid, repeat: true }).width, 17);
   assert.equal(compactNineGrid(repeatPixels, width, height, { ...grid, right: 4, repeat: true }).width, 29);
-});
-test("preview checkbox radio and slider states leave design initial values unchanged", () => {
-  const checkbox: GameFlowNode = { ...image, id: "check001", type: "checkbox", sliceResource: undefined, widget: { selected: false } };
-  const slider: GameFlowNode = { ...image, id: "slider01", type: "slider", sliceResource: undefined, widget: { min: 10, max: 20, value: 12 } };
-  const radio = { ...checkbox, id: "radio001", type: "radio" as const }, radio2 = { ...radio, id: "radio002" };
-  const group: GameFlowNode = { ...checkbox, id: "group001", type: "radioGroup", widget: { optionNodeIds: [radio.id, radio2.id], selectedIndex: 0 } };
-  const authored = page(checkbox, slider, radio, radio2, group), before = JSON.stringify(authored);
-  let session = previewControl(authored, checkbox.id); session = previewControl(session, slider.id, 100); session = previewControl(session, radio2.id);
-  assert.equal(session.nodes[0].widget!.selected, true); assert.equal(session.nodes[1].widget!.value, 20);
-  assert.equal(controlSelected(session, session.nodes[2]), false); assert.equal(controlSelected(session, session.nodes[3]), true);
-  assert.equal(JSON.stringify(authored), before);
-  assert.equal(previewControl(page({ ...checkbox, widget: { disabled: true } }), checkbox.id).nodes[0].widget!.selected, undefined);
 });
 test("disk preview verifies provenance PNG bytes dimensions and returns real texture data", async () => {
   const f = exportedFixture(), result = await readExportedSlice(ref.path, f.io);

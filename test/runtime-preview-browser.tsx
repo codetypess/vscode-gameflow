@@ -5,11 +5,9 @@ import { generateSliceProducts, renderSliceExportBatch } from "../webview/psd/sl
 import { paintSlice } from "../webview/runtime/paint-slice";
 import { useRuntimeResources } from "../webview/runtime/resources";
 import { SliceResourcesProvider } from "../webview/runtime/resource-context";
-import { RuntimePreview } from "../webview/runtime/preview";
 import { NodeView } from "../webview/editor/node-view";
 import type { RuntimeResource } from "../webview/runtime/resource-context";
 import type { PsdAsset } from "../shared/psd-meta";
-import { pagePsdKey } from "../shared/page-psd";
 import type { GameFlowPage } from "../shared/model";
 import "../webview/style.css";
 
@@ -94,9 +92,9 @@ async function checkPixels() {
   return results;
 }
 function Fixture() {
-  const [open, setOpen] = useState(false), [results, setResults] = useState<string[]>([]), [assets, setAssets] = useState([asset]);
+  const [results, setResults] = useState<string[]>([]), [assets, setAssets] = useState([asset]);
   const resources = useRuntimeResources(assets, [page], undefined, "art", { [page.id]: assets[0] });
   const state = resources.resolve(page.nodes[0].sliceResource!);
-  return <SliceResourcesProvider value={resources}><main style={{ padding: 20 }}><h1>运行预览像素验收</h1><button onClick={() => { void checkPixels().then(setResults).catch(e => setResults([`FAIL ${String(e)}`])); }}>执行像素验收</button><button onClick={() => setOpen(true)}>打开运行预览</button><button onClick={() => setAssets([{ ...asset, layers: [{ ...asset.layers[0], config: { ...asset.layers[0].config, exportName: "btn_renamed" } }] }])}>资源改名</button><button onClick={() => setAssets([{ ...asset, layers: [] }])}>删除来源</button><p role="status">资源状态：{state.status}{state.status === "error" ? ` ${state.error}` : ""}</p><pre>{results.join("\n")}</pre><p>设计初值：复选 false；Slider 20；九宫格 100×60。</p>{open ? <RuntimePreview pagePsds={{ states: { [page.id]: { key: pagePsdKey(page.artPsd), status: "ready" } }, assets: { [page.id]: assets[0] }, busy: new Set(), run: async () => {}, retry() {} }} pages={[page]} initialPageId={page.id} onClose={() => setOpen(false)} /> : null}</main></SliceResourcesProvider>;
+  return <SliceResourcesProvider value={resources}><main style={{ padding: 20 }}><h1>画布资源像素验收</h1><button onClick={() => { void checkPixels().then(setResults).catch(e => setResults([`FAIL ${String(e)}`])); }}>执行像素验收</button><button onClick={() => setAssets([{ ...asset, layers: [{ ...asset.layers[0], config: { ...asset.layers[0].config, exportName: "btn_renamed" } }] }])}>资源改名</button><button onClick={() => setAssets([{ ...asset, layers: [] }])}>删除来源</button><p role="status">资源状态：{state.status}{state.status === "error" ? ` ${state.error}` : ""}</p><pre>{results.join("\n")}</pre></main></SliceResourcesProvider>;
 }
 createRoot(document.getElementById("root")!).render(<Fixture />);

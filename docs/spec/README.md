@@ -34,6 +34,8 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 
 ## Active Work Items
 
+- [canvas-prefab-action.md](canvas-prefab-action.md) — Done：移除独立运行预览，Prefab 同步/导出改为画布底部“更多”左侧的状态图标；376 项共享测试、生产构建及三组 Edge 回归通过。
+
 - [laya-export-metadata.md](laya-export-metadata.md) — 生成预制体和切图时，按字段合并 Laya UUID 与九宫格。
 
 - [psd-builtin-slices.md](psd-builtin-slices.md) — PSD 切图按图层像素识别并复用内置图片。
@@ -82,7 +84,7 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 
 - [canvas-component-references.md](canvas-component-references.md) — Done：UIBox 存到画布并保留关联实例、同文件及跨模块画布引用、源更新和失效诊断；200 项测试、生产构建、宿主适配器文件监听测试和浏览器保存刷新验收通过，真实 Extension Host 人工联调未覆盖。
 
-- [runtime-slice-preview.md](runtime-slice-preview.md) — Done：真实内存切图、持久资源绑定、磁盘来源验证及当前工作台运行预览；共用布局/绘制，支持九宫格多尺寸检查和临时控件状态。311 项共享测试、37 项真实宿主检查、6 项浏览器像素验收、真实 PSD 与窄窗口验收及生产构建通过。
+- [runtime-slice-preview.md](runtime-slice-preview.md) — Done：真实内存切图、持久资源绑定、磁盘来源验证及共享布局/绘制已落地；独立运行预览和临时控件状态后来由 canvas-prefab-action 移除，画布资源模式继续消费这些能力。
 
 - [nine-grid-export-product.md](nine-grid-export-product.md) — Done：无损缩减九宫格中段；预览和导出共用最终纹理尺寸及边距，独立保留布局原尺寸。共享、宿主、浏览器像素及生产构建验证通过。
 
@@ -182,7 +184,7 @@ Remove completed work items from this list after their lasting decisions have be
 
 - [default-image-rendering.md](default-image-rendering.md) — Done：默认图片灰白背景加居中等比图标，PSD 与尺寸对应的 Prefab PNG 一致；覆盖磁盘读取、内容测量布局及临时预览缩放。364 项共享测试、生产构建及浏览器像素回归通过。
 
-- [resource-mode-selection.md](resource-mode-selection.md) — Done：切换三种资源模式清空编辑器和运行预览节点选择，保留页面、相机及临时控件状态；浏览器验收通过。
+- [resource-mode-selection.md](resource-mode-selection.md) — Done：画布切换三种资源模式清空节点选择，保留页面、相机及层级位置；独立运行预览的历史规则已被 canvas-prefab-action 取代。
 
 - [页面 PSD 图层约定](page-psd-layer-conventions.md) — Done。按公开组名与状态标记自动匹配，两个预览模式使用页面 PSD 并显示导出名。
 

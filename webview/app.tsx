@@ -4,7 +4,7 @@ import { canvasPropertyLabel } from "./editor/override-properties";
 import type { CanvasOverrideGroup, CanvasOverrideManager } from "./editor/override-panel";
 import { sliderOwner } from "../shared/ui-parts";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { ArrowLeft, Box, Check, ChevronDown, ChevronRight, Focus, FileImage, GitMerge, Layers3, LayoutDashboard, LayoutPanelTop, Link2, Minus, MoreHorizontal, MousePointerClick, Play, Plus, Redo2, Save, Scissors, SquareDashed, Undo2 } from "lucide-react";
+import { ArrowLeft, Box, Check, ChevronDown, ChevronRight, Focus, FileImage, GitMerge, Layers3, LayoutDashboard, LayoutPanelTop, Link2, Minus, MoreHorizontal, MousePointerClick, Plus, Redo2, Save, Scissors, SquareDashed, Undo2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import type { Frame, GameFlowNode, GameFlowPage, PageRootType } from "../shared/model";
 import { allocateElementId, reserveDocumentElementIds } from "../shared/element-id";
@@ -55,7 +55,6 @@ import { pagePsdKey } from "../shared/page-psd";
 import { requestPsd, sourceBytes, usePagePsds } from "./runtime/page-psd";
 import { PageSyncDialog, type SyncSession } from "./editor/page-sync-dialog";
 import { PageArtState, pagePreviewBlocked } from "./editor/page-art-state";
-import { RuntimePreview } from "./runtime/preview";
 
 type Tool = "select" | "hand" | InsertType;
 type Camera = { x: number; y: number; zoom: number };
@@ -109,7 +108,6 @@ export function App() {
   const [sources, setSources] = useState<CanvasSources>({});
   const [pickerSource, setPickerSource] = useState<string | null>(null);
   const [clipboard, setClipboard] = useState<NodeClipboard | null>(null);
-  const [runtimeOpen, setRuntimeOpen] = useState(false);
   const [syncSession,setSyncSession]=useState<SyncSession|null>(null);
   const [psdAssets, setPsdAssets] = useState<PsdAsset[]>([]);
   const observePsd = useCallback((asset: PsdAsset) => setPsdAssets(previous => {
@@ -451,7 +449,7 @@ export function App() {
     });
   };
   useEffect(() => {
-    if (mode !== "prototype" || runtimeOpen) return;
+    if (mode !== "prototype") return;
     const keydown = (event: KeyboardEvent) => {
       if (pickerSource !== null) return;
       if ((event.target as Element).closest("[role=menu], dialog[open]")) return;
@@ -654,14 +652,7 @@ export function App() {
       {mode === "prototype" && editingId && page ? <><Button size="sm" variant="ghost" onClick={back}><ArrowLeft size={14} />总览</Button><span className="breadcrumb">/</span></> : null}
       <span className="document-title">{mode === "prototype" ? editingId ? page?.name : canvasDocument?.title ?? "正在打开画布" : "美术工作区"}</span>
       <nav className="mode-switcher" aria-label="工作模式">{([{ id: "prototype", label: "原型", icon: LayoutPanelTop }, { id: "merge", label: "PSD 合并", icon: GitMerge }, { id: "slice", label: "PSD 切图", icon: Scissors }] as const).map(({ icon: Icon, ...item }) => <Tooltip key={item.id}><TooltipTrigger asChild><Button size="icon" variant="ghost" aria-label={item.label} aria-pressed={mode === item.id} className={mode === item.id ? "mode-active" : ""} onClick={() => selectWorkspace(item.id)} disabled={item.id === "slice" && mode === "prototype" && !!canonicalPage?.artPsd && pageActionBusy}><Icon size={16} aria-hidden="true" /></Button></TooltipTrigger><TooltipContent side="bottom">{item.label}</TooltipContent></Tooltip>)}</nav>
-<div className="workbench-right">{mode === "prototype" && canvasDocument && resourcePage ? <CanvasExportActions document={canvasDocument} page={resourcePage} sourcePage={compositions.get(resourcePage.id)!.page}
-        prepare={(expected,source,updated)=>{
-          const current=read(), canonical=current?.pages.find(p=>p.id===source.id);
-          if(!current || JSON.stringify(current)!==JSON.stringify(expected) || !canonical || JSON.stringify(composeCanvasPage(current,canonical,sources).page)!==JSON.stringify(source)) throw new Error("原型已变化，请重新比较。");
-          const next=editCanvasPage(current,source.id,sources,()=>updated), valid=validateGameFlowDocument(next);
-          if(!valid.ok) throw new Error(valid.errors.join("；"));
-          return next;
-        }} applyBrowser={(expected,next)=>{if(JSON.stringify(read())!==JSON.stringify(expected)) throw new Error("原型已变化，请重新比较。");edit(()=>next);}} resources={runtimeResources} settings={settings} disabled={!canonicalPage || pending || !!composition?.errors.size || !!mappingErrors[resourcePage.id]} onNotice={setNotice} /> : null}<div ref={setExportActions} className="workbench-export-actions" /><IconTool label="运行预览" disabled={!canvasDocument?.pages.length} onClick={() => { switchMode("prototype"); setRuntimeOpen(true); }}><Play size={16} /></IconTool><WorkbenchSettingsButton settings={settings} /></div>
+<div className="workbench-right"><div ref={setExportActions} className="workbench-export-actions" /><WorkbenchSettingsButton settings={settings} /></div>
     </header>
     <WorkbenchSettingsPanel settings={settings} file={canvasDocument ? { directory: canvasDocument.exportDirectory, name: resourceName || canvasDocument.title, change: exportDirectory => edit(document => ({ ...document, exportDirectory })) } : undefined} />
     <div ref={viewport} tabIndex={-1} hidden={mode !== "prototype"} className={cn("canvas-viewport", (tool === "hand" || spaceHand) && "hand-tool", preview?.kind === "pan" && "is-panning", (preview?.kind === "node" || preview?.kind === "page") && "is-moving")} aria-label={editingId ? "页面编辑画布" : "页面总览画布"}
@@ -743,7 +734,14 @@ export function App() {
             <div className="insert-grid" role="group" aria-label="添加控件">{TOOLS.map(({ type, icon: Icon }) => <button key={type} disabled={!editingId} onClick={() => chooseInsertTool(type)}><Icon size={16} /><span>{NODE_LABELS[type]} <small className="menu-class">({COMPONENTS[type].laya})</small></span></button>)}</div>
           </PopoverContent></Popover>
           <div className="direct-tools">{TOOLS.filter((item) => item.key).map(({ type, icon: Icon, key }) => <IconTool key={type} label={`${NODE_LABELS[type]} (${key})`} disabled={!editingId} active={tool === type} onClick={() => chooseInsertTool(type)}><Icon size={19} /></IconTool>)}</div>
-          <Separator orientation="vertical" /><DropdownMenu.Root modal={false}>
+          <Separator orientation="vertical" />{canvasDocument && resourcePage ? <CanvasExportActions document={canvasDocument} page={resourcePage} sourcePage={compositions.get(resourcePage.id)!.page}
+            prepare={(expected,source,updated)=>{
+              const current=read(), canonical=current?.pages.find(p=>p.id===source.id);
+              if(!current || JSON.stringify(current)!==JSON.stringify(expected) || !canonical || JSON.stringify(composeCanvasPage(current,canonical,sources).page)!==JSON.stringify(source)) throw new Error("原型已变化，请重新比较。");
+              const next=editCanvasPage(current,source.id,sources,()=>updated), valid=validateGameFlowDocument(next);
+              if(!valid.ok) throw new Error(valid.errors.join("；"));
+              return next;
+            }} applyBrowser={(expected,next)=>{if(JSON.stringify(read())!==JSON.stringify(expected)) throw new Error("原型已变化，请重新比较。");edit(()=>next);}} resources={runtimeResources} settings={settings} disabled={!canonicalPage || pending || !!composition?.errors.size || !!mappingErrors[resourcePage.id]} onNotice={setNotice} /> : null}<DropdownMenu.Root modal={false}>
             <Tooltip><TooltipTrigger asChild><DropdownMenu.Trigger asChild><Button size="icon" variant="ghost" className="toolbar-button" aria-label="更多"><MoreHorizontal size={19} /></Button></DropdownMenu.Trigger></TooltipTrigger><TooltipContent side="top">更多</TooltipContent></Tooltip>
             <DropdownMenu.Portal><DropdownMenu.Content loop side="top" align="end" sideOffset={8} collisionPadding={12} className="layer-context-menu" onPointerDown={event => event.stopPropagation()} onKeyDown={event => event.stopPropagation()}>
               <DropdownMenu.Item disabled={!canonicalPage?.artPsd || pageActionBusy} onSelect={() => void openPageSlice()}><Scissors size={15} /><span>PSD 切图</span></DropdownMenu.Item>
@@ -765,7 +763,7 @@ export function App() {
       {canvasDocument && pickerSource !== null ? <CanvasReferencePicker document={canvasDocument} sources={sources} source={pickerSource} currentPageId={editingId ?? undefined} onSource={setPickerSource} onPick={insertReference} onClose={() => setPickerSource(null)} /> : null}
     </div>
     <PsdWorkspace mode="merge" active={mode === "merge"} settings={settings} />
-    <PsdWorkspace mode="slice" active={mode === "slice" && !runtimeOpen} binding={psdEditor.binding} openBoundRef={openBrowserSlice} onReveal={() => switchMode("slice")} documentActions={documentActions} exportActions={exportActions} settings={settings} exportPending={pending} onAsset={observePsd} />
+    <PsdWorkspace mode="slice" active={mode === "slice"} binding={psdEditor.binding} openBoundRef={openBrowserSlice} onReveal={() => switchMode("slice")} documentActions={documentActions} exportActions={exportActions} settings={settings} exportPending={pending} onAsset={observePsd} />
     {syncSession && <PageSyncDialog session={syncSession} loadedAsset={
       canvasDocument?.documentId === syncSession.document.documentId && loadedPsds.states[syncSession.page.id]?.key === pagePsdKey(syncSession.page.artPsd)
         ? loadedPsds.assets[syncSession.page.id] : undefined
@@ -784,7 +782,6 @@ export function App() {
       const next=prepare(current);
       if(!checkOnly) {edit(()=>next);pagePsds.retry(updated.id);setNotice("已应用文字与结构同步");}
     }}/>}
-    {runtimeOpen ? <RuntimePreview pagePsds={pagePsds} resourceMode={resourceMode} onResourceMode={switchResourceMode} pages={resourcePages} initialPageId={editingId ?? selectedPageId ?? undefined} onClose={() => setRuntimeOpen(false)} /> : null}
     {psdEditor.initialError && mode === "slice" ? <div className="psd-status psd-warning" role="alert">{psdEditor.initialError}</div> : null}
   </main></TooltipProvider></SliceResourcesProvider>;
 }

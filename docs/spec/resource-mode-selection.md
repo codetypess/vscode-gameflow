@@ -4,6 +4,8 @@ Status: Done
 Date: 2026-11-19
 Scope: 原型 / 美术 PSD / 预制体切换时的节点选择
 
+2026-11-23 后续：独立运行预览已由 [画布预览与 Prefab 动作归位](canvas-prefab-action.md) 移除；本文关于画布三种资源模式清除选择的规则继续有效，独立预览会话的记录仅是历史验收。
+
 ## Context / Root Cause
 
 资源按钮只调用 setResourceMode 和 refresh，App 的 NodeSelection 及运行预览自己的 nodeId/compare 独立保留。美术模式在 PSD 未绑定时不绘制节点，但选框和属性仍投影旧选择，出现空页面覆盖上一模式选框的问题。

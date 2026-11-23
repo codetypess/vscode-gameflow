@@ -80,11 +80,7 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
     assert.equal(await page.locator('[data-art-state="unbound"]').count(), 2);
     await page.getByRole("button", { name: "预制体资源", exact: true }).click();
     assert.equal(await page.locator('[data-art-state="unbound"]').count(), 2);
-    await page.getByRole("button", { name: "运行预览", exact: true }).click();
-    const unboundPreview = page.getByRole("dialog", { name: "运行预览", exact: true });
-    await unboundPreview.getByRole("button", { name: "生成 PSD", exact: true }).waitFor();
-    assert.equal(await unboundPreview.locator("[data-node-id]").count(), 0);
-    await unboundPreview.getByRole("button", { name: "关闭运行预览", exact: true }).click();
+    assert.equal(await page.getByRole("button", { name: "运行预览", exact: true }).count(), 0);
     await page.getByRole("button", { name: "美术 PSD资源", exact: true }).click();
     const files = await page.evaluate(async doc => {
       const { generatePrototypePsd } = await import("/runtime/prototype-psd.ts"), { psdTask } = await import("/psd/io.ts");
@@ -149,23 +145,6 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
     await prototype.click();
     await page.getByRole("button", { name: "总览", exact: true }).click();
     assert.deepEqual(await page.evaluate(() => JSON.parse(localStorage.getItem("gameflow.prototype.v1"))), saved);
-    await page.getByRole("button", { name: "运行预览", exact: true }).click();
-    const runtime = page.getByRole("dialog", { name: "运行预览", exact: true });
-    await runtime.locator('canvas[data-resource-path="unclassified/login_qran_normal.png"]').waitFor();
-    await runtime.getByRole("combobox", { name: "预览页面", exact: true }).selectOption("pagea001");
-    await page.waitForFunction(expected => { const canvas = document.querySelector('.runtime-page canvas[data-resource-path="unclassified/login_qran_normal.png"]'); return canvas && JSON.stringify(Array.from(canvas.getContext("2d").getImageData(canvas.width/2,canvas.height/2,1,1).data)) === JSON.stringify(expected); }, pixels[0]);
-    const first = await runtime.locator('canvas[data-resource-path="unclassified/login_qran_normal.png"]').evaluate(canvas => Array.from(canvas.getContext("2d").getImageData(canvas.width/2,canvas.height/2,1,1).data));
-    await runtime.getByRole("combobox", { name: "预览页面", exact: true }).selectOption("pageb001");
-    await page.waitForFunction(before => { const canvas = document.querySelector('.runtime-page canvas[data-resource-path="unclassified/login_qran_normal.png"]'); return canvas && JSON.stringify(Array.from(canvas.getContext("2d").getImageData(canvas.width/2,canvas.height/2,1,1).data)) !== JSON.stringify(before); }, first);
-    const runtimeNode = runtime.locator('[data-node-id="nodeb001"]');
-    for (const label of ["原型资源", "预制体资源", "美术 PSD资源"]) {
-      await runtimeNode.click({position:{x:5,y:5}});
-      assert.equal(await runtime.getByRole("spinbutton", {name:"临时控件宽度",exact:true}).count(), 1);
-      await runtime.getByRole("button", {name:label,exact:true}).click();
-      assert.equal(await runtime.getByRole("spinbutton", {name:"临时控件宽度",exact:true}).count(), 0, "runtime mode switch clears node inspection");
-      assert.equal(await runtime.getByRole("combobox", {name:"预览页面",exact:true}).inputValue(), "pageb001");
-    }
-    await runtime.getByRole("button", { name: "关闭运行预览", exact: true }).click();
     await page.reload();
     await page.getByRole("button", { name: "美术 PSD资源", exact: true }).click();
     await page.locator('[data-art-state="error"]').first().waitFor(); assert.equal(await page.locator('[data-art-state="error"]').count(), 2);
@@ -209,11 +188,8 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
     await page.getByRole("button", { name: "执行像素验收", exact: true }).click();
     await page.waitForFunction(() => { const text = document.querySelector("pre")?.textContent ?? ""; return text.includes("FAIL") || text.split("PASS").length === 8; });
     assert.doesNotMatch(await page.locator("pre").innerText(), /FAIL/);
-    await page.getByRole("button", { name: "打开运行预览", exact: true }).click();
-    await page.locator('.runtime-page canvas[data-resource-path="unclassified/yl_btn_test.png"]').waitFor();
-    await page.getByRole("button", { name: "关闭运行预览", exact: true }).click();
     await page.getByRole("button", { name: "资源改名", exact: true }).click();
     await page.getByRole("status").filter({ hasText: "资源已改名或移动" }).waitFor();
-    assert.deepEqual(errors, []); console.log("PASS page PSD: unbound actions, stable binding, same-path isolation, runtime page switch, persistence, reload error/rebind, prototype fallback, generated PSD binding; artifacts: " + output);
+    assert.deepEqual(errors, []); console.log("PASS page PSD: unbound actions, stable binding, canvas same-path isolation, persistence, reload error/rebind, prototype fallback, generated PSD binding; artifacts: " + output);
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

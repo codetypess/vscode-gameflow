@@ -1,6 +1,6 @@
 import {useEffect,useRef,useState} from "react";
 import {createPortal} from "react-dom";
-import {Package} from "lucide-react";
+import {Package,RefreshCw} from "lucide-react";
 import type {GameFlowDocument,GameFlowPage} from "../../shared/model";
 import {planPrefabExport,prefabFileName,type PrefabExportBatch,type PrefabPlan,type PrefabTarget} from "../../shared/prefab-export";
 import {initialPrefabBase,inspectPrefab,prefabTarget,type PrefabReview} from "../../shared/prefab-sync";
@@ -9,6 +9,7 @@ import type {Resources} from "../runtime/resource-context";
 import {exportImageResolver,inspectPrefabTarget,commitPrefab} from "../runtime/prefab-export";
 import type {WorkbenchSettingsUI} from "../workbench-settings";
 import {Button} from "../components/ui/button";
+import {Tooltip,TooltipContent,TooltipTrigger} from "../components/ui/tooltip";
 interface ExportProps {
   document:GameFlowDocument;page:GameFlowPage;sourcePage:GameFlowPage;resources:Resources;settings:WorkbenchSettingsUI;disabled:boolean;
   prepare:(expected:GameFlowDocument,source:GameFlowPage,next:GameFlowPage)=>GameFlowDocument;
@@ -59,8 +60,9 @@ export function CanvasExportActions({document,page,sourcePage,resources,settings
     const missing=session.plan.missing.filter(i=>merge.added.includes(i.nodeId));
     if(missing.length)setMissing({plan:{...session.plan,missing},finish:commit});else await commit();
   }
+  const actionLabel=busy?"正在处理":saved?"同步":"导出",ActionIcon=saved?RefreshCw:Package;
   return <>
-    <Button variant="ghost" size="sm" aria-label={saved?"同步预制体":"导出 Prefab"} title="生成或同步当前页面的预制体" disabled={busy||disabled} onClick={exportPrefab}><Package size={15}/><span className="page-export-label">{busy?"正在处理…":saved?"同步预制体":"导出 Prefab"}</span></Button>
+    <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="toolbar-button" aria-label={actionLabel} disabled={busy||disabled} onClick={exportPrefab}><ActionIcon size={18}/></Button></TooltipTrigger><TooltipContent side="top">{actionLabel}</TooltipContent></Tooltip>
     {session && <PrefabSyncDialog review={session.comparison} plan={session.plan} skins={session.snapshot.skins} resourceRoot={settings.settings.resourceDirectory} close={()=>setSession(null)} commit={applyMerge} reload={async()=>{setSession(null);await load(session.plan.batch,true);}}/>}
     {recreate && <MissingTarget path={recreate.path} cancel={()=>setRecreate(null)} generate={()=>{setRecreate(null);setBusy(true);void recreate.run().catch(e=>onNotice(String(e))).finally(()=>setBusy(false));}}/>}
     {missing && <MissingResourcesDialog plan={missing.plan} onCancel={()=>setMissing(null)} onContinue={()=>{const action=missing.finish;setMissing(null);setBusy(true);void action().catch(e=>onNotice(String(e))).finally(()=>setBusy(false));}}/>}

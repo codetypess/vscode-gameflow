@@ -71,7 +71,7 @@ const sharedUrl = file => "/@fs/" + path.resolve(__dirname, "../shared", file).s
     await page.getByRole("button",{name:"选择预制体导出根目录",exact:true}).click();
     await page.getByRole("button",{name:"完成",exact:true}).click();
     await page.locator(".page-caption").first().click();
-    await page.getByRole("button",{name:"导出 Prefab",exact:true}).click();
+    await page.getByRole("button",{name:"导出",exact:true}).click();
     await page.waitForFunction(()=>window.testRoots?.[1]?.entries.size>0);
     await page.getByRole("button",{name:"预制体资源",exact:true}).click();
     await page.locator('[data-art-state="unbound"]').first().waitFor();
@@ -156,7 +156,7 @@ const sharedUrl = file => "/@fs/" + path.resolve(__dirname, "../shared", file).s
       await page.getByRole("button",{name:"完成",exact:true}).click();
     };
     const exportFresh = async directory => {
-      await page.getByRole("button",{name:"同步预制体",exact:true}).click();
+      await page.getByRole("button",{name:"同步",exact:true}).click();
       await page.getByRole("button",{name:new RegExp("^使用 "+directory+"/")}).click();
     };
     for (const mode of ["美术 PSD资源", "预制体资源"]) {
@@ -186,18 +186,17 @@ const sharedUrl = file => "/@fs/" + path.resolve(__dirname, "../shared", file).s
     await missingDialog.getByRole("button",{name:"仍然导出",exact:true}).click();
     await page.waitForFunction(path=>Array.from(window.testRoots[1].entries.get("broken")?.entries.values()??[]).some(file=>new TextDecoder().decode(file.bytes).includes(path)), `unclassified/${brokenName}.png`);
     await page.getByRole("button",{name:"原型资源",exact:true}).click();
-    await page.getByRole("button",{name:"运行预览",exact:true}).click();
-    const preview=page.getByRole("dialog",{name:"运行预览"});await preview.waitFor();
-    assert.equal(await preview.getByRole("group",{name:"预览资源显示模式"}).getByRole("button").count(),3);
-    await preview.getByRole("combobox",{name:"预览页面"}).selectOption({label:"游戏控件 · 状态预览"});
-    const ring=preview.locator('canvas[data-resource-path="builtin/progress/ring_fill.png"]');await ring.waitFor();
-    const ringBounds=await ring.boundingBox(),stageBounds=await preview.locator(".runtime-page").boundingBox();
-    assert.ok(ringBounds&&stageBounds,"circular progress and runtime stage must have visible bounds");
+    assert.equal(await page.getByRole("button",{name:"运行预览",exact:true}).count(),0);
+    await page.getByRole("button",{name:"总览",exact:true}).click();
+    const statePage=page.locator(".page-group").filter({hasText:"游戏控件 · 状态预览"});
+    await statePage.locator(".page-caption").dblclick();
+    const ring=page.locator('.page-editing canvas[data-resource-path="builtin/progress/ring_fill.png"]');await ring.waitFor();
+    const ringBounds=await ring.boundingBox(),stageBounds=await page.locator(".page-editing .page-surface").boundingBox();
+    assert.ok(ringBounds&&stageBounds,"circular progress and canvas page must have visible bounds");
     assert.ok(ringBounds.x>=stageBounds.x&&ringBounds.y>=stageBounds.y&&ringBounds.x+ringBounds.width<=stageBounds.x+stageBounds.width+1&&ringBounds.y+ringBounds.height<=stageBounds.y+stageBounds.height+1,"circular progress stays inside the page");
     const alpha=await ring.evaluate(c=>{const ctx=c.getContext("2d");return{right:ctx.getImageData(Math.round(c.width*.88),Math.round(c.height*.5),1,1).data[3],left:ctx.getImageData(Math.round(c.width*.12),Math.round(c.height*.5),1,1).data[3]};});
     assert.ok(alpha.right>0);assert.equal(alpha.left,0);
-    await page.screenshot({path:path.join(output,"runtime-preview.png")});
-    await preview.getByRole("button", {name:"关闭运行预览",exact:true}).click();
+    await page.screenshot({path:path.join(output,"canvas-preview.png")});
     await page.getByRole("button", {name:"PSD 切图",exact:true}).click();
     await page.getByLabel("打开切图 PSD", {exact:true}).setInputFiles(path.join(__dirname,"../examples/star-sea-login/Star-Sea-Login-750x1334.psd"));
     const slicing = page.getByRole("region", {name:"PSD 切图工作区"});
@@ -312,7 +311,7 @@ const sharedUrl = file => "/@fs/" + path.resolve(__dirname, "../shared", file).s
     await exportName.scrollIntoViewIfNeeded();
     await page.screenshot({path:path.join(output,"psd-variable-export.png")});
     assert.deepEqual(errors,[]);
-    console.log(JSON.stringify({passed:true,checks:["default prototype mode","unbound PSD gate","PSD state layers and editable labels roundtrip","builtin Prefab actual export","public PSD state names and exported disk preview","star-sea PSD custom parent name drives read-only state export","PSD document settings follow selection and retain validation","PSD checkbox ignores blank space and keeps label and keyboard activation","compact image resource field within narrow inspector","five-category picker with 28 icons","fixed picker bounds across categories and empty search","responsive picker at 420x600, 360x480 and 600x320","block selection and picker reopening","three-mode runtime preview","grouped PSD state composition","cancel and continue missing-resource dialog","circular progress pixel clipping"],output},null,2));
+    console.log(JSON.stringify({passed:true,checks:["default prototype mode","unbound PSD gate","PSD state layers and editable labels roundtrip","builtin Prefab actual export","public PSD state names and exported disk preview","star-sea PSD custom parent name drives read-only state export","PSD document settings follow selection and retain validation","PSD checkbox ignores blank space and keeps label and keyboard activation","compact image resource field within narrow inspector","five-category picker with 28 icons","fixed picker bounds across categories and empty search","responsive picker at 420x600, 360x480 and 600x320","block selection and picker reopening","three-mode canvas preview","grouped PSD state composition","cancel and continue missing-resource dialog","circular progress pixel clipping"],output},null,2));
   }catch(error){await page.screenshot({path:path.join(output,"failure.png")});console.error("Browser artifacts:",output);console.error("Page errors:",errors);throw error;}
   finally{await browser.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});
