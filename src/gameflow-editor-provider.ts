@@ -45,7 +45,7 @@ export class GameFlowEditorProvider implements vscode.CustomEditorProvider<Workb
   private readonly uriChanges = new vscode.EventEmitter<vscode.Uri>();
   readonly onDidChangeCustomDocument = this.changes.event;
   constructor(private readonly context: vscode.ExtensionContext, readonly psd: PsdEditorProvider) {
-    this.pagePsds = new PagePsdController(psd);
+    this.pagePsds = new PagePsdController(psd, (doc, uri, checkBinding) => this.openPsd(doc, uri, checkBinding));
     context.subscriptions.push(this.changes, this.uriChanges, psd.onDidChangeCustomDocument(event => {
       const owner = [...this.documents.values()].find(doc => doc.psds.get(event.document.uri.toString()) === event.document);
       if (!owner) return;
@@ -125,7 +125,7 @@ export class GameFlowEditorProvider implements vscode.CustomEditorProvider<Workb
     for (const change of changes) if (change.document instanceof WorkbenchDocument) { await change.document.refresh(); this.checkpoint(change.document); }
     this.checkpoint(owner);
   }
-  async openPsd(doc: WorkbenchDocument, uri?: vscode.Uri) {
+  async openPsd(doc: WorkbenchDocument, uri?: vscode.Uri, checkBinding?: () => void) {
     if (!uri) uri = (await vscode.window.showOpenDialog({ canSelectMany: false, filters: { Photoshop: ["psd"] }, openLabel: "在工作台打开 PSD" }))?.[0];
     if (!uri || doc.disposed) return;
     if (!/\.psd$/i.test(uri.path)) throw new Error("请选择 PSD 文件。");
@@ -140,6 +140,7 @@ export class GameFlowEditorProvider implements vscode.CustomEditorProvider<Workb
       if (doc.currentPsd.model.dirty) {
         const answer = await vscode.window.showWarningMessage("当前 PSD 配置尚未保存。打开其他 PSD 前如何处理？", { modal: true }, "保存并打开", "不保存并打开");
         if (!answer) return;
+        checkBinding?.();
         const cancellation = new vscode.CancellationTokenSource();
         try {
           if (answer === "保存并打开") { await vscode.commands.executeCommand("workbench.action.files.save"); if (doc.currentPsd.model.dirty) throw new Error("PSD 配置尚未保存，请处理保存错误后重试。"); }
@@ -153,6 +154,7 @@ export class GameFlowEditorProvider implements vscode.CustomEditorProvider<Workb
     try { psd ??= await this.psd.openCustomDocument(uri, { backupId: undefined, untitledDocumentData: undefined }, cancellation.token); }
     finally { cancellation.dispose(); }
     if (doc.disposed) { psd.dispose(); return; }
+    checkBinding?.();
     doc.attachment?.dispose(); doc.psds.set(source, psd); doc.currentPsd = psd;
     for (const panel of doc.panels) {
       doc.attachment = this.psd.attach(psd, panel, () => this.openPsd(doc));

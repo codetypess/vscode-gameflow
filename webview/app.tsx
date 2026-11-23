@@ -35,7 +35,7 @@ import { ContainerOutlines } from "./editor/container-outlines";
 import { useDocument } from "./use-document";
 import { isBrowserPreview, postHostMessage } from "./vscode-api";
 import { cn } from "./lib/utils";
-import { PsdWorkspace, type WorkspaceMode } from "./psd/workspace";
+import { PsdWorkspace, type OpenBoundSlice, type WorkspaceMode } from "./psd/workspace";
 import { usePsdEditor } from "./psd/use-psd-editor";
 import { useWorkbenchSettings, WorkbenchSettingsButton, WorkbenchSettingsPanel } from "./workbench-settings";
 import { PROTOTYPE_PANELS, useFollowingPanels } from "./editor/use-following-panels";
@@ -52,7 +52,7 @@ import { useRuntimeResources } from "./runtime/resources";
 import { SliceResourcesProvider } from "./runtime/resource-context";
 import { bindPrototypePsd } from "../shared/psd-prototype";
 import { pagePsdKey } from "../shared/page-psd";
-import { usePagePsds } from "./runtime/page-psd";
+import { requestPsd, sourceBytes, usePagePsds } from "./runtime/page-psd";
 import { PageSyncDialog, type SyncSession } from "./editor/page-sync-dialog";
 import { PageArtState, pagePreviewBlocked } from "./editor/page-art-state";
 import { RuntimePreview } from "./runtime/preview";
@@ -73,7 +73,9 @@ function IconTool({ label, active, disabled, onClick, children }: { label: strin
 export function App() {
   const [mode, setMode] = useState<WorkspaceMode>("prototype");
   const [resourceMode, setResourceMode] = useState<import("../shared/image-slots").ResourceMode>("prototype");
-  const psdEditor = usePsdEditor(() => setMode("slice"));
+  const psdEditor = usePsdEditor(() => switchMode("slice"));
+  const openBrowserSlice = useRef<OpenBoundSlice>(null);
+  const [openingSlice, setOpeningSlice] = useState(false);
   const settings = useWorkbenchSettings();
   const [documentActions, setDocumentActions] = useState<HTMLDivElement | null>(null);
   const [exportActions, setExportActions] = useState<HTMLDivElement | null>(null);
@@ -617,7 +619,20 @@ export function App() {
   } : undefined;
 
   const resourcePage = page ?? resourcePages.find(p => p.id === selectedPageId) ?? resourcePages[0];
-  const psdActionDisabled = !page || pending || !!composition?.errors.size || pagePsds.busy.has(page.id);
+  const pageActionBusy = openingSlice || pending || !!page && pagePsds.busy.has(page.id);
+  const psdActionDisabled = !page || pageActionBusy || !!composition?.errors.size;
+  const openPageSlice = async () => {
+    if (!canonicalPage?.artPsd || pageActionBusy) return;
+    setOpeningSlice(true);
+    try {
+      const result = await requestPsd({ action: "slice", pageId: canonicalPage.id, expected: canonicalPage.artPsd });
+      if (result) openBrowserSlice.current?.({ asset: result.asset, bytes: sourceBytes(result.asset).slice().buffer });
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : String(error));
+    } finally {
+      setOpeningSlice(false);
+    }
+  };
 
   return <SliceResourcesProvider value={{ ...selectedResources, forPage: runtimeResources.forPage }}><TooltipProvider delayDuration={300}><main className="app-shell">
     <header className="topbar"><span className="brand-mark"><Layers3 size={18} /></span><strong>工作台</strong><Separator orientation="vertical" className="topbar-separator" />
@@ -722,6 +737,7 @@ export function App() {
           <Separator orientation="vertical" /><DropdownMenu.Root modal={false}>
             <Tooltip><TooltipTrigger asChild><DropdownMenu.Trigger asChild><Button size="icon" variant="ghost" className="toolbar-button" aria-label="更多"><MoreHorizontal size={19} /></Button></DropdownMenu.Trigger></TooltipTrigger><TooltipContent side="top">更多</TooltipContent></Tooltip>
             <DropdownMenu.Portal><DropdownMenu.Content loop side="top" align="end" sideOffset={8} collisionPadding={12} className="layer-context-menu" onPointerDown={event => event.stopPropagation()} onKeyDown={event => event.stopPropagation()}>
+              {canonicalPage?.artPsd && <DropdownMenu.Item disabled={pageActionBusy} onSelect={() => void openPageSlice()}><Scissors size={15} /><span>PSD 切图</span></DropdownMenu.Item>}
               <DropdownMenu.Item disabled={psdActionDisabled} onSelect={() => { if (page && !psdActionDisabled) void pagePsds.run(page.id, "generate"); }}><FileImage size={15} /><span>生成 PSD</span></DropdownMenu.Item>
               <DropdownMenu.Item disabled={psdActionDisabled} onSelect={() => { if (page && !psdActionDisabled) void pagePsds.run(page.id, "choose"); }}><Link2 size={15} /><span>{page?.artPsd ? "重新绑定 PSD" : "绑定 PSD"}</span></DropdownMenu.Item>
               <DropdownMenu.Item disabled={psdActionDisabled || !canonicalPage?.artPsd} onSelect={()=>{if(canvasDocument && composition && canonicalPage?.artPsd)setSyncSession({document:canvasDocument,page:composition.page,makeId:newIds()});}}><GitMerge size={15}/><span>同步文字与结构</span></DropdownMenu.Item>
@@ -740,7 +756,7 @@ export function App() {
       {canvasDocument && pickerSource !== null ? <CanvasReferencePicker document={canvasDocument} sources={sources} source={pickerSource} currentPageId={editingId ?? undefined} onSource={setPickerSource} onPick={insertReference} onClose={() => setPickerSource(null)} /> : null}
     </div>
     <PsdWorkspace mode="merge" active={mode === "merge"} settings={settings} />
-    <PsdWorkspace mode="slice" active={mode === "slice" && !runtimeOpen} binding={psdEditor.binding} documentActions={documentActions} exportActions={exportActions} settings={settings} exportPending={pending} onAsset={observePsd} />
+    <PsdWorkspace mode="slice" active={mode === "slice" && !runtimeOpen} binding={psdEditor.binding} openBoundRef={openBrowserSlice} onReveal={() => switchMode("slice")} documentActions={documentActions} exportActions={exportActions} settings={settings} exportPending={pending} onAsset={observePsd} />
     {syncSession && <PageSyncDialog session={syncSession} loadedAsset={
       canvasDocument?.documentId === syncSession.document.documentId && loadedPsds.states[syncSession.page.id]?.key === pagePsdKey(syncSession.page.artPsd)
         ? loadedPsds.assets[syncSession.page.id] : undefined

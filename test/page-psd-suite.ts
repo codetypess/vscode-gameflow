@@ -154,6 +154,8 @@ test("page PSD protocol constrains requests and requires an explicit load bindin
   assert.ok(isWebviewToHostMessage({ ...base, action: "choose" }));
   assert.ok(isWebviewToHostMessage({ ...base, action: "load", expected: { source: "a.psd", documentId: "art" } }));
   assert.equal(isWebviewToHostMessage({ ...base, action: "load" }), false);
+  assert.ok(isWebviewToHostMessage({ ...base, action: "slice", expected: { source: "../art/a.psd", documentId: "art" } }));
+  assert.equal(isWebviewToHostMessage({ ...base, action: "slice" }), false);
   assert.equal(isWebviewToHostMessage({ ...base, action: "generate", name: "../a.psd", base64: "YWJj" }), false);
   assert.ok(isWebviewToHostMessage({ ...base, action: "generate", name: "a.psd", base64: "YWJj" }));
   for (const name of ["CON.psd", "a..psd", "../a.psd"]) assert.equal(isWebviewToHostMessage({ ...base, action: "generate", name, base64: "YWJj" }), false);
@@ -162,7 +164,7 @@ function hostFixture(uri = new Uri("/workspace/layouts/main.gameflow.json")) {
   referenceHost.reset(); const f = fixture(); let text = serializeGameFlowDocument(f.document), opens = 0;
   const doc = { uri, psds: new Map(), currentPsd: { marker: "active editor" }, disposed: false, getText: () => text } as unknown as WorkbenchDocument;
   const psd = { documents: new Map(), async openCustomDocument(uri: Uri) { ++opens; return { uri, bytes: Buffer.from("PSD"), model: { asset: f.asset, dirty: false }, dispose() {} }; } } as unknown as PsdEditorProvider;
-  const controller = new PagePsdController(psd);
+  const controller = new PagePsdController(psd, async () => { assert.fail("A background page operation opened the slice editor"); });
   return { ...f, doc, controller, get opens() { return opens; }, setDocument: (document: typeof f.document) => { text = serializeGameFlowDocument(document); } };
 }
 test("host page PSD choice and generation cancellation leave the working copy unchanged", async () => {
@@ -181,7 +183,10 @@ test("host page PSD loading uses the saved relative source and preserves the act
 });
 test("host PSD binding rejects identity mismatch and missing target pages", async () => {
   const f = hostFixture(); f.page.artPsd = { source: "a.psd", documentId: "wrong" }; f.setDocument(f.document);
-  assert.match((await f.controller.handle(f.doc, { type: "pagePsd", requestId: "bad", pageId: "page", action: "load", expected: f.page.artPsd })).error!, /身份/);
+  for (const action of ["slice", "load"] as const) {
+    f.doc.psds.clear();
+    assert.match((await f.controller.handle(f.doc, { type: "pagePsd", requestId: "bad", pageId: "page", action, expected: f.page.artPsd })).error!, /身份/);
+  }
   assert.match((await f.controller.handle(f.doc, { type: "pagePsd", requestId: "gone", pageId: "deleted", action: "choose" })).error!, /已删除/);
 });
 test("save as rebases every page PSD while preserving source file identity", () => {

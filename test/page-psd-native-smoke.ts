@@ -64,6 +64,13 @@ export async function pagePsdChecks(api: { workbench: GameFlowEditorProvider; ps
     doc.dispose(); doc = await open();
     const plainReload = await load(); assert.equal(plainReload.error, undefined); assert.equal(plainReload.draft?.documentId, document.pages[0].artPsd.documentId);
     checks.push("untagged PSD identity is saved in sidecar and reloads through its page binding");
+    const beforeSlice = doc.getText(), existing = doc.psds.get(plainUri.toString());
+    const slice = () => controller.handle(doc, { type: "pagePsd", requestId: "open-slice", pageId: document.pages[0].id, action: "slice", expected: document.pages[0].artPsd });
+    assert.equal((await slice()).error, undefined);
+    assert.ok(existing); assert.equal(doc.currentPsd, existing);
+    assert.equal((await slice()).error, undefined);
+    assert.equal(doc.currentPsd, existing); assert.equal(doc.getText(), beforeSlice); assert.equal(doc.dirty, false);
+    checks.push("page slice opens the bound native document with its saved sidecar and reuses the session on repeat");
   } finally { doc.dispose(); cancel.dispose(); }
   return checks;
 }

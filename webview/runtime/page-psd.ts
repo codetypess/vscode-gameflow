@@ -31,7 +31,7 @@ function chooseFile(): Promise<File | undefined> {
 }
 export async function requestPsd(request: Omit<PagePsdRequest, "type" | "requestId">, bytes?: Uint8Array): Promise<{ source: string; asset: PsdAsset } | undefined> {
   if (isBrowserPreview) {
-    if (request.action === "load" || request.action === "review") {
+    if (request.action === "load" || request.action === "review" || request.action === "slice") {
       const asset = browserAssets.get(request.pageId + ":" + pagePsdKey(request.expected));
       if (!asset) throw new Error("浏览器刷新后需重新选择本地 PSD；请点击重新绑定 PSD。");
       return { source: request.expected!.source, asset };
@@ -51,7 +51,8 @@ export async function requestPsd(request: Omit<PagePsdRequest, "type" | "request
     postHostMessage({ ...request, type: "pagePsd", requestId, ...(bytes ? { base64: btoa(payload) } : {}) });
   });
   if (result.error) throw new Error(result.error);
-  if (result.cancelled) return;
+  // The native slice editor receives its document through psdEditorInit.
+  if (result.cancelled || request.action === "slice") return;
   if (!result.base64 || !result.source || !result.name || !result.draft) throw new Error("PSD 返回数据不完整。");
   const decoded = Uint8Array.from(atob(result.base64), c => c.charCodeAt(0));
   const asset = applyPsdDraft(await psdTask<PsdAsset>("read", decoded.buffer, result.name), result.draft, true);
