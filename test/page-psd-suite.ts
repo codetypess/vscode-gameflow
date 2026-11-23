@@ -14,6 +14,16 @@ import { referenceHost, Uri } from "./vscode-reference-host";
 const tests: { name: string; run: () => void | Promise<void> }[] = [];
 const test = (name: string, run: () => void | Promise<void>) => tests.push({ name, run });
 export const pagePsdTests = tests;
+test("property sync suggests a source only for an agreed, recorded value",()=>{
+  const {page}=fixture();
+  const [node]=prototypeTree(page);
+  const old={...node,properties:{enabled:false,count:0,label:"",link:null,deferred:false},undecided:["property:deferred"]};
+  const base={version:1 as const,documentId:"doc",pageId:page.id,psdId:"target",nodes:[old]};
+  const right={...node,properties:{...old.properties,enabled:true,count:1,label:"new",link:"target",deferred:true,added:3}};
+  const comparison=compareTrees([old],[right],base);
+  const suggestions=Object.fromEntries(comparison.changes.map(change=>[change.property,change.suggested]));
+  assert.deepEqual(suggestions,{enabled:"psd",count:"psd",label:"psd",link:"psd",deferred:undefined,added:undefined});
+});
 test("sync ignores skin sublayers and pixel geometry while tracking text and subtree deletions",()=>{
   const {page,asset,document}=fixture();
   const [button]=prototypeTree(page);

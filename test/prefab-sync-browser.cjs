@@ -35,7 +35,7 @@ async function checkRuntime(browser,root,prefab) {
   await server.listen();
   let browser;
   try {
-    browser=await chromium.launch({channel:"msedge",headless:true});
+    browser=await chromium.launch({channel:process.env.GAMEFLOW_BROWSER_CHANNEL || "msedge",headless:true});
     const p=await browser.newPage({viewport:{width:1300,height:900}});
     const errors=[];p.on("pageerror",error=>errors.push(error.message));
     await p.addInitScript(()=>{
@@ -68,6 +68,10 @@ async function checkRuntime(browser,root,prefab) {
     await p.evaluate(async()=>{
       const key="gameflow.prototype.v1",doc=JSON.parse(localStorage.getItem(key));
       doc.pages[0].nodes[0].text="进入游戏";
+      doc.pages[0].nodes[0].style.italic=true;
+      doc.pages[0].nodes[0].widget={wordWrap:false};
+      const oldLabel=doc.pages[0].prefabSync.nodes.find(node=>node.id==="text0001");
+      delete oldLabel.properties["widget.wordWrap"];
       doc.pages[0].nodes.push({id:"help0001",name:"帮助",type:"button",frame:{x:10,y:10,width:50,height:30},normalSkin:{builtin:"button/gray"}});
       localStorage.setItem(key,JSON.stringify(doc));
       const dir=await (await navigator.storage.getDirectory()).getDirectoryHandle("prefabs");
@@ -81,12 +85,31 @@ async function checkRuntime(browser,root,prefab) {
     const dialog=p.getByRole("dialog",{name:"同步预制体"});
     await dialog.waitFor();
     assert.equal(await dialog.locator(".sync-boards figure").count(),2);
-    await dialog.locator(".layer-name").filter({hasText:"按钮文案"}).click();
+    const changedRow=dialog.locator(".layer-name").filter({hasText:"按钮文案"});
+    const changedParts=await changedRow.evaluate(row=>[...row.children].map(child=>child.matches("span")?"name":child.matches(".sync-change-slot")?"marker":child.matches(".layer-variable")?"variable":"icon"));
+    assert.deepEqual(changedParts,["icon","name","marker"],"changed node marker follows its name when no variable badge exists");
+    assert.equal(await changedRow.locator(".sync-change-slot").textContent(),"~");
+    const rootParts=await dialog.locator(".tree-root").evaluate(row=>[...row.children].map(child=>child.matches("strong")?"name":child.matches(".sync-change-slot")?"marker":child.matches("small")?"type":"icon"));
+    assert.deepEqual(rootParts,["icon","name","marker","type","icon"],"root marker stays between the page name and root type");
+    await changedRow.click();
     const textDiff=dialog.locator("fieldset").filter({hasText:"文字内容"});
     const fontDiff=dialog.locator("fieldset").filter({hasText:"字号"});
-    assert.deepEqual(await textDiff.locator(".sync-values dt").allTextContents(), ["上次", "原型", "预制体"]);
-    assert.deepEqual(await textDiff.locator(".sync-values dd").allTextContents(), ["登录", "进入游戏", "开始冒险"]);
-    assert.deepEqual(await fontDiff.locator(".sync-values dd").allTextContents(), ["32", "32", "33"]);
+    const wrapDiff=dialog.getByRole("group",{name:/自动换行\s*来源待定/});
+    const wrapChoice=dialog.getByRole("combobox",{name:"自动换行的同步方向"});
+    assert.match(await textDiff.locator("legend").innerText(),/双方已改/);
+    assert.deepEqual(await textDiff.locator("dt").allTextContents(), ["上次同步值", "原型", "预制体"]);
+    assert.deepEqual(await textDiff.locator("dd").allTextContents(), ["登录", "进入游戏", "开始冒险"]);
+    assert.equal(await textDiff.getByRole("combobox").inputValue(),"");
+    assert.match(await fontDiff.locator("legend").innerText(),/预制体已改/);
+    assert.match(await fontDiff.locator("dd").textContent(),/32 px → 33 px/);
+    assert.equal(await fontDiff.getByRole("combobox").inputValue(),"psd");
+    assert.equal(await fontDiff.locator("option:checked").textContent(),"把原型改为「33 px」");
+    const italic=dialog.getByRole("combobox",{name:"斜体的同步方向"});
+    assert.equal(await italic.inputValue(),"proto");
+    assert.equal(await italic.locator("option:checked").textContent(),"把预制体改为「是」");
+    assert.deepEqual(await wrapDiff.locator("dd").allTextContents(),["未记录","关闭","开启"]);
+    assert.equal(await wrapChoice.inputValue(),"");
+    assert(await button("预演应用").isDisabled());
     const heading = await dialog.locator("header").boundingBox();
     const inspectorHeading = await p.locator(".inspector .floating-heading").boundingBox();
     assert.equal(heading.height, inspectorHeading.height);
@@ -121,10 +144,17 @@ async function checkRuntime(browser,root,prefab) {
     assert(Math.abs(resizedSize.x + resizedSize.width - shrinkTarget.x - shrinkInset.x) <= 3, "right edge follows the horizontal pointer position");
     assert(Math.abs(resizedSize.y + resizedSize.height - shrinkTarget.y - shrinkInset.y) <= 3, "bottom edge follows the vertical pointer position");
     if (process.env.GAMEFLOW_PREFAB_SYNC_SCREENSHOT) await dialog.screenshot({path: process.env.GAMEFLOW_PREFAB_SYNC_SCREENSHOT});
-    await textDiff.getByRole("button",{name:"采用预制体 → 原型"}).click();
-    await fontDiff.getByRole("button",{name:"采用预制体 → 原型"}).click();
+    await textDiff.getByRole("combobox").selectOption("psd");
+    await dialog.getByText("同步后属性预览",{exact:true}).click();
+    const wrapRow=dialog.locator(".prefab-result tr").filter({hasText:"自动换行"});
+    for(const [direction,values] of [["proto",["关闭","关闭"]],["skip",["关闭","开启"]],["psd",["开启","开启"]]]) {
+      await wrapChoice.selectOption(direction);
+      assert.deepEqual(await wrapRow.locator("td").allTextContents(),values);
+      if(direction==="skip") assert.match(await dialog.locator("footer").innerText(),/跳过 1 项/);
+    }
+    assert.equal(await button("同步后").getAttribute("aria-pressed"),"true");
     await dialog.locator(".tree-root").click();
-    for(const name of ["页面宽度","页面高度"]) await dialog.locator("fieldset").filter({hasText:name}).getByRole("button",{name:"采用预制体 → 原型"}).click();
+    for(const name of ["页面宽度","页面高度"]) assert.equal(await dialog.getByRole("combobox",{name:name+"的同步方向"}).inputValue(),"psd");
     await button("预演应用").click();await button("确认应用").click();
     await dialog.waitFor({state:"hidden"});
     const data=await p.evaluate(async()=>{
@@ -134,6 +164,8 @@ async function checkRuntime(browser,root,prefab) {
     });
     assert.equal(data.page.nodes.find(n=>n.id==="text0001").text,"开始冒险");
     assert.equal(data.page.nodes.find(n=>n.id==="text0001").style.fontSize,33);
+    assert.equal(data.page.nodes.find(n=>n.id==="text0001").widget.wordWrap,true);
+    assert.equal(data.prefab._$child[0].italic,true);
     assert.deepEqual(data.page.frame,{x:0,y:0,width:360,height:260});
     assert.equal(data.page.nodes.filter(n=>n.name==="公告").length,1);
     assert.equal(data.prefab._$child.filter(n=>n._$id==="help0001").length,1);
@@ -197,6 +229,9 @@ async function checkRuntime(browser,root,prefab) {
     await expand.click();
     const script = dialog.getByRole("button",{name:/DebounceClick/});
     assert.equal((await script.locator("svg").boundingBox()).x - labelIcon.x, 10);
+    assert.equal(await script.locator(".sync-change-slot").textContent(),"","unchanged component row keeps an empty marker slot");
+    const scriptParts=await script.evaluate(row=>[...row.children].map(child=>child.matches("span")?"name":child.matches(".sync-change-slot")?"marker":child.matches(".layer-variable")?"variable":"icon"));
+    assert.deepEqual(scriptParts,["icon","name","marker","variable"],"empty marker slot stays before the component type badge");
     await dialog.getByRole("button", {name:"折叠按钮文案", exact:true}).click();
     assert.equal(await script.count(), 0);
     await expand.click();

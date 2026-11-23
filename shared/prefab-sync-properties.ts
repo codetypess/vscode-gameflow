@@ -54,7 +54,7 @@ function layoutDefault(type:NodeType,key:keyof NodeLayout):SyncPropertyValue {
 function nodeLayoutKeys(node:Pick<GameFlowNode,"type">) {
   return NODE_LAYOUT_KEYS.filter(key=>!(["paddingLeft","paddingRight","paddingTop","paddingBottom","gap","gapX","gapY","align","valign","direction","wrapCount","clipContent","scrollX","scrollY"] as (keyof NodeLayout)[]).includes(key) || canHaveChildren(node));
 }
-function widgetDefaults(type:NodeType):Partial<Record<keyof WidgetProps,SyncPropertyValue>> {
+function widgetDefaults(type:NodeType,side:"prototype"|"prefab"):Partial<Record<keyof WidgetProps,SyncPropertyValue>> {
   const result:Partial<Record<keyof WidgetProps,SyncPropertyValue>>={};
   if(["button","checkbox","radio"].includes(type)) result.selected=false;
   if(["button","input","checkbox","radio","combo"].includes(type)) result.disabled=false;
@@ -64,7 +64,7 @@ function widgetDefaults(type:NodeType):Partial<Record<keyof WidgetProps,SyncProp
   if(type==="combo") Object.assign(result,{options:["选项一","选项二","选项三"],selectedIndex:0,textLabelNodeId:null});
   if(type==="radioGroup") Object.assign(result,{optionNodeIds:[],selectedIndex:-1});
   if(type==="image") result.imageFit="fill";
-  if(type==="text") Object.assign(result,{wordWrap:true,overflow:"hidden",valign:"top",leading:0,letterSpacing:0,html:false,ubb:false,templateVars:null,scrollX:0,scrollY:0});
+  if(type==="text") Object.assign(result,{wordWrap:side==="prototype",overflow:"hidden",valign:"top",leading:0,letterSpacing:0,html:false,ubb:false,templateVars:null,scrollX:0,scrollY:0});
   return result;
 }
 const cloneValue=<T extends SyncPropertyValue>(value:T):T=>value && typeof value==="object"?structuredClone(value):value;
@@ -102,7 +102,7 @@ export function prototypeNodeProperties(node:GameFlowNode):SyncProperties {
     put(properties,"style.fontWeight",style.fontWeight>=600?700:400);
   }
   for(const key of nodeLayoutKeys(node)) put(properties,"layout."+key,(node.layout?.[key]??layoutDefault(node.type,key)) as SyncPropertyValue);
-  for(const [key,fallback] of Object.entries(widgetDefaults(node.type)) as [keyof WidgetProps,SyncPropertyValue][]) put(properties,"widget."+key,(node.widget?.[key]??fallback) as SyncPropertyValue);
+  for(const [key,fallback] of Object.entries(widgetDefaults(node.type,"prototype")) as [keyof WidgetProps,SyncPropertyValue][]) put(properties,"widget."+key,(node.widget?.[key]??fallback) as SyncPropertyValue);
   return properties;
 }
 
@@ -134,7 +134,7 @@ export function recordNodeProperties(type:NodeType,source:RecordNode,resolveRef:
       put(properties,"layout."+key,enumValue(value,values[key]??[],fallback));
     }
   }
-  for(const [key,fallback] of Object.entries(widgetDefaults(type)) as [keyof WidgetProps,SyncPropertyValue][]) {
+  for(const [key,fallback] of Object.entries(widgetDefaults(type,"prefab")) as [keyof WidgetProps,SyncPropertyValue][]) {
     let value:unknown=source[key];
     if(key==="placeholder") value=source.prompt;
     if(key==="password") value=source.type==="password";

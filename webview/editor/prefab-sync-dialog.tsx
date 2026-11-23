@@ -2,10 +2,11 @@ import { SyncTree } from "./sync-tree";
 import { Button } from "../components/ui/button";
 import { DialogHeading } from "../components/dialog-heading";
 import {useEffect,useMemo,useRef,useState} from "react";
-import {fieldNames,type Change,type Decision,type SyncNode} from "../../shared/page-sync";
-import {mergePrefab,prefabChangeName,prefabPreviewPage,type PrefabReview} from "../../shared/prefab-sync";
+import type {Decision} from "../../shared/page-sync";
+import {mergePrefab,prefabPreviewPage,type PrefabReview} from "../../shared/prefab-sync";
 import {resourceUrl,type PrefabPlan} from "../../shared/prefab-export";
-import {SyncPreview, SyncValues} from "./page-sync-dialog";
+import {SyncPreview} from "./page-sync-dialog";
+import {changeTitle, changeValue, describeDecision, PrefabSyncChange} from "./prefab-sync-change";
 import {SliceResourcesProvider} from "../runtime/resource-context";
 import {useRuntimeResources} from "../runtime/resources";
 import type {PsdAsset} from "../../shared/psd-meta";
@@ -16,27 +17,6 @@ import {syncDialogResizeEdges,useSyncDialogSize} from "./use-sync-dialog-size";
 const noAssets:PsdAsset[]=[], noPageAssets:Record<string,PsdAsset>={};
 
 export type PrefabMerge = ReturnType<typeof mergePrefab>;
-function describe(c:Change,d:Decision|undefined,r:PrefabReview) {
-  if(!d) return "待决定";
-  if(d==="skip") return "本轮跳过";
-  const dest=d==="proto"?"预制体":"原型";
-  if(c.field==="exist") return r.comparison[d].some(n=>n.id===c.id)?"补到"+dest:"从"+dest+"删除";
-  return "采用"+(d==="proto"?"原型":"预制体")+" → "+dest;
-}
-function value(tree:SyncNode[],c:Change) {
-  const n=tree.find(n=>n.id===c.id);
-  if(!n) return "不存在";
-  if(c.field==="exist") return n.name;
-  if(c.field==="parent") return tree.find(p=>p.id===n.parent)?.name??"页面";
-  if(c.field==="order") return tree.filter(p=>p.parent===n.parent).indexOf(n)+1;
-  if(c.field==="property") {
-    const result=c.property?n.properties?.[c.property]:undefined;
-    if(result===undefined||result===null||result==="")return "—";
-    if(typeof result==="boolean")return result?"是":"否";
-    return typeof result==="object"?JSON.stringify(result):String(result);
-  }
-  return n[c.field]??"—";
-}
 export function PrefabSyncDialog({review,plan,skins,resourceRoot,close,commit,reload}:{review:PrefabReview;plan:PrefabPlan;skins?:Record<string,string>;resourceRoot?:string;close:()=>void;commit:(merge:PrefabMerge)=>Promise<void>;reload:()=>Promise<void>}) {
   const c=review.comparison,ref=useRef<HTMLDialogElement>(null);
   const {size,resizeEdgeProps}=useSyncDialogSize({storageKey:"gameflow.prefabSync.size.v2",defaultWidth:1280,defaultHeight:760,minWidth:360,minHeight:300});
@@ -95,6 +75,7 @@ export function PrefabSyncDialog({review,plan,skins,resourceRoot,close,commit,re
   const unknownSkins=["skin","normalSkin","selectedSkin","disabledSkin"].map(k=>native?.[k]).filter((s):s is string=>
     typeof s==="string" && !!s && !skins?.[s] && !isSliceResourcePath(s));
   const pending=c.changes.filter(ch=>!choices[ch.key]).length, applied=c.changes.filter(ch=>choices[ch.key] && choices[ch.key]!=="skip");
+  const skipped=c.changes.length-pending-applied.length;
   const hasAssets=review.metadata?.prefabMetaChanged || !!m?.batch.images.length;
   const toggle=(key:string)=>setExpanded(prev=>{const next=new Set(prev);if(next.has(key))next.delete(key);else next.add(key);return next;});
   async function run(action:()=>Promise<void>) {
@@ -116,14 +97,19 @@ export function PrefabSyncDialog({review,plan,skins,resourceRoot,close,commit,re
         {!c.base && <p>首次对照。请确认单侧控件的对应关系和处理方向。</p>}
         {!c.changes.length && <p>可同步的控件与属性已一致。</p>}
         {hasAssets && <p>待同步资源文件　{[...(review.metadata?.prefabMetaChanged?[review.target+".meta"]:[]),...m?.batch.images.map(i=>i.path)??[]].join("、")}</p>}
-        {extra===null && selected.map(ch=><fieldset key={ch.key} disabled={busy}><legend>{prefabChangeName(ch)??fieldNames[ch.field]}</legend><SyncValues previous={c.base ? value(c.base.nodes,ch) : "无记录"} prototype={value(c.proto,ch)} targetLabel="预制体" target={value(c.psd,ch)} />
+        {extra===null && selected.map(ch=><PrefabSyncChange key={ch.key} review={review} change={ch} decision={choices[ch.key]} disabled={busy}
+          onChoose={decision=>{choose(current=>({...current,[ch.key]:decision}));setError("");setResult(true);setDetails(false);}}>
           {ch.kind==="delete" && ch.members.some(i=>review.engine.has(i)) && <p>删除预制体节点会同时移除　{ch.members.flatMap(i=>review.engine.get(i)?.map(e=>e.name)??[]).join("、")}</p>}
-          {(["proto","psd","skip"] as const).filter(d=>ch.kind!=="add" || d==="skip" || c[d].some(n=>n.id===ch.id)).map(d=><button key={d} aria-pressed={choices[ch.key]===d} onClick={()=>{choose({...choices,[ch.key]:d});setError("");setResult(true);setDetails(false);}}>{describe(ch,d,review)}</button>)}</fieldset>)}
+        </PrefabSyncChange>)}
+        {extra===null && selected.length>0 && m && <details className="prefab-result" key={"result-"+id}><summary>同步后属性预览</summary>
+          <table><thead><tr><th>属性</th><th>原型</th><th>预制体</th></tr></thead>
+            <tbody>{selected.map(ch=><tr key={ch.key}><th scope="row">{changeTitle(ch)}</th><td>{changeValue(m.trees.proto,ch)}</td><td>{changeValue(m.trees.psd,ch)}</td></tr>)}</tbody>
+          </table></details>}
         {nativeProps && <details key={id}><summary>预制体节点属性与挂载组件</summary><pre>{JSON.stringify(nativeProps,null,2)}</pre>{extraChildren.map((n,i)=><p key={i}>仅预制体　{n.name??n._$type??"子节点"}</p>)}</details>}
-        {details && m && <fieldset><legend>本轮应用明细</legend>{c.changes.map(ch=><p key={ch.key}>{union.get(ch.id)?.name} · {prefabChangeName(ch)??fieldNames[ch.field]}　{describe(ch,choices[ch.key],review)}</p>)}
+        {details && m && <fieldset><legend>本轮应用明细</legend>{c.changes.map(ch=><p key={ch.key}>{union.get(ch.id)?.name} · {changeTitle(ch)}　{describeDecision(review,ch,choices[ch.key])}</p>)}
           {m.batch.images.map(i=><p key={i.path}>资源　{i.path}</p>)}<p>原型编辑与同步记录将进入工作台的保存和撤销历史。</p></fieldset>}
         {(error || merged.issue) && <p role="alert">{error || merged.issue} <button disabled={busy} onClick={()=>void run(reload)}>重新比较</button></p>}</aside></div>
-    <footer><span>待决定 {pending} 项　·　已选 {applied.length} 项</span>{details && <button disabled={busy} onClick={()=>setDetails(false)}>返回调整</button>}
+    <footer><span>待决定 {pending} 项　·　已选 {applied.length} 项{skipped>0 && "　·　跳过 "+skipped+" 项"}</span>{details && <button disabled={busy} onClick={()=>setDetails(false)}>返回调整</button>}
       <Button size="sm" disabled={busy || !!pending || !m || !applied.length && !m.baseChanged && !hasAssets} onClick={()=>{if(details && m)void run(()=>commit(m));else{setDetails(true);setResult(true);}}}>{busy?"正在处理…":details?"确认应用":!c.base && !applied.length?"建立基线":"预演应用"}</Button></footer>
     {syncDialogResizeEdges.map(edge=><span key={edge} className="sync-resize-edge" data-edge={edge} aria-hidden="true" {...resizeEdgeProps(edge)}/>)}
   </dialog>;

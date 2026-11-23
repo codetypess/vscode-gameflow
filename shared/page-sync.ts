@@ -23,6 +23,14 @@ export interface Comparison { proto: SyncNode[]; psd: SyncNode[]; base?: SyncBas
 export const fieldNames: Record<Field,string> = { exist:"控件结构", name:"节点名称", text:"文字内容", parent:"父节点", order:"同级顺序", property:"属性", x:"横坐标", y:"纵坐标", width:"宽度", height:"高度" };
 
 const propertyToken = (path:string) => "property:"+path;
+export function hasSyncedValue(node: SyncNode | undefined, field: Field, property?: string): boolean {
+  if (!node) return false;
+  if (field === "property") {
+    return !!property && node.properties?.[property] !== undefined && !node.undecided?.includes(propertyToken(property));
+  }
+  if (node.undecided?.includes(field)) return false;
+  return field === "order" || field === "exist" || node[field] !== undefined;
+}
 const sameValue = (left:unknown,right:unknown) => JSON.stringify(left)===JSON.stringify(right);
 function validPropertyValue(value:unknown,depth=0):value is SyncPropertyValue {
   if(value===null || typeof value==="boolean" || typeof value==="string" && value.length<=10000 || typeof value==="number" && Number.isFinite(value)) return true;
@@ -128,15 +136,15 @@ export function compareTrees(proto:SyncNode[], psd:SyncNode[], base?:SyncBase, c
       const l=field==="order"?order(proto,left):left[field], r=field==="order"?order(psd,right):right[field];
       if (l===r) continue;
       const o=old && (field==="order"?order(base!.nodes,old):old[field]);
-      changes.push({id,key:id+"/"+field,field,kind:"edit",members:[id],suggested:old?.undecided?.includes(field)?undefined:l===o?"psd":r===o?"proto":undefined});
+      changes.push({id,key:id+"/"+field,field,kind:"edit",members:[id],suggested:!hasSyncedValue(old,field)?undefined:l===o?"psd":r===o?"proto":undefined});
     }
     const properties=new Set([...Object.keys(left.properties??{}),...Object.keys(right.properties??{}),...Object.keys(old?.properties??{})]);
     for(const property of properties) {
       const l=left.properties?.[property],r=right.properties?.[property];
       if(sameValue(l,r)) continue;
-      const o=old?.properties?.[property],token=propertyToken(property);
+      const o=old?.properties?.[property];
       changes.push({id,key:id+"/property/"+property,field:"property",property,kind:"edit",members:[id],
-        suggested:old?.undecided?.includes(token)?undefined:sameValue(l,o)?"psd":sameValue(r,o)?"proto":undefined});
+        suggested:!hasSyncedValue(old,"property",property)?undefined:sameValue(l,o)?"psd":sameValue(r,o)?"proto":undefined});
     }
   }
   return {proto,psd,base,changes};

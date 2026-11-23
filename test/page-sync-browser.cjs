@@ -45,6 +45,10 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
     const tree=dialog.getByRole("navigation"), button=(name)=>dialog.getByRole("button",{name,exact:true});
     const box=()=>dialog.boundingBox();
     await tree.getByText("4 项差异",{exact:false}).waitFor();
+    const startRow=tree.locator('.layer-name[title="开始"]');
+    assert.equal(await startRow.locator(".sync-change-slot").textContent(),"","unchanged node keeps an empty marker slot");
+    const startParts=await startRow.evaluate(row=>[...row.children].map(child=>child.matches("span")?"name":child.matches(".sync-change-slot")?"marker":child.matches(".layer-variable")?"variable":"icon"));
+    assert.deepEqual(startParts,["icon","name","marker","variable"],"empty marker slot stays between the name and variable badge");
     const previews=dialog.locator(".sync-preview"), selectedName=dialog.locator(".sync-bar > strong");
     await previews.nth(0).locator('[data-node-id="help0001"]').click();
     assert.equal(await selectedName.innerText(),"帮助","prototype preview directly selects its node");
@@ -54,10 +58,14 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
     const initial=await box();
     await tree.getByRole("button",{name:"折叠开始"}).click();
     await tree.getByRole("button",{name:"展开开始"}).click();
-    await tree.getByRole("button",{name:/~ 文案/}).click();
+    const labelRow=tree.locator('.layer-name[title="文案"]');
+    assert.equal(await labelRow.locator(".sync-change-slot").textContent(),"~","changed node shows its marker outside the name");
+    await labelRow.click();
     await button("采用PSD").click();
     assert.deepEqual(await box(),initial);
-    await tree.getByRole("button",{name:/− 底部/}).click();
+    const footerRow=tree.locator('.layer-name[title="底部"]');
+    assert.equal(await footerRow.locator(".sync-change-slot").textContent(),"−");
+    await footerRow.click();
     await button("从原型删除").click();
     await button("预演应用").click();
     assert.deepEqual(await box(),initial);

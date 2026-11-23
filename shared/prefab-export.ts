@@ -144,6 +144,7 @@ export async function planPrefabExport(document: GameFlowDocument, page: GameFlo
       for(const key of ["fontSize","color","italic","underline","strikethrough"] as const) if(style[key]!==undefined) record[key]=style[key];
       if(style.fontWeight!==undefined) record.bold=style.fontWeight>=600;
       if(style.textAlign) record.align=style.textAlign;
+      if(node.type === "text") record.wordWrap=widget.wordWrap ?? true;
     }
     for(const [key,value] of Object.entries(widget)) {
       if(["skinNodeId","optionNodeIds","textLabelNodeId"].includes(key)) continue;

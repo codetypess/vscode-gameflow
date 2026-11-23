@@ -111,6 +111,19 @@ test("prefab sync diffs and merges every round-trippable inspector property in b
   assert.equal(output.name,"captionProto");assert.equal(output._$var,true);assert.equal(output.visible,true);
   assert.deepEqual(inspectPrefab(document,exported.page,file,exported.batch.prefab).comparison.changes,[]);
 });
+test("prefab sync uses Laya wordWrap default while export preserves the prototype default",async()=>{
+  const explicit={...makeNode("text","caption1",0,0),widget:{wordWrap:false}};
+  const original=page([explicit]),document=doc(original),file="登录.lh";
+  const {batch}=await planPrefabExport(document,original,missing),native=(batch.prefab._$child as Record<string,unknown>[])[0];
+  assert.equal(native.wordWrap,false);
+  delete native.wordWrap;
+  const synced={...original,prefabSync:initialPrefabBase(document,original,file)};
+  assert.equal(inspectPrefab(document,synced,file,batch.prefab).comparison.changes.some(change=>change.property==="widget.wordWrap"),false);
+
+  const implicit=page([{...makeNode("text","caption2",0,0),widget:undefined}]);
+  const exported=await planPrefabExport(doc(implicit),implicit,missing);
+  assert.equal((exported.batch.prefab._$child as Record<string,unknown>[])[0].wordWrap,true);
+});
 test("prefab sync rejects stale and duplicate targets, preserves source on rollback and protects surviving references",async()=>{
   const original=page([makeNode("text","label001",10,12)]);
   const document=doc(original),{batch}=await planPrefabExport(document,original,missing);

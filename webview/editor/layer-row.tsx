@@ -31,7 +31,7 @@ export function LayerRoot({ name, rootType, marker, className, ...props }: Compo
   const expanded = props["aria-expanded"];
   const Chevron = expanded ? ChevronDown : ChevronRight;
   return <button type="button" {...props} className={cn("tree-root", className)}>
-    <Box size={15} /><strong>{marker}{name}</strong><small>{rootType}</small>
+    <Box size={15} /><strong>{name}</strong>{marker}<small>{rootType}</small>
     {expanded !== undefined && <Chevron size={12} />}
   </button>;
 }

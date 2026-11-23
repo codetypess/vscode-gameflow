@@ -42,7 +42,7 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 
 - [psd-builtin-slices.md](psd-builtin-slices.md) — PSD 切图按图层像素识别并复用内置图片。
 
-- [page-prefab-sync.md](page-prefab-sync.md) — Done。原型与实际 Laya 预制体按稳定属性路径双向审阅页面尺寸、结构、几何、变换、布局、文字和控件字段，双画板共用原型尺度；保留脚本和引擎字段。377 项共享测试、Edge 及 Laya 运行时加载验证通过。
+- [page-prefab-sync.md](page-prefab-sync.md) — Done。原型与实际 Laya 预制体按稳定属性路径双向审阅页面尺寸、结构、几何、变换、布局、文字和控件字段，双方缺省值按各自运行时语义归一，双画板共用原型尺度；保留脚本和引擎字段。378 项共享测试、Edge 及 Laya 运行时加载验证通过。
 
 - [page-psd-sync.md](page-psd-sync.md) — Verifying。原型使用内置资源，仅同步文字和控件结构。完整节点树与双侧预览标示新增、删除和修改，支持逐项预演。
 
