@@ -126,7 +126,7 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
     const prototype = page.getByRole("navigation", { name: "工作模式" }).getByRole("button", { name: "原型", exact: true });
     const openSlice = async () => { await openMore(); await sliceItem.click(); };
     const tree = id => page.getByRole("tree", { name: id + ".psd 图层树", exact: true });
-    await openSlice();
+    await page.getByRole("navigation", { name: "工作模式" }).getByRole("button", { name: "PSD 切图", exact: true }).click();
     await tree("pageb001").waitFor();
     const selectedLayer = tree("pageb001").getByRole("treeitem").last();
     await selectedLayer.locator(".psd-tree-label").click();

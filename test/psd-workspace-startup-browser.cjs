@@ -78,6 +78,17 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
     assert.equal(await page.locator(".page-surface").getByRole("button", { name: "绑定 PSD", exact: true }).count(), 1);
     const messages = await page.evaluate(() => window.__hostMessages);
     assert.equal(messages.some(m => ["replaceDocument", "save", "applyCanvasOverrides", "pagePsd", "psdOutput", "psdEditorEdit", "psdEditorCommand"].includes(m.type)), false, "viewing PSD must not bind, edit or save the GameFlow");
+    // An already-running host may serve a newer Webview but ignore the slice action.
+    const bound = { ...document.pages[0], artPsd: { source: fixture.name, documentId: fixture.state.draft.documentId } };
+    await send({ type: "documentChanged", document: { ...document, pages: [bound] }, documentVersion: 2, dirty: false });
+    await page.locator(".page-caption").click();
+    const more = page.locator(".canvas-toolbar").getByRole("button", { name: "更多", exact: true });
+    await more.click();
+    await page.getByRole("menuitem", { name: "PSD 切图", exact: true }).click();
+    await page.locator(".editor-notice").filter({ hasText: "重新加载窗口" }).waitFor({ timeout: 3000 });
+    assert.equal(await page.evaluate(() => window.__hostMessages.some(m => m.type === "pagePsd" && m.action === "slice")), false);
+    await more.click();
+    assert.equal(await page.getByRole("menuitem", { name: "重新绑定 PSD" }).isEnabled(), true);
     assert.deepEqual(errors, []);
     console.log("PASS PSD startup: restore stays in prototype, explicit open reveals slices, late decode preserves selection, unrelated PSD leaves page unbound and unsaved; screenshots: " + output);
   } finally { await browser.close(); }

@@ -102,7 +102,7 @@ GameFlow 打开或恢复时初始显示原型。psdEditorInit 只恢复数据，
 
 ## 页面 PSD 文件关联（2026-11-19）
 
-页面菜单的 `pagePsd` 请求使用 `slice` 动作打开切图。宿主从当前页面读取绑定，核对相对路径与 PSD 身份，随后复用工作台已有的打开流程。编辑器通过 `psdEditorReveal` 聚焦，并在更换文件时通过 `psdEditorInit` 接收内容。
+扩展宿主在 Webview HTML 中声明 `gameflow-page-psd-slice` 能力。画布打开已绑定页面的切图时，使用 `pagePsd` 的 `slice` 动作。旧宿主缺少此能力时，界面立即提示重载。宿主从当前页面读取绑定，核对相对路径与 PSD 身份，随后复用工作台已有的打开流程。编辑器通过 `psdEditorReveal` 聚焦，并在更换文件时通过 `psdEditorInit` 接收内容。
 
 GameFlow 页面通过可选 artPsd 保存 PSD 相对文件路径及稳定文档身份。本地盘符形式的 Windows file URI 使用 win32 语义计算相对路径，忽略盘符和共同目录大小写差异，保持目标名称并统一保存 /；POSIX/远程 URI 保留区分大小写的计算。真正跨盘或非法结果在任何生成写入前拒绝。pagePsd / pagePsdResult 请求负责选择、生成保存和按页面绑定加载文件；加载路径从宿主的权威页面读取并校验 expected，取消不改变页面。Webview 将文件绑定与公开组名/状态标记匹配合并为一次页面编辑，在加载及页面编辑后重新推导显示与导出的资源引用，异步结果验证目标页面及原绑定。DocumentSession 不把这些返回消息视为文档事务确认。
 

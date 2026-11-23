@@ -623,6 +623,10 @@ export function App() {
   const psdActionDisabled = !page || pageActionBusy || !!composition?.errors.size;
   const openPageSlice = async () => {
     if (!canonicalPage?.artPsd || pageActionBusy) return;
+    if (!isBrowserPreview && !document.querySelector('meta[name="gameflow-page-psd-slice"][content="1"]')) {
+      setNotice("请按 F1 执行「Developer: Reload Window」（重新加载窗口），以启用当前页面的 PSD 切图。");
+      return;
+    }
     setOpeningSlice(true);
     try {
       const result = await requestPsd({ action: "slice", pageId: canonicalPage.id, expected: canonicalPage.artPsd });
@@ -632,6 +636,11 @@ export function App() {
     } finally {
       setOpeningSlice(false);
     }
+  };
+
+  const selectWorkspace = (next: WorkspaceMode) => {
+    if (mode === "prototype" && next === "slice" && canonicalPage?.artPsd) void openPageSlice();
+    else switchMode(next);
   };
 
   return <SliceResourcesProvider value={{ ...selectedResources, forPage: runtimeResources.forPage }}><TooltipProvider delayDuration={300}><main className="app-shell">
@@ -644,7 +653,7 @@ export function App() {
       {mode === "prototype" ? <Separator orientation="vertical" className="topbar-separator" /> : null}
       {mode === "prototype" && editingId && page ? <><Button size="sm" variant="ghost" onClick={back}><ArrowLeft size={14} />总览</Button><span className="breadcrumb">/</span></> : null}
       <span className="document-title">{mode === "prototype" ? editingId ? page?.name : canvasDocument?.title ?? "正在打开画布" : "美术工作区"}</span>
-      <nav className="mode-switcher" aria-label="工作模式">{([{ id: "prototype", label: "原型", icon: LayoutPanelTop }, { id: "merge", label: "PSD 合并", icon: GitMerge }, { id: "slice", label: "PSD 切图", icon: Scissors }] as const).map(({ icon: Icon, ...item }) => <Tooltip key={item.id}><TooltipTrigger asChild><Button size="icon" variant="ghost" aria-label={item.label} aria-pressed={mode === item.id} className={mode === item.id ? "mode-active" : ""} onClick={() => switchMode(item.id)}><Icon size={16} aria-hidden="true" /></Button></TooltipTrigger><TooltipContent side="bottom">{item.label}</TooltipContent></Tooltip>)}</nav>
+      <nav className="mode-switcher" aria-label="工作模式">{([{ id: "prototype", label: "原型", icon: LayoutPanelTop }, { id: "merge", label: "PSD 合并", icon: GitMerge }, { id: "slice", label: "PSD 切图", icon: Scissors }] as const).map(({ icon: Icon, ...item }) => <Tooltip key={item.id}><TooltipTrigger asChild><Button size="icon" variant="ghost" aria-label={item.label} aria-pressed={mode === item.id} className={mode === item.id ? "mode-active" : ""} onClick={() => selectWorkspace(item.id)} disabled={item.id === "slice" && mode === "prototype" && !!canonicalPage?.artPsd && pageActionBusy}><Icon size={16} aria-hidden="true" /></Button></TooltipTrigger><TooltipContent side="bottom">{item.label}</TooltipContent></Tooltip>)}</nav>
 <div className="workbench-right">{mode === "prototype" && canvasDocument && resourcePage ? <CanvasExportActions document={canvasDocument} page={resourcePage} sourcePage={compositions.get(resourcePage.id)!.page}
         prepare={(expected,source,updated)=>{
           const current=read(), canonical=current?.pages.find(p=>p.id===source.id);
