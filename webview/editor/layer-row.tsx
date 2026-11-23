@@ -1,4 +1,4 @@
-import type { ComponentPropsWithoutRef } from "react";
+import type { ComponentPropsWithoutRef, ReactNode } from "react";
 import { Box, ChevronDown, ChevronRight } from "lucide-react";
 import { cn } from "../lib/utils";
 import { COMPONENT_TOOLS } from "./component-tools";
@@ -27,11 +27,11 @@ export function LayerRow({ name, depth, selected, expanded, onToggle, className,
   </div>;
 }
 
-export function LayerRoot({ name, rootType, className, ...props }: ComponentPropsWithoutRef<"button"> & { name: string; rootType: string }) {
+export function LayerRoot({ name, rootType, marker, className, ...props }: ComponentPropsWithoutRef<"button"> & { name: string; rootType: string; marker?: ReactNode }) {
   const expanded = props["aria-expanded"];
   const Chevron = expanded ? ChevronDown : ChevronRight;
   return <button type="button" {...props} className={cn("tree-root", className)}>
-    <Box size={15} /><strong>{name}</strong><small>{rootType}</small>
+    <Box size={15} /><strong>{marker}{name}</strong><small>{rootType}</small>
     {expanded !== undefined && <Chevron size={12} />}
   </button>;
 }

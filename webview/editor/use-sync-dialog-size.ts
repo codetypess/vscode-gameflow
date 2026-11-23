@@ -18,7 +18,11 @@ interface ResizeGesture extends DialogSize {
   pointerId: number;
   x: number;
   y: number;
+  edge: SyncDialogResizeEdge;
 }
+
+export const syncDialogResizeEdges = ["n", "e", "s", "w", "ne", "se", "sw", "nw"] as const;
+export type SyncDialogResizeEdge = typeof syncDialogResizeEdges[number];
 
 function readSize({ storageKey, defaultWidth, defaultHeight }: Options): DialogSize {
   try {
@@ -53,9 +57,13 @@ export function useSyncDialogSize(options: Options) {
     const margin = options.viewportMargin ?? 16;
     const maxWidth = Math.max(1, innerWidth - margin);
     const maxHeight = Math.max(1, innerHeight - margin);
+    const deltaX = 2 * (event.clientX - start.x);
+    const deltaY = 2 * (event.clientY - start.y);
+    const width = start.edge.includes("e") ? start.width + deltaX : start.edge.includes("w") ? start.width - deltaX : start.width;
+    const height = start.edge.includes("s") ? start.height + deltaY : start.edge.includes("n") ? start.height - deltaY : start.height;
     const next = {
-      width: Math.min(maxWidth, Math.max(Math.min(options.minWidth, maxWidth), start.width + 2 * (event.clientX - start.x))),
-      height: Math.min(maxHeight, Math.max(Math.min(options.minHeight, maxHeight), start.height + 2 * (event.clientY - start.y))),
+      width: Math.min(maxWidth, Math.max(Math.min(options.minWidth, maxWidth), width)),
+      height: Math.min(maxHeight, Math.max(Math.min(options.minHeight, maxHeight), height)),
     };
     latest.current = next;
     setSize(next);
@@ -72,7 +80,7 @@ export function useSyncDialogSize(options: Options) {
 
   return {
     size,
-    resizeHandleProps: {
+    resizeEdgeProps: (edge: SyncDialogResizeEdge) => ({
       onPointerDown: (event: ReactPointerEvent<HTMLElement>) => {
         event.preventDefault();
         const bounds = event.currentTarget.closest("dialog")?.getBoundingClientRect();
@@ -80,6 +88,7 @@ export function useSyncDialogSize(options: Options) {
           pointerId: event.pointerId,
           x: event.clientX,
           y: event.clientY,
+          edge,
           width: bounds?.width ?? latest.current.width,
           height: bounds?.height ?? latest.current.height,
         };
@@ -89,6 +98,6 @@ export function useSyncDialogSize(options: Options) {
       onPointerUp: (event: ReactPointerEvent<HTMLElement>) => finish(event, true),
       onPointerCancel: (event: ReactPointerEvent<HTMLElement>) => finish(event, false),
       onLostPointerCapture: (event: ReactPointerEvent<HTMLElement>) => finish(event, false),
-    },
+    }),
   };
 }

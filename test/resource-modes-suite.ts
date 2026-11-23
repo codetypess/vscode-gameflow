@@ -77,6 +77,40 @@ test("prefab sync records independently agreed values once across save and reope
   const reopened={...merged.page,prefabSync:{nodes,...identity}};
   assert.equal(mergePrefab(inspectPrefab(document,reopened,file,batch.prefab),{},batch).baseChanged,false);
 });
+test("prefab sync diffs and merges every round-trippable inspector property in both directions",async()=>{
+  const label={...makeNode("text","caption1",20,30),text:"登录",layout:{},widget:{leading:0}};
+  const initial={...page([label]),layout:{layoutUnit:"absolute" as const}};
+  const document=doc(initial),file="登录.lh",first=await planPrefabExport(document,initial,missing);
+  const root=structuredClone(first.batch.prefab),native=(root._$child as Record<string,unknown>[])[0];
+  native.fontSize=33;native.rotation=15;native.left=12;native.leading=3;native.name="captionLaya";native._$var=true;native.visible=false;
+  root.width=420;root.height=620;root.left=10;
+  const synced={...initial,prefabSync:initialPrefabBase(document,initial,file)};
+  const review=inspectPrefab(document,synced,file,root);
+  assert.deepEqual(new Set(review.comparison.changes.map(change=>change.key)),new Set([
+    "page/property/page.width","page/property/page.height","page/property/layout.left",
+    "caption1/property/style.fontSize","caption1/property/transform.rotation","caption1/property/layout.left",
+    "caption1/property/widget.leading","caption1/property/variableName","caption1/property/hidden"
+  ]));
+  const pull=Object.fromEntries(review.comparison.changes.map(change=>[change.key,"psd"] as const));
+  const imported=mergePrefab(review,pull,first.batch);
+  const importedLabel=imported.page.nodes[0];
+  assert.equal(imported.page.frame.width,420);assert.equal(imported.page.frame.height,620);assert.equal(imported.page.layout?.left,10);
+  assert.equal(importedLabel.style?.fontSize,33);assert.equal(importedLabel.transform?.rotation,15);assert.equal(importedLabel.layout?.left,12);
+  assert.equal(importedLabel.widget?.leading,3);assert.equal(importedLabel.variableName,"captionLaya");assert.equal(importedLabel.hidden,true);
+  assert.deepEqual(inspectPrefab(document,imported.page,file,imported.batch.prefab).comparison.changes,[]);
+
+  const changed={...imported.page,frame:{...imported.page.frame,width:430},nodes:imported.page.nodes.map(node=>node.id==="caption1"?{
+    ...node,style:{...node.style,fontSize:44},transform:{...node.transform,rotation:25},layout:{...node.layout,left:20},widget:{...node.widget,leading:5},variableName:"captionProto",hidden:false
+  }:node)};
+  const nextPlan=await planPrefabExport(document,changed,missing),pushReview=inspectPrefab(document,changed,file,imported.batch.prefab);
+  const expected=["page/property/page.width","caption1/property/style.fontSize","caption1/property/transform.rotation","caption1/property/layout.left","caption1/property/widget.leading","caption1/property/variableName","caption1/property/hidden"];
+  assert.deepEqual(new Set(pushReview.comparison.changes.map(change=>change.key)),new Set(expected));
+  const push=Object.fromEntries(pushReview.comparison.changes.map(change=>[change.key,"proto"] as const));
+  const exported=mergePrefab(pushReview,push,nextPlan.batch),output=(exported.batch.prefab._$child as Record<string,unknown>[])[0];
+  assert.equal(exported.batch.prefab.width,430);assert.equal(output.fontSize,44);assert.equal(output.rotation,25);assert.equal(output.left,20);assert.equal(output.leading,5);
+  assert.equal(output.name,"captionProto");assert.equal(output._$var,true);assert.equal(output.visible,true);
+  assert.deepEqual(inspectPrefab(document,exported.page,file,exported.batch.prefab).comparison.changes,[]);
+});
 test("prefab sync rejects stale and duplicate targets, preserves source on rollback and protects surviving references",async()=>{
   const original=page([makeNode("text","label001",10,12)]);
   const document=doc(original),{batch}=await planPrefabExport(document,original,missing);

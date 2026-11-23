@@ -38,6 +38,7 @@
 .sync-boards figcaption { padding: 4px 7px; font-size: 11px; color: var(--muted-foreground); }
 .sync-preview { display:grid; flex: 1; min-height: 360px; place-items:center; overflow:hidden; text-align:center; }
 .sync-surface { overflow:hidden; transform-origin:0 0; position:absolute; top:0; left:0; }
+.sync-surface[data-selectable=true] { cursor: pointer; }
 .sync-surface>img { display:block; width:100%;height:100%; }
 .sync-box { position:absolute; border:solid var(--tone,var(--vscode-focusBorder,#57a2ee)); pointer-events:none; text-align:left; }
 .sync-box[data-ghost=true] { border-style:dashed; }
@@ -51,8 +52,18 @@
 .sync-values dt { font-size: 11px; color: var(--muted-foreground); }
 .sync-values dd { margin: 0; min-height: 22px; padding: 3px 7px; background: var(--vscode-input-background, var(--muted)); border-radius: 2px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .page-sync-dialog [role=alert] { color: var(--destructive); }
-.page-sync-dialog .sync-resize { padding: 2px; cursor: nwse-resize; touch-action: none; color: var(--muted-foreground); }
-.sync-resize svg { width: 15px; height: 15px; }
+.sync-resize-edge { position: absolute; z-index: 10; touch-action: none; }
+.sync-resize-edge[data-edge="n"], .sync-resize-edge[data-edge="s"] { left: 10px; right: 10px; height: 5px; cursor: ns-resize; }
+.sync-resize-edge[data-edge="e"], .sync-resize-edge[data-edge="w"] { top: 10px; bottom: 10px; width: 5px; cursor: ew-resize; }
+.sync-resize-edge[data-edge="n"] { top: 0; }
+.sync-resize-edge[data-edge="e"] { right: 0; }
+.sync-resize-edge[data-edge="s"] { bottom: 0; }
+.sync-resize-edge[data-edge="w"] { left: 0; }
+.sync-resize-edge[data-edge="ne"], .sync-resize-edge[data-edge="se"], .sync-resize-edge[data-edge="sw"], .sync-resize-edge[data-edge="nw"] { width: 10px; height: 10px; }
+.sync-resize-edge[data-edge="ne"] { top: 0; right: 0; cursor: nesw-resize; }
+.sync-resize-edge[data-edge="se"] { right: 0; bottom: 0; cursor: nwse-resize; }
+.sync-resize-edge[data-edge="sw"] { bottom: 0; left: 0; cursor: nesw-resize; }
+.sync-resize-edge[data-edge="nw"] { top: 0; left: 0; cursor: nwse-resize; }
 @container (max-width: 900px) {
   .sync-layout { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(68px, 25%) minmax(180px, 50%) minmax(80px, 25%); }
   .sync-layout nav { border-right: 0; border-bottom: 1px solid var(--border); }

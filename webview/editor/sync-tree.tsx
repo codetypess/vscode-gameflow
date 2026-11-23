@@ -21,8 +21,10 @@ interface SyncTreeProps {
 }
 
 export function SyncTree({ page, nodes, changes, loading, expanded, selected, selectedComponent, components, onToggle, onSelect }: SyncTreeProps) {
+  const allNodes=[...nodes],root=allNodes.find(node=>node.root);
   const children = new Map<string, SyncNode[]>();
-  for (const node of nodes) {
+  for (const node of allNodes) {
+    if(node.root) continue;
     const siblings = children.get(node.parent);
     if (siblings) siblings.push(node);
     else children.set(node.parent, [node]);
@@ -65,8 +67,9 @@ export function SyncTree({ page, nodes, changes, loading, expanded, selected, se
     <div className="sync-tree-heading"><strong>节点树　{loading ? "…" : changes.length} 项差异</strong>
       <div className="sync-legend"><b data-kind="add">+ 新增</b><b data-kind="delete">− 删除</b><b data-kind="edit">~ 修改</b></div>
     </div>
-    <LayerRoot name={page.name} rootType={pageRootType(page)} className={!selected && selectedComponent == null ? "is-selected" : undefined}
-      aria-expanded={expanded.has("")} onClick={() => { onToggle(""); onSelect(""); }} />
+    <LayerRoot name={page.name} rootType={pageRootType(page)} marker={changeByNode.has(root?.id??"")?<b className="sync-change" data-kind={changeByNode.get(root?.id??"")?.kind}>{changeSymbols[changeByNode.get(root?.id??"")!.kind]} </b>:undefined}
+      className={selected===(root?.id??"") && selectedComponent == null ? "is-selected" : undefined}
+      aria-expanded={expanded.has("")} onClick={() => { onToggle(""); onSelect(root?.id??""); }} />
     {expanded.has("") && <div role="tree" aria-label={page.name} className="layer-tree">{rows("", 0)}</div>}
   </nav>;
 }

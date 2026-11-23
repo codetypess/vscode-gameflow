@@ -1,12 +1,12 @@
-import type { Frame, GameFlowDocument, GameFlowNode, GameFlowPage } from "./model";
+import type { Frame, GameFlowDocument, GameFlowPage } from "./model";
 import { allocateElementId, reserveDocumentElementIds } from "./element-id";
 import { inheritedFlag, makeNode } from "./editor-ops";
 import { COMPONENTS, COMPONENT_TYPES, pageRootType } from "./ui-components";
 import { applyPrototypeTree, compareTrees, coordinatedBase, frameFields, plannedTrees, prototypeTree, type Decision, type SyncNode } from "./page-sync";
 import { type PrefabExportBatch, type PrefabMetadataReview, resourceUrl } from "./prefab-export";
+import { applyNodeProperty, applyNodeRecordProperty, applyPageProperty, applyRootRecordProperty, prefabPropertyNames, prototypeNodeProperties, prototypePageProperties, recordNodeProperties, recordPageProperties, sameSyncProperty } from "./prefab-sync-properties";
 import { variableNameError } from "./node-variable";
 import { isSliceResourcePath } from "./slice-resources";
-import { CONSTRAINTS } from "./ui-config";
 
 type RecordNode = Record<string,unknown>;
 export type PrefabBase = NonNullable<GameFlowPage["prefabSync"]>;
@@ -24,12 +24,14 @@ function walk(node:RecordNode, visit:(node:RecordNode)=>void) {
 const free = (o:RecordNode) => ["left","right","top","bottom","centerX","centerY"].every(k=>o[k]==null) && o.widthMode!=="measured" && o.heightMode!=="measured";
 function prototypeNodes(page:GameFlowPage) {
   const raw=new Map(page.nodes.map(node=>[node.id,node]));
-  return prototypeTree(page).map(n=>{
+  const nodes=prototypeTree(page).map(n=>{
     const node=raw.get(n.id)!;
     const parent=raw.get(n.parent);
-    return {...n,...(free({...node.layout}) && !["hbox","vbox","grid","list"].includes(parent?.type??"")?node.frame:{})};
+    return {...n,properties:prototypeNodeProperties(node),...(free({...node.layout}) && !["hbox","vbox","grid","list"].includes(parent?.type??"")?node.frame:{})};
   });
+  return [{id:page.id,name:page.name,type:"container" as const,parent:"",text:"",frame:{...page.frame},root:true,layer:page.id,properties:prototypePageProperties(page)},...nodes];
 }
+export const prefabChangeName = (change:{field:string;property?:string}) => change.field==="property" ? prefabPropertyNames[change.property??""]??change.property??"属性" : undefined;
 export function initialPrefabBase(document:GameFlowDocument,page:GameFlowPage,target:string):PrefabBase {
   return {version:1,documentId:document.documentId,pageId:page.id,target,nodes:prototypeNodes(page).map(n=>({...n,layer:n.id}))};
 }
@@ -55,7 +57,7 @@ export function inspectPrefab(document:GameFlowDocument,page:GameFlowPage,target
     if (allIds.has(node._$id)) throw new Error("预制体节点 ID 重复："+node._$id);
     allIds.add(node._$id);
   });
-  const nativeIds=new Map<string,string>(), tree:SyncNode[]=[];
+  const nativeIds=new Map<string,string>([[page.id,String(root._$id)]]), tree:SyncNode[]=[{id:page.id,name:page.name,type:"container",parent:"",text:"",frame:{...page.frame},root:true,layer:String(root._$id),properties:recordPageProperties(page,root)}];
   function read(parentRecord:RecordNode,parent:string,origin:Frame) {
     for (const child of children(parentRecord)) {
       const external=child._$id;
@@ -88,10 +90,17 @@ export function inspectPrefab(document:GameFlowDocument,page:GameFlowPage,target
     }
   }
   read(root,"",{x:0,y:0,width:0,height:0});
+  const logicalIds=new Map([...nativeIds].map(([id,external])=>[external,id]));
+  const resolveRef=(value:unknown)=>record(value)&&typeof value._$ref==="string"?logicalIds.get(value._$ref)??null:null;
+  for(const node of tree) if(!node.root) {
+    node.properties=recordNodeProperties(node.type,originals.get(node.id)!,resolveRef);
+    const variable=node.properties.variableName;
+    node.variable=typeof variable==="string"&&variable?variable:undefined;
+  }
   const comparison=compareTrees(proto,tree,base,true);
   const engine=new Map<string,{name:string;value:unknown}[]>();
   const managed=new Set(originals.values());
-  for(const [id,node] of [["",root] as const,...originals]) {
+  for(const [id,node] of [[page.id,root] as const,...originals]) {
     const extras=children(node).filter(n=>!managed.has(n)).map(value=>({name:String(value.name??value._$type??"子节点"),value}));
     if(Array.isArray(node._$comp)) for(const component of node._$comp) extras.push({name:String(component?._$type??"组件"),value:component});
     if(extras.length) engine.set(id,extras);
@@ -100,35 +109,33 @@ export function inspectPrefab(document:GameFlowDocument,page:GameFlowPage,target
 }
 export type PrefabReview = ReturnType<typeof inspectPrefab>;
 
-function projectedPage(page:GameFlowPage,tree:SyncNode[],applyLocks:boolean):GameFlowPage {
+function projectedPage(page:GameFlowPage,tree:SyncNode[],applyLocks:boolean,beforeTree?:SyncNode[]):GameFlowPage {
   const prior=new Map(page.nodes.map(n=>[n.id,n]));
-  const next=applyPrototypeTree(page,tree);
+  let next=applyPrototypeTree(page,tree);
   const byId=new Map(tree.map(n=>[n.id,n]));
+  const before=new Map(beforeTree?.map(n=>[n.id,n])??[]);
+  const root=tree.find(n=>n.root),oldRoot=before.get(root?.id??"");
+  if(root?.properties) for(const [path,value] of Object.entries(root.properties)) if(!oldRoot || !sameSyncProperty(oldRoot.properties?.[path],value)) next=applyPageProperty(next,path,value);
   return {...next,nodes:next.nodes.map(node=>{
     const n=byId.get(node.id)!,original=prior.get(node.id);
     const frame={...node.frame};
     for(const f of frameFields) if(n[f]!==undefined) frame[f]=n[f]!;
     if(applyLocks && original && inheritedFlag(page,original,"locked") && frameFields.some(f=>frame[f]!==original.frame[f])) throw new Error("控件已锁定："+original.name);
-    return {...node,frame,...(!original && n.variable?{variableName:n.variable}:{})};
+    let result={...node,frame},old=before.get(node.id);
+    if(n.properties) for(const [path,value] of Object.entries(n.properties)) if(!old || !sameSyncProperty(old.properties?.[path],value)) result=applyNodeProperty(result,path,value);
+    if(applyLocks && original && inheritedFlag(page,original,"locked") && result!==node && n.properties && Object.keys(n.properties).some(path=>!sameSyncProperty(old?.properties?.[path],n.properties?.[path]))) throw new Error("控件已锁定："+original.name);
+    return result;
   })};
 }
 export function prefabPreviewPage(review:PrefabReview,tree:SyncNode[],root:RecordNode=review.root,skins:Record<string,string>={}) {
   const raws=new Map<string,RecordNode>();
   walk(root,n=>raws.set(String(n._$id),n));
   const page=projectedPage({...review.page,nodes:[],componentRootId:undefined},tree,false);
-  return {...page,frame:{...page.frame,width:Number(review.root.width)||page.frame.width,height:Number(review.root.height)||page.frame.height},
+  return {...page,
     nodes:page.nodes.map(n=>{
       const source=raws.get(review.nativeIds.get(n.id)??n.id);
       if(!source) return n;
-      const style:GameFlowNode["style"]={...n.style};
-      if(typeof source.alpha==="number") style.opacity=source.alpha;
-      if(typeof source.fontSize==="number") style.fontSize=source.fontSize;
-      if(typeof source.color==="string") style.color=source.color;
-      if(source.bold===true) style.fontWeight=700;
-      if(["center","right","left"].includes(String(source.align))) style.textAlign=source.align as "center"|"right"|"left";
-      const layout={...n.layout};
-      for(const key of CONSTRAINTS) if(typeof source[key]==="number") layout[key]=source[key];
-      const result={...n,layout,style,hidden:source.visible===false};
+      const result={...n};
       const slot=(key:string)=>{
         const value=source[key];
         if(typeof value!=="string")return null;
@@ -148,7 +155,7 @@ export function mergePrefab(review:PrefabReview,decisions:Record<string,Decision
   const exported=new Map<string,RecordNode>();
   walk(batch.prefab,node=>exported.set(String(node._$id),node));
   const added=new Set<string>();
-  for(const node of trees.psd) if(!originals.has(node.id)) {
+  for(const node of trees.psd) if(!node.root && !originals.has(node.id)) {
     if(review.allIds.has(node.id)) throw new Error("新增控件的 ID 已在预制体内使用："+node.name);
     added.add(node.id); rawIds.set(node.id,node.id);
   }
@@ -169,6 +176,7 @@ export function mergePrefab(review:PrefabReview,decisions:Record<string,Decision
   }
   const logicalId=new Map([...originals].map(([id,source])=>[source,id]));
   const current=new Map(c.psd.map(n=>[n.id,n]));
+  const externalId=(id:string)=>{const external=rawIds.get(id);if(!external)throw new Error("请同时同步控件引用的节点："+id);return external;};
   function build(n:SyncNode):RecordNode {
     const source=originals.get(n.id);
     let node:RecordNode;
@@ -178,6 +186,7 @@ export function mergePrefab(review:PrefabReview,decisions:Record<string,Decision
       if(before.name!==n.name && !node._$var) node.name=n.name;
       if(before.text!==n.text) node.text=n.text;
       for(const f of frameFields) if(n[f]!==undefined && before[f]!==n[f]) node[f]=n[f];
+      for(const [path,value] of Object.entries(n.properties??{})) if(!sameSyncProperty(before.properties?.[path],value)) applyNodeRecordProperty(node,n.type,n.name,path,value,externalId);
       const generated=exported.get(n.id);
       for(const key of ["skin","normalSkin","selectedSkin","disabledSkin"]) {
         const planned=generated?.[key];
@@ -199,7 +208,7 @@ export function mergePrefab(review:PrefabReview,decisions:Record<string,Decision
     return rebuildChildren(node,n.id,source);
   }
   function rebuildChildren(node:RecordNode,parent:string,source?:RecordNode):RecordNode {
-    const desired=trees.psd.filter(n=>n.parent===parent), desiredIds=new Set(desired.map(n=>n.id));
+    const desired=trees.psd.filter(n=>!n.root&&n.parent===parent), desiredIds=new Set(desired.map(n=>n.id));
     const prior=source?children(source):[], staying=new Set(prior.map(n=>logicalId.get(n)).filter(id=>id && desiredIds.has(id)));
     const output:RecordNode[]=[];
     let index=0;
@@ -218,7 +227,9 @@ export function mergePrefab(review:PrefabReview,decisions:Record<string,Decision
     if(output.length || source?._$child!==undefined) node._$child=output;
     return node;
   }
-  const prefab=rebuildChildren({...review.root},"",review.root);
+  const prefabRoot={...review.root},plannedRoot=trees.psd.find(n=>n.root),currentRoot=c.psd.find(n=>n.root);
+  if(plannedRoot?.properties) for(const [path,value] of Object.entries(plannedRoot.properties)) if(!sameSyncProperty(currentRoot?.properties?.[path],value)) applyRootRecordProperty(prefabRoot,path,value);
+  const prefab=rebuildChildren(prefabRoot,"",review.root);
   const removed=new Set<string>();
   JSON.stringify(review.root,(key,value)=>{if(key==="_$id" && typeof value==="string")removed.add(value);return value;});
   JSON.stringify(prefab,(key,value)=>{
@@ -229,7 +240,7 @@ export function mergePrefab(review:PrefabReview,decisions:Record<string,Decision
     return value;
   });
   for(const ref of refs) if(removed.has(ref)) throw new Error("删除将破坏现有预制体引用："+ref+"，请先移除引用或跳过删除。");
-  const proto=projectedPage(page,trees.proto,true);
+  const proto=projectedPage(page,trees.proto,true,c.proto);
   const oldIds=new Set(page.nodes.map(n=>n.id)), incoming=new Map([...nativeIds].map(([id,external])=>[external,id]));
   const available=new Set(proto.nodes.map(n=>n.id));
   const link=(ref:unknown)=>{

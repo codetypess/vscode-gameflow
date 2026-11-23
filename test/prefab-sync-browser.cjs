@@ -43,7 +43,7 @@ async function checkRuntime(browser,root,prefab) {
       if(!localStorage.getItem(key)) localStorage.setItem(key,JSON.stringify({
         schemaVersion:5,elementIdScheme:"nanoid-8",documentId:"prefab-browser",title:"测试",requirements:[],interactions:[],
         pages:[{id:"page0001",name:"登录",kind:"screen",frame:{x:0,y:0,width:320,height:240},
-          nodes:[{id:"text0001",name:"按钮文案",type:"text",text:"登录",frame:{x:20,y:80,width:200,height:48}}]}]
+          nodes:[{id:"text0001",name:"按钮文案",type:"text",text:"登录",frame:{x:20,y:80,width:200,height:48},style:{fontSize:32}}]}]
       }));
       let i=0;
       window.showDirectoryPicker=async()=> (await navigator.storage.getDirectory()).getDirectoryHandle(["resources","prefabs"][i++],{create:true});
@@ -72,7 +72,8 @@ async function checkRuntime(browser,root,prefab) {
       localStorage.setItem(key,JSON.stringify(doc));
       const dir=await (await navigator.storage.getDirectory()).getDirectoryHandle("prefabs");
       const file=await dir.getFileHandle("登录.lh"),raw=JSON.parse(await (await file.getFile()).text());
-      raw._$child[0].text="开始冒险";raw._$child[0]._$comp=[{_$type:"DebounceClick",interval:500}];
+      raw.width=360;raw.height=260;
+      raw._$child[0].text="开始冒险";raw._$child[0].fontSize=33;raw._$child[0]._$comp=[{_$type:"DebounceClick",interval:500}];
       raw._$child.push({_$type:"UIButton",_$id:"notice-laya",name:"公告",width:60,height:25});
       const writer=await file.createWritable();await writer.write(JSON.stringify(raw));await writer.close();
     });
@@ -80,8 +81,12 @@ async function checkRuntime(browser,root,prefab) {
     const dialog=p.getByRole("dialog",{name:"同步预制体"});
     await dialog.waitFor();
     assert.equal(await dialog.locator(".sync-boards figure").count(),2);
-    assert.deepEqual(await dialog.locator(".sync-values dt").allTextContents(), ["上次", "原型", "预制体"]);
-    assert.deepEqual(await dialog.locator(".sync-values dd").allTextContents(), ["登录", "进入游戏", "开始冒险"]);
+    await dialog.locator(".layer-name").filter({hasText:"按钮文案"}).click();
+    const textDiff=dialog.locator("fieldset").filter({hasText:"文字内容"});
+    const fontDiff=dialog.locator("fieldset").filter({hasText:"字号"});
+    assert.deepEqual(await textDiff.locator(".sync-values dt").allTextContents(), ["上次", "原型", "预制体"]);
+    assert.deepEqual(await textDiff.locator(".sync-values dd").allTextContents(), ["登录", "进入游戏", "开始冒险"]);
+    assert.deepEqual(await fontDiff.locator(".sync-values dd").allTextContents(), ["32", "32", "33"]);
     const heading = await dialog.locator("header").boundingBox();
     const inspectorHeading = await p.locator(".inspector .floating-heading").boundingBox();
     assert.equal(heading.height, inspectorHeading.height);
@@ -92,19 +97,34 @@ async function checkRuntime(browser,root,prefab) {
     assert((await previews[0].boundingBox()).height > 310, "preview uses the available dialog height");
     const previewBackground = await previews[0].evaluate(element => getComputedStyle(element).backgroundImage);
     assert.match(previewBackground, /linear-gradient/, "preview reuses the slice editor checkerboard");
+    const surfaces=await dialog.locator(".sync-surface").all(),leftSurface=await surfaces[0].boundingBox(),rightSurface=await surfaces[1].boundingBox();
+    assert(Math.abs(leftSurface.width-rightSurface.width)<=1 && Math.abs(leftSurface.height-rightSurface.height)<=1,"prototype and prefab previews share one design-canvas scale");
+    const selectedName=dialog.locator(".sync-bar > strong");
+    await previews[0].locator('[data-node-id="help0001"]').click();
+    assert.equal(await selectedName.innerText(),"帮助","prototype preview directly selects its node");
+    await previews[1].locator('[data-node-id="text0001"]').click();
+    assert.equal(await selectedName.innerText(),"按钮文案","prefab preview directly selects its node");
     const initialSize = await dialog.boundingBox();
-    const resizeHandle = dialog.getByRole("button", {name:"拖动调整同步窗口大小", exact:true});
-    const initialHandle = await resizeHandle.boundingBox();
-    const shrinkTarget = {x:initialHandle.x + initialHandle.width / 2 - 80,y:initialHandle.y + initialHandle.height / 2 - 45};
-    await p.mouse.move(initialHandle.x + initialHandle.width / 2,initialHandle.y + initialHandle.height / 2);
+    const resizeEdges = dialog.locator(".sync-resize-edge"), southeastEdge = dialog.locator('.sync-resize-edge[data-edge="se"]');
+    assert.equal(await resizeEdges.count(),8,"all window edges and corners can resize the dialog");
+    assert.equal(await dialog.getByRole("button",{name:"拖动调整同步窗口大小",exact:true}).count(),0,"resize has no visible footer button");
+    assert.equal(await southeastEdge.evaluate(element=>getComputedStyle(element).cursor),"nwse-resize");
+    const southeastBounds = await southeastEdge.boundingBox();
+    const shrinkStart = {x:southeastBounds.x + southeastBounds.width / 2,y:southeastBounds.y + southeastBounds.height / 2};
+    const shrinkInset = {x:initialSize.x + initialSize.width - shrinkStart.x,y:initialSize.y + initialSize.height - shrinkStart.y};
+    const shrinkTarget = {x:shrinkStart.x - 80,y:shrinkStart.y - 45};
+    await p.mouse.move(shrinkStart.x,shrinkStart.y);
     await p.mouse.down();await p.mouse.move(shrinkTarget.x,shrinkTarget.y,{steps:5});await p.mouse.up();
-    const resizedSize = await dialog.boundingBox(), resizedHandle = await resizeHandle.boundingBox();
-    assert(Math.abs(resizedSize.width - (initialSize.width - 160)) <= 3, "centered resize doubles horizontal pointer movement");
-    assert(Math.abs(resizedSize.height - (initialSize.height - 90)) <= 3, "centered resize doubles vertical pointer movement");
-    assert(Math.abs(resizedHandle.x + resizedHandle.width / 2 - shrinkTarget.x) <= 3, "resize handle follows the horizontal pointer position");
-    assert(Math.abs(resizedHandle.y + resizedHandle.height / 2 - shrinkTarget.y) <= 3, "resize handle follows the vertical pointer position");
+    const resizedSize = await dialog.boundingBox();
+    assert(Math.abs(resizedSize.width - (initialSize.width - 160)) <= 3, `centered resize doubles horizontal pointer movement: ${initialSize.width} -> ${resizedSize.width}`);
+    assert(Math.abs(resizedSize.height - (initialSize.height - 90)) <= 3, `centered resize doubles vertical pointer movement: ${initialSize.height} -> ${resizedSize.height}`);
+    assert(Math.abs(resizedSize.x + resizedSize.width - shrinkTarget.x - shrinkInset.x) <= 3, "right edge follows the horizontal pointer position");
+    assert(Math.abs(resizedSize.y + resizedSize.height - shrinkTarget.y - shrinkInset.y) <= 3, "bottom edge follows the vertical pointer position");
     if (process.env.GAMEFLOW_PREFAB_SYNC_SCREENSHOT) await dialog.screenshot({path: process.env.GAMEFLOW_PREFAB_SYNC_SCREENSHOT});
-    await dialog.getByRole("button",{name:"采用预制体 → 原型"}).click();
+    await textDiff.getByRole("button",{name:"采用预制体 → 原型"}).click();
+    await fontDiff.getByRole("button",{name:"采用预制体 → 原型"}).click();
+    await dialog.locator(".tree-root").click();
+    for(const name of ["页面宽度","页面高度"]) await dialog.locator("fieldset").filter({hasText:name}).getByRole("button",{name:"采用预制体 → 原型"}).click();
     await button("预演应用").click();await button("确认应用").click();
     await dialog.waitFor({state:"hidden"});
     const data=await p.evaluate(async()=>{
@@ -113,6 +133,8 @@ async function checkRuntime(browser,root,prefab) {
       return {page:JSON.parse(localStorage.getItem("gameflow.prototype.v1")).pages[0],prefab:JSON.parse(await (await file.getFile()).text())};
     });
     assert.equal(data.page.nodes.find(n=>n.id==="text0001").text,"开始冒险");
+    assert.equal(data.page.nodes.find(n=>n.id==="text0001").style.fontSize,33);
+    assert.deepEqual(data.page.frame,{x:0,y:0,width:360,height:260});
     assert.equal(data.page.nodes.filter(n=>n.name==="公告").length,1);
     assert.equal(data.prefab._$child.filter(n=>n._$id==="help0001").length,1);
     assert.equal(data.prefab._$child[0]._$comp[0].interval,500);
@@ -128,15 +150,19 @@ async function checkRuntime(browser,root,prefab) {
     },editedUuid);
     await button("同步").click();await dialog.waitFor();
     assert.deepEqual(await dialog.boundingBox(),resizedSize,"prefab sync restores the last completed resize");
-    const growStart = await resizeHandle.boundingBox();
-    const growTarget = {x:growStart.x + growStart.width / 2 + 55,y:growStart.y + growStart.height / 2 + 35};
-    await p.mouse.move(growStart.x + growStart.width / 2,growStart.y + growStart.height / 2);
+    const growBox = await dialog.boundingBox(), northwestEdge = dialog.locator('.sync-resize-edge[data-edge="nw"]');
+    assert.equal(await northwestEdge.evaluate(element=>getComputedStyle(element).cursor),"nwse-resize");
+    const northwestBounds = await northwestEdge.boundingBox();
+    const growStart = {x:northwestBounds.x + northwestBounds.width / 2,y:northwestBounds.y + northwestBounds.height / 2};
+    const growInset = {x:growStart.x - growBox.x,y:growStart.y - growBox.y};
+    const growTarget = {x:growStart.x - 55,y:growStart.y - 35};
+    await p.mouse.move(growStart.x,growStart.y);
     await p.mouse.down();await p.mouse.move(growTarget.x,growTarget.y,{steps:5});await p.mouse.up();
-    const enlargedSize = await dialog.boundingBox(), enlargedHandle = await resizeHandle.boundingBox();
+    const enlargedSize = await dialog.boundingBox();
     assert(Math.abs(enlargedSize.width - (resizedSize.width + 110)) <= 3, "growing doubles horizontal pointer movement");
     assert(Math.abs(enlargedSize.height - (resizedSize.height + 70)) <= 3, "growing doubles vertical pointer movement");
-    assert(Math.abs(enlargedHandle.x + enlargedHandle.width / 2 - growTarget.x) <= 3, "resize handle stays under the pointer while growing");
-    assert(Math.abs(enlargedHandle.y + enlargedHandle.height / 2 - growTarget.y) <= 3, "resize handle stays under the pointer while growing");
+    assert(Math.abs(growTarget.x - enlargedSize.x - growInset.x) <= 3, "left edge stays under the pointer while growing");
+    assert(Math.abs(growTarget.y - enlargedSize.y - growInset.y) <= 3, "top edge stays under the pointer while growing");
     assert.match(await dialog.innerText(),/登录\.lh\.meta/);
     await button("预演应用").click();await button("确认应用").click();
     await dialog.waitFor({state:"hidden"});
@@ -177,7 +203,7 @@ async function checkRuntime(browser,root,prefab) {
     await script.click();
     assert.match(await dialog.locator("fieldset").innerText(),/500/);
     assert.deepEqual(errors,[]);
-    console.log("Prefab sync browser: export, resize tracking and restore, independent additions, text conflict, script retention and zero differences passed");
+    console.log("Prefab sync browser: export, border resize and restore, independent additions, text conflict, script retention and zero differences passed");
     if(process.env.GAMEFLOW_LAYA_ROOT) await checkRuntime(browser,process.env.GAMEFLOW_LAYA_ROOT,data.prefab);
   } finally {await browser?.close();await server.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});

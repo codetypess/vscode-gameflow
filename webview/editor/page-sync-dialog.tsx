@@ -2,8 +2,7 @@ import { SyncTree, changeSymbols } from "./sync-tree";
 import { Button } from "../components/ui/button";
 import { DialogHeading } from "../components/dialog-heading";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Grip } from "lucide-react";
-import type { GameFlowDocument, GameFlowPage } from "../../shared/model";
+import type { Frame, GameFlowDocument, GameFlowPage } from "../../shared/model";
 import { compareTrees, plannedTrees, coordinatedBase, currentSyncBase, prototypeTree, psdTree, applyPrototypeTree, fieldNames, type Change, type Decision, type SyncNode } from "../../shared/page-sync";
 import { draftStamp } from "../../shared/psd-draft";
 import type { PsdAsset } from "../../shared/psd-meta";
@@ -13,7 +12,7 @@ import { psdTask } from "../psd/io";
 import { NodeView, orderedNodes } from "./node-view";
 import { resolvePageLayout } from "../../shared/ui-layout";
 import { SliceResourcesProvider, useSliceResources } from "../runtime/resource-context";
-import { useSyncDialogSize } from "./use-sync-dialog-size";
+import { syncDialogResizeEdges, useSyncDialogSize } from "./use-sync-dialog-size";
 import "./page-sync.css";
 
 async function reviewStamp(asset:PsdAsset) {
@@ -31,10 +30,19 @@ export function SyncValues({ previous, prototype, targetLabel, target }: {
   </dl>;
 }
 
-export function SyncPreview({page,asset,nodes,selected,changes,old,resourceMode="prototype"}:{page:GameFlowPage;asset?:PsdAsset;nodes:SyncNode[];selected:string;changes:Change[];old:SyncNode[];resourceMode?:"prototype"|"prefab"}) {
+export function syncPreviewHitNode(nodes:SyncNode[],old:SyncNode[],x:number,y:number) {
+  const current=new Set(nodes.map(node=>node.id));
+  const candidates=[...old.filter(node=>!current.has(node.id)),...nodes];
+  for(let index=candidates.length-1;index>=0;index--) {
+    const node=candidates[index], frame=node.frame;
+    if(x>=frame.x && x<=frame.x+frame.width && y>=frame.y && y<=frame.y+frame.height) return node.id;
+  }
+}
+
+export function SyncPreview({page,asset,nodes,selected,changes,old,resourceMode="prototype",canvasSize,onSelect}:{page:GameFlowPage;asset?:PsdAsset;nodes:SyncNode[];selected:string;changes:Change[];old:SyncNode[];resourceMode?:"prototype"|"prefab";canvasSize?:Pick<Frame,"width"|"height">;onSelect?:(id:string)=>void}) {
   const ref=useRef<HTMLDivElement>(null), [scale,setScale]=useState(.2);
   const resources=useSliceResources(), layout=useMemo(()=>resolvePageLayout(page),[page]);
-  const w=asset?.width??page.frame.width,h=asset?.height??page.frame.height;
+  const w=canvasSize?.width??asset?.width??page.frame.width,h=canvasSize?.height??asset?.height??page.frame.height;
   useEffect(()=>{
     const observer=new ResizeObserver(([entry])=>setScale(Math.min(entry.contentRect.width/w,entry.contentRect.height/h)));
     if(ref.current) observer.observe(ref.current);
@@ -50,7 +58,15 @@ export function SyncPreview({page,asset,nodes,selected,changes,old,resourceMode=
       {change && <b style={{fontSize:12/scale}}>{changeSymbols[change.kind]}</b>}</div>;
   });
   return <div className="sync-preview checkerboard" ref={ref}>
-    <div style={{width:w*scale,height:h*scale,position:"relative"}}><div className="sync-surface" style={{width:w,height:h,transform:`scale(${scale})`,background:page.background??"#fff"}}>
+    <div style={{width:w*scale,height:h*scale,position:"relative"}}><div className="sync-surface" data-selectable={!!onSelect} style={{width:w,height:h,transform:`scale(${scale})`,background:page.background??"#fff"}}
+      onClick={event=>{
+        if(!onSelect)return;
+        const direct=(event.target as HTMLElement).closest<HTMLElement>("[data-node-id]")?.dataset.nodeId;
+        if(direct && nodes.some(node=>node.id===direct)) {onSelect(direct);return;}
+        const bounds=event.currentTarget.getBoundingClientRect();
+        const hit=syncPreviewHitNode(nodes,old,(event.clientX-bounds.left)*w/bounds.width,(event.clientY-bounds.top)*h/bounds.height);
+        if(hit)onSelect(hit);
+      }}>
       {asset ? <img src={asset.preview} alt="美术 PSD 合成图"/> : <SliceResourcesProvider value={{...resources,mode:resourceMode}}>{orderedNodes(page).map(n=><NodeView key={n.id} node={n} page={page} geometry={layout.nodes.get(n.id)}/>)}</SliceResourcesProvider>}
       {overlays}
     </div></div>
@@ -60,7 +76,7 @@ export interface SyncSession { document:GameFlowDocument; page:GameFlowPage; mak
 interface Props { session:SyncSession; loadedAsset?:PsdAsset; close():void; apply(page:GameFlowPage,checkOnly?:boolean):void }
 export function PageSyncDialog({session,loadedAsset,close,apply}:Props) {
   const {page,document:doc}=session, dialog=useRef<HTMLDialogElement>(null);
-  const {size,resizeHandleProps}=useSyncDialogSize({storageKey:"gameflow.pagePsdSync.size.v2",defaultWidth:1280,defaultHeight:760,minWidth:360,minHeight:300});
+  const {size,resizeEdgeProps}=useSyncDialogSize({storageKey:"gameflow.pagePsdSync.size.v2",defaultWidth:1280,defaultHeight:760,minWidth:360,minHeight:300});
   const canReview = isBrowserPreview || !!document.querySelector('meta[name="gameflow-page-psd-sync"][content="1"]');
   const [reviewedAsset,setAsset]=useState<PsdAsset>(), [error,setError]=useState(""), [busy,setBusy]=useState(false);
   const asset = canReview ? reviewedAsset : loadedAsset;
@@ -156,6 +172,7 @@ export function PageSyncDialog({session,loadedAsset,close,apply}:Props) {
     if(ch.field==="exist")return n.name;
     if(ch.field==="parent")return tree.find(p=>p.id===n.parent)?.name??page.name;
     if(ch.field==="order")return String(tree.filter(p=>p.parent===n.parent).findIndex(p=>p.id===n.id)+1);
+    if(ch.field==="property") {const value=ch.property?n.properties?.[ch.property]:undefined;return value===undefined?"（空）":typeof value==="object"?JSON.stringify(value):String(value);}
     return n[ch.field] || "（空）";
   }
   async function commit() {
@@ -178,6 +195,7 @@ export function PageSyncDialog({session,loadedAsset,close,apply}:Props) {
     } catch(e){setError(String(e));} finally{setBusy(false);}
   }
   function toggle(id:string){setExpanded(prev=>{const s=new Set(prev);if(s.has(id))s.delete(id);else s.add(id);return s;});}
+  const selectNode=(id:string)=>{select(id);setCandidate("");};
   const shown=result && plan.trees?plan.trees:c;
   const selectedLayer=asset?.layers.find(l=>l.metadata.layerId===c?.psd.find(n=>n.id===selected)?.layer);
   const artChildren=selectedLayer ? asset?.layers.filter(l=>l.parentKey===selectedLayer.key).map(l=>l.name) : [];
@@ -188,11 +206,11 @@ export function PageSyncDialog({session,loadedAsset,close,apply}:Props) {
       <span title={page.artPsd?.source}>{page.name} / {page.artPsd?.source}</span>
     </DialogHeading>
     <div className="sync-layout"><SyncTree page={page} nodes={nodeList} changes={changes} loading={!c}
-      selected={selected} expanded={expanded} onToggle={toggle} onSelect={id => { select(id); setCandidate(""); }} />
+      selected={selected} expanded={expanded} onToggle={toggle} onSelect={selectNode} />
       <section className="sync-main"><div className="sync-bar"><strong>{node?.name??page.name}</strong>
         <div><button aria-pressed={!result} disabled={busy} onClick={()=>{setResult(false);setReview(false);}}>当前</button><button aria-pressed={result} disabled={busy || !canReview} onClick={()=>setResult(true)}>同步后</button></div></div>
-        {asset && shown && <div className="sync-boards"><figure><figcaption>原型 · 内置资源</figcaption><SyncPreview page={result && plan.proto?plan.proto:page} nodes={shown.proto} selected={selected} changes={changes} old={c?.base?.nodes??[]}/></figure>
-        <figure><figcaption>美术 PSD</figcaption>{result && plan.push && !copy ? <div className="sync-preview checkerboard">{copyIssue?"此项暂无法写出":"正在生成同步预览…"}</div>:<SyncPreview page={page} asset={result && plan.push?copy?.asset:asset} nodes={shown.psd} selected={selected} changes={changes} old={c?.base?.nodes??[]}/>}</figure></div>}</section>
+        {asset && shown && <div className="sync-boards"><figure><figcaption>原型 · 内置资源</figcaption><SyncPreview page={result && plan.proto?plan.proto:page} nodes={shown.proto} selected={selected} changes={changes} old={c?.base?.nodes??[]} onSelect={selectNode}/></figure>
+        <figure><figcaption>美术 PSD</figcaption>{result && plan.push && !copy ? <div className="sync-preview checkerboard">{copyIssue?"此项暂无法写出":"正在生成同步预览…"}</div>:<SyncPreview page={page} asset={result && plan.push?copy?.asset:asset} nodes={shown.psd} selected={selected} changes={changes} old={c?.base?.nodes??[]} onSelect={selectNode}/>}</figure></div>}</section>
       <aside className="sync-detail" aria-label="同步属性详情">
         {!canReview && <p role="alert">当前扩展宿主版本较旧，仅可查看已加载的页面。请按 F1 执行「开发人员: 重新加载窗口」，再打开同步。</p>}
         {canReview && !asset && !error && <p>正在读取绑定的 PSD…</p>}
@@ -209,7 +227,7 @@ export function PageSyncDialog({session,loadedAsset,close,apply}:Props) {
         {message && <p role="alert">{message} {canReview && <button disabled={busy} onClick={()=>setReload(n=>n+1)}>重新比较</button>}</p>}
       </aside></div>
     <footer><span>待决定 {pending} 项　·　已选 {count} 项</span><Button size="sm" disabled={!canReview || busy || !c || pending>0 || (!count && !plan.baselineChanged) || !!plan.issue || !!(review && plan.push && !copy)}
-      onClick={()=>{if(review)void commit();else {setError("");setReview(true);setResult(true);}}}>{busy?"正在应用…":review?"确认应用":!count && plan.baselineChanged?(needBase?"建立基线":"记录一致变更"):"预演应用"}</Button>
-      <button className="sync-resize" aria-label="拖动调整同步窗口大小" {...resizeHandleProps}><Grip/></button></footer>
+      onClick={()=>{if(review)void commit();else {setError("");setReview(true);setResult(true);}}}>{busy?"正在应用…":review?"确认应用":!count && plan.baselineChanged?(needBase?"建立基线":"记录一致变更"):"预演应用"}</Button></footer>
+    {syncDialogResizeEdges.map(edge=><span key={edge} className="sync-resize-edge" data-edge={edge} aria-hidden="true" {...resizeEdgeProps(edge)}/>)}
   </dialog>;
 }

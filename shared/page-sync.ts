@@ -8,17 +8,32 @@ import { psdSlotField } from "./psd-slot-markers";
 
 export interface SyncNode {
   id: string; name: string; type: NodeType; parent: string; text: string; frame: Frame;
-  variable?: string; layer?: string; undecided?: Field[];
+  variable?: string; layer?: string; root?: boolean; properties?: SyncProperties; undecided?: string[];
   x?: number; y?: number; width?: number; height?: number;
 }
+export type SyncPropertyValue = string | number | boolean | null | SyncPropertyValue[] | { [key: string]: SyncPropertyValue };
+export type SyncProperties = Record<string, SyncPropertyValue>;
 export interface SyncBase { version: 1; documentId: string; pageId: string; psdId: string; nodes: SyncNode[] }
 export type Side = "proto" | "psd";
 export type Decision = Side | "skip";
 export const frameFields = ["x","y","width","height"] as const;
-export type Field = "exist" | "text" | "name" | "parent" | "order" | keyof Frame;
-export interface Change { key: string; id: string; field: Field; kind: "add" | "delete" | "edit"; suggested?: Decision; members: string[] }
+export type Field = "exist" | "text" | "name" | "parent" | "order" | "property" | keyof Frame;
+export interface Change { key: string; id: string; field: Field; property?: string; kind: "add" | "delete" | "edit"; suggested?: Decision; members: string[] }
 export interface Comparison { proto: SyncNode[]; psd: SyncNode[]; base?: SyncBase; changes: Change[] }
-export const fieldNames: Record<Field,string> = { exist:"控件结构", name:"节点名称", text:"文字内容", parent:"父节点", order:"同级顺序", x:"横坐标", y:"纵坐标", width:"宽度", height:"高度" };
+export const fieldNames: Record<Field,string> = { exist:"控件结构", name:"节点名称", text:"文字内容", parent:"父节点", order:"同级顺序", property:"属性", x:"横坐标", y:"纵坐标", width:"宽度", height:"高度" };
+
+const propertyToken = (path:string) => "property:"+path;
+const sameValue = (left:unknown,right:unknown) => JSON.stringify(left)===JSON.stringify(right);
+function validPropertyValue(value:unknown,depth=0):value is SyncPropertyValue {
+  if(value===null || typeof value==="boolean" || typeof value==="string" && value.length<=10000 || typeof value==="number" && Number.isFinite(value)) return true;
+  if(depth>=8) return false;
+  if(Array.isArray(value)) return value.length<=1000 && value.every(item=>validPropertyValue(item,depth+1));
+  return !!value && typeof value==="object" && Object.keys(value).length<=1000 && Object.entries(value).every(([key,item])=>key.length<=128 && validPropertyValue(item,depth+1));
+}
+function validProperties(value:unknown):value is SyncProperties {
+  return !!value && typeof value==="object" && !Array.isArray(value) && Object.keys(value).length<=256 &&
+    Object.entries(value).every(([key,item])=>/^[A-Za-z][A-Za-z0-9]*(?:\.[A-Za-z][A-Za-z0-9]*)*$/.test(key) && validPropertyValue(item));
+}
 
 export function validSyncBase(value: unknown): value is SyncBase {
   if (!value || typeof value !== "object") return false;
@@ -28,8 +43,9 @@ export function validSyncBase(value: unknown): value is SyncBase {
   return b.nodes.every(n => n && typeof n.id === "string" && !!n.id && !ids.has(n.id) && ids.add(n.id) &&
     COMPONENT_TYPES.includes(n.type) && [n.name,n.parent,n.text].every(v => typeof v === "string") &&
     (n.layer === undefined || typeof n.layer === "string") && (n.variable === undefined || typeof n.variable === "string") &&
+    (n.root === undefined || typeof n.root === "boolean") && (n.properties === undefined || validProperties(n.properties)) &&
     frameFields.every(f=>n[f]===undefined || Number.isFinite(n[f])) &&
-    (n.undecided === undefined || Array.isArray(n.undecided) && n.undecided.every(f=>["text","name","parent","order",...frameFields].includes(f))) &&
+    (n.undecided === undefined || Array.isArray(n.undecided) && n.undecided.every(f=>typeof f==="string" && (["text","name","parent","order",...frameFields].includes(f as never) || /^property:[A-Za-z][A-Za-z0-9]*(?:\.[A-Za-z][A-Za-z0-9]*)*$/.test(f)))) &&
     n.frame && [n.frame.x,n.frame.y,n.frame.width,n.frame.height].every(Number.isFinite));
 }
 export function prototypeTree(page: GameFlowPage): SyncNode[] {
@@ -106,12 +122,21 @@ export function compareTrees(proto:SyncNode[], psd:SyncNode[], base?:SyncBase, c
     }
     if (left.type!==right.type) throw new Error("控件类型不一致，请重新确认关联："+left.name);
     for (const field of ["name","text","parent","order",...frameFields] as const) {
+      if(left.root && ["parent","order",...frameFields].includes(field as never)) continue;
       if (field!=="order" && frameFields.some(f=>f===field) && (left[field]===undefined || right[field]===undefined || left.parent!==right.parent)) continue;
       if (field==="order" && ((!old && (!compareInitialOrder || base)) || left.parent!==right.parent || old && old.parent!==left.parent)) continue;
       const l=field==="order"?order(proto,left):left[field], r=field==="order"?order(psd,right):right[field];
       if (l===r) continue;
       const o=old && (field==="order"?order(base!.nodes,old):old[field]);
       changes.push({id,key:id+"/"+field,field,kind:"edit",members:[id],suggested:old?.undecided?.includes(field)?undefined:l===o?"psd":r===o?"proto":undefined});
+    }
+    const properties=new Set([...Object.keys(left.properties??{}),...Object.keys(right.properties??{}),...Object.keys(old?.properties??{})]);
+    for(const property of properties) {
+      const l=left.properties?.[property],r=right.properties?.[property];
+      if(sameValue(l,r)) continue;
+      const o=old?.properties?.[property],token=propertyToken(property);
+      changes.push({id,key:id+"/property/"+property,field:"property",property,kind:"edit",members:[id],
+        suggested:old?.undecided?.includes(token)?undefined:sameValue(l,o)?"psd":sameValue(r,o)?"proto":undefined});
     }
   }
   return {proto,psd,base,changes};
@@ -125,7 +150,8 @@ function insertFrom(source:SyncNode[], target:SyncNode[], node:SyncNode) {
   target.splice(index,0,{...node});
 }
 export function plannedTrees(c:Comparison, decisions:Record<string,Decision>) {
-  const trees={proto:c.proto.map(n=>({...n})),psd:c.psd.map(n=>({...n}))};
+  const clone=(n:SyncNode):SyncNode=>({...n,frame:{...n.frame},properties:n.properties?{...n.properties}:undefined,undecided:n.undecided?[...n.undecided]:undefined});
+  const trees={proto:c.proto.map(clone),psd:c.psd.map(clone)};
   for (const change of c.changes) {
     const side=decisions[change.key];
     if (!side || side==="skip") continue;
@@ -143,7 +169,12 @@ export function plannedTrees(c:Comparison, decisions:Record<string,Decision>) {
             for(const f of ["x","y"] as const) if(from[f]!==undefined && n[f]!==undefined) moved[f]=from[f];
           }
           insertFrom(source,target,moved);
-        } else Object.assign(target[index],{[change.field]:from[change.field]});
+        } else if(change.field==="property" && change.property) {
+          const value=from.properties?.[change.property];
+          const properties={...target[index].properties};
+          if(value===undefined) delete properties[change.property]; else properties[change.property]=value;
+          target[index].properties=properties;
+        } else if(change.field!=="property") Object.assign(target[index],{[change.field]:from[change.field]});
       }
     }
   }
@@ -168,6 +199,7 @@ export function plannedTrees(c:Comparison, decisions:Record<string,Decision>) {
   return trees;
 }
 export function applyPrototypeTree(page:GameFlowPage, tree:SyncNode[]):GameFlowPage {
+  tree=tree.filter(n=>!n.root);
   let next=page;
   const ids=new Set(tree.map(n=>n.id));
   const done=new Set<string>();
@@ -203,10 +235,17 @@ export function coordinatedBase(docId:string,pageId:string,psdId:string,c:Compar
   for (const node of trees.proto) {
     const art=trees.psd.find(a=>a.id===node.id), old=c.base?.nodes.find(n=>n.id===node.id);
     if (!art) {if(old) nodes.push(old);continue;}
-    const baseline:SyncNode={...node,layer:art.layer};
+    const baseline:SyncNode={...node,frame:{...node.frame},properties:node.properties?{...node.properties}:undefined,layer:art.layer};
     for (const field of ["text","name","parent",...frameFields] as const) if(node[field]!==art[field]) {
       if(old) Object.assign(baseline,{[field]:old[field]});
       if(!old || old.undecided?.includes(field)) (baseline.undecided??=[]).push(field);
+    }
+    const properties=new Set([...Object.keys(node.properties??{}),...Object.keys(art.properties??{}),...Object.keys(old?.properties??{})]);
+    for(const property of properties) if(!sameValue(node.properties?.[property],art.properties?.[property])) {
+      const token=propertyToken(property),values={...baseline.properties};
+      if(old?.properties && Object.hasOwn(old.properties,property)) values[property]=old.properties[property]; else delete values[property];
+      baseline.properties=Object.keys(values).length?values:undefined;
+      if(!old || old.undecided?.includes(token)) (baseline.undecided??=[]).push(token);
     }
     nodes.push(baseline);
   }
