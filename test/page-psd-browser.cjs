@@ -22,7 +22,8 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
       await openMore();
       assert.equal(await moreMenu.getByRole("menuitem", { name: "生成 PSD", exact: true }).isDisabled(), !enabled);
       assert.equal(await moreMenu.getByRole("menuitem", { name: /^(重新)?绑定 PSD$/ }).isDisabled(), !enabled);
-      assert.equal(await sliceItem.count(), 0);
+      assert.equal(await sliceItem.isVisible(), true);
+      assert.equal(await sliceItem.isDisabled(), true);
       await page.keyboard.press("Escape"); await moreMenu.waitFor({ state: "hidden" });
     };
     assert.equal(await page.locator(".canvas-toolbar").getByRole("button", { name: /^(生成 PSD|绑定 PSD|重新绑定 PSD)$/ }).count(), 0);
