@@ -72,7 +72,7 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 
 - [label-text-properties.md](label-text-properties.md) — Done：UILabel 行距、字距、换行、五种溢出、HTML/UBB/模板及多行编辑；目标源码算法适配，保存、历史和实例覆盖联通，277 项测试、生产构建及浏览器交互验收通过，内联图片资产暂为占位。
 
-- [f5-extension-host-startup.md](f5-extension-host-startup.md) — Verifying：复现 F5 开发宿主启动 code 134 崩溃；恢复原配置后启动、重启、激活断点及画布显示通过，保留可用窗口。尚未确认具体触发原因，无业务/启动配置修复声明。
+- [f5-extension-host-startup.md](f5-extension-host-startup.md) — Done。定位到 Node inspector 启动时的网络跟踪断言，工作区关闭实验性调试网络视图。6 次真实调试均命中断点并恢复未保存画布。
 
 - [psd-document-lifecycle.md](psd-document-lifecycle.md) — Verifying：PSD 原生 dirty/save/history/backup、同目录配置自动读取与草稿恢复；独立标签作为工作台默认入口的规则已被 psd-in-workbench 替代，Explorer 可选编辑器保留。关闭对话框逐按钮人工验收待完成。
 

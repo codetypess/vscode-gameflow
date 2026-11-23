@@ -11,6 +11,8 @@ Status: Baseline for the initial extension scaffold
 4. Build adapters stay at the boundary: esbuild for the extension host and Vite for the browser Webview.
 5. The Webview uses local shadcn/ui component source and design tokens mapped to VS Code theme variables; runtime UI assets must not depend on a CDN. Shared entry styles explicitly reset root margin and padding to zero, overriding VS Code's injected body padding so the workspace fills the Webview in both extension and browser environments.
 
+The repository workspace disables the JavaScript debugger's experimental network view. This avoids the Node inspector network-tracking assertion during F5 startup on VS Code 1.147.0. See the [debug-host regression](f5-extension-host-startup.md).
+
 ## Document Rules
 
 - Optional top-level `exportDirectory` stores a portable relative directory per GameFlow file for future prefab output, independently of per-page `exportName`. Existing document versions accept it without adding defaults; empty input removes it. Shared validation and JSON Schema reject absolute paths, traversal, empty segments and nonportable filenames. Local export roots stay in workspaceState. PSD images use the resource-root category/atlas policy independently of this field in embedded and standalone sessions. Settings distinguish image classification from the per-file prefab directory. See [file-export-directory.md](file-export-directory.md) and [PSD resource directories](psd-independent-directory.md).
