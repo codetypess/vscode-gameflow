@@ -81,19 +81,11 @@
 .psd-warning-box { display: flex; gap: 6px; flex-wrap: wrap; color: var(--vscode-editorWarning-foreground, #cca700); font-size: 11px; padding: 8px; border: 1px solid currentColor; border-radius: 3px; }
 .psd-warning-box span { flex: 1; }
 .psd-warning-box button { font-size: 11px; height: 25px; }
-.checkerboard { background-color: var(--vscode-editor-background, #202020); background-image: linear-gradient(45deg,#8881 25%,transparent 25%), linear-gradient(-45deg,#8881 25%,transparent 25%), linear-gradient(45deg,transparent 75%,#8881 75%), linear-gradient(-45deg,transparent 75%,#8881 75%); background-size: 16px 16px; background-position: 0 0,0 8px,8px -8px,-8px 0; }
 .psd-empty, .psd-merge-empty { display: flex; align-items: center; justify-content: center; flex-direction: column; flex: 1; gap: 14px; color: var(--muted-foreground); }
 .psd-empty h2 { margin: 0; color: var(--foreground); font-size: 18px; font-weight: 500; }
 .psd-empty p { margin: 0 0 8px; }.psd-empty button { gap: 8px; }.psd-empty small { font-size: 11px; }
 .psd-status { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); z-index: 25; max-width: calc(100% - 40px); display: flex; align-items: center; gap: 7px; padding: 8px 12px; background: var(--popover); border: 1px solid var(--border); border-radius: 4px; box-shadow: 0 4px 10px #0004; font-size: 12px; }
 .psd-status button { color: inherit; border: 0; background: none; display: flex; margin-left: 8px; }
-.psd-dialog { padding: 0; color: var(--foreground); background: var(--popover); border: 1px solid var(--border); border-radius: 5px; box-shadow: 0 10px 50px #0009; margin: auto; }
-.psd-dialog::backdrop { background: #0008; }
-.psd-dialog header { display: flex; align-items: center; justify-content: space-between; height: 37px; padding: 0 10px 0 16px; background: var(--vscode-editorGroupHeader-tabsBackground, #181818); border-bottom: 1px solid var(--border); font-size: 12px; }
-.psd-dialog header button { width: 26px; height: 26px; }
-.psd-dialog footer { display: flex; gap: 9px; align-items: center; justify-content: flex-end; padding: 14px 18px; }
-.psd-dialog footer span { margin-right: auto; color: var(--muted-foreground); font-size: 11px; }
-.psd-dialog footer button { min-width: 80px; height: 28px; font-size: 12px; }
 .nine-dialog { width: min(760px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow: auto; }
 .nine-dialog > .psd-hint { padding: 12px 18px 8px; }
 .nine-stage { position: relative; margin: 0 18px; height: min(360px, 40vh); min-height: 150px; border: 1px solid var(--border); overflow: hidden; touch-action: none; user-select: none; }
@@ -135,7 +127,7 @@
 .region-preview-size { position: absolute; left: 8px; bottom: 6px; font-size: 10px; color: var(--muted-foreground); background: var(--background); padding: 2px 4px; pointer-events: none; }
 .nine-zoom .region-tool-divider { width: 1px; height: 14px; margin: 0 3px; flex: 0 0 1px; background: var(--border); }
 .region-edge:focus { outline: none; }
-.region-settings { padding: 16px 18px 0; display: flex; flex-direction: column; gap: 12px; }
+.region-settings { padding: 12px 18px; display: flex; flex-direction: column; gap: 12px; }
 .region-setting-row { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; font-size: 12px; }
 .region-setting-row strong { width: 58px; font-weight: 500; }
 .region-setting-row label { display: grid; grid-template-columns: 12px auto; align-items: center; gap: 6px; }

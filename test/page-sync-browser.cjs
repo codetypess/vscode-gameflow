@@ -57,9 +57,11 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
     assert.deepEqual(await box(),initial);
     const handle=await button("拖动调整同步窗口大小").boundingBox();
     const x=handle.x+handle.width/2,y=handle.y+handle.height/2;
-    await page.mouse.move(x,y);await page.mouse.down();await page.mouse.move(x-60,y-40,{steps:5});await page.mouse.up();
-    const resized=await box();
-    assert(resized.width<initial.width-80 && resized.height<initial.height-50);
+    const target={x:x-60,y:y-40};
+    await page.mouse.move(x,y);await page.mouse.down();await page.mouse.move(target.x,target.y,{steps:5});await page.mouse.up();
+    const resized=await box(), movedHandle=await button("拖动调整同步窗口大小").boundingBox();
+    assert(Math.abs(resized.width-(initial.width-120))<=3 && Math.abs(resized.height-(initial.height-80))<=3,"centered dialog size follows double pointer movement");
+    assert(Math.abs(movedHandle.x+movedHandle.width/2-target.x)<=3 && Math.abs(movedHandle.y+movedHandle.height/2-target.y)<=3,"resize handle stays under the pointer");
     const download=page.waitForEvent("download");
     await button("确认应用").click();
     const output=await download;

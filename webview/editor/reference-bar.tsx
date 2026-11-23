@@ -20,7 +20,7 @@ export function ReferenceBar({ meta, name, error, manager, onOpenSource }: {
         <PopoverTrigger asChild><Button size="sm" variant="outline" className="canvas-reference-overrides" title={count ? `当前实例有 ${count} 项属性覆盖` : "暂无属性覆盖"}>
           <span>覆盖属性</span>{count ? <span className="layer-override-dot" aria-hidden="true">●</span> : null}<ChevronDown size={12} aria-hidden="true" />
         </Button></PopoverTrigger>
-        <PopoverContent className="canvas-overrides-panel" aria-label="覆盖属性" side="bottom" align="end" sideOffset={3} collisionPadding={8}
+        <PopoverContent className="floating-panel workbench-dialog canvas-overrides-panel" aria-label="覆盖属性" side="bottom" align="end" sideOffset={3} collisionPadding={8}
           onContextMenu={event=>event.preventDefault()} onPointerDown={event=>event.stopPropagation()} onKeyDown={event=>event.stopPropagation()}>
           <OverridePanel manager={manager} sourceName={sourceName} onClose={()=>setOpen(false)} />
         </PopoverContent>

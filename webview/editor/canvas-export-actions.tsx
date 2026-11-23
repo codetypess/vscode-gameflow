@@ -1,4 +1,5 @@
-import {useEffect,useRef,useState} from "react";
+import { DialogHeading } from "../components/dialog-heading";
+import {useEffect,useRef,useState,type ReactNode} from "react";
 import {createPortal} from "react-dom";
 import {Package,RefreshCw} from "lucide-react";
 import type {GameFlowDocument,GameFlowPage} from "../../shared/model";
@@ -63,23 +64,50 @@ export function CanvasExportActions({document,page,sourcePage,resources,settings
   const actionLabel=busy?"正在处理":saved?"同步":"导出",ActionIcon=saved?RefreshCw:Package;
   return <>
     <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="toolbar-button" aria-label={actionLabel} disabled={busy||disabled} onClick={exportPrefab}><ActionIcon size={18}/></Button></TooltipTrigger><TooltipContent side="top">{actionLabel}</TooltipContent></Tooltip>
+    {createPortal(<>
     {session && <PrefabSyncDialog review={session.comparison} plan={session.plan} skins={session.snapshot.skins} resourceRoot={settings.settings.resourceDirectory} close={()=>setSession(null)} commit={applyMerge} reload={async()=>{setSession(null);await load(session.plan.batch,true);}}/>}
     {recreate && <MissingTarget path={recreate.path} cancel={()=>setRecreate(null)} generate={()=>{setRecreate(null);setBusy(true);void recreate.run().catch(e=>onNotice(String(e))).finally(()=>setBusy(false));}}/>}
     {missing && <MissingResourcesDialog plan={missing.plan} onCancel={()=>setMissing(null)} onContinue={()=>{const action=missing.finish;setMissing(null);setBusy(true);void action().catch(e=>onNotice(String(e))).finally(()=>setBusy(false));}}/>}
     {targetChoice && saved && <TargetChoice previous={saved} current={prefabTarget(target)} select={p=>{if(!p){setTargetChoice(false);return;}const parts=p.split("/"),name=parts.pop()!;void load({name,directory:parts.join("/")||undefined});}}/>}
+    </>, window.document.body)}
   </>;
 }
+function ExportDialog({title, close, children, actions}: {title: string; close: () => void; children: ReactNode; actions: ReactNode}) {
+  const ref = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const dialog = ref.current!;
+    dialog.showModal();
+    return () => dialog.close();
+  }, []);
+  return <dialog ref={ref} className="floating-panel workbench-dialog missing-resources-dialog" aria-label={title}
+    onCancel={event => { event.preventDefault(); close(); }}>
+    <DialogHeading heading={title} onClose={close} />
+    <div className="dialog-body">{children}</div>
+    <footer>{actions}</footer>
+  </dialog>;
+}
+
 function MissingTarget({path,cancel,generate}:{path:string;cancel:()=>void;generate:()=>void}) {
-  const ref=useRef<HTMLDialogElement>(null);
-  useEffect(()=>{ref.current?.showModal();},[]);
-  return <dialog ref={ref} className="missing-resources-dialog" onCancel={cancel}><h2>关联的预制体已移走或删除</h2><p>{path}</p><footer><Button variant="outline" onClick={cancel}>取消</Button><Button onClick={generate}>按当前原型重新生成</Button></footer></dialog>;
+  return <ExportDialog title="关联的预制体已移走或删除" close={cancel} actions={<>
+    <Button variant="outline" onClick={cancel}>取消</Button><Button onClick={generate}>按当前原型重新生成</Button>
+  </>}><p>{path}</p></ExportDialog>;
 }
+
 function TargetChoice({previous,current,select}:{previous:string;current:string;select:(path?:string)=>void}) {
-  const ref=useRef<HTMLDialogElement>(null);
-  useEffect(()=>{ref.current?.showModal();},[]);
-  return <dialog ref={ref} className="missing-resources-dialog" onCancel={()=>select()}><h2>选择预制体目标</h2><p>页面的导出路径已变化。</p><button onClick={()=>select(previous)}>继续同步 {previous}</button><button onClick={()=>select(current)}>使用 {current}</button><button onClick={()=>select()}>取消</button></dialog>;
+  return <ExportDialog title="选择预制体目标" close={()=>select()} actions={<Button variant="outline" onClick={()=>select()}>取消</Button>}>
+    <p>页面的导出路径已变化。</p>
+    <dl className="sync-values">
+      <dt>已关联</dt><dd><Button variant="secondary" onClick={()=>select(previous)}>继续同步 {previous}</Button></dd>
+      <dt>当前目标</dt><dd><Button variant="secondary" onClick={()=>select(current)}>使用 {current}</Button></dd>
+    </dl>
+  </ExportDialog>;
 }
-function MissingResourcesDialog({plan,onCancel,onContinue}:{plan:PrefabPlan;onCancel():void;onContinue():void}){
-  const dialog=useRef<HTMLDialogElement>(null);useEffect(()=>{const d=dialog.current!;d.showModal();return()=>d.close();},[]);
-  return createPortal(<dialog ref={dialog} className="missing-resources-dialog" aria-label="有资源缺失，是否继续导出？" onCancel={event=>{event.preventDefault();onCancel();}}><h2>有资源缺失，是否继续导出？</h2><p>继续导出会保留缺失图片的引用，并输出页面结构、文字和其他正常资源。</p><ul>{plan.missing.map(item=><li key={item.nodeId+item.slot}><strong>{item.nodeName} · {item.slot}</strong><code>{item.path}</code><span>{item.error}</span></li>)}</ul><footer><Button variant="outline" onClick={onCancel}>取消</Button><Button onClick={onContinue}>仍然导出</Button></footer></dialog>,window.document.body);
+
+function MissingResourcesDialog({plan,onCancel,onContinue}:{plan:PrefabPlan;onCancel():void;onContinue():void}) {
+  return <ExportDialog title="有资源缺失，是否继续导出？" close={onCancel} actions={<>
+    <Button variant="outline" onClick={onCancel}>取消</Button><Button onClick={onContinue}>仍然导出</Button>
+  </>}>
+    <p>继续导出会保留缺失图片的引用，并输出页面结构、文字和其他正常资源。</p>
+    <ul>{plan.missing.map(item=><li key={item.nodeId+item.slot}><strong>{item.nodeName} · {item.slot}</strong><code>{item.path}</code><span>{item.error}</span></li>)}</ul>
+  </ExportDialog>;
 }

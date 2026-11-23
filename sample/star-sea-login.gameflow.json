@@ -711,7 +711,226 @@
             "layer": "8e6982c0-d7cf-5f61-a4f9-bc1761b18c9d"
           }
         ]
-      }
+      },
+      "prefabSync": {
+        "version": 1,
+        "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
+        "pageId": "umlxcxo4",
+        "target": "login/星海远征 · 登录.lh",
+        "nodes": [
+          {
+            "id": "ofnub76o",
+            "name": "背景",
+            "type": "container",
+            "parent": "",
+            "text": "",
+            "frame": {
+              "x": 0,
+              "y": 0,
+              "width": 750,
+              "height": 1334
+            },
+            "variable": "background",
+            "layer": "ofnub76o"
+          },
+          {
+            "id": "ptkmcxds",
+            "name": "深空渐变",
+            "type": "image",
+            "parent": "ofnub76o",
+            "text": "",
+            "frame": {
+              "x": 0,
+              "y": 0,
+              "width": 750,
+              "height": 1334
+            },
+            "variable": "deepSpace",
+            "layer": "ptkmcxds"
+          },
+          {
+            "id": "ct08f7f6",
+            "name": "星点与轨道",
+            "type": "image",
+            "parent": "ofnub76o",
+            "text": "",
+            "frame": {
+              "x": 0,
+              "y": 0,
+              "width": 750,
+              "height": 1334
+            },
+            "variable": "stars",
+            "layer": "ct08f7f6"
+          },
+          {
+            "id": "5amcsa7u",
+            "name": "标题区",
+            "type": "container",
+            "parent": "",
+            "text": "",
+            "frame": {
+              "x": 60,
+              "y": 275,
+              "width": 630,
+              "height": 295
+            },
+            "variable": "titleArea",
+            "layer": "5amcsa7u"
+          },
+          {
+            "id": "3o30ft4g",
+            "name": "星海徽记",
+            "type": "image",
+            "parent": "5amcsa7u",
+            "text": "",
+            "frame": {
+              "x": 267,
+              "y": 275,
+              "width": 216,
+              "height": 80
+            },
+            "variable": "emblem",
+            "layer": "3o30ft4g"
+          },
+          {
+            "id": "2uij4u4o",
+            "name": "游戏标题",
+            "type": "text",
+            "parent": "5amcsa7u",
+            "text": "星海远征",
+            "frame": {
+              "x": 60,
+              "y": 405,
+              "width": 630,
+              "height": 106
+            },
+            "variable": "gameTitle",
+            "layer": "2uij4u4o"
+          },
+          {
+            "id": "3y70xjmg",
+            "name": "副标题",
+            "type": "text",
+            "parent": "5amcsa7u",
+            "text": "启航，探索未知星域",
+            "frame": {
+              "x": 60,
+              "y": 515,
+              "width": 630,
+              "height": 40
+            },
+            "variable": "subtitle",
+            "layer": "3y70xjmg"
+          },
+          {
+            "id": "k865l2ly",
+            "name": "服务器信息",
+            "type": "container",
+            "parent": "",
+            "text": "",
+            "frame": {
+              "x": 145,
+              "y": 870,
+              "width": 460,
+              "height": 64
+            },
+            "variable": "serverInfo",
+            "layer": "k865l2ly"
+          },
+          {
+            "id": "i57rqmsq",
+            "name": "服务器底板",
+            "type": "image",
+            "parent": "k865l2ly",
+            "text": "",
+            "frame": {
+              "x": 145,
+              "y": 870,
+              "width": 460,
+              "height": 64
+            },
+            "variable": "serverBackground",
+            "layer": "i57rqmsq"
+          },
+          {
+            "id": "3zt548wx",
+            "name": "连接状态灯",
+            "type": "image",
+            "parent": "k865l2ly",
+            "text": "",
+            "frame": {
+              "x": 177,
+              "y": 897,
+              "width": 10,
+              "height": 10
+            },
+            "variable": "connectionStatus",
+            "layer": "3zt548wx"
+          },
+          {
+            "id": "wy3s8pwe",
+            "name": "服务器名称",
+            "type": "text",
+            "parent": "k865l2ly",
+            "text": "星港一区   ·   连接正常",
+            "frame": {
+              "x": 203,
+              "y": 882,
+              "width": 378,
+              "height": 40
+            },
+            "variable": "serverLabel",
+            "layer": "wy3s8pwe"
+          },
+          {
+            "id": "fud92jz0",
+            "name": "开始远征",
+            "type": "button",
+            "parent": "",
+            "text": "",
+            "frame": {
+              "x": 130,
+              "y": 978,
+              "width": 490,
+              "height": 94
+            },
+            "variable": "startButton",
+            "layer": "fud92jz0"
+          },
+          {
+            "id": "92i5vexr",
+            "name": "按钮文案",
+            "type": "text",
+            "parent": "fud92jz0",
+            "text": "开始远征",
+            "frame": {
+              "x": 130,
+              "y": 978,
+              "width": 490,
+              "height": 94
+            },
+            "variable": "startLabel",
+            "layer": "92i5vexr"
+          },
+          {
+            "id": "bz0nfn04",
+            "name": "底部提示",
+            "type": "text",
+            "parent": "",
+            "text": "适度游戏，探索更多精彩",
+            "frame": {
+              "x": 60,
+              "y": 1220,
+              "width": 630,
+              "height": 30
+            },
+            "variable": "footer",
+            "layer": "bz0nfn04"
+          }
+        ]
+      },
+      "exportName": "UILogin"
     }
   ],
   "interactions": [],

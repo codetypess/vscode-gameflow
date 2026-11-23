@@ -1,5 +1,5 @@
+import { DialogHeading } from "../components/dialog-heading";
 import { useState } from "react";
-import { X } from "lucide-react";
 import { sameTarget, targetKey, type CanvasPropertySelection, type CanvasTarget } from "../../shared/canvas-instance-data";
 import { Button } from "../components/ui/button";
 import { canvasOverrideDependencies } from "./override-properties";
@@ -41,7 +41,7 @@ export function OverridePanel({ manager, sourceName, onClose }: { manager: Canva
     return next;
   });
   return <>
-    <div className="override-panel-heading"><strong>覆盖属性</strong><span title={`${manager.sourceName ?? sourceName}\n${manager.sourcePath || "当前文件"}`}>{manager.sourceName ?? sourceName}</span><Button variant="ghost" size="icon" aria-label="关闭覆盖属性" onClick={onClose}><X size={14}/></Button></div>
+    <DialogHeading heading="覆盖属性" onClose={onClose}><span title={`${manager.sourceName ?? sourceName}\n${manager.sourcePath || "当前文件"}`}>{manager.sourceName ?? sourceName}</span></DialogHeading>
     <div className="override-panel-columns">
       <nav className="override-node-list" aria-label="覆盖节点">
         <label className="override-select-all"><Check label="全选属性覆盖" checked={total>0 && count===total} mixed={count>0 && count<total} disabled={!total || manager.disabled} onChange={checked=>setSelected(new Set(checked ? groups.flatMap(group=>group.fields.map(field=>fieldKey(group.target,field.path))) : []))}/><span>全部节点</span><small>{total}</small></label>
@@ -65,6 +65,6 @@ export function OverridePanel({ manager, sourceName, onClose }: { manager: Canva
       </section>
     </div>
     {reason ? <p className="override-panel-reason" role="status">{reason}</p> : null}
-    <div className="override-panel-footer"><span>已选 {count} 项</span><Button size="sm" variant="outline" disabled={manager.disabled || !count} onClick={()=>manager.onRevert(selections)}>还原所选</Button><Button size="sm" disabled={manager.disabled || !count || !!reason} onClick={()=>manager.onApply(selections)}>应用所选</Button></div>
+    <footer className="override-panel-footer"><span>已选 {count} 项</span><Button size="sm" variant="outline" disabled={manager.disabled || !count} onClick={()=>manager.onRevert(selections)}>还原所选</Button><Button size="sm" disabled={manager.disabled || !count || !!reason} onClick={()=>manager.onApply(selections)}>应用所选</Button></footer>
   </>;
 }

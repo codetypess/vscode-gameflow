@@ -1,5 +1,6 @@
+import { DialogHeading } from "../components/dialog-heading";
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
-import { Focus, LocateFixed, Minus, Plus, RotateCcw, X } from "lucide-react";
+import { Focus, LocateFixed, Minus, Plus, RotateCcw } from "lucide-react";
 import { centerSliceRegion, MAX_SLICE_SIZE, moveSliceContent, sliceRegion, validGrid, validSliceRegion, type PsdLayer, type SliceRegion } from "../../shared/psd-meta";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -89,8 +90,8 @@ export function RegionEditor({ layer, onSave, onCancel }: { layer: PsdLayer; onS
     if (error) return;
     onSave(region.x === 0 && region.y === 0 && region.width === layer.width && region.height === layer.height ? undefined : region);
   };
-  return <dialog ref={dialog} className="psd-dialog region-dialog" style={windowLayout.style} aria-label={`编辑区域 · ${layer.name}`} onCancel={e => { e.preventDefault(); onCancel(); }} onKeyDown={keydown}>
-    <header {...windowLayout.titleEvents}><strong>编辑区域 · {layer.name}</strong><Button size="icon" variant="ghost" aria-label="关闭区域编辑" onClick={onCancel}><X size={16} /></Button></header>
+  return <dialog ref={dialog} className="floating-panel workbench-dialog psd-dialog region-dialog" style={windowLayout.style} aria-label={`编辑区域 · ${layer.name}`} onCancel={e => { e.preventDefault(); onCancel(); }} onKeyDown={keydown}>
+    <DialogHeading heading={`编辑区域 · ${layer.name}`} closeLabel="关闭区域编辑" onClose={onCancel} {...windowLayout.titleEvents} />
     <p className="psd-hint">拖动虚线调整区域，拖动图片调整位置 · 滚轮缩放，右键平移 · 方向键微调 1 px，Shift + 方向键 10 px</p>
     <div ref={stage} tabIndex={0} role="region" aria-label="区域预览，拖动图片或使用方向键调整位置" className={`region-stage ${dragging ? "is-dragging" : ""}`}
       onContextMenu={e => e.preventDefault()} onPointerDown={begin} onPointerMove={move} onPointerUp={e => finish(e)} onPointerCancel={e => finish(e, true)} onLostPointerCapture={e => finish(e, true)}>

@@ -1,3 +1,4 @@
+import { DialogHeading } from "../components/dialog-heading";
 import { useState } from "react";
 import { Button } from "../components/ui/button";
 
@@ -12,10 +13,10 @@ export function RenameDialog({ name, kind, onRename, onClose }: { name: string; 
       if(document.activeElement===(event.shiftKey ? controls[0] : controls.at(-1))){event.preventDefault();next?.focus();}
     }
   }}>
-    <form role="dialog" aria-modal="true" aria-label={`重命名${kind}`} className="canvas-apply-dialog canvas-rename-dialog floating-panel" onSubmit={event=>{event.preventDefault();if(value.trim()){onRename(value.trim());onClose();}}}>
-      <strong>重命名{kind}</strong>
-      <input autoFocus aria-label={`${kind}名称`} value={value} onFocus={event=>event.currentTarget.select()} onChange={event=>setValue(event.target.value)} />
-      <div className="reference-override-actions"><Button type="button" variant="outline" onClick={onClose}>取消</Button><Button type="submit" disabled={!value.trim()}>确定</Button></div>
+    <form role="dialog" aria-modal="true" aria-label={`重命名${kind}`} className="canvas-apply-dialog canvas-rename-dialog floating-panel workbench-dialog" onSubmit={event=>{event.preventDefault();if(value.trim()){onRename(value.trim());onClose();}}}>
+      <DialogHeading heading={`重命名${kind}`} onClose={onClose} />
+      <label className="property-field dialog-body"><span>名称</span><input autoFocus aria-label={`${kind}名称`} value={value} onFocus={event=>event.currentTarget.select()} onChange={event=>setValue(event.target.value)} /></label>
+      <footer><Button type="button" variant="outline" onClick={onClose}>取消</Button><Button type="submit" disabled={!value.trim()}>确定</Button></footer>
     </form>
   </div>;
 }

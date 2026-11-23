@@ -1,5 +1,6 @@
+import { DialogHeading } from "./components/dialog-heading";
 import { useEffect, useRef, useState } from "react";
-import { FolderOpen, Settings, X } from "lucide-react";
+import { FolderOpen, Settings } from "lucide-react";
 import type { ExportDirectoryKind, WorkbenchSettings, WorkbenchSettingsRequest, WorkbenchSettingsResult } from "../shared/workbench-settings";
 import { isBrowserPreview, postHostMessage } from "./vscode-api";
 import { Button } from "./components/ui/button";
@@ -63,13 +64,12 @@ function SettingsDialog({ settings, file }: { settings: WorkbenchSettingsUI; fil
   const close = () => { if (commit()) settings.close(); };
   const previewDirectory = exportDirectoryError(normalizeExportDirectory(directory)) ? file?.directory : normalizeExportDirectory(directory);
   useEffect(() => { dialog.current?.showModal(); resources.current?.focus(); }, []);
-  return <dialog ref={dialog} className="workbench-settings-dialog" aria-labelledby="workbench-settings-title" onCancel={event => { event.preventDefault(); close(); }} onKeyDown={event => event.stopPropagation()}>
-    <header><strong id="workbench-settings-title">工作台设置</strong><Button size="icon" variant="ghost" aria-label="关闭工作台设置" onClick={close}><X size={16} /></Button></header>
+  return <dialog ref={dialog} className="floating-panel workbench-dialog workbench-settings-dialog" aria-labelledby="workbench-settings-title" onCancel={event => { event.preventDefault(); close(); }} onKeyDown={event => event.stopPropagation()}>
+    <DialogHeading heading="工作台设置" headingId="workbench-settings-title" closeLabel="关闭工作台设置" onClose={close} />
     <div className="workbench-settings-body">
       {([{ kind: "resources", label: "资源导出根目录", path: settings.settings.resourceDirectory }, { kind: "prefabs", label: "预制体导出根目录", path: settings.settings.prefabDirectory }] as const).map(field => <div className="workbench-setting" key={field.kind}>
         <label htmlFor={`workbench-${field.kind}`}>{field.label}</label>
         <div className="workbench-directory"><Input id={`workbench-${field.kind}`} readOnly value={field.path ?? ""} placeholder="尚未设置" title={field.path} /><Button ref={field.kind === "resources" ? resources : undefined} variant="secondary" size="sm" disabled={settings.busy} aria-label={`选择${field.label}`} onClick={() => void settings.choose(field.kind)}><FolderOpen size={14} />选择</Button></div>
-        {field.kind === "prefabs" && field.path && previewDirectory ? <small className="workbench-export-destination" title={exportDestination(field.path, previewDirectory)}>实际导出到：{exportDestination(field.path, previewDirectory)}</small> : null}
         {field.kind === "prefabs" ? <small>当前页面的 .lh 预制体导出到此目录。</small> : <small>图片按共享、未分类或独立图集目录保存。</small>}
       </div>)}
       <p className="workbench-settings-note">{isBrowserPreview ? "浏览器中的根目录选择仅在当前会话有效。" : "根目录仅保存在本机当前 VS Code 工作区，不随项目提交 SVN。选择后自动保存。"}</p>
@@ -79,6 +79,7 @@ function SettingsDialog({ settings, file }: { settings: WorkbenchSettingsUI; fil
         <Input id="workbench-export-directory" value={directory} placeholder="留空使用根目录，例如 ui/login" aria-invalid={!!directoryError} aria-describedby="workbench-export-directory-hint" maxLength={512}
           onChange={event => { setDirectory(event.target.value); setDirectoryError(null); }} onBlur={commit}
           onKeyDown={event => { if (event.key === "Enter") { event.preventDefault(); event.currentTarget.blur(); } else if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); setDirectory(file.directory ?? ""); setDirectoryError(null); } }} />
+        {settings.settings.prefabDirectory && previewDirectory ? <small className="workbench-export-destination" title={exportDestination(settings.settings.prefabDirectory, previewDirectory)}>实际导出到：{exportDestination(settings.settings.prefabDirectory, previewDirectory)}</small> : null}
         <small id="workbench-export-directory-hint">用于此文件的预制体导出，随 GameFlow 保存。PSD 图片按图集目录单独分类。</small>
         {directoryError ? <p className="psd-warning" role="alert">{directoryError}</p> : null}
       </div> : null}

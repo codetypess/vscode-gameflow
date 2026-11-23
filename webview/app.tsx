@@ -1,3 +1,4 @@
+import { DialogHeading } from "./components/dialog-heading";
 import { validateGameFlowDocument, type GameFlowDocument } from "../shared/model";
 import type { OverrideActions } from "./editor/override-properties";
 import { canvasPropertyLabel } from "./editor/override-properties";
@@ -755,10 +756,11 @@ export function App() {
       {notice || (canvasDocument && error) ? <div className="editor-notice" role="status">{notice || error}</div> : null}
       <input ref={fileInput} className="hidden" type="file" accept="image/png,image/jpeg,image/webp,image/gif" aria-label="导入控件图片" onChange={(event) => { void importImage(event.target.files?.[0]); event.target.value = ""; }} />
       {renameTarget ? <RenameDialog key={`${renameTarget.pageId}/${renameTarget.nodeId ?? ""}`} name={renameTarget.name} kind={renameTarget.nodeId ? "节点" : "画板"} onRename={renameCanvasTarget} onClose={()=>{setRenameTarget(null);viewport.current?.focus({preventScroll:true});}} /> : null}
-      {applyReview ? <div className="canvas-apply-backdrop" onPointerDown={event=>event.stopPropagation()}><section role="dialog" aria-modal="true" aria-label="应用属性到源组件" className="canvas-apply-dialog floating-panel">
-        <strong>应用属性到源组件</strong><p>目标：{applyReview.source}。其他未覆盖实例将同步。</p>
+      {applyReview ? <div className="canvas-apply-backdrop" onPointerDown={event=>event.stopPropagation()}><section role="dialog" aria-modal="true" aria-label="应用属性到源组件" className="canvas-apply-dialog floating-panel workbench-dialog">
+        <DialogHeading heading="应用属性到源组件" onClose={()=>setApplyReview(null)} />
+        <div className="dialog-body"><p>目标：{applyReview.source}。其他未覆盖实例将同步。</p>
         <div className="canvas-apply-fields"><table><thead><tr><th>节点</th><th>属性</th><th>应用值</th></tr></thead><tbody>{applyReview.fields.map((row,i)=><tr key={i}><td>{row.target}</td><td>{row.field}</td><td>{JSON.stringify(row.value)}</td></tr>)}</tbody></table></div>
-        <div className="reference-override-actions"><Button variant="outline" onClick={()=>setApplyReview(null)}>取消</Button><Button disabled={pending} onClick={()=>{applyCanvas(applyReview.request,applyReview.expected);setApplyReview(null);}}>应用这些属性</Button></div>
+        </div><footer><Button variant="outline" onClick={()=>setApplyReview(null)}>取消</Button><Button disabled={pending} onClick={()=>{applyCanvas(applyReview.request,applyReview.expected);setApplyReview(null);}}>应用这些属性</Button></footer>
       </section></div> : null}
       {canvasDocument && pickerSource !== null ? <CanvasReferencePicker document={canvasDocument} sources={sources} source={pickerSource} currentPageId={editingId ?? undefined} onSource={setPickerSource} onPick={insertReference} onClose={() => setPickerSource(null)} /> : null}
     </div>

@@ -1,3 +1,4 @@
+import { DialogHeading } from "../components/dialog-heading";
 import { useEffect, useImperativeHandle, useRef, useState, type ReactNode, type Ref } from "react";
 import { createPortal } from "react-dom";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
@@ -86,7 +87,7 @@ function PsdPreview({ asset, selected, children }: { asset: PsdAsset; selected?:
 
 function ConfirmReplacement({ onAccept, onCancel }: { onAccept: () => void; onCancel: () => void }) {
   const ref = useRef<HTMLDialogElement>(null); useEffect(() => { ref.current?.showModal(); }, []);
-  return <dialog ref={ref} className="psd-dialog confirm-dialog" onCancel={e => { e.preventDefault(); onCancel(); }}><header><strong>当前配置尚未保存</strong></header><p>打开另一份 PSD 会替换当前配置。可以取消并先保存，或继续打开新文件。</p><footer><Button onClick={onAccept}>继续打开</Button><Button variant="secondary" onClick={onCancel}>取消</Button></footer></dialog>;
+  return <dialog ref={ref} className="floating-panel workbench-dialog psd-dialog confirm-dialog" aria-label="当前配置尚未保存" onCancel={e => { e.preventDefault(); onCancel(); }}><DialogHeading heading="当前配置尚未保存" onClose={onCancel} /><p>打开另一份 PSD 会替换当前配置。可以取消并先保存，或继续打开新文件。</p><footer><Button onClick={onAccept}>继续打开</Button><Button variant="secondary" onClick={onCancel}>取消</Button></footer></dialog>;
 }
 
 function DropHint({ label }: { label: string }) {

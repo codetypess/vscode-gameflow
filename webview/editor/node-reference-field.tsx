@@ -1,3 +1,4 @@
+import { DialogHeading } from "../components/dialog-heading";
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
 import { Box, Check, ChevronDown, ChevronRight, SquareMousePointer, Search, X } from "lucide-react";
@@ -80,7 +81,7 @@ function NodeReferenceDialog({ page, owner, kind, label, value, disabled, onChan
     else if (event.key === " ") choose(id);
     else if (event.key === "Enter") commit(id);
   };
-  return createPortal(<dialog ref={dialog} className="node-picker" aria-labelledby={titleId} aria-describedby={contextId}
+  return createPortal(<dialog ref={dialog} className="floating-panel workbench-dialog node-picker" aria-labelledby={titleId} aria-describedby={contextId}
     onCancel={event => { event.preventDefault(); onClose(); }}
     onPointerDown={event => event.stopPropagation()} onClick={event => { event.stopPropagation(); if (event.target === event.currentTarget) onClose(); }}
     onKeyDown={event => {
@@ -94,7 +95,7 @@ function NodeReferenceDialog({ page, owner, kind, label, value, disabled, onChan
       }
     }} onKeyUp={event => event.stopPropagation()}>
     <div className="node-picker-content">
-      <header className="node-picker-heading"><h2 id={titleId}>选择节点</h2><Button variant="ghost" size="icon" aria-label="关闭节点选择" onClick={onClose}><X size={16} /></Button></header>
+      <DialogHeading heading="选择节点" headingId={titleId} closeLabel="关闭节点选择" onClose={onClose} />
       <div className="node-picker-context" id={contextId}><span>正在为 <strong>{owner.name}</strong> 的 <strong>{label}</strong> 选择</span><small title={nodeReferencePath(page, owner.id)}>{nodeReferencePath(page, owner.id)} · {COMPONENTS[owner.type].laya}</small></div>
       <div className="node-picker-search"><Search size={15} /><input autoFocus type="search" aria-label="搜索可绑定节点" placeholder="搜索名称、变量、类型或 ID" value={query}
         onChange={event => { setQuery(event.target.value); setSearchCollapsed(new Set()); setFocusedId(null); }} onKeyDown={event => { if (event.key === "ArrowDown") { event.preventDefault(); focusRow(rows[0]?.node.id ?? null); } }} />

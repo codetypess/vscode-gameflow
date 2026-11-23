@@ -1,5 +1,6 @@
+import { DialogHeading } from "../components/dialog-heading";
 import { useEffect, useRef, useState } from "react";
-import { Box, FolderOpen, X } from "lucide-react";
+import { Box, FolderOpen } from "lucide-react";
 import type { GameFlowDocument } from "../../shared/model";
 import type { CanvasSources } from "../../shared/canvas-references";
 import { pageRootType } from "../../shared/ui-components";
@@ -15,7 +16,7 @@ export function CanvasReferencePicker({ document, sources, source, currentPageId
   useEffect(() => { focus.current?.focus(); }, []);
   const entry = source ? sources[source] : { document, error: undefined };
   return <div className="canvas-reference-backdrop" onPointerDown={event => { event.stopPropagation(); if (event.target === event.currentTarget) onClose(); }}>
-    <section role="dialog" aria-modal="true" aria-label="引用画布组件" className="canvas-reference-picker" onKeyDown={event => {
+    <section role="dialog" aria-modal="true" aria-label="引用画布组件" className="floating-panel workbench-dialog canvas-reference-picker" onKeyDown={event => {
       event.stopPropagation();
       if (event.key === "Escape") onClose();
       if (event.key === "Tab") {
@@ -25,7 +26,7 @@ export function CanvasReferencePicker({ document, sources, source, currentPageId
         else if (!event.shiftKey && event.target === last) { event.preventDefault(); first?.focus(); }
       }
     }}>
-      <div className="floating-heading"><strong>引用画布组件</strong><Button size="icon" variant="ghost" aria-label="关闭画布引用选择" onClick={onClose}><X size={16} /></Button></div>
+      <DialogHeading heading="引用画布组件" closeLabel="关闭画布引用选择" onClose={onClose} />
       <div className="canvas-reference-picker-body">
         <label className="property-field"><span>来源</span><select aria-label="画布引用来源" value={source} onChange={event => { onSource(event.target.value); setQuery(""); }}><option value="">当前文件</option>{Object.keys(sources).map(key => <option value={key} key={key}>{key}</option>)}</select></label>
         <Button variant="outline" size="sm" onClick={() => postHostMessage({ type: "chooseCanvasSource" })}><FolderOpen size={14} />引用其他画布…</Button>

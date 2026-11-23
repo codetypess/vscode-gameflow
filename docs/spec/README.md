@@ -36,6 +36,8 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 
 - [canvas-prefab-action.md](canvas-prefab-action.md) — Done：移除独立运行预览，Prefab 同步/导出改为画布底部“更多”左侧的状态图标；376 项共享测试、生产构建及三组 Edge 回归通过。
 
+- [workbench-dialog-layout.md](workbench-dialog-layout.md) — 工作台弹窗统一采用页面属性的布局与主题。
+
 - [laya-export-metadata.md](laya-export-metadata.md) — 生成预制体和切图时，按字段合并 Laya UUID 与九宫格。
 
 - [psd-builtin-slices.md](psd-builtin-slices.md) — PSD 切图按图层像素识别并复用内置图片。

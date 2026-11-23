@@ -69,6 +69,16 @@ const sharedUrl = file => "/@fs/" + path.resolve(__dirname, "../shared", file).s
     await page.getByRole("button",{name:"工作台设置",exact:true}).click();
     await page.getByRole("button",{name:"选择资源导出根目录",exact:true}).click();
     await page.getByRole("button",{name:"选择预制体导出根目录",exact:true}).click();
+    const exportDirectory=page.locator("#workbench-export-directory");
+    await exportDirectory.fill("login");
+    const exportDestination=page.locator(".workbench-file-setting .workbench-export-destination");
+    await exportDestination.waitFor();
+    assert.equal(await exportDestination.innerText(),"实际导出到：prefabs/login");
+    assert.equal(await page.locator(".workbench-setting:has(#workbench-prefabs) .workbench-export-destination").count(),0);
+    const exportDirectoryBounds=await exportDirectory.boundingBox(),exportDestinationBounds=await exportDestination.boundingBox();
+    assert.ok(exportDirectoryBounds&&exportDestinationBounds&&exportDestinationBounds.y>=exportDirectoryBounds.y+exportDirectoryBounds.height,"actual export destination appears below the current file directory");
+    await exportDirectory.fill("");
+    await exportDirectory.blur();
     await page.getByRole("button",{name:"完成",exact:true}).click();
     await page.locator(".page-caption").first().click();
     await page.getByRole("button",{name:"导出",exact:true}).click();

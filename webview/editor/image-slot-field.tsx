@@ -1,3 +1,4 @@
+import { DialogHeading } from "../components/dialog-heading";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { SquareMousePointer, X } from "lucide-react";
@@ -36,8 +37,8 @@ function ImagePicker({ initial, onSelect, onClose }: { initial?: string; onSelec
   const [category, setCategory] = useState(initial ?? "按钮"), [query, setQuery] = useState("");
   useEffect(() => { const element = dialog.current!; element.showModal(); return () => element.close(); }, []);
   const images = BUILTIN_IMAGES.filter(image => image.category === category && (!query || (image.name + image.id).toLowerCase().includes(query.toLowerCase())));
-  return createPortal(<dialog ref={dialog} className="psd-dialog builtin-image-picker" aria-label="内置图片资源" onCancel={event => { event.preventDefault(); onClose(); }} onKeyDown={event => event.stopPropagation()} onClick={event => { if (event.target === dialog.current) onClose(); }}>
-    <header><strong>内置图片资源</strong><Button size="icon" variant="ghost" aria-label="关闭图片资源" onClick={onClose}><X size={16} /></Button></header>
+  return createPortal(<dialog ref={dialog} className="floating-panel workbench-dialog psd-dialog builtin-image-picker" aria-label="内置图片资源" onCancel={event => { event.preventDefault(); onClose(); }} onKeyDown={event => event.stopPropagation()} onClick={event => { if (event.target === dialog.current) onClose(); }}>
+    <DialogHeading heading="内置图片资源" closeLabel="关闭图片资源" onClose={onClose} />
     <div className="builtin-image-picker-body">
       <nav aria-label="图片分类">{BUILTIN_CATEGORIES.map(item => <Button type="button" variant="ghost" size="sm" key={item} aria-pressed={category === item} onClick={() => setCategory(item)}>{item}</Button>)}</nav>
       <Input className="builtin-image-search" aria-label="搜索内置图片" placeholder="搜索图片…" value={query} onChange={event => setQuery(event.target.value)} />

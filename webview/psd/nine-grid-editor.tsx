@@ -1,5 +1,6 @@
+import { DialogHeading } from "../components/dialog-heading";
 import { useEffect, useRef, useState, type PointerEvent } from "react";
-import { Focus, Minus, Plus, X } from "lucide-react";
+import { Focus, Minus, Plus } from "lucide-react";
 import { EMPTY_GRID, setGridEdge, sliceRegion, validGrid, type NineGrid, type PsdLayer, type SliceRegion } from "../../shared/psd-meta";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -56,8 +57,8 @@ export function NineGridEditor({ layer, onSave, onCancel }: { layer: PsdLayer; o
     setGrid(setGridEdge(g.grid, g.edge, g.grid[g.edge] + (g.edge === "right" || g.edge === "bottom" ? -delta : delta), width, height));
   };
   const finish = (event: PointerEvent<HTMLDivElement>, cancel = false) => { if (cancel && gesture.current) { setGrid(gesture.current.grid); setCamera(gesture.current.camera); } gesture.current = null; setDragging(false); if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId); };
-  return <dialog ref={dialog} className="psd-dialog nine-dialog" onCancel={e => { e.preventDefault(); onCancel(); }} onKeyDown={e => e.stopPropagation()}>
-    <header><strong>九宫格 · {layer.name}</strong><Button size="icon" variant="ghost" aria-label="关闭九宫格编辑" onClick={onCancel}><X size={16} /></Button></header>
+  return <dialog ref={dialog} aria-label={`九宫格 · ${layer.name}`} className="floating-panel workbench-dialog psd-dialog nine-dialog" onCancel={e => { e.preventDefault(); onCancel(); }} onKeyDown={e => e.stopPropagation()}>
+    <DialogHeading heading={`九宫格 · ${layer.name}`} closeLabel="关闭九宫格编辑" onClose={onCancel} />
     <p className="psd-hint">拖动虚线调整边距 · 滚轮缩放 · 按住鼠标右键平移</p>
     <div className={`nine-stage checkerboard ${dragging ? "is-dragging" : ""}`} ref={stage} onContextMenu={e => e.preventDefault()} onPointerDown={begin} onPointerMove={move} onPointerUp={e => finish(e)} onPointerCancel={e => finish(e, true)}>
       <SliceImage layer={layer} style={{ position: "absolute", left: camera.x, top: camera.y, width: width * camera.zoom, height: height * camera.zoom }} />

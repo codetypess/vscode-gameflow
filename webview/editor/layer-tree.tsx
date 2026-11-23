@@ -1,7 +1,7 @@
 import type { CanvasComposition, CanvasOrphan } from "../../shared/canvas-instances";
 import { skinOwner } from "../../shared/ui-parts";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type MouseEvent, type PointerEvent as ReactPointerEvent } from "react";
-import { ChevronDown, ChevronRight, Eye, EyeOff, LockKeyhole, UnlockKeyhole, Package, Plus, Box, Search, X } from "lucide-react";
+import { Eye, EyeOff, LockKeyhole, UnlockKeyhole, Package, Plus, Search, X } from "lucide-react";
 import type { GameFlowNode, GameFlowPage } from "../../shared/model";
 import { inheritedFlag, type InsertType, type LayerDrop } from "../../shared/editor-ops";
 import { moveSelection } from "../../shared/selection-ops";
@@ -10,14 +10,11 @@ import { Button } from "../components/ui/button";
 import { ScrollArea } from "../components/ui/scroll-area";
 import { cn } from "../lib/utils";
 import { LayerMenu, type LayerMenuTarget } from "./layer-menu";
-import { COMPONENT_TOOLS } from "./component-tools";
+import { LayerRoot, LayerRow, NodeIcon } from "./layer-row";
 import { canHaveChildren, pageRootType } from "../../shared/ui-components";
 import { searchLayers } from "../lib/layer-search";
 
-export function NodeIcon({ type }: { type: string }) {
-  const Icon = COMPONENT_TOOLS.find((item) => item.type === type)?.icon ?? Box;
-  return <Icon size={14} />;
-}
+export { NodeIcon } from "./layer-row";
 
 interface TreeDrag { id: string; pointerId: number; x: number; y: number; active: boolean; drop: LayerDrop | null }
 
@@ -171,12 +168,10 @@ export function LayerTree({ page, scopeId, selectedId, selectedIds, reveal, onSe
     const owner = skinOwner(page, node), controlledVisibility = owner?.type === "checkbox" || owner?.type === "radio";
     const hidden = controlledVisibility ? inheritedFlag(page, node, "hidden") : node.hidden;
     return <div key={node.id}>
-      <div role="treeitem" data-layer-id={node.id} aria-selected={selectedIds.includes(node.id)} aria-expanded={hasChildren ? !activeCollapsed.has(node.id) : undefined}
-        className={cn("layer-row", filtering && matches.has(node.id) && "layer-search-match", selectedIds.includes(node.id) && "is-selected", inheritedFlag(page, node, "hidden") && "is-muted", dragging === node.id && "layer-drag-source", dropClass(node.id))}
-        style={{ paddingLeft: 8 + depth * 10 }} onContextMenu={(event) => openMenu(event, node.id)}>
-        <button className="tree-chevron" aria-label={`${activeCollapsed.has(node.id) ? "展开" : "折叠"}${node.name}`} disabled={!hasChildren} onClick={() => toggle(node.id)}>
-          {hasChildren ? activeCollapsed.has(node.id) ? <ChevronRight size={12} /> : <ChevronDown size={12} /> : null}
-        </button>
+      <LayerRow data-layer-id={node.id} name={node.name} depth={depth} selected={selectedIds.includes(node.id)}
+        expanded={hasChildren ? !activeCollapsed.has(node.id) : undefined} onToggle={() => toggle(node.id)}
+        className={cn(filtering && matches.has(node.id) && "layer-search-match", inheritedFlag(page, node, "hidden") && "is-muted", dragging === node.id && "layer-drag-source", dropClass(node.id))}
+        onContextMenu={(event) => openMenu(event, node.id)}>
         {renaming?.id === node.id ? <input ref={renameInput} className="layer-rename" aria-label="节点名称" value={renaming.value}
           onChange={(event) => setRenaming({ id: node.id, value: event.target.value })} onBlur={finishRename}
           onKeyDown={(event) => {
@@ -195,7 +190,7 @@ export function LayerTree({ page, scopeId, selectedId, selectedIds, reveal, onSe
           }} onClick={() => { if (!suppressClick.current) onSelect(node.id); }}><span className="layer-node-icon">{meta?.reference ? <Package size={14} /> : <NodeIcon type={node.type} />}{meta?.added ? <span className="layer-addition-badge" aria-label="本地附加节点" title="本实例附加节点"><Plus size={8} strokeWidth={3} /></span> : null}</span><span>{node.name}</span>{meta?.overrides.length ? <span className="layer-override-dot" title="此节点有本地属性覆盖" aria-label="有本地属性覆盖">●</span> : null}{node.variableName ? <code className="layer-variable" title={`变量：${node.variableName}`}>{node.variableName}</code> : null}</button>}
         <button className="layer-action" disabled={controlledVisibility} title={controlledVisibility ? "显示状态由所属控件的选中状态控制" : undefined} aria-label={`${hidden ? "显示" : "隐藏"}${node.name}`} onClick={() => onPatch(node.id, { hidden: !node.hidden })}>{hidden ? <EyeOff size={12} /> : <Eye size={12} />}</button>
         <button className="layer-action" disabled={protectedStructure} title={protectedStructure ? "源节点锁定状态请在源组件中修改" : undefined} aria-label={`${node.locked ? "解锁" : "锁定"}${node.name}`} onClick={() => onPatch(node.id, { locked: !node.locked })}>{node.locked ? <LockKeyhole size={12} /> : <UnlockKeyhole size={12} />}</button>
-      </div>
+      </LayerRow>
       {hasChildren && !activeCollapsed.has(node.id) ? <div role="group">{branch(node.id, depth + 1)}</div> : null}
     </div>;
   });
@@ -210,8 +205,8 @@ export function LayerTree({ page, scopeId, selectedId, selectedIds, reveal, onSe
       onChange={(event) => changeQuery(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); clearSearch(); } }} />
       {query ? <button aria-label="清除图层搜索" title="清除搜索 (Esc)" onClick={clearSearch}><X size={12} /></button> : null}
     </div>
-    <button data-layer-root className={cn("tree-root", !selectedId && !scopeId && "is-selected", dropClass())} aria-haspopup="menu" onContextMenu={(event) => openMenu(event, null)}
-      onPointerDown={(event) => { if (event.button === 0) { event.preventDefault(); panel.current?.focus({ preventScroll: true }); } }} onClick={() => onSelect(null)}><Box size={15} /><strong>{page.name}</strong><small>{pageRootType(page)}</small></button>
+    <LayerRoot name={page.name} rootType={pageRootType(page)} data-layer-root className={cn(!selectedId && !scopeId && "is-selected", dropClass())} aria-haspopup="menu" onContextMenu={(event) => openMenu(event, null)}
+      onPointerDown={(event) => { if (event.button === 0) { event.preventDefault(); panel.current?.focus({ preventScroll: true }); } }} onClick={() => onSelect(null)} />
     <ScrollArea className="layer-tree-scroll" label="图层内容" viewportRef={treeViewport}><div role="tree" aria-multiselectable="true" aria-label={page.name} data-layer-root className="layer-tree" onContextMenu={(event) => openMenu(event, null)}>{branch(undefined, 0)}{filtering && !matches.size ? <p className="empty-layers" role="status">没有匹配的图层</p> : page.nodes.length === 0 ? <p className="empty-layers">右键添加节点<br />或用底部工具条点击放置</p> : null}
       <div className={cn("tree-root-drop", drop && !drop.targetId && "layer-drop-inside")} data-layer-root>{dragging ? "移到页面根节点" : ""}</div>
     </div></ScrollArea>
