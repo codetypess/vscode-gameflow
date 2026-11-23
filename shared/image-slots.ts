@@ -1,19 +1,11 @@
-import builtinImages from "./builtin-images.json";
-import { DEFAULT_IMAGE_ID } from "./image-rendering";
+import { builtinImage, builtinPath, type BuiltinImage } from "./builtin-image";
+export { BUILTIN_IMAGES, builtinImage, builtinPath, type BuiltinImage } from "./builtin-image";
 import type { GameFlowNode } from "./model";
 import { isSliceResourceRef, type SliceResourceRef } from "./slice-resources";
-import type { NineGrid } from "./psd-meta";
 
 export type ResourceMode = "prototype" | "art" | "prefab";
 export interface ImageSlot { builtin?: string; art?: SliceResourceRef }
-export interface BuiltinImage { id: string; name: string; category: string; width: number; height: number; nineGrid: NineGrid | null; dataUri: string }
-export const BUILTIN_IMAGES = builtinImages as BuiltinImage[];
 export const BUILTIN_CATEGORIES = ["按钮", "色块", "圆形", "图标", "单选/复选"] as const;
-export const builtinImage = (id: string) => BUILTIN_IMAGES.find(image => image.id === id);
-export const builtinPath = (id: string, size?: { width: number; height: number }) => {
-  const suffix = id === DEFAULT_IMAGE_ID && size ? "_" + String(size.width).replace(".", "p") + "x" + String(size.height).replace(".", "p") : "";
-  return "builtin/" + id.replace(/-/g, "_") + suffix + ".png";
-};
 export function isImageSlot(value: unknown): value is ImageSlot | null {
   if (value === null) return true;
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;

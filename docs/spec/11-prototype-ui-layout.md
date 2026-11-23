@@ -155,6 +155,6 @@ GameFlow 打开/恢复均先显示原型画布。打开 PSD 切图只进入切�
 
 页面可选 `artPsd: { source, documentId }` 属于 v5 可选字段；source 相对 GameFlow 目录，允许父目录路径，不接收绝对路径。原生保存重开按绑定自动加载，另存为重算相对路径；多页切图按各自文件隔离，即使导出路径相同也分别预览。浏览器仅缓存当前会话选择的文件，刷新后提示重新绑定。详见 [页面级 PSD 绑定](page-psd-binding.md)。
 
-详见 [原型、美术 PSD 与预制体资源模式](prototype-art-prefab-resource-modes.md)。
+生成页面 PSD 时，内置图层记录素材 ID、尺寸和像素指纹。切图时对比实际像素、内置资源版本与切图几何。相符时引用同一内置 PNG，变更的图层按 PSD 导出规则处理。缺少指纹的旧 PSD 继续按美术切图处理。详见 [PSD 内置图识别](psd-builtin-slices.md) 与 [资源模式](prototype-art-prefab-resource-modes.md)。
 
 选中页面后，顶栏「导出 Prefab」首次生成并记录共同版本。目标已存在时打开预制体同步窗，已关联页面显示「同步预制体」。按稳定身份比较当前工作副本与真实 `.lh`，支持结构、文案与自由布局基本几何逐项采纳。预制体专属组件可定位查看，保留目标节点上原有的脚本及资源引用。[预制体同步](page-prefab-sync.md)

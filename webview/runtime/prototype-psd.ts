@@ -2,6 +2,7 @@ import { initializeCanvas, writePsdUint8Array, type Layer, type Psd } from "ag-p
 import type { GameFlowDocument, GameFlowNode, GameFlowPage } from "../../shared/model";
 import { PSD_SLOT_MARKERS } from "../../shared/psd-slot-markers";
 import { builtinImage } from "../../shared/image-slots";
+import { builtinOrigin } from "../../shared/psd-builtin";
 import { nodeSlots, resourceUuid } from "../../shared/prefab-export";
 import { parsePsdBinary, patchPsdMetadata } from "../../shared/psd-binary";
 import type { PsdLayerMeta } from "../../shared/psd-meta";
@@ -28,7 +29,9 @@ export async function generatePrototypePsd(document:GameFlowDocument,page:GameFl
     const {width}=imageRenderSize(page,node,layout);
     const source=makeCanvas(width,local.height);paintBuiltin(source,await loadSliceImage(builtin.dataUri),builtin,width,local.height,node.widget?.imageFit??"fill");
     const m=meta(node.id,field);m.slicing={enabled:true,name,nineGrid:builtin.nineGrid};
-    const layer=withMeta({name,left:Math.round(geometry.matrix[4]),top:Math.round(geometry.matrix[5]),canvas:source,hidden:node.hidden||field==="selectedSkin"||field==="disabledSkin"||controlHidden(page,node)},m);
+    const pixels = source.getContext("2d")!.getImageData(0, 0, source.width, source.height);
+    m.builtinOrigin = await builtinOrigin(builtin, width, local.height, pixels.data);
+    const layer=withMeta({name,left:Math.round(geometry.matrix[4]),top:Math.round(geometry.matrix[5]),imageData:pixels,hidden:node.hidden||field==="selectedSkin"||field==="disabledSkin"||controlHidden(page,node)},m);
     if(!layer.hidden){compositeContext.save();compositeContext.transform(...geometry.matrix);compositeContext.globalAlpha=node.style?.opacity??1;compositeContext.drawImage(source,0,0,width,local.height);compositeContext.restore();}
     return layer;
   };

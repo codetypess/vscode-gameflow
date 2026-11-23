@@ -1,9 +1,9 @@
 import type { GameFlowNode, GameFlowPage } from "./model";
 import { IMAGE_SLOT_FIELDS, type ImageSlotField } from "./image-slots";
-import { effectiveExportName, layerNameKey, psdSliceDirectory } from "./psd-export";
+import { layerNameKey, psdLayerPath } from "./psd-export";
 import type { PsdAsset, PsdLayer } from "./psd-meta";
 import { psdSlotField } from "./psd-slot-markers";
-import { sliceResourcePath } from "./slice-resources";
+import { isSliceResourcePath } from "./slice-resources";
 
 export interface PrototypeLayerRef { documentId: string; pageId: string; nodeId: string; slot?: ImageSlotField }
 export function prototypeLayerRef(value: unknown): value is PrototypeLayerRef {
@@ -54,7 +54,8 @@ export function bindPrototypePsd(page: GameFlowPage, documentId: string, asset: 
       const layer = bindings.get(node.id)?.get(field);
       const slot = node[field];
       if (layer) {
-        const path = sliceResourcePath(psdSliceDirectory(asset, layer.config.shared), effectiveExportName(asset, layer));
+        const path = psdLayerPath(asset, layer);
+        if (!isSliceResourcePath(path)) throw new Error("切图资源路径无效。");
         result[field] = { ...slot, art: { path, source: { documentId: asset.documentId, layerId: layer.metadata.layerId } } };
       } else if (slot?.art) {
         result[field] = slot.builtin ? { builtin: slot.builtin } : null;

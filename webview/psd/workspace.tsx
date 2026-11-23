@@ -15,6 +15,7 @@ import { NineGridEditor, NineGridPreview } from "./nine-grid-editor";
 import { RegionEditor } from "./region-editor";
 import { SliceImage } from "./slice-image";
 import { renderSliceExportBatch } from "./slice-render";
+import { builtinSlice, builtinSliceDescription } from "../../shared/psd-builtin";
 import { PsdSliceCanvas } from "./slice-canvas";
 import { usePsdFileDrop } from "./file-drop";
 import { hasFileDrag } from "./file-drop-input";
@@ -152,6 +153,7 @@ export function PsdWorkspace({ mode, active, binding, documentActions, exportAct
   const exportIssues = asset ? sliceExportIssues(asset) : [];
   const allExportIssues = [...exportIssues, ...directoryIssues];
   const selectedExportName = asset && selected ? effectiveExportName(asset, selected) : "";
+  const selectedBuiltin = selected && builtinSlice(selected);
   const nameFixed = !!asset && !!selected && isLayerVariableNameFixed(asset, selected);
   const selectedNameError = selected ? exportNameError(selectedExportName) : null;
   let targetDirectory: string | undefined, targetDirectoryError: string | undefined;
@@ -204,7 +206,8 @@ export function PsdWorkspace({ mode, active, binding, documentActions, exportAct
             placeholder={defaultLayerVariableName(asset, selected)} maxLength={120}
             readOnly={nameFixed} onChange={nameFixed ? undefined : e => patchConfig(selected.key, { variableName: e.target.value })} /></label>
           <label className="psd-property"><span>导出名称</span><Input aria-label="导出名称"
-            value={selectedExportName} title={`${selectedExportName}.png`} aria-invalid={!!selectedNameError} readOnly /></label>
+            value={selectedExportName} title={selectedBuiltin ? builtinSliceDescription(selectedBuiltin).path : `${selectedExportName}.png`} aria-invalid={!!selectedNameError} readOnly /></label>
+          {selectedBuiltin && <p className="psd-hint">复用内置图片 {builtinSliceDescription(selectedBuiltin).path}</p>}
           {selectedNameError ? <p className="psd-warning" role="alert">{selectedNameError}</p> : null}
           {selected.limitation ? <p className="psd-warning">{selected.limitation}</p> : null}
           {allExportIssues.filter(issue => issue.keys.some(key => getChildren(asset, selected.key).some(l => l.key === key))).map((issue, i) => <p key={i} className="psd-warning" role="alert">{issue.message}</p>)}

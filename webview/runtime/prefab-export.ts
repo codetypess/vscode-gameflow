@@ -6,6 +6,8 @@ import type { ResourceDirectory } from "../../shared/psd-export-directory";
 import { browserDirectory, type BrowserDirectory } from "../browser-directories";
 import { isBrowserPreview, postHostMessage } from "../vscode-api";
 import { paintBuiltin } from "./paint-builtin";
+import { builtinImage, BUILTIN_SOURCE } from "../../shared/builtin-image";
+import { DEFAULT_IMAGE_ID } from "../../shared/image-rendering";
 import { loadSliceImage } from "../psd/slice-render";
 import type { Resources } from "./resource-context";
 export const bytesBase64 = (bytes:Uint8Array) => { let result=""; for(let i=0;i<bytes.length;i+=8192)result+=String.fromCharCode(...bytes.subarray(i,i+8192)); return btoa(result); };
@@ -33,6 +35,12 @@ export function exportImageResolver(resources:Resources):ExportImageResolver {
     }
     const resource=resources.resolveForExport?.(ref) ?? resources.resolve(ref);
     if(resource.status!=="ready")return {status:"error",error:resource.status==="error"?resource.error:"资源正在装载，请稍后重试"};
+    if (resource.description.source.documentId === BUILTIN_SOURCE.documentId && ref.path.startsWith("builtin/")) {
+      const builtin = builtinImage(resource.description.layerId);
+      if (builtin && builtin.id !== DEFAULT_IMAGE_ID) return { status: "ready", image: {
+        path: ref.path, description: resource.description, base64: builtin.dataUri.split(",")[1]
+      } };
+    }
     try{const canvas=document.createElement("canvas");canvas.width=resource.description.width;canvas.height=resource.description.height;canvas.getContext("2d")!.drawImage(resource.pixels,0,0);return {status:"ready",image:{path:ref.path,description:resource.description,base64:canvas.toDataURL("image/png").split(",")[1]}};}catch(error){return {status:"error",error:String(error)};}
   };
 }

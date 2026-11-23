@@ -9,6 +9,7 @@ import { exportSlicesToDirectory, type ResourceDirectory } from "../shared/psd-e
 import { applySidecar, makeSidecar, validConfig, type PsdAsset, type PsdLayer } from "../shared/psd-meta";
 import { isWebviewToHostMessage } from "../shared/protocol";
 import { DocumentSession } from "../webview/document-session";
+import { builtinImage } from "../shared/builtin-image";
 
 const png = readFileSync("examples/star-sea-login/assets/status_dot.png");
 const otherPng = readFileSync("examples/star-sea-login/assets/emblem.png");
@@ -37,6 +38,34 @@ class MemoryDirectory implements ResourceDirectory {
   manifest() { return parseResourceManifest(JSON.parse(new TextDecoder().decode(this.files.get(RESOURCE_MANIFEST)))); }
 }
 export const psdExportTests: { name: string; run: () => void | Promise<void> }[] = [
+  { name: "two PSDs reuse the catalog PNG while edited layers export independently", async run() {
+    const directory = new MemoryDirectory(), close = builtinImage("icon/close")!;
+    const first = layer(), second = layer(1);
+    first.verifiedBuiltin = second.verifiedBuiltin = { id: close.id, width: 10, height: 10 };
+    const product = makeSliceExportBatch(asset(first, second));
+    assert.equal(product.items.length, 1);
+    assert.equal(product.items[0].base64, close.dataUri.split(",")[1]);
+    await exportSlicesToDirectory(directory, product, codec);
+    const another = { ...product, source: { ...product.source, documentId: "another-window" } };
+    directory.writes = [];
+    await exportSlicesToDirectory(directory, another, codec);
+    const path = "builtin/icon/close.png";
+    assert.ok(!directory.writes.includes(path));
+    assert.equal(directory.manifest().resources[0].source.documentId, "gameflow-builtin");
+    delete second.verifiedBuiltin;
+    const mixed = makeSliceExportBatch(asset(first, second));
+    await exportSlicesToDirectory(directory, mixed, codec);
+    assert.deepEqual(directory.manifest().resources.map(r => r.file), [path, "unclassified/dlym_andt.png"]);
+    assert.equal(Buffer.from(directory.files.get(path)!).toString("base64"), close.dataUri.split(",")[1]);
+    first.config.region = { x: 1, y: 0, width: 9, height: 10 };
+    assert.equal(effectiveExportName(asset(first), first), "dlym_andt");
+    delete first.config.region;
+    first.config.nineGrid = { top: 1, left: 1, right: 1, bottom: 1, repeat: false };
+    assert.equal(effectiveExportName(asset(first), first), "dlym_andt");
+    directory.files.set(path, new Uint8Array([0]));
+    await assert.rejects(exportSlicesToDirectory(directory, product, codec), /已有不同内容/);
+    assert.deepEqual([...directory.files.get(path)!], [0]);
+  } },
   { name: "PSD default names combine atlas and public layer initials without type prefixes", run() {
     for (const [psd, layerName, atlas, expected] of [
       ["登录页面.PSD", "按钮底图", undefined, "dlym_andt"],

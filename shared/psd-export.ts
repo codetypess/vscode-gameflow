@@ -2,6 +2,10 @@ import { defaultAtlasName, identityProblems, sliceRegion, validConfig, validGrid
 import { psdSlotField } from "./psd-slot-markers";
 import { atlasNameError, normalizeAtlasName, psdNameInitials } from "./psd-naming";
 import { exportDirectoryError } from "./export-directory";
+import { builtinImage, builtinPath, BUILTIN_SOURCE } from "./builtin-image";
+import { builtinSlice, builtinSliceDescription, sameGrid, validBuiltinSlice } from "./psd-builtin";
+import type { BuiltinSlice } from "./psd-meta";
+import { DEFAULT_IMAGE_ID } from "./image-rendering";
 
 export const RESOURCE_MANIFEST = "image-files.meta.json";
 export const LEGACY_RESOURCE_MANIFEST = "gameflow-resources.json";
@@ -13,6 +17,7 @@ export interface SliceProductGeometry {
 }
 export interface SliceExport extends SliceProductGeometry {
   name: string; layerId: string; layerName: string; shared: boolean;
+  builtin?: BuiltinSlice;
   base64: string;
 }
 export interface SliceExportBatch { source: ExportSource; directory?: string; items: SliceExport[] }
@@ -73,6 +78,8 @@ export function effectiveVariableName(asset: PsdAsset, layer: PsdLayer): string 
   return (!isLayerVariableNameFixed(asset, layer) && layerVariableOverride(asset, layer).toLowerCase()) || defaultLayerVariableName(asset, layer);
 }
 export function effectiveExportName(asset: PsdAsset, layer: PsdLayer): string {
+  const builtin = builtinSlice(layer);
+  if (builtin) return builtinPath(builtin.id, builtin).split("/").pop()!.slice(0, -4);
   const atlas = normalizeAtlasName(asset.atlasName) ?? defaultAtlasName(asset.name);
   const variable = effectiveVariableName(asset, layer);
   return atlas && variable ? `${atlas}_${variable}` : "";
@@ -88,8 +95,13 @@ export function psdExportDirectory(asset: Pick<PsdAsset, "name" | "atlasName" | 
 function validAtlasDirectory(value: unknown): value is string {
   return typeof value === "string" && /^[a-z0-9_]{1,120}$/.test(value) && !atlasNameError(value) && !exportDirectoryError(value);
 }
-export function sliceExportPath(batch: Pick<SliceExportBatch, "directory">, item: Pick<SliceExport, "name" | "shared">): string {
+export function sliceExportPath(batch: Pick<SliceExportBatch, "directory">, item: Pick<SliceExport, "name" | "shared" | "builtin">): string {
+  if (item.builtin) return builtinPath(item.builtin.id, item.builtin);
   return `${item.shared ? "shared" : batch.directory ?? "unclassified"}/${item.name}.png`;
+}
+export function psdLayerPath(asset: PsdAsset, layer: PsdLayer) {
+  const builtin = builtinSlice(layer);
+  return builtin ? builtinPath(builtin.id, builtin) : `${psdSliceDirectory(asset, layer.config.shared)}/${effectiveExportName(asset, layer)}.png`;
 }
 export function psdSliceDirectory(asset: Pick<PsdAsset, "name" | "atlasName" | "independentDirectory">, shared = false): string {
   const atlas = psdExportDirectory(asset);
@@ -111,7 +123,7 @@ export function sliceExportIssues(asset: PsdAsset): ExportIssue[] {
   }
   for (const [label, keyOf] of [["同名图层", (l: typeof layers[number]) => layerNameKey(exportLayerName(asset, l))], ["导出名称", (l: typeof layers[number]) => `${l.config.shared ? "shared" : directory}/${effectiveExportName(asset, l)}`]] as const) {
     const groups = new Map<string, typeof layers>();
-    for (const l of layers) { const key = keyOf(l); groups.set(key, [...groups.get(key) ?? [], l]); }
+    for (const l of layers.filter(l => !builtinSlice(l))) { const key = keyOf(l); groups.set(key, [...groups.get(key) ?? [], l]); }
     for (const [key, items] of groups) if (items.length > 1) issues.push({ keys: items.map(l => l.key), message: `${label}“${key}”重复导出：${items.map(l => `${l.name}（${l.nativeId ?? l.key}）`).join("、")}。请只保留一个导出来源。` });
   }
   return issues;
@@ -120,11 +132,28 @@ export function sliceExportIssues(asset: PsdAsset): ExportIssue[] {
 export function makeSliceExportBatch(asset: PsdAsset, products?: ReadonlyMap<number, { image: string; geometry: SliceProductGeometry }>): SliceExportBatch {
   const issues = sliceExportIssues(asset); if (issues.length) throw new Error(issues.map(i => i.message).join("\n"));
   const directory = psdExportDirectory(asset);
+  const builtinPaths = new Set<string>();
+  const uniqueLayers = asset.layers.filter(layer => {
+    if (!layer.config.enabled) return false;
+    if (!builtinSlice(layer)) return true;
+    const path = psdLayerPath(asset, layer);
+    if (builtinPaths.has(path)) return false;
+    builtinPaths.add(path);
+    return true;
+  });
   const batch: SliceExportBatch = {
     source: { documentId: asset.documentId, psdName: asset.name, sourceHash: asset.sourceHash },
     ...(directory ? { directory } : {}),
-    items: asset.layers.filter(l => l.config.enabled).map(l => {
+    items: uniqueLayers.map(l => {
       const product = products?.get(l.key);
+      const builtin = builtinSlice(l);
+      if (builtin) {
+        const description = builtinSliceDescription(builtin);
+        const image = builtin.id === DEFAULT_IMAGE_ID ? product?.image : builtinImage(builtin.id)!.dataUri;
+        if (!image) throw new Error(l.name + "：需先生成内置占位图。");
+        return { builtin, name: effectiveExportName(asset, l), layerId: description.layerId, layerName: description.layerName,
+          shared: true, width: description.width, height: description.height, nineGrid: description.nineGrid, base64: image.split(",")[1] };
+      }
       if (l.config.region && !product) throw new Error(`${l.name}：需先生成自定义区域的 PNG 切图。`);
       const image = product?.image ?? l.image;
       if (!image?.startsWith("data:image/png;base64,")) throw new Error(`${l.name}：没有有效的 PNG 切图。`);
@@ -153,9 +182,17 @@ export function isSliceExportBatch(v: unknown): v is SliceExportBatch {
   let size = 0;
   for (const item of v.items) {
     if (!validItem(item) || typeof item.base64 !== "string" || !item.base64.length || item.base64.length % 4 !== 0 || !/^[a-zA-Z0-9+/]+={0,2}$/.test(item.base64)) return false;
+    if (item.builtin !== undefined) {
+      if (!validBuiltinSlice(item.builtin)) return false;
+      const expected = builtinSliceDescription(item.builtin);
+      if (item.name + ".png" !== expected.path.split("/").pop() || item.layerId !== expected.layerId || item.layerName !== expected.layerName ||
+          item.width !== expected.width || item.height !== expected.height || !sameGrid(item.nineGrid, expected.nineGrid) || !item.shared || item.logicalSize ||
+          (item.builtin.id !== DEFAULT_IMAGE_ID && item.base64 !== builtinImage(item.builtin.id)!.dataUri.split(",")[1])) return false;
+    }
     size += item.base64.length * .75; if (size > MAX_EXPORT_BYTES) return false;
   }
-  return new Set(v.items.map(i => sliceExportPath(v as unknown as SliceExportBatch, i))).size === v.items.length && new Set(v.items.map(i => layerNameKey(i.layerName))).size === v.items.length && new Set(v.items.map(i => i.layerId)).size === v.items.length;
+  const art = v.items.filter(i => !i.builtin);
+  return new Set(v.items.map(i => sliceExportPath(v as unknown as SliceExportBatch, i))).size === v.items.length && new Set(art.map(i => layerNameKey(i.layerName))).size === art.length && new Set(art.map(i => i.layerId)).size === art.length;
 }
 function validResourceFile(file: unknown, name: string): boolean {
   if (file === name + ".png") return true;
@@ -186,7 +223,7 @@ export function planSliceExport(batch: SliceExportBatch, manifest: ResourceManif
     if (matches.length && !previous && !item.shared) conflict("已有文件没有来源记录，当前图层未标记为共享资源。");
     if (previous && previous.source.documentId !== batch.source.documentId && !item.shared) conflict("由 " + previous.source.psdName + " 导出，当前图层未标记为共享资源。");
     const sha256 = generatedHashes.get(target); if (!hash(sha256)) conflict("切图数据未通过校验。");
-    records.set(target, { name: item.name, file: target, source: { ...batch.source }, layerId: item.layerId, layerName: item.layerName, shared: item.shared, width: item.width, height: item.height, nineGrid: item.nineGrid,
+    records.set(target, { name: item.name, file: target, source: { ...(item.builtin ? BUILTIN_SOURCE : batch.source) }, layerId: item.layerId, layerName: item.layerName, shared: item.shared, width: item.width, height: item.height, nineGrid: item.nineGrid,
       ...(item.logicalSize && { logicalSize: item.logicalSize }), sha256: sha256! });
   }
   if (errors.length) throw new SliceExportConflict(errors);

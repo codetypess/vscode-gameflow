@@ -1,5 +1,6 @@
 import { initializeCanvas, readPsd, type Layer, type PixelData } from "ag-psd";
 import { createPsdStructure } from "../../shared/psd-structure";
+import { verifyBuiltinOrigin } from "../../shared/psd-builtin";
 import { parsePsdBinary, patchPsdMetadata } from "../../shared/psd-binary";
 import { type PsdAsset, type PsdLayer, type PsdLayerMeta } from "../../shared/psd-meta";
 
@@ -25,7 +26,10 @@ scope.onmessage = async ({ data }: MessageEvent<{ id: number; type: "read" | "pa
     const structure = createPsdStructure(raw, data.name, sourceHash);
     const decoded = readPsd(bytes, { useImageData: true, skipThumbnail: true, useRawThumbnail: true, totalMemoryLimit: 384 * 1024 * 1024 });
     const ordered: { layer: Layer; inheritedLimitation: boolean }[] = [];
-    const walk = (children: Layer[], inherited = false) => { for (const l of [...children].reverse()) { const limitation = inherited || !!l.mask || !!l.vectorMask || !!l.effects || !!l.clipping || !!l.adjustment || !!l.placedLayer || l.opacity !== 1 || (l.blendMode !== "normal" && l.blendMode !== "pass through"); ordered.push({ layer: l, inheritedLimitation: limitation }); if (l.children) walk(l.children, limitation); } };
+    const unsupported = (layer: Layer): boolean => !!layer.mask || !!layer.vectorMask || !!layer.effects || !!layer.clipping ||
+      !!layer.adjustment || !!layer.placedLayer || layer.opacity !== 1 || (layer.fillOpacity ?? 1) !== 1 ||
+      (layer.blendMode !== "normal" && layer.blendMode !== "pass through");
+    const walk = (children: Layer[], inherited = false) => { for (const l of [...children].reverse()) { const limitation = inherited || unsupported(l); ordered.push({ layer: l, inheritedLimitation: limitation }); if (l.children) walk(l.children, limitation); } };
     walk(decoded.children ?? []);
     if (ordered.length !== raw.layers.length) throw new Error("PSD 图层结构解析不一致，已停止读取。");
     let groupPixelsUsed = 0;
@@ -40,9 +44,11 @@ scope.onmessage = async ({ data }: MessageEvent<{ id: number; type: "read" | "pa
     for (let i = 0; i < raw.layers.length; i++) {
       const r = raw.layers[i], { layer: l, inheritedLimitation } = ordered[i];
       if (l.name !== r.name || (l.id ?? null) !== r.nativeId) throw new Error("PSD 图层对应关系无法确认。");
-      const unsupportedChild = (child:Layer):boolean => !child.hidden && (!!child.mask || !!child.vectorMask || !!child.effects || !!child.clipping || !!child.adjustment || !!child.placedLayer || child.opacity !== 1 || (child.blendMode !== "normal" && child.blendMode !== "pass through") || !!child.children?.some(unsupportedChild));
+      const unsupportedChild = (child:Layer):boolean => !child.hidden && (unsupported(child) || !!child.children?.some(unsupportedChild));
       const flatUnsupported = inheritedLimitation || !!l.children?.some(unsupportedChild);
-      layers.push({ ...structure.layers[i], image: await png(l.children ? groupPixels(l, structure.layers[i]) : l.imageData), text: !!l.text, textContent: l.text?.text?.replace(/\r\n?/g,"\n"), limitation: flatUnsupported ? "此层含效果、蒙版、剪贴或特殊混合，单层图仅显示保存的基础像素。" : undefined });
+      const verifiedBuiltin = !flatUnsupported && !l.children && !l.text && l.imageData
+        ? await verifyBuiltinOrigin(structure.layers[i].metadata.builtinOrigin, l.imageData) : undefined;
+      layers.push({ ...structure.layers[i], verifiedBuiltin, image: await png(l.children ? groupPixels(l, structure.layers[i]) : l.imageData), text: !!l.text, textContent: l.text?.text?.replace(/\r\n?/g,"\n"), limitation: flatUnsupported ? "此层含效果、蒙版、剪贴或特殊混合，单层图仅显示保存的基础像素。" : undefined });
     }
     const result: PsdAsset = { ...structure, layers, preview: await png(decoded.imageData) };
     scope.postMessage({ id: data.id, result });

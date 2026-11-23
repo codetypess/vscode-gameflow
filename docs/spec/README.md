@@ -34,6 +34,8 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 
 ## Active Work Items
 
+- [psd-builtin-slices.md](psd-builtin-slices.md) — PSD 切图按图层像素识别并复用内置图片。
+
 - [page-prefab-sync.md](page-prefab-sync.md) — Done。原型与实际 Laya 预制体支持双向审阅与合并，保留脚本和引擎字段。浏览器、原生宿主及 Laya 运行时加载验证通过。
 
 - [page-psd-sync.md](page-psd-sync.md) — Verifying。原型使用内置资源，仅同步文字和控件结构。完整节点树与双侧预览标示新增、删除和修改，支持逐项预演。

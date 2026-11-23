@@ -1,5 +1,6 @@
 import type { GameFlowDocument, GameFlowNode, GameFlowPage } from "./model";
 import { DEFAULT_IMAGE_ID, imageRenderSize } from "./image-rendering";
+import { BUILTIN_SOURCE } from "./builtin-image";
 import { resolvePageLayout } from "./ui-layout";
 import { COMPONENTS, pageRootType } from "./ui-components";
 import { builtinImage, builtinPath, IMAGE_SLOT_FIELDS, nodeImageSlot, type BuiltinImage, type ImageSlot, type ImageSlotField } from "./image-slots";
@@ -183,8 +184,9 @@ export async function exportPrefabToDirectories(resources:ResourceDirectory, pre
     if(exists && !d.shared && (!previous || previous.source.documentId!==d.source.documentId)) throw new Error(image.path+" 已有其他来源的资源，请先处理冲突。");
     const sha256=await codec.hash(bytes);
     if(!incremental || !exists) {
+      const reuse = exists && d.source.documentId === BUILTIN_SOURCE.documentId && image.path.startsWith("builtin/") && await codec.hash(exists) === sha256;
       records.set(image.path,{...d,name:image.path.slice(image.path.lastIndexOf("/")+1,-4),file:image.path,sha256});
-      await stage(resources,image.path,bytes);
+      if (!reuse) await stage(resources,image.path,bytes);
     }
     const grid=d.nineGrid;
     const oldMeta=await resources.read(image.path+".meta");

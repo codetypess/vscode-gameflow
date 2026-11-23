@@ -88,7 +88,12 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
       const result = [];
       for (const p of doc.pages) {
         const bytes = await generatePrototypePsd(doc, p), asset = await psdTask("read", bytes.buffer, p.id + ".psd");
-        const updates = asset.layers.map(layer => [layer.key, { ...layer.metadata, atlasName: "login" }]);
+        // Legacy art PSDs without a builtin fingerprint can share an atlas and output path.
+        const updates = asset.layers.map(layer => {
+          const metadata = { ...layer.metadata, atlasName: "login" };
+          delete metadata.builtinOrigin;
+          return [layer.key, metadata];
+        });
         const patched = await psdTask("patch", bytes.buffer, p.id + ".psd", updates);
         result.push(btoa(Array.from(new Uint8Array(patched), n => String.fromCharCode(n)).join("")));
       }
@@ -148,7 +153,7 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
     const download = page.waitForEvent("download"); await page.locator('[data-page-id="pageb001"] .page-caption').click();
     await openMore(); await moreMenu.getByRole("menuitem", { name: "生成 PSD", exact: true }).click(); await download;
     await page.waitForFunction(() => JSON.parse(localStorage.getItem("gameflow.prototype.v1")).pages[1].artPsd.source !== "pageb001.psd");
-    await page.locator('[data-page-id="pageb001"] canvas[data-resource-path^="unclassified/hsy_"]').waitFor();
+    await page.locator('[data-page-id="pageb001"] canvas[data-resource-path="builtin/button/red.png"]').waitFor();
     await openMore();
     await page.screenshot({ path: path.join(output, "bottom-more-menu.png") });
     await page.keyboard.press("Escape");

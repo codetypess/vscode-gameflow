@@ -3,16 +3,19 @@ import { nodeArtRefs, IMAGE_SLOT_FIELDS, builtinPath, builtinImage, nodeImageSlo
 import { resolvePageLayout } from "../../shared/ui-layout";
 import { DEFAULT_IMAGE_ID, imageRenderSize } from "../../shared/image-rendering";
 import type { GameFlowPage } from "../../shared/model";
-import { effectiveExportName, exportLayerName, psdSliceDirectory } from "../../shared/psd-export";
+import { exportLayerName, psdLayerPath } from "../../shared/psd-export";
+import { builtinSlice, builtinSliceDescription } from "../../shared/psd-builtin";
 import type { PsdAsset } from "../../shared/psd-meta";
-import { resolveSliceResource, sliceResourcePath, sourceKey, type SliceResourceDescription, type SliceResourceRef } from "../../shared/slice-resources";
+import { resolveSliceResource, sourceKey, type SliceResourceDescription, type SliceResourceRef } from "../../shared/slice-resources";
 import { generateSliceProducts, loadSliceImage, sliceGenerationStamp } from "../psd/slice-render";
 import type { Resources, RuntimeResource } from "./resource-context";
 
 
 function description(asset: PsdAsset, layer: PsdAsset["layers"][number]): SliceResourceDescription {
+  const builtin = builtinSlice(layer);
+  if (builtin) return builtinSliceDescription(builtin);
   const region = layer.config.region ?? layer;
-  return { path: sliceResourcePath(psdSliceDirectory(asset, layer.config.shared), effectiveExportName(asset, layer)), width: region.width, height: region.height, nineGrid: layer.config.nineGrid,
+  return { path: psdLayerPath(asset, layer), width: region.width, height: region.height, nineGrid: layer.config.nineGrid,
     source: { documentId: asset.documentId, psdName: asset.name, sourceHash: asset.sourceHash }, layerId: layer.metadata.layerId, layerName: exportLayerName(asset, layer), shared: layer.config.shared === true };
 }
 function merge(entries: Map<string, RuntimeResource>, entry: RuntimeResource, owner: number) {
@@ -53,7 +56,7 @@ export function useRuntimeResources(observedAssets: PsdAsset[], pages: GameFlowP
     return [...new Set([...Array.from(memory.values(), entry => entry.description!.path), ...pages.flatMap(page => {
       const sizes = new Map<string, {width:number;height:number}>(), asset = pageAssets[page.id], owner = asset ? assets.indexOf(asset) : -1;
       if (disk.root === root) for (const [path, entry] of disk.entries) if (entry.status === "ready") sizes.set(path, entry.description.logicalSize ?? entry.description);
-      if (mode !== "prefab") for (const [key, entry] of memory) if (key.startsWith(owner + ":") && entry.status === "ready" && entry.description.source.documentId === page.artPsd?.documentId) sizes.set(entry.description.path, entry.description.logicalSize ?? entry.description);
+      if (mode !== "prefab") for (const [key, entry] of memory) if (key.startsWith(owner + ":") && entry.status === "ready" && asset?.documentId === page.artPsd?.documentId) sizes.set(entry.description.path, entry.description.logicalSize ?? entry.description);
       const layout = resolvePageLayout(page, sizes);
       return page.nodes.flatMap(node => [...nodeArtRefs(node).map(ref => ref.path), ...IMAGE_SLOT_FIELDS.flatMap(field => node[field]?.builtin ? [builtinPath(node[field]!.builtin!, imageRenderSize(page, node, layout))] : [])]);
     })])].sort();
@@ -87,7 +90,7 @@ export function useRuntimeResources(observedAssets: PsdAsset[], pages: GameFlowP
     const forPage = (page: GameFlowPage): Resources => {
       const scoped = new Map<string, RuntimeResource>();
       const scopedAsset = pageAssets[page.id], owner = scopedAsset ? assets.indexOf(scopedAsset) : -1;
-      for (const [key, entry] of memory) if (key.startsWith(owner + ":") && entry.description && page.artPsd && entry.description.source.documentId === page.artPsd.documentId) scoped.set(entry.description.path, entry);
+      for (const [key, entry] of memory) if (key.startsWith(owner + ":") && entry.description && page.artPsd && scopedAsset?.documentId === page.artPsd.documentId) scoped.set(entry.description.path, entry);
       const sources = new Map<string, string | null>();
       for (const asset of assets.filter(item => item === scopedAsset && item.documentId === page.artPsd?.documentId)) {
         for (const node of page.nodes) for (const ref of nodeArtRefs(node)) if (ref.source?.documentId === asset.documentId) sources.set(sourceKey(ref.source), null);
