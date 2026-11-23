@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="44px" height="44px" viewBox="0 0 44 44" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>固定约束</title>
+    <defs>
+        <filter id="filter-1">
+            <feColorMatrix in="SourceGraphic" type="matrix" values="0 0 0 0 0.286275 0 0 0 0 0.952941 0 0 0 0 0.847059 0 0 0 1.000000 0"></feColorMatrix>
+        </filter>
+    </defs>
+    <g id="iocn" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="画板" transform="translate(-241.000000, -977.000000)">
+            <g id="固定约束" transform="translate(241.000000, 977.000000)">
+                <rect id="矩形备份-95" x="0" y="0" width="44" height="44"></rect>
+                <g filter="url(#filter-1)" id="编组-52">
+                    <g transform="translate(9.000000, 7.000000)">
+                        <polygon id="矩形" fill="#D8D8D8" points="1.20782551e-12 0 26 2 26 4 1.20782551e-12 6"></polygon>
+                        <polygon id="矩形" fill="#D8D8D8" opacity="0.69690232" transform="translate(6.537477, 17.000000) rotate(-270.000000) translate(-6.537477, -17.000000) " points="-5.96252339 14.4658857 19.0374766 14.4658857 19.0374766 19.5341143 -5.96252339 19.5341143"></polygon>
+                        <polygon id="矩形" fill="#D8D8D8" transform="translate(12.993323, 17.000000) rotate(-180.000000) translate(-12.993323, -17.000000) " points="0 17 25.9866455 14 25.9866455 20 0 20"></polygon>
+                        <polygon id="矩形备份-47" fill="#D8D8D8" opacity="0.69690232" transform="translate(20.500000, 17.000000) rotate(-270.000000) translate(-20.500000, -17.000000) " points="12 13 15.5325986 15.4939283 29 15.4939283 29 18.5087341 15.5325986 18.5087341 12 21"></polygon>
+                    </g>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>

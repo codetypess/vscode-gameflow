@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="44px" height="44px" viewBox="0 0 44 44" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>panel_settings</title>
+    <defs>
+        <filter id="filter-1">
+            <feColorMatrix in="SourceGraphic" type="matrix" values="0 0 0 0 0.604120 0 0 0 0 0.647029 0 0 0 0 0.961690 0 0 0 1.000000 0"></feColorMatrix>
+        </filter>
+    </defs>
+    <g id="iocn" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="panel_settings" transform="translate(-453.000000, -348.000000)" filter="url(#filter-1)">
+            <g transform="translate(453.000000, 348.000000)">
+                <g id="编组-40" transform="translate(4.000000, 5.697638)" stroke="#979797">
+                    <g id="编组-39" transform="translate(0.000000, 0.000000)">
+                        <rect id="矩形" stroke-width="2" fill="#D8D8D8" x="1" y="3.30236201" width="18" height="2" rx="1"></rect>
+                        <rect id="矩形备份-119" stroke-width="2" fill="#D8D8D8" x="29" y="3.30236201" width="6" height="2" rx="1"></rect>
+                        <path d="M26.2187662,6.23501251e-13 C27.6197168,6.232439e-13 28.7554117,1.13569488 28.7554117,2.53664552 L28.7554117,6.08305575 C28.7554117,7.48400639 27.6197168,8.61970127 26.2187662,8.61970127 C24.8178155,8.61970127 23.6821206,7.48400639 23.6821206,6.08305575 L23.6821206,2.53664552 C23.6821206,1.13569488 24.8178155,6.23758601e-13 26.2187662,6.23501251e-13 Z" id="矩形" stroke-width="3.4"></path>
+                    </g>
+                    <g id="编组-39备份-2" transform="translate(0.000000, 24.000000)">
+                        <rect id="矩形" stroke-width="2" fill="#D8D8D8" x="1" y="3.30236201" width="18" height="2" rx="1"></rect>
+                        <rect id="矩形备份-119" stroke-width="2" fill="#D8D8D8" x="29" y="3.30236201" width="6" height="2" rx="1"></rect>
+                        <path d="M26.2187662,6.23501251e-13 C27.6197168,6.232439e-13 28.7554117,1.13569488 28.7554117,2.53664552 L28.7554117,6.08305575 C28.7554117,7.48400639 27.6197168,8.61970127 26.2187662,8.61970127 C24.8178155,8.61970127 23.6821206,7.48400639 23.6821206,6.08305575 L23.6821206,2.53664552 C23.6821206,1.13569488 24.8178155,6.23758601e-13 26.2187662,6.23501251e-13 Z" id="矩形" stroke-width="3.4"></path>
+                    </g>
+                    <g id="编组-39备份" transform="translate(18.000000, 16.309851) scale(-1, 1) translate(-18.000000, -16.309851) translate(0.000000, 12.000000)">
+                        <rect id="矩形" stroke-width="2" fill="#D8D8D8" x="1" y="3.30236201" width="18" height="2" rx="1"></rect>
+                        <rect id="矩形备份-119" stroke-width="2" fill="#D8D8D8" x="29" y="3.30236201" width="6" height="2" rx="1"></rect>
+                        <path d="M22.1166716,0 C23.5176222,-2.57350457e-16 24.6533171,1.13569488 24.6533171,2.53664552 L24.6533171,6.08305575 C24.6533171,7.48400639 23.5176222,8.61970127 22.1166716,8.61970127 C20.7157209,8.61970127 19.580026,7.48400639 19.580026,6.08305575 L19.580026,2.53664552 C19.580026,1.13569488 20.7157209,2.57350457e-16 22.1166716,0 Z" id="矩形" stroke-width="3.4"></path>
+                    </g>
+                </g>
+                <rect id="矩形备份-120" x="0" y="0" width="44" height="44"></rect>
+            </g>
+        </g>
+    </g>
+</svg>

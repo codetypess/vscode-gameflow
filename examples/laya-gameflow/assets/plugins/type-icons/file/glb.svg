@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="44px"
+   height="44px"
+   viewBox="0 0 44 44"
+   version="1.1"
+   id="svg836"
+   sodipodi:docname="file_type_glb.svg"
+   inkscape:version="1.1.1 (c3084ef, 2021-09-22)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <defs
+     id="defs840" />
+  <sodipodi:namedview
+     id="namedview838"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     showgrid="false"
+     inkscape:lockguides="false"
+     inkscape:zoom="19.227273"
+     inkscape:cx="16.070922"
+     inkscape:cy="18.229314"
+     inkscape:window-width="1866"
+     inkscape:window-height="1027"
+     inkscape:window-x="1920"
+     inkscape:window-y="25"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="画板" />
+  <title
+     id="title824">gilf</title>
+  <g
+     id="iocn"
+     stroke="none"
+     stroke-width="1"
+     fill="none"
+     fill-rule="evenodd">
+    <g
+       id="画板"
+       transform="translate(-381.000000, -509.000000)">
+      <rect
+         id="矩形备份-75"
+         x="381"
+         y="509"
+         width="44"
+         height="44" />
+      <path
+         d="m 391.75,526.50003 h 22.40149 c 0.88365,0 1.6,0.71635 1.6,1.6 v 12.55003 c 0,0.88365 -0.71635,1.6 -1.6,1.6 H 391.75 v 0 3.75001 c 0,0.41422 0.33578,0.75 0.75,0.75 h 25.49998 c 0.41421,0 0.75002,-0.33579 0.75002,-0.75 v -22.143 l -0.35478,-0.357 h -4.44824 c -1.90373,0 -3.447,-1.54328 -3.447,-3.44701 v -4.49849 l -0.303,-0.3045 h -17.69699 c -0.41421,0 -0.74999,0.33579 -0.74999,0.75 v 10.50002 z m -2.25,15.75001 h 24.65739 c 0.88365,0 1.6,-0.71634 1.6,-1.6 v -12.55002 c 0,-0.88366 -0.71635,-1.6 -1.6,-1.6 H 389.5 v 0 V 516 c 0,-1.65685 1.34314,-3 3,-3 h 18.63375 L 421,522.93 V 546 c 0,1.65685 -1.34314,3 -3,3 H 392.50002 C 390.84317,549 389.5,547.65685 389.5,546 v -3.75001 z"
+         id="形状"
+         fill="#84dc00"
+         fill-rule="nonzero" />
+      <path
+         d="m 386.5,542.25004 c -0.82842,0 -1.5,-0.67157 -1.5,-1.5 v -12.75002 c 0,-0.82842 0.67157,-1.5 1.5,-1.5 h 3 24.64958 c 0.88365,0 1.6,0.71634 1.6,1.6 v 12.55002 c 0,0.88366 -0.71635,1.6 -1.6,1.6 h -24.64956 v 0 z"
+         id="形状结合"
+         fill="#84dc00"
+         fill-rule="nonzero"
+         opacity="0.6" />
+      <text
+         xml:space="preserve"
+         style="font-style:normal;font-weight:normal;font-size:13.3333px;line-height:1.25;font-family:sans-serif;letter-spacing:1px;fill:#000000;fill-opacity:1;stroke:none"
+         x="386.09695"
+         y="539.26941"
+         id="text2520"><tspan
+           sodipodi:role="line"
+           id="tspan2518"
+           x="386.09695"
+           y="539.26941"
+           style="font-size:13.3333px;fill:#ffffff;fill-opacity:1"
+           rotate="0 0 0 0">GLB</tspan></text>
+    </g>
+  </g>
+  <metadata
+     id="metadata926">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:title>gilf</dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+</svg>

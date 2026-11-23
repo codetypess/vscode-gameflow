@@ -1,0 +1,420 @@
+{
+  "_$ver": 1,
+  "_$id": "relative-layout",
+  "_$type": "Widget",
+  "name": "Root",
+  "width": 260,
+  "height": 214,
+  "_$child": [
+    {
+      "_$id": "parentFrame",
+      "_$type": "Shape",
+      "name": "parentFrame",
+      "x": 32,
+      "y": 38,
+      "width": 160,
+      "height": 138,
+      "touchable": false,
+      "graphics": {
+        "_$type": "SRect",
+        "lineWidth": 1,
+        "lineColor": {
+          "_$type": "Color",
+          "r": 0.4392156862745098,
+          "g": 0.4745098039215686,
+          "b": 0.5215686274509804,
+          "a": 1
+        },
+        "fillColor": {
+          "_$type": "Color",
+          "r": 0.16862745098039217,
+          "g": 0.16862745098039217,
+          "b": 0.16862745098039217,
+          "a": 1
+        },
+        "borderRadius": [
+          2,
+          2,
+          2,
+          2
+        ]
+      }
+    },
+    {
+      "_$id": "childFrame",
+      "_$type": "Shape",
+      "name": "childFrame",
+      "x": 60,
+      "y": 66,
+      "width": 104,
+      "height": 82,
+      "touchable": false,
+      "graphics": {
+        "_$type": "SRect",
+        "lineWidth": 0,
+        "lineColor": {
+          "_$type": "Color",
+          "r": 0.6,
+          "g": 0.6392156862745098,
+          "b": 0.6823529411764706,
+          "a": 1
+        },
+        "fillColor": {
+          "_$type": "Color",
+          "r": 0.18823529411764706,
+          "g": 0.18823529411764706,
+          "b": 0.18823529411764706,
+          "a": 1
+        },
+        "borderRadius": [
+          2,
+          2,
+          2,
+          2
+        ]
+      }
+    },
+    {
+      "_$id": "leftGuide",
+      "_$type": "Shape",
+      "name": "leftGuide",
+      "x": 60,
+      "y": 38,
+      "width": 1,
+      "height": 138,
+      "touchable": false,
+      "graphics": {
+        "_$type": "SRect",
+        "lineWidth": 0,
+        "lineColor": {
+          "_$type": "Color",
+          "r": 0.33725490196078434,
+          "g": 0.3764705882352941,
+          "b": 0.4235294117647059,
+          "a": 1
+        },
+        "fillColor": {
+          "_$type": "Color",
+          "r": 0.33725490196078434,
+          "g": 0.3764705882352941,
+          "b": 0.4235294117647059,
+          "a": 1
+        },
+        "borderRadius": [
+          2,
+          2,
+          2,
+          2
+        ]
+      }
+    },
+    {
+      "_$id": "centerXGuide",
+      "_$type": "Shape",
+      "name": "centerXGuide",
+      "x": 112,
+      "y": 38,
+      "width": 1,
+      "height": 138,
+      "touchable": false,
+      "graphics": {
+        "_$type": "SRect",
+        "lineWidth": 0,
+        "lineColor": {
+          "_$type": "Color",
+          "r": 0.33725490196078434,
+          "g": 0.3764705882352941,
+          "b": 0.4235294117647059,
+          "a": 1
+        },
+        "fillColor": {
+          "_$type": "Color",
+          "r": 0.33725490196078434,
+          "g": 0.3764705882352941,
+          "b": 0.4235294117647059,
+          "a": 1
+        },
+        "borderRadius": [
+          2,
+          2,
+          2,
+          2
+        ]
+      }
+    },
+    {
+      "_$id": "rightGuide",
+      "_$type": "Shape",
+      "name": "rightGuide",
+      "x": 164,
+      "y": 38,
+      "width": 1,
+      "height": 138,
+      "touchable": false,
+      "graphics": {
+        "_$type": "SRect",
+        "lineWidth": 0,
+        "lineColor": {
+          "_$type": "Color",
+          "r": 0.33725490196078434,
+          "g": 0.3764705882352941,
+          "b": 0.4235294117647059,
+          "a": 1
+        },
+        "fillColor": {
+          "_$type": "Color",
+          "r": 0.33725490196078434,
+          "g": 0.3764705882352941,
+          "b": 0.4235294117647059,
+          "a": 1
+        },
+        "borderRadius": [
+          2,
+          2,
+          2,
+          2
+        ]
+      }
+    },
+    {
+      "_$id": "topGuide",
+      "_$type": "Shape",
+      "name": "topGuide",
+      "x": 32,
+      "y": 66,
+      "width": 160,
+      "height": 1,
+      "touchable": false,
+      "graphics": {
+        "_$type": "SRect",
+        "lineWidth": 0,
+        "lineColor": {
+          "_$type": "Color",
+          "r": 0.33725490196078434,
+          "g": 0.3764705882352941,
+          "b": 0.4235294117647059,
+          "a": 1
+        },
+        "fillColor": {
+          "_$type": "Color",
+          "r": 0.33725490196078434,
+          "g": 0.3764705882352941,
+          "b": 0.4235294117647059,
+          "a": 1
+        },
+        "borderRadius": [
+          2,
+          2,
+          2,
+          2
+        ]
+      }
+    },
+    {
+      "_$id": "centerYGuide",
+      "_$type": "Shape",
+      "name": "centerYGuide",
+      "x": 32,
+      "y": 107,
+      "width": 160,
+      "height": 1,
+      "touchable": false,
+      "graphics": {
+        "_$type": "SRect",
+        "lineWidth": 0,
+        "lineColor": {
+          "_$type": "Color",
+          "r": 0.33725490196078434,
+          "g": 0.3764705882352941,
+          "b": 0.4235294117647059,
+          "a": 1
+        },
+        "fillColor": {
+          "_$type": "Color",
+          "r": 0.33725490196078434,
+          "g": 0.3764705882352941,
+          "b": 0.4235294117647059,
+          "a": 1
+        },
+        "borderRadius": [
+          2,
+          2,
+          2,
+          2
+        ]
+      }
+    },
+    {
+      "_$id": "bottomGuide",
+      "_$type": "Shape",
+      "name": "bottomGuide",
+      "x": 32,
+      "y": 148,
+      "width": 160,
+      "height": 1,
+      "touchable": false,
+      "graphics": {
+        "_$type": "SRect",
+        "lineWidth": 0,
+        "lineColor": {
+          "_$type": "Color",
+          "r": 0.33725490196078434,
+          "g": 0.3764705882352941,
+          "b": 0.4235294117647059,
+          "a": 1
+        },
+        "fillColor": {
+          "_$type": "Color",
+          "r": 0.33725490196078434,
+          "g": 0.3764705882352941,
+          "b": 0.4235294117647059,
+          "a": 1
+        },
+        "borderRadius": [
+          2,
+          2,
+          2,
+          2
+        ]
+      }
+    },
+    {
+      "_$id": "leftEnabled",
+      "_$prefab": "~/ui/basic/Button/Checkbox.widget",
+      "name": "leftEnabled",
+      "x": 52,
+      "y": 8,
+      "width": 36,
+      "height": 19,
+      "title": "左",
+      "tooltips": "左边距"
+    },
+    {
+      "_$id": "leftValue",
+      "_$prefab": "~/ui/basic/Input/NumericInputWithTitle.widget",
+      "name": "leftValue",
+      "x": 35,
+      "y": 188,
+      "width": 50,
+      "height": 19,
+      "fractionDigits": 0,
+      "step": 1,
+      "tooltips": "左边距"
+    },
+    {
+      "_$id": "centerXEnabled",
+      "_$prefab": "~/ui/basic/Button/Checkbox.widget",
+      "name": "centerXEnabled",
+      "x": 104,
+      "y": 8,
+      "width": 36,
+      "height": 19,
+      "title": "X",
+      "tooltips": "水平居中偏移"
+    },
+    {
+      "_$id": "centerXValue",
+      "_$prefab": "~/ui/basic/Input/NumericInputWithTitle.widget",
+      "name": "centerXValue",
+      "x": 87,
+      "y": 188,
+      "width": 50,
+      "height": 19,
+      "fractionDigits": 0,
+      "step": 1,
+      "tooltips": "水平居中偏移"
+    },
+    {
+      "_$id": "rightEnabled",
+      "_$prefab": "~/ui/basic/Button/Checkbox.widget",
+      "name": "rightEnabled",
+      "x": 156,
+      "y": 8,
+      "width": 36,
+      "height": 19,
+      "title": "右",
+      "tooltips": "右边距"
+    },
+    {
+      "_$id": "rightValue",
+      "_$prefab": "~/ui/basic/Input/NumericInputWithTitle.widget",
+      "name": "rightValue",
+      "x": 139,
+      "y": 188,
+      "width": 50,
+      "height": 19,
+      "fractionDigits": 0,
+      "step": 1,
+      "tooltips": "右边距"
+    },
+    {
+      "_$id": "topEnabled",
+      "_$prefab": "~/ui/basic/Button/Checkbox.widget",
+      "name": "topEnabled",
+      "x": 0,
+      "y": 56,
+      "width": 36,
+      "height": 19,
+      "title": "上",
+      "tooltips": "上边距"
+    },
+    {
+      "_$id": "topValue",
+      "_$prefab": "~/ui/basic/Input/NumericInputWithTitle.widget",
+      "name": "topValue",
+      "x": 200,
+      "y": 56,
+      "width": 58,
+      "height": 19,
+      "fractionDigits": 0,
+      "step": 1,
+      "tooltips": "上边距"
+    },
+    {
+      "_$id": "centerYEnabled",
+      "_$prefab": "~/ui/basic/Button/Checkbox.widget",
+      "name": "centerYEnabled",
+      "x": 0,
+      "y": 97,
+      "width": 36,
+      "height": 19,
+      "title": "Y",
+      "tooltips": "垂直居中偏移"
+    },
+    {
+      "_$id": "centerYValue",
+      "_$prefab": "~/ui/basic/Input/NumericInputWithTitle.widget",
+      "name": "centerYValue",
+      "x": 200,
+      "y": 97,
+      "width": 58,
+      "height": 19,
+      "fractionDigits": 0,
+      "step": 1,
+      "tooltips": "垂直居中偏移"
+    },
+    {
+      "_$id": "bottomEnabled",
+      "_$prefab": "~/ui/basic/Button/Checkbox.widget",
+      "name": "bottomEnabled",
+      "x": 0,
+      "y": 138,
+      "width": 36,
+      "height": 19,
+      "title": "下",
+      "tooltips": "下边距"
+    },
+    {
+      "_$id": "bottomValue",
+      "_$prefab": "~/ui/basic/Input/NumericInputWithTitle.widget",
+      "name": "bottomValue",
+      "x": 200,
+      "y": 138,
+      "width": 58,
+      "height": 19,
+      "fractionDigits": 0,
+      "step": 1,
+      "tooltips": "下边距"
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="22px" height="22px" viewBox="0 0 22 22" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>Box</title>
+    <defs>
+        <filter id="filter-1">
+            <feColorMatrix in="SourceGraphic" type="matrix" values="0 0 0 0 0.211765 0 0 0 0 0.796078 0 0 0 0 1.000000 0 0 0 1.000000 0"></feColorMatrix>
+        </filter>
+    </defs>
+    <g id="iocn" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="画板备份-2" transform="translate(-360.000000, -37.000000)">
+            <g id="Box" transform="translate(360.000000, 37.000000)">
+                <rect id="矩形备份-24" x="0" y="0" width="22" height="22"></rect>
+                <g filter="url(#filter-1)" id="编组-21" stroke-linejoin="round">
+                    <g transform="translate(2.995358, 3.628878)">
+                        <rect id="矩形" stroke="#FFFFFF" fill="#FFFFFF" opacity="0.600000024" transform="translate(4.665902, 5.470199) rotate(-90.000000) translate(-4.665902, -5.470199) " x="1.66590238" y="3.47019947" width="6" height="4"></rect>
+                        <polygon id="矩形" stroke="#FFFFFF" fill="#FFFFFF" opacity="0.800000012" transform="translate(8.292096, 11.578854) scale(-1, 1) rotate(90.000000) translate(-8.292096, -11.578854) " points="7.29209649 5.95266034 9.29209649 5.95266034 9.29209649 17.2050486 7.29209649 17.2050486"></polygon>
+                        <rect id="矩形备份-77" stroke="#FFFFFF" fill="#FFFFFF" transform="translate(11.292096, 5.470199) rotate(-90.000000) translate(-11.292096, -5.470199) " x="8.29209649" y="2.84400536" width="6" height="5.25238822"></rect>
+                        <path d="M0.00432909363,0.999999951 L0.000313016614,13.8302353 C-0.000172825313,14.3825199 0.447402261,14.8303753 0.999686983,14.8305481 C0.999791322,14.8305482 0.999895661,14.8305482 1,14.8302352 L15.5,14.8302352 C16.0521625,14.8299221 16.4998271,14.3823976 16.500313,13.8302353 L16.5043291,0.999999951 C16.5048149,0.447715326 16.0572398,-0.000140044348 15.5049551,-0.00031291865 C15.5048508,-0.00031295131 15.5047464,-0.00031296764 15.5046421,0 L1.00464211,0 C0.452479597,0.000313065619 0.00481499527,0.447837563 0.00432909363,0.999999951 Z" id="路径-37" stroke="#979797" stroke-width="1.2" stroke-dasharray="7,1"></path>
+                    </g>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>

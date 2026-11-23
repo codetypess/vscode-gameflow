@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="44px" height="44px" viewBox="0 0 44 44" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>编组 63</title>
+    <g id="iocn" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="画板" transform="translate(-88.000000, -882.000000)">
+            <g id="编组-63" transform="translate(88.000000, 882.000000)">
+                <rect id="矩形备份-87" x="0" y="0" width="44" height="44"></rect>
+                <g id="锥形宝石" transform="translate(3.070312, 2.686779)" fill-rule="nonzero">
+                    <polygon id="路径" fill="#25A6A1" points="19.0360768 39.2294654 -8.42659332e-14 31.5632268 19.0360768 1.66992033e-05 37.9296879 31.5632435"></polygon>
+                    <polygon id="路径" fill="#49F3D8" points="19.0360768 31.9032057 19.0360768 -3.89648075e-05 0 31.5631712"></polygon>
+                    <polygon id="路径" fill="#2CC4AC" points="19.0360768 31.9032057 37.9296879 31.5632268 19.0360768 1.56503838e-14"></polygon>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>

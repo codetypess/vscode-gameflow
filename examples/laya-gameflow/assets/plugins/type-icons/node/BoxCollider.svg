@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="44px" height="44px" viewBox="0 0 44 44" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>盒子碰撞体备份</title>
+    <defs>
+        <filter id="filter-1">
+            <feColorMatrix in="SourceGraphic" type="matrix" values="0 0 0 0 0.145098 0 0 0 0 0.537255 0 0 0 0 1.000000 0 0 0 1.000000 0"></feColorMatrix>
+        </filter>
+        <filter id="filter-2">
+            <feColorMatrix in="SourceGraphic" type="matrix" values="0 0 0 0 0.211765 0 0 0 0 0.796078 0 0 0 0 1.000000 0 0 0 1.000000 0"></feColorMatrix>
+        </filter>
+    </defs>
+    <g id="iocn" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="盒子碰撞体备份" transform="translate(-655.000000, -717.000000)" filter="url(#filter-1)">
+            <g transform="translate(677.000000, 739.000000) rotate(-90.000000) translate(-677.000000, -739.000000) translate(655.000000, 717.000000)">
+                <rect id="矩形备份-80" x="0" y="0" width="44" height="44"></rect>
+                <g filter="url(#filter-2)" id="编组-21备份">
+                    <g transform="translate(22.500000, 21.875156) rotate(-270.000000) translate(-22.500000, -21.875156) translate(6.000000, 10.875156)">
+                        <polygon id="路径-37" stroke="#979797" stroke-width="2.4" fill="#D8D8D8" points="0 2.50111043e-12 0 22 33 22 33 2.50111043e-12"></polygon>
+                    </g>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>

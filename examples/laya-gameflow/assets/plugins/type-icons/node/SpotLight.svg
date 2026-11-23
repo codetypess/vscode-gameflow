@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="44px" height="44px" viewBox="0 0 44 44" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>聚光</title>
+    <defs>
+        <filter id="filter-1">
+            <feColorMatrix in="SourceGraphic" type="matrix" values="0 0 0 0 1.000000 0 0 0 0 0.913725 0 0 0 0 0.403922 0 0 0 1.000000 0"></feColorMatrix>
+        </filter>
+    </defs>
+    <g id="iocn" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="画板" transform="translate(-531.000000, -977.000000)">
+            <g id="聚光" transform="translate(531.000000, 977.000000)">
+                <rect id="矩形备份-99" x="0" y="0" width="44" height="44"></rect>
+                <g filter="url(#filter-1)" id="矩形备份-74">
+                    <g transform="translate(6.000000, 4.000000)" id="蒙版">
+                        <path d="M17.7724433,3.38617557 L31.709089,30.0115294 L31.709089,30.0115294 L16.0044987,30.0115294 L0.299908321,30.0115294 L14.2283537,3.38659263 C14.7403638,2.40785905 15.9488504,2.02950494 16.927584,2.54151506 C17.2886815,2.73041795 17.5834554,3.02512248 17.7724433,3.38617557 Z" id="三角形" fill="#2CC4AC" opacity="0.455548968"></path>
+                        <ellipse id="椭圆形备份-22" fill="#49F3D8" cx="16" cy="30.5" rx="16" ry="4.5"></ellipse>
+                    </g>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>

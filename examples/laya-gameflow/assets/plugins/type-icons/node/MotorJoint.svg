@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="44px" height="44px" viewBox="0 0 44 44" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>马达关节</title>
+    <defs>
+        <filter id="filter-1">
+            <feColorMatrix in="SourceGraphic" type="matrix" values="0 0 0 0 0.686275 0 0 0 0 0.988235 0 0 0 0 0.341176 0 0 0 1.000000 0"></feColorMatrix>
+        </filter>
+        <filter id="filter-2">
+            <feColorMatrix in="SourceGraphic" type="matrix" values="0 0 0 0 0.560784 0 0 0 0 0.607843 0 0 0 0 0.701961 0 0 0 1.000000 0"></feColorMatrix>
+        </filter>
+    </defs>
+    <g id="iocn" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="马达关节" transform="translate(-458.000000, -797.000000)" filter="url(#filter-1)">
+            <g transform="translate(458.000000, 797.000000)">
+                <rect id="矩形备份-86" x="0" y="0" width="44" height="44"></rect>
+                <g filter="url(#filter-2)" id="编组-34">
+                    <g transform="translate(12.394695, 3.000000)">
+                        <circle id="椭圆形备份-18" stroke="#979797" stroke-width="3.63" cx="9.60530463" cy="6" r="4.185"></circle>
+                        <line x1="10.1053046" y1="10.5" x2="10.1053046" y2="17.5" id="路径-8" stroke="#979797" stroke-width="3.4"></line>
+                        <path d="M8.9201113,18.4530695 L8.9201113,34.3219884 C8.9201113,34.8742732 8.47239605,35.3219884 7.9201113,35.3219884 L2.9201113,35.3219884 C2.36782655,35.3219884 1.9201113,34.8742732 1.9201113,34.3219884 L1.9201113,18.4530695 C1.9201113,17.9007848 2.36782655,17.4530695 2.9201113,17.4530695 L7.9201113,17.4530695 C8.47239605,17.4530695 8.9201113,17.9007848 8.9201113,18.4530695 Z" id="路径-10" stroke="#979797" stroke-width="3.4" transform="translate(5.420111, 26.387529) rotate(13.000000) translate(-5.420111, -26.387529) "></path>
+                        <path d="M19.5540873,18.4649906 L19.5540873,34.3339095 C19.5540873,34.8861943 19.106372,35.3339095 18.5540873,35.3339095 L13.5540873,35.3339095 C13.0018025,35.3339095 12.5540873,34.8861943 12.5540873,34.3339095 L12.5540873,18.4649906 C12.5540873,17.9127059 13.0018025,17.4649906 13.5540873,17.4649906 L18.5540873,17.4649906 C19.106372,17.4649906 19.5540873,17.9127059 19.5540873,18.4649906 Z" id="路径-10备份" stroke="#979797" stroke-width="3.4" transform="translate(16.054087, 26.399450) rotate(-14.000000) translate(-16.054087, -26.399450) "></path>
+                    </g>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>

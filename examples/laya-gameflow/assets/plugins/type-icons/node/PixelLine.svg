@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="44px" height="44px" viewBox="0 0 44 44" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>像素线</title>
+    <defs>
+        <filter id="filter-1">
+            <feColorMatrix in="SourceGraphic" type="matrix" values="0 0 0 0 0.074510 0 0 0 0 0.949020 0 0 0 0 0.074510 0 0 0 1.000000 0"></feColorMatrix>
+        </filter>
+        <circle id="path-2" cx="18" cy="18" r="18"></circle>
+    </defs>
+    <g id="iocn" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="画板" transform="translate(-331.000000, -1056.000000)">
+            <g id="像素线" transform="translate(331.000000, 1056.000000)">
+                <rect id="矩形备份-121" x="0" y="0" width="44" height="44"></rect>
+                <g filter="url(#filter-1)" id="编组-57">
+                    <g transform="translate(22.000000, 22.000000) rotate(-180.000000) translate(-22.000000, -22.000000) translate(4.000000, 4.000000)">
+                        <mask id="mask-3" fill="white">
+                            <use xlink:href="#path-2"></use>
+                        </mask>
+                        <g id="蒙版"></g>
+                        <g id="编组-57备份" mask="url(#mask-3)" stroke="#979797">
+                            <g transform="translate(18.048537, 1.272218) rotate(-270.000000) translate(-18.048537, -1.272218) translate(-11.223681, -19.227782)">
+                                <path d="M38.044437,41 C49.3662743,41 58.544437,31.8218374 58.544437,20.5 C58.544437,9.17816263 49.3662743,4.54747351e-13 38.044437,4.54747351e-13 C26.7225996,4.54747351e-13 17.544437,9.17816263 17.544437,20.5 C17.544437,31.8218374 26.7225996,41 38.044437,41 Z" id="椭圆形备份-10" stroke-width="1.3"></path>
+                                <circle id="椭圆形备份-29" stroke-width="1.4" cx="35" cy="20.5485371" r="19"></circle>
+                                <circle id="椭圆形备份-40" stroke-width="1.4" cx="30" cy="20.5485371" r="18"></circle>
+                                <circle id="椭圆形备份-43" stroke-width="1.4" cx="24" cy="20.5485371" r="17.3"></circle>
+                                <circle id="椭圆形备份-42" stroke-width="1.4" cx="24" cy="20.5485371" r="17.3"></circle>
+                                <circle id="椭圆形备份-45" stroke-width="1.4" cx="18" cy="20.5485371" r="18"></circle>
+                            </g>
+                        </g>
+                        <g mask="url(#mask-3)" stroke="#979797" stroke-width="1.4">
+                            <g transform="translate(-15.000000, -4.000000)">
+                                <circle id="椭圆形" cx="33" cy="22" r="17.3"></circle>
+                                <circle id="椭圆形备份-10" cx="24" cy="23.5" r="21.5"></circle>
+                                <circle id="椭圆形备份-29" cx="23" cy="22" r="18"></circle>
+                                <circle id="椭圆形备份-31" cx="18" cy="22" r="18"></circle>
+                                <circle id="椭圆形备份-6" cx="44" cy="23" r="23"></circle>
+                                <path d="M45.8226103,42 C56.8683053,42 65.8226103,33.045695 65.8226103,22 C65.8226103,10.954305 56.8683053,2 45.8226103,2 C34.7769153,2 25.8226103,10.954305 25.8226103,22 C25.8226103,33.045695 34.7769153,42 45.8226103,42 Z" id="椭圆形备份-9"></path>
+                                <circle id="椭圆形备份-28" cx="48" cy="21" r="17.3"></circle>
+                            </g>
+                        </g>
+                    </g>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>

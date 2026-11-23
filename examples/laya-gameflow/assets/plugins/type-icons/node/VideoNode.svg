@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="44px" height="44px" viewBox="0 0 44 44" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>视频节点</title>
+    <defs>
+        <filter id="filter-1">
+            <feColorMatrix in="SourceGraphic" type="matrix" values="0 0 0 0 0.513725 0 0 0 0 0.772549 0 0 0 0 0.992157 0 0 0 1.000000 0"></feColorMatrix>
+        </filter>
+    </defs>
+    <g id="iocn" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="画板" transform="translate(-204.000000, -56.000000)">
+            <g id="视频节点" transform="translate(204.000000, 56.000000)">
+                <rect id="矩形" x="0" y="0" width="44" height="44"></rect>
+                <g id="编组-9" transform="translate(4.000000, 4.000000)">
+                    <rect id="矩形备份" stroke="#1892FF" stroke-width="3.5" x="1.75" y="1.75" width="32.5" height="32.5" rx="8"></rect>
+                    <g filter="url(#filter-1)" id="视频备份">
+                        <g transform="translate(11.710307, 11.000000)">
+                            <path d="M11.4200883,4.30167598 L4.87150621,0.469273743 C4.39234167,0.156424581 3.83331637,0 3.1944303,0 C1.43749364,0 0,1.40782123 0,3.12849162 L0,10.8715084 C0,11.4189944 0.159721515,11.9664804 0.479164546,12.5139665 C0.878468334,13.2178771 1.59721515,13.7653631 2.47568349,13.9217877 C2.71526576,14 3.03470879,14 3.27429106,14 C3.83331637,14 4.39234167,13.8435754 4.95136697,13.5307263 L11.4999491,9.69832402 C11.9791136,9.46368715 12.2985567,9.0726257 12.6179997,8.60335196 C13.4166073,7.11731844 12.9374427,5.16201117 11.4200883,4.30167598 Z M9.74301243,6.96089385 L3.1944303,10.7932961 L3.1944303,3.05027933 L9.74301243,6.96089385 Z" id="形状" fill="#4A576A" fill-rule="nonzero"></path>
+                        </g>
+                    </g>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>

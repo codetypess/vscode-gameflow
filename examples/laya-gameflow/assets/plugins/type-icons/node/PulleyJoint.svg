@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="44px" height="44px" viewBox="0 0 44 44" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>滑轮关节</title>
+    <defs>
+        <filter id="filter-1">
+            <feColorMatrix in="SourceGraphic" type="matrix" values="0 0 0 0 0.686275 0 0 0 0 0.988235 0 0 0 0 0.341176 0 0 0 1.000000 0"></feColorMatrix>
+        </filter>
+        <filter id="filter-2">
+            <feColorMatrix in="SourceGraphic" type="matrix" values="0 0 0 0 0.560784 0 0 0 0 0.607843 0 0 0 0 0.701961 0 0 0 1.000000 0"></feColorMatrix>
+        </filter>
+    </defs>
+    <g id="iocn" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="滑轮关节" transform="translate(-381.000000, -797.000000)" filter="url(#filter-1)">
+            <g transform="translate(381.000000, 797.000000)" filter="url(#filter-2)" id="编组-29">
+                <g>
+                    <rect id="矩形备份-21" stroke="#979797" fill="#D8D8D8" opacity="0" x="0.5" y="0.5" width="43" height="43"></rect>
+                    <g id="编组-25" transform="translate(12.596048, 4.000000)">
+                        <ellipse id="椭圆形" stroke="#FFFFFF" stroke-width="3" cx="9.40957145" cy="9" rx="7.54714548" ry="7.5"></ellipse>
+                        <ellipse id="椭圆形" fill="#FFFFFF" cx="9.40957145" cy="9" rx="2.26178637" ry="2.25"></ellipse>
+                        <ellipse id="椭圆形备份-16" fill="#FFFFFF" cx="9.40957145" cy="28.5" rx="2.26178637" ry="2.25"></ellipse>
+                        <polygon id="矩形" stroke="#FFFFFF" fill="#FFFFFF" transform="translate(2.447977, 19.125000) rotate(-277.000000) translate(-2.447977, -19.125000) " points="-7.61805116 17.8947091 12.5149547 18.84755 12.5140042 20.3552909 -7.61900162 19.40245"></polygon>
+                        <polygon id="矩形" stroke="#FFFFFF" fill="#FFFFFF" transform="translate(16.390585, 19.125000) scale(-1, 1) rotate(-277.000000) translate(-16.390585, -19.125000) " points="6.32455691 17.8947091 26.4575628 18.84755 26.4566123 20.3552909 6.32360645 19.40245"></polygon>
+                        <ellipse id="椭圆形备份-15" stroke="#FFFFFF" stroke-width="3" cx="9.40957145" cy="28.5" rx="6.0392879" ry="6"></ellipse>
+                    </g>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>

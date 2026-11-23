@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="22px" height="23px" viewBox="0 0 22 23" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>Sprite3D</title>
+    <defs>
+        <filter id="filter-1">
+            <feColorMatrix in="SourceGraphic" type="matrix" values="0 0 0 0 0.211765 0 0 0 0 0.796078 0 0 0 0 1.000000 0 0 0 1.000000 0"></feColorMatrix>
+        </filter>
+    </defs>
+    <g id="iocn" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="Sprite3D" transform="translate(-38.000000, -266.000000)" filter="url(#filter-1)">
+            <g transform="translate(38.000000, 266.634456)">
+                <rect id="矩形" stroke="#979797" fill="#D8D8D8" opacity="0" x="0.5" y="0.86554379" width="21" height="21"></rect>
+                <g id="MeshSprite3D" transform="translate(3.000000, 0.000000)" fill="#54EFA5" fill-rule="nonzero">
+                    <g id="编组-8" transform="translate(7.994549, 6.900645)" opacity="0.800000012">
+                        <polygon id="路径" points="4.52831826 10.8963652 5.00340695 10.6295869 6.00408833 10.0676705 8.00545111 8.94383775 8.00545111 8.41993142e-13 6.00408833 1.10979217 5.00340695 1.66468825 4.52616244 1.92932904"></polygon>
+                        <polygon id="路径" points="4.13002965e-14 4.43916868 4.13002965e-14 13.4391687 2.00136278 12.3153359 3.00204417 11.7534196 3.50238486 11.4724614 3.50238486 2.49703238 3.00204417 2.77448042 2.00136278 3.32937651"></polygon>
+                    </g>
+                    <g id="编组-8" transform="translate(8.035874, 6.893625) scale(-1, 1) rotate(-120.000000) translate(-8.035874, -6.893625) translate(4.059891, -0.007020)">
+                        <polygon id="路径" points="4.71904309 11.2475523 7.88395295 9.19833691 7.95196608 -6.73566686e-12 4.54147378 2.04848786"></polygon>
+                        <polygon id="路径" points="0.0852504678 4.69575393 -1.03557062e-11 13.8012904 3.69310969 11.8236485 3.53793948 2.65125358"></polygon>
+                    </g>
+                    <polygon id="路径" opacity="0.600000024" points="0.0717488789 6.88660463 7.99454889 11.3398139 7.99454889 20.3398139 2.47887921e-15 15.8304424"></polygon>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>

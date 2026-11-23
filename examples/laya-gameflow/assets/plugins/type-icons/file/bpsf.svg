@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="44px" height="44px" viewBox="0 0 44 44" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>file_type_lbp</title>
+    <defs>
+        <filter id="filter-1">
+            <feColorMatrix in="SourceGraphic" type="matrix" values="0 0 0 0 0.219608 0 0 0 0 0.537255 0 0 0 0 1.000000 0 0 0 1.000000 0"></feColorMatrix>
+        </filter>
+        <filter id="filter-2">
+            <feColorMatrix in="SourceGraphic" type="matrix" values="0 0 0 0 1.000000 0 0 0 0 0.678431 0 0 0 0 0.227451 0 0 0 1.000000 0"></feColorMatrix>
+        </filter>
+    </defs>
+    <g id="iocn" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="file_type_lbp" transform="translate(-233.000000, -152.000000)" filter="url(#filter-1)">
+            <g transform="translate(233.000000, 152.000000)">
+                <rect id="矩形备份-23" x="0" y="0" width="44" height="44"></rect>
+                <g id="显示菜单备份" transform="translate(4.000000, 4.000000)" filter="url(#filter-2)">
+                    <g>
+                        <path d="M27,36 L9,36 C4.03892617,36 0,31.9610738 0,27 L0,9 C0,4.03892617 4.03892617,0 9,0 L27,0 C31.9610738,0 36,4.03892617 36,9 L36,27 C36,31.9610738 31.9610738,36 27,36 Z M9,3.2738255 C5.84295302,3.2738255 3.2738255,5.84295302 3.2738255,9 L3.2738255,27 C3.2738255,30.157047 5.84295302,32.7261745 9,32.7261745 L27,32.7261745 C30.157047,32.7261745 32.7261745,30.157047 32.7261745,27 L32.7261745,9 C32.7261745,5.84295302 30.157047,3.2738255 27,3.2738255 L9,3.2738255 Z" id="形状" fill="#000000" fill-rule="nonzero"></path>
+                    </g>
+                </g>
+                <g id="编组-22" transform="translate(10.923045, 10.669063)">
+                    <path d="M5.13414613,6 C6.79100038,6 8.13414613,4.65685425 8.13414613,3 C8.13414613,1.34314575 6.79100038,0 5.13414613,0 C3.47729188,0 2.13414613,1.34314575 2.13414613,3 C2.13414613,4.65685425 3.47729188,6 5.13414613,6 Z" id="椭圆形" fill="#FFAD3A"></path>
+                    <path d="M4.94177911,6.33093677 L5.19864751,8.33093677 L4.94177911,8.33093677 L4.94177911,6.33093677 Z" id="矩形" stroke="#FFAD3A" stroke-width="2" fill="#FFAD3A" opacity="0.625053769"></path>
+                    <path d="M4.94014475,16.1926742 L5.191557,20.2044198 L11.0120573,20.1942706 L11.0120573,20.4511821 L5.06375525,20.4618289 C5.03358437,20.4618829 5.00577221,20.4515028 4.98405365,20.4337673 C4.97431673,20.425816 4.96565878,20.4164937 4.95852047,20.4060512 L4.95852047,20.4060512 L4.94014475,16.1926742 Z" id="形状结合" stroke="#FFAD3A" stroke-width="2" opacity="0.600000024"></path>
+                    <path d="M9.94177911,11.3309368 L10.1986475,13.3309368 L9.94177911,13.3309368 L9.94177911,11.3309368 Z" id="矩形" stroke="#FFAD3A" stroke-width="2" fill="#D8D8D8" opacity="0.6250901" transform="translate(10.070213, 12.330937) rotate(-270.000000) translate(-10.070213, -12.330937) "></path>
+                    <path d="M7.35161647,9.73011533 L7.63417243,14.5335666 L2.83072118,14.8161225 L2.54816522,10.0126713 L7.35161647,9.73011533 Z" id="矩形" stroke="#FFAD3A" stroke-width="2" transform="translate(5.091169, 12.273119) rotate(-315.000000) translate(-5.091169, -12.273119) "></path>
+                    <polygon id="矩形" stroke="#FFAD3A" stroke-width="2" stroke-linejoin="round" points="12.9853781 10.3591548 20.0720242 10.3591548 20.0720242 13.9591548 12.9853781 13.9591548"></polygon>
+                    <polygon id="矩形备份-17" stroke="#FFAD3A" stroke-width="2" stroke-linejoin="round" points="12.9853781 18.4599614 20.0720242 18.4599614 20.0720242 22.0599614 12.9853781 22.0599614"></polygon>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="44px" height="44px" viewBox="0 0 44 44" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>lod组</title>
+    <g id="iocn" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="画板" transform="translate(-471.000000, -1058.000000)">
+            <g id="lod组" transform="translate(471.000000, 1058.000000)">
+                <g id="编组-28" transform="translate(4.000000, 4.000000)">
+                    <rect id="矩形" fill="#2589FF" x="1.63636364" y="0" width="16.3636364" height="16.3636364" rx="1.63636364"></rect>
+                    <rect id="矩形备份-20" fill="#2589FF" x="19.6363636" y="18" width="16.3636364" height="16.3636364" rx="1.63636364"></rect>
+                    <rect id="矩形备份-64" fill="#A9CFFF" x="0" y="18" width="18" height="18" rx="1.63636364"></rect>
+                    <rect id="矩形备份-69" fill="#A9CFFF" x="19.6363636" y="3.27272727" width="13.0909091" height="13.0909091" rx="1.63636364"></rect>
+                </g>
+                <rect id="矩形备份-104" x="0" y="0" width="44" height="44"></rect>
+            </g>
+        </g>
+    </g>
+</svg>

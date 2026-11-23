@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="22px" height="22px" viewBox="0 0 22 22" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>Grid</title>
+    <defs>
+        <filter id="filter-1">
+            <feColorMatrix in="SourceGraphic" type="matrix" values="0 0 0 0 0.329412 0 0 0 0 0.937255 0 0 0 0 0.647059 0 0 0 1.000000 0"></feColorMatrix>
+        </filter>
+        <filter id="filter-2">
+            <feColorMatrix in="SourceGraphic" type="matrix" values="0 0 0 0 0.098039 0 0 0 0 0.745098 0 0 0 0 0.588235 0 0 0 1.000000 0"></feColorMatrix>
+        </filter>
+    </defs>
+    <g id="iocn" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="Grid" transform="translate(-38.000000, -129.000000)" filter="url(#filter-1)">
+            <g transform="translate(38.000000, 129.000000)">
+                <g filter="url(#filter-2)" id="三角网操作" stroke-linejoin="round">
+                    <g transform="translate(2.000000, 2.506301)">
+                        <path d="M16.6029231,2.09635467 L12.4615385,5.17450212 L12.4615385,6.28906402 L11.7692308,6.28906402 L11.7692308,16.0052389 L16.6153846,12.1197119 L16.6153846,2.09635467 L16.6029231,2.09635467 Z M15.9230769,1.39756978 L2.73461538,1.39756978 L10.3846154,4.68605148 L10.3846154,4.19270934 L12.4615385,4.19270934 L12.4615385,4.30661128 L15.9230769,1.7343841 L15.9230769,1.39756978 Z M1.38461538,2.09635467 L1.38461538,11.9995209 L11.0769231,16.1701522 L11.0769231,6.28906402 L10.3846154,6.28906402 L10.3846154,5.44563065 L2.07692308,1.87483986 L2.07692308,2.09635467 L1.38461538,2.09635467 Z M2.07692308,0.698784891 L15.9230769,0.698784891 L15.9230769,3.87245791e-13 L18,3.87245791e-13 L18,2.09635467 L17.3076923,2.09635467 L17.3076923,12.4774898 L11.4777692,17.0771749 L0.692307692,12.4774898 L0.692307692,2.09635467 L0,2.09635467 L0,3.87245791e-13 L2.07692308,3.87245791e-13 L2.07692308,0.698784891 Z" id="形状" stroke="#979797" fill="#19BE96" fill-rule="nonzero"></path>
+                    </g>
+                </g>
+                <rect id="矩形备份-108" x="0" y="0" width="22" height="22"></rect>
+            </g>
+        </g>
+    </g>
+</svg>

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="44px" height="44px" viewBox="0 0 44 44" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>角色碰撞器</title>
+    <defs>
+        <filter id="filter-1">
+            <feColorMatrix in="SourceGraphic" type="matrix" values="0 0 0 0 0.286275 0 0 0 0 0.952941 0 0 0 0 0.847059 0 0 0 1.000000 0"></feColorMatrix>
+        </filter>
+    </defs>
+    <g id="iocn" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="画板" transform="translate(-239.000000, -882.000000)">
+            <g id="角色碰撞器" transform="translate(239.000000, 882.000000)">
+                <rect id="矩形备份-89" x="0" y="0" width="44" height="44"></rect>
+                <g filter="url(#filter-1)" id="编组-42">
+                    <g transform="translate(6.000000, 4.000000)">
+                        <path d="M0,22.4737864 L12.525,34.9997864 L0.000180830618,35 L0,22.4737864 Z M32,22.4747864 L32,35 L19.475,34.9997864 L32,22.4747864 Z M6.04718083,2.99978636 L6.047,10.7167864 L0,16.7637864 L0.000180830618,3 L6.04718083,2.99978636 Z M32,3 L32,16.7627864 L26.044,10.8067864 L26.0431808,2.99978636 L32,3 Z" id="形状结合" fill="#D8D8D8" opacity="0.800942557"></path>
+                        <rect id="矩形备份-160" fill="#D8D8D8" x="7.82235885" y="0" width="16.3554631" height="30" rx="8.17773157"></rect>
+                    </g>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>

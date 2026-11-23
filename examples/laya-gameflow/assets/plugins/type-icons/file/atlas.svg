@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="44px" height="44px" viewBox="0 0 44 44" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>编组 27</title>
+    <g id="iocn" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="画板" transform="translate(-673.000000, -832.000000)">
+            <g id="编组-27" transform="translate(673.000000, 832.000000)">
+                <rect id="矩形" x="0" y="0" width="44" height="44"></rect>
+                <g id="编组-25" transform="translate(4.071794, 5.000000)">
+                    <g id="编组-26" transform="translate(8.914744, 17.721906) rotate(-270.000000) translate(-8.914744, -17.721906) translate(-8.502498, 8.807162)">
+                        <path d="M7.94513578,0 C12.3331131,-8.06058358e-16 15.8902716,3.55715845 15.8902716,7.94513578 L15.8902716,7.96395513 C15.8902716,12.3519325 12.3331131,15.9090909 7.94513578,15.9090909 C3.55715845,15.9090909 -2.12716302e-15,12.3519325 0,7.96395513 L0,7.94513578 C-5.37372239e-16,3.55715845 3.55715845,8.06058358e-16 7.94513578,0 Z" id="矩形备份-2" fill="#2589FF"></path>
+                        <polygon id="矩形备份-2" fill="#A9CFFF" transform="translate(26.490635, 9.874943) rotate(-90.000000) translate(-26.490635, -9.874943) " points="23.3088168 1.53109367 34.4451804 1.53109367 34.4451804 18.2187915 18.5360895 18.2187915"></polygon>
+                    </g>
+                    <rect id="矩形" fill="#A9CFFF" x="20.0379341" y="0" width="15.8902716" height="35"></rect>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>

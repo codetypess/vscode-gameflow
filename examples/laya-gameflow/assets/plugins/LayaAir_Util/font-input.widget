@@ -1,0 +1,36 @@
+{
+  "_$ver": 1,
+  "_$id": "ne5wza91",
+  "_$type": "Widget",
+  "name": "Root",
+  "width": 132,
+  "height": 20,
+  "_$child": [
+    {
+      "_$id": "5y7yyfzu",
+      "_$prefab": "e73acb1a-d00c-b47a-f857-c9a9d68ad5e0",
+      "name": "input",
+      "active": true,
+      "x": 0,
+      "y": 0,
+      "visible": true,
+      "touchable": true,
+      "width": 132,
+      "height": 19,
+      "relations": [
+        {
+          "_$type": "Relation",
+          "target": {
+            "_$ref": "ne5wza91"
+          },
+          "data": [
+            1,
+            0,
+            2,
+            0
+          ]
+        }
+      ]
+    }
+  ]
+}

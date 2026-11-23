@@ -1,0 +1,25 @@
+{
+  "name": "@assets/plugins",
+  "version": "1.0.0",
+  "description": "",
+  "type": "module",
+  "scripts": {
+    "check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@stylistic/eslint-plugin-js": "^1.7.2",
+    "@types/node": "^22.10.2",
+    "@typescript-eslint/eslint-plugin": "^7.7.0",
+    "@typescript-eslint/parser": "^7.7.0",
+    "eslint": "^8.57.0",
+    "typescript": "^5.4.5"
+  },
+  "engines": {
+    "node": "^14.18.0 || >=16.0.0"
+  },
+  "dependencies": {
+    "js-md5": "^0.8.3",
+    "jszip": "^3.10.1",
+    "uuid": "^11.0.3"
+  }
+}

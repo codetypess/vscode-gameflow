@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="47px" height="47px" viewBox="0 0 47 47" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>编组 30</title>
+    <g id="iocn" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="画板" transform="translate(-160.000000, -882.000000)">
+            <g id="编组-30" transform="translate(160.000000, 882.000000)">
+                <path d="M23.2224319,9.45559337 L35.1448637,16.3390126 L35.1448637,30.1058511 L23.2224319,36.9892704 L11.3,30.1058511 L11.3,16.3390126 L23.2224319,9.45559337 Z" id="多边形" stroke="#25A6A1" stroke-width="5.6" fill="#3AD4C2" transform="translate(23.222432, 23.222432) rotate(-330.000000) translate(-23.222432, -23.222432) "></path>
+                <polygon id="路径-11" fill="#2CC4AC" points="28.5047468 14.1168134 31.7224319 8.5 40.2224319 23.2224319 33.7617743 23.2224319"></polygon>
+                <polygon id="路径-11备份" fill="#49F3D8" transform="translate(12.091115, 15.861216) scale(-1, 1) translate(-12.091115, -15.861216) " points="6.23227227 14.1168134 9.44995734 8.5 17.9499573 23.2224319 11.4892998 23.2224319"></polygon>
+                <polygon id="路径-11" fill="#49F3D8" opacity="0.245839437" transform="translate(34.353666, 30.583648) scale(1, -1) translate(-34.353666, -30.583648) " points="28.4849001 28.8173149 31.7224319 23.2224319 40.2224319 37.9448637 33.7617743 37.9448637"></polygon>
+                <polygon id="路径-11备份" fill="#49F3D8" opacity="0.897776286" transform="translate(12.047547, 30.521792) scale(-1, -1) translate(-12.047547, -30.521792) " points="6.18870399 28.7773892 9.40638906 23.1605758 17.9063891 37.8830077 11.4457315 37.8830077"></polygon>
+                <polygon id="路径-12" fill="#2CC4AC" opacity="0.601279122" points="14.7224319 8.5 17.9184697 14.1168134 28.5047468 14.1168134 31.7224319 8.5"></polygon>
+            </g>
+        </g>
+    </g>
+</svg>

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="22px" height="22px" viewBox="0 0 22 22" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>Text</title>
+    <defs>
+        <filter id="filter-1">
+            <feColorMatrix in="SourceGraphic" type="matrix" values="0 0 0 0 1.000000 0 0 0 0 0.250980 0 0 0 0 0.698039 0 0 0 1.000000 0"></feColorMatrix>
+        </filter>
+        <filter id="filter-2">
+            <feColorMatrix in="SourceGraphic" type="matrix" values="0 0 0 0 0.964706 0 0 0 0 0.443137 0 0 0 0 0.439216 0 0 0 1.000000 0"></feColorMatrix>
+        </filter>
+    </defs>
+    <g id="iocn" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="Text" transform="translate(-176.000000, -267.000000)" filter="url(#filter-1)">
+            <g transform="translate(176.000000, 267.000000)">
+                <rect id="矩形备份-67" x="0" y="0" width="22" height="22"></rect>
+                <g id="编组-19" transform="translate(3.000000, 3.000000)">
+                    <g filter="url(#filter-2)" id="编组备份" stroke-linecap="round" stroke-linejoin="round">
+                        <g transform="translate(0.000000, 0.000000)">
+                            <polyline id="路径" stroke="#333333" stroke-width="1.77777778" points="11.5555556 0 16 0 16 4.44444444"></polyline>
+                            <polyline id="路径" stroke="#333333" stroke-width="1.77777778" points="4.44444444 0 0 0 0 4.44444444"></polyline>
+                            <polyline id="路径" stroke="#333333" stroke-width="1.77777778" points="11.5555556 16 16 16 16 11.5555556"></polyline>
+                            <polyline id="路径" stroke="#333333" stroke-width="1.77777778" points="4.44444444 16 0 16 0 11.5555556"></polyline>
+                        </g>
+                    </g>
+                    <path d="M12.4904339,4.37144306 C12.9164817,4.37165412 13.261691,4.71720442 13.2614998,5.14325218 C13.2612821,5.54032075 12.9597058,5.87238202 12.564491,5.9106979 L12.4904339,5.91429791 L8.82208667,5.91429791 L8.82208667,12.993184 C8.82187864,13.4192266 8.47633013,13.7644383 8.05028238,13.7642316 C7.65321381,13.7640371 7.32115012,13.4624627 7.28283183,13.067248 L7.27923134,12.9931858 L7.27923134,5.9142997 L4.00881313,5.9142997 C3.5827654,5.9140888 3.23755609,5.56853834 3.23774531,5.14249058 C3.23796237,4.74542202 3.5395389,4.41335833 3.93475604,4.37504486 L4.00881315,4.37144306 L6.06595427,4.37144306 L12.4904339,4.37144306 Z" id="路径" stroke="#FF5C64" stroke-width="0.4" fill="#FF5C64" fill-rule="nonzero" opacity="0.600000024"></path>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>
