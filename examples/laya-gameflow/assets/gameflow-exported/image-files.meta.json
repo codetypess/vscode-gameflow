@@ -1,0 +1,120 @@
+{
+  "schema": "gameflow.resources",
+  "version": 2,
+  "resources": [
+    {
+      "name": "fill_gray",
+      "file": "builtin/block/fill_gray.png",
+      "source": {
+        "documentId": "gameflow-builtin",
+        "psdName": "builtin.psd",
+        "sourceHash": "0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "layerId": "block/fill-gray",
+      "layerName": "浅灰色块",
+      "shared": true,
+      "width": 32,
+      "height": 32,
+      "nineGrid": {
+        "top": 6,
+        "right": 6,
+        "bottom": 6,
+        "left": 6,
+        "repeat": false
+      },
+      "sha256": "5885ac209664b9c7677923143549af9a3754babe50d95ab51b2e5b45cdc7db6e"
+    },
+    {
+      "name": "outline_gray",
+      "file": "builtin/block/outline_gray.png",
+      "source": {
+        "documentId": "gameflow-builtin",
+        "psdName": "builtin.psd",
+        "sourceHash": "0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "layerId": "block/outline-gray",
+      "layerName": "浅灰描边色块",
+      "shared": true,
+      "width": 32,
+      "height": 32,
+      "nineGrid": {
+        "top": 6,
+        "right": 6,
+        "bottom": 6,
+        "left": 6,
+        "repeat": false
+      },
+      "sha256": "44f5433c6dc321561586fc5e39e36c29a5010317d226791a3ed5be86120dbe4e"
+    },
+    {
+      "name": "yellow",
+      "file": "builtin/button/yellow.png",
+      "source": {
+        "documentId": "gameflow-builtin",
+        "psdName": "builtin.psd",
+        "sourceHash": "0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "layerId": "button/yellow",
+      "layerName": "黄色按钮",
+      "shared": true,
+      "width": 64,
+      "height": 64,
+      "nineGrid": {
+        "top": 14,
+        "right": 14,
+        "bottom": 14,
+        "left": 14,
+        "repeat": false
+      },
+      "sha256": "0b4dd9e571ac018ccd81023b759b2793181bc9639f50c3de86222b9fdbd71c3f"
+    },
+    {
+      "name": "fill_green",
+      "file": "builtin/circle/fill_green.png",
+      "source": {
+        "documentId": "gameflow-builtin",
+        "psdName": "builtin.psd",
+        "sourceHash": "0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "layerId": "circle/fill-green",
+      "layerName": "绿色圆形",
+      "shared": true,
+      "width": 64,
+      "height": 64,
+      "nineGrid": null,
+      "sha256": "52614b77cd426c45b2a024262531967d447e3bd2f40ea60a0b68967ae8a1669a"
+    },
+    {
+      "name": "star",
+      "file": "builtin/icon/star.png",
+      "source": {
+        "documentId": "gameflow-builtin",
+        "psdName": "builtin.psd",
+        "sourceHash": "0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "layerId": "icon/star",
+      "layerName": "收藏",
+      "shared": true,
+      "width": 48,
+      "height": 48,
+      "nineGrid": null,
+      "sha256": "e57a892e7ad60083416d6351a21bde0fa126a5c2433cc3bee6da5c2535c370a4"
+    },
+    {
+      "name": "default_750x1334",
+      "file": "builtin/image/default_750x1334.png",
+      "source": {
+        "documentId": "gameflow-builtin",
+        "psdName": "builtin.psd",
+        "sourceHash": "0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "layerId": "image/default",
+      "layerName": "默认图片",
+      "shared": true,
+      "width": 750,
+      "height": 1334,
+      "nineGrid": null,
+      "sha256": "e095903228dc0ecfde27340585edbaa29828d17bf0779282a812a0a5d8ef6c3b"
+    }
+  ]
+}

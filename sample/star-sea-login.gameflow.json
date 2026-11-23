@@ -78,10 +78,10 @@
           "image": {
             "builtin": "block/fill-gray",
             "art": {
-              "path": "unclassified/login_skjb.png",
+              "path": "builtin/block/fill_gray.png",
               "source": {
-                "documentId": "47061573-175a-4735-986e-15e5faa87890",
-                "layerId": "atbs1ky7"
+                "documentId": "0ba9bc45-76bc-5eda-a37f-0da4a2653cc6",
+                "layerId": "f2f45355-58f7-5aca-a80a-a2a84903f1fe"
               }
             }
           },
@@ -117,10 +117,10 @@
           "image": {
             "builtin": "image/default",
             "art": {
-              "path": "unclassified/login_xdygd.png",
+              "path": "builtin/image/default_750x1334.png",
               "source": {
-                "documentId": "47061573-175a-4735-986e-15e5faa87890",
-                "layerId": "g6aijsld"
+                "documentId": "0ba9bc45-76bc-5eda-a37f-0da4a2653cc6",
+                "layerId": "25631c23-6c63-50a8-aca8-45beb3712f8c"
               }
             }
           },
@@ -177,10 +177,10 @@
           "image": {
             "builtin": "icon/star",
             "art": {
-              "path": "unclassified/login_xhhj.png",
+              "path": "builtin/icon/star.png",
               "source": {
-                "documentId": "47061573-175a-4735-986e-15e5faa87890",
-                "layerId": "1jjds7jk"
+                "documentId": "0ba9bc45-76bc-5eda-a37f-0da4a2653cc6",
+                "layerId": "2f0af511-e374-54b2-ace7-42c89dad6dc6"
               }
             }
           },
@@ -307,10 +307,10 @@
           "image": {
             "builtin": "block/outline-gray",
             "art": {
-              "path": "unclassified/login_fwqdb.png",
+              "path": "builtin/block/outline_gray.png",
               "source": {
-                "documentId": "47061573-175a-4735-986e-15e5faa87890",
-                "layerId": "zes4xdk1"
+                "documentId": "0ba9bc45-76bc-5eda-a37f-0da4a2653cc6",
+                "layerId": "06dc5ef6-3447-5ec9-a3b0-539fc5acf6fd"
               }
             }
           },
@@ -344,10 +344,10 @@
           "image": {
             "builtin": "circle/fill-green",
             "art": {
-              "path": "unclassified/login_ljztd.png",
+              "path": "builtin/circle/fill_green.png",
               "source": {
-                "documentId": "47061573-175a-4735-986e-15e5faa87890",
-                "layerId": "zht8rdqu"
+                "documentId": "0ba9bc45-76bc-5eda-a37f-0da4a2653cc6",
+                "layerId": "9b555532-988a-5b8d-a1c6-df932ef7e889"
               }
             }
           },
@@ -414,10 +414,10 @@
           "normalSkin": {
             "builtin": "button/yellow",
             "art": {
-              "path": "unclassified/login_start_normal.png",
+              "path": "builtin/button/yellow.png",
               "source": {
-                "documentId": "47061573-175a-4735-986e-15e5faa87890",
-                "layerId": "c6ni4g0w"
+                "documentId": "0ba9bc45-76bc-5eda-a37f-0da4a2653cc6",
+                "layerId": "51bc3d98-9d0a-54f1-a765-d9833a3cfdad"
               }
             }
           }
@@ -489,8 +489,231 @@
             "valign": "middle"
           }
         }
-      ]
+      ],
+      "artPsd": {
+        "source": "星海远征 · 登录.psd",
+        "documentId": "0ba9bc45-76bc-5eda-a37f-0da4a2653cc6"
+      },
+      "psdSync": {
+        "version": 1,
+        "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
+        "pageId": "umlxcxo4",
+        "psdId": "0ba9bc45-76bc-5eda-a37f-0da4a2653cc6",
+        "nodes": [
+          {
+            "id": "ofnub76o",
+            "name": "背景",
+            "type": "container",
+            "parent": "",
+            "text": "",
+            "frame": {
+              "x": 0,
+              "y": 0,
+              "width": 750,
+              "height": 1334
+            },
+            "variable": "background",
+            "layer": "cd8bdd6a-19bf-5faf-a2db-83252b4fefc3"
+          },
+          {
+            "id": "ptkmcxds",
+            "name": "深空渐变",
+            "type": "image",
+            "parent": "ofnub76o",
+            "text": "",
+            "frame": {
+              "x": 0,
+              "y": 0,
+              "width": 750,
+              "height": 1334
+            },
+            "variable": "deepSpace",
+            "layer": "f2f45355-58f7-5aca-a80a-a2a84903f1fe"
+          },
+          {
+            "id": "ct08f7f6",
+            "name": "星点与轨道",
+            "type": "image",
+            "parent": "ofnub76o",
+            "text": "",
+            "frame": {
+              "x": 0,
+              "y": 0,
+              "width": 750,
+              "height": 1334
+            },
+            "variable": "stars",
+            "layer": "25631c23-6c63-50a8-aca8-45beb3712f8c"
+          },
+          {
+            "id": "5amcsa7u",
+            "name": "标题区",
+            "type": "container",
+            "parent": "",
+            "text": "",
+            "frame": {
+              "x": 60,
+              "y": 275,
+              "width": 630,
+              "height": 295
+            },
+            "variable": "titleArea",
+            "layer": "565b77ac-dc36-5265-a02a-79d31e9ee6b1"
+          },
+          {
+            "id": "3o30ft4g",
+            "name": "星海徽记",
+            "type": "image",
+            "parent": "5amcsa7u",
+            "text": "",
+            "frame": {
+              "x": 267,
+              "y": 275,
+              "width": 216,
+              "height": 80
+            },
+            "variable": "emblem",
+            "layer": "2f0af511-e374-54b2-ace7-42c89dad6dc6"
+          },
+          {
+            "id": "2uij4u4o",
+            "name": "游戏标题",
+            "type": "text",
+            "parent": "5amcsa7u",
+            "text": "星海远征",
+            "frame": {
+              "x": 60,
+              "y": 405,
+              "width": 630,
+              "height": 106
+            },
+            "variable": "gameTitle",
+            "layer": "391e5722-cbff-591b-a666-82b9a9714b0f"
+          },
+          {
+            "id": "3y70xjmg",
+            "name": "副标题",
+            "type": "text",
+            "parent": "5amcsa7u",
+            "text": "启航，探索未知星域",
+            "frame": {
+              "x": 60,
+              "y": 515,
+              "width": 630,
+              "height": 40
+            },
+            "variable": "subtitle",
+            "layer": "dac9cd0d-10d8-5798-a116-7392288e374c"
+          },
+          {
+            "id": "k865l2ly",
+            "name": "服务器信息",
+            "type": "container",
+            "parent": "",
+            "text": "",
+            "frame": {
+              "x": 145,
+              "y": 870,
+              "width": 460,
+              "height": 64
+            },
+            "variable": "serverInfo",
+            "layer": "9982ab93-633b-5406-ac6a-a1c40ea61c92"
+          },
+          {
+            "id": "i57rqmsq",
+            "name": "服务器底板",
+            "type": "image",
+            "parent": "k865l2ly",
+            "text": "",
+            "frame": {
+              "x": 145,
+              "y": 870,
+              "width": 460,
+              "height": 64
+            },
+            "variable": "serverBackground",
+            "layer": "06dc5ef6-3447-5ec9-a3b0-539fc5acf6fd"
+          },
+          {
+            "id": "3zt548wx",
+            "name": "连接状态灯",
+            "type": "image",
+            "parent": "k865l2ly",
+            "text": "",
+            "frame": {
+              "x": 177,
+              "y": 897,
+              "width": 10,
+              "height": 10
+            },
+            "variable": "connectionStatus",
+            "layer": "9b555532-988a-5b8d-a1c6-df932ef7e889"
+          },
+          {
+            "id": "wy3s8pwe",
+            "name": "服务器名称",
+            "type": "text",
+            "parent": "k865l2ly",
+            "text": "星港一区   ·   连接正常",
+            "frame": {
+              "x": 203,
+              "y": 882,
+              "width": 378,
+              "height": 40
+            },
+            "variable": "serverLabel",
+            "layer": "4d6e7fc8-a783-5511-ae32-63f3bede9dd5"
+          },
+          {
+            "id": "fud92jz0",
+            "name": "开始远征",
+            "type": "button",
+            "parent": "",
+            "text": "",
+            "frame": {
+              "x": 130,
+              "y": 978,
+              "width": 490,
+              "height": 94
+            },
+            "variable": "startButton",
+            "layer": "ec5dcce2-81fa-5b8f-a751-b881cb637843"
+          },
+          {
+            "id": "92i5vexr",
+            "name": "按钮文案",
+            "type": "text",
+            "parent": "fud92jz0",
+            "text": "开始远征",
+            "frame": {
+              "x": 130,
+              "y": 978,
+              "width": 490,
+              "height": 94
+            },
+            "variable": "startLabel",
+            "layer": "ee521ec8-ad12-5485-a3da-f08bad23c809"
+          },
+          {
+            "id": "bz0nfn04",
+            "name": "底部提示",
+            "type": "text",
+            "parent": "",
+            "text": "适度游戏，探索更多精彩",
+            "frame": {
+              "x": 60,
+              "y": 1220,
+              "width": 630,
+              "height": 30
+            },
+            "variable": "footer",
+            "layer": "8e6982c0-d7cf-5f61-a4f9-bc1761b18c9d"
+          }
+        ]
+      }
     }
   ],
-  "interactions": []
+  "interactions": [],
+  "exportDirectory": "login"
 }

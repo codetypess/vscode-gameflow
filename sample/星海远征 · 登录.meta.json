@@ -1,0 +1,518 @@
+{
+  "schema": "gameflow.psd-meta",
+  "version": 1,
+  "documentId": "0ba9bc45-76bc-5eda-a37f-0da4a2653cc6",
+  "atlasName": "login",
+  "source": {
+    "name": "星海远征 · 登录.psd",
+    "sha256": "7ef0897823814bf2426eb649f33a59e41fc72c88db91a28fbbdfe8c4ae27fcbe",
+    "width": 750,
+    "height": 1334
+  },
+  "layers": [
+    {
+      "id": "8e6982c0-d7cf-5f61-a4f9-bc1761b18c9d",
+      "sourceKey": 18,
+      "nativeId": 15,
+      "name": "底部提示",
+      "config": {
+        "enabled": false,
+        "name": "底部提示",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "0ba9bc45-76bc-5eda-a37f-0da4a2653cc6",
+        "layerId": "8e6982c0-d7cf-5f61-a4f9-bc1761b18c9d",
+        "prototype": {
+          "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
+          "pageId": "umlxcxo4",
+          "nodeId": "bz0nfn04"
+        },
+        "slicing": {
+          "enabled": false,
+          "name": "底部提示",
+          "nineGrid": null
+        },
+        "atlasName": "login"
+      }
+    },
+    {
+      "id": "ec5dcce2-81fa-5b8f-a751-b881cb637843",
+      "sourceKey": 17,
+      "nativeId": 14,
+      "name": "开始远征",
+      "config": {
+        "enabled": false,
+        "name": "开始远征",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "0ba9bc45-76bc-5eda-a37f-0da4a2653cc6",
+        "layerId": "ec5dcce2-81fa-5b8f-a751-b881cb637843",
+        "prototype": {
+          "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
+          "pageId": "umlxcxo4",
+          "nodeId": "fud92jz0"
+        },
+        "slicing": {
+          "enabled": false,
+          "name": "开始远征",
+          "nineGrid": null
+        },
+        "atlasName": "login"
+      }
+    },
+    {
+      "id": "ee521ec8-ad12-5485-a3da-f08bad23c809",
+      "sourceKey": 16,
+      "nativeId": 13,
+      "name": "按钮文案",
+      "config": {
+        "enabled": false,
+        "name": "按钮文案",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "0ba9bc45-76bc-5eda-a37f-0da4a2653cc6",
+        "layerId": "ee521ec8-ad12-5485-a3da-f08bad23c809",
+        "prototype": {
+          "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
+          "pageId": "umlxcxo4",
+          "nodeId": "92i5vexr"
+        },
+        "slicing": {
+          "enabled": false,
+          "name": "按钮文案",
+          "nineGrid": null
+        },
+        "atlasName": "login"
+      }
+    },
+    {
+      "id": "51bc3d98-9d0a-54f1-a765-d9833a3cfdad",
+      "sourceKey": 15,
+      "nativeId": 12,
+      "name": "@normal",
+      "config": {
+        "enabled": true,
+        "name": "@normal",
+        "nineGrid": {
+          "top": 14,
+          "right": 14,
+          "bottom": 14,
+          "left": 14,
+          "repeat": false
+        }
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "0ba9bc45-76bc-5eda-a37f-0da4a2653cc6",
+        "layerId": "51bc3d98-9d0a-54f1-a765-d9833a3cfdad",
+        "prototype": {
+          "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
+          "pageId": "umlxcxo4",
+          "nodeId": "fud92jz0",
+          "slot": "normalSkin"
+        },
+        "slicing": {
+          "enabled": true,
+          "name": "@normal",
+          "nineGrid": {
+            "top": 14,
+            "right": 14,
+            "bottom": 14,
+            "left": 14,
+            "repeat": false
+          }
+        },
+        "builtinOrigin": {
+          "id": "button/yellow",
+          "width": 490,
+          "height": 94,
+          "catalog": "e310989052f2636d7cc57a903e0264e3ae92a44858bd870b4f8e7d8b5fc9eb09",
+          "pixels": "43c1f295bbf8b90e5c89b18984fdbaee6889f95e43b7725b4f648d69f75a02bc"
+        },
+        "atlasName": "login"
+      }
+    },
+    {
+      "id": "9982ab93-633b-5406-ac6a-a1c40ea61c92",
+      "sourceKey": 13,
+      "nativeId": 11,
+      "name": "服务器信息",
+      "config": {
+        "enabled": false,
+        "name": "服务器信息",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "0ba9bc45-76bc-5eda-a37f-0da4a2653cc6",
+        "layerId": "9982ab93-633b-5406-ac6a-a1c40ea61c92",
+        "prototype": {
+          "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
+          "pageId": "umlxcxo4",
+          "nodeId": "k865l2ly"
+        },
+        "slicing": {
+          "enabled": false,
+          "name": "服务器信息",
+          "nineGrid": null
+        },
+        "atlasName": "login"
+      }
+    },
+    {
+      "id": "4d6e7fc8-a783-5511-ae32-63f3bede9dd5",
+      "sourceKey": 12,
+      "nativeId": 10,
+      "name": "服务器名称",
+      "config": {
+        "enabled": false,
+        "name": "服务器名称",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "0ba9bc45-76bc-5eda-a37f-0da4a2653cc6",
+        "layerId": "4d6e7fc8-a783-5511-ae32-63f3bede9dd5",
+        "prototype": {
+          "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
+          "pageId": "umlxcxo4",
+          "nodeId": "wy3s8pwe"
+        },
+        "slicing": {
+          "enabled": false,
+          "name": "服务器名称",
+          "nineGrid": null
+        },
+        "atlasName": "login"
+      }
+    },
+    {
+      "id": "9b555532-988a-5b8d-a1c6-df932ef7e889",
+      "sourceKey": 11,
+      "nativeId": 9,
+      "name": "连接状态灯",
+      "config": {
+        "enabled": true,
+        "name": "连接状态灯",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "0ba9bc45-76bc-5eda-a37f-0da4a2653cc6",
+        "layerId": "9b555532-988a-5b8d-a1c6-df932ef7e889",
+        "prototype": {
+          "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
+          "pageId": "umlxcxo4",
+          "nodeId": "3zt548wx",
+          "slot": "image"
+        },
+        "slicing": {
+          "enabled": true,
+          "name": "连接状态灯",
+          "nineGrid": null
+        },
+        "builtinOrigin": {
+          "id": "circle/fill-green",
+          "width": 10,
+          "height": 10,
+          "catalog": "25199009853557502f0a855e00911e0b7b4955187f781d151de213d9559867ec",
+          "pixels": "bd6219dcd2319e5e108d179f1dfe319e16f7946d68f0d76821167a023dfb9963"
+        },
+        "atlasName": "login"
+      }
+    },
+    {
+      "id": "06dc5ef6-3447-5ec9-a3b0-539fc5acf6fd",
+      "sourceKey": 10,
+      "nativeId": 8,
+      "name": "服务器底板",
+      "config": {
+        "enabled": true,
+        "name": "服务器底板",
+        "nineGrid": {
+          "top": 6,
+          "right": 6,
+          "bottom": 6,
+          "left": 6,
+          "repeat": false
+        }
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "0ba9bc45-76bc-5eda-a37f-0da4a2653cc6",
+        "layerId": "06dc5ef6-3447-5ec9-a3b0-539fc5acf6fd",
+        "prototype": {
+          "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
+          "pageId": "umlxcxo4",
+          "nodeId": "i57rqmsq",
+          "slot": "image"
+        },
+        "slicing": {
+          "enabled": true,
+          "name": "服务器底板",
+          "nineGrid": {
+            "top": 6,
+            "right": 6,
+            "bottom": 6,
+            "left": 6,
+            "repeat": false
+          }
+        },
+        "builtinOrigin": {
+          "id": "block/outline-gray",
+          "width": 460,
+          "height": 64,
+          "catalog": "32b29682d93abb6f1907877130094efc7b3a02448c02538ac1cd1513245379e3",
+          "pixels": "cbe67b62bb466539dafc590b678c09caa4d95243d027b51abd4c888e580fd12a"
+        },
+        "atlasName": "login"
+      }
+    },
+    {
+      "id": "565b77ac-dc36-5265-a02a-79d31e9ee6b1",
+      "sourceKey": 8,
+      "nativeId": 7,
+      "name": "标题区",
+      "config": {
+        "enabled": false,
+        "name": "标题区",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "0ba9bc45-76bc-5eda-a37f-0da4a2653cc6",
+        "layerId": "565b77ac-dc36-5265-a02a-79d31e9ee6b1",
+        "prototype": {
+          "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
+          "pageId": "umlxcxo4",
+          "nodeId": "5amcsa7u"
+        },
+        "slicing": {
+          "enabled": false,
+          "name": "标题区",
+          "nineGrid": null
+        },
+        "atlasName": "login"
+      }
+    },
+    {
+      "id": "dac9cd0d-10d8-5798-a116-7392288e374c",
+      "sourceKey": 7,
+      "nativeId": 6,
+      "name": "副标题",
+      "config": {
+        "enabled": false,
+        "name": "副标题",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "0ba9bc45-76bc-5eda-a37f-0da4a2653cc6",
+        "layerId": "dac9cd0d-10d8-5798-a116-7392288e374c",
+        "prototype": {
+          "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
+          "pageId": "umlxcxo4",
+          "nodeId": "3y70xjmg"
+        },
+        "slicing": {
+          "enabled": false,
+          "name": "副标题",
+          "nineGrid": null
+        },
+        "atlasName": "login"
+      }
+    },
+    {
+      "id": "391e5722-cbff-591b-a666-82b9a9714b0f",
+      "sourceKey": 6,
+      "nativeId": 5,
+      "name": "游戏标题",
+      "config": {
+        "enabled": false,
+        "name": "游戏标题",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "0ba9bc45-76bc-5eda-a37f-0da4a2653cc6",
+        "layerId": "391e5722-cbff-591b-a666-82b9a9714b0f",
+        "prototype": {
+          "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
+          "pageId": "umlxcxo4",
+          "nodeId": "2uij4u4o"
+        },
+        "slicing": {
+          "enabled": false,
+          "name": "游戏标题",
+          "nineGrid": null
+        },
+        "atlasName": "login"
+      }
+    },
+    {
+      "id": "2f0af511-e374-54b2-ace7-42c89dad6dc6",
+      "sourceKey": 5,
+      "nativeId": 4,
+      "name": "星海徽记",
+      "config": {
+        "enabled": true,
+        "name": "星海徽记",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "0ba9bc45-76bc-5eda-a37f-0da4a2653cc6",
+        "layerId": "2f0af511-e374-54b2-ace7-42c89dad6dc6",
+        "prototype": {
+          "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
+          "pageId": "umlxcxo4",
+          "nodeId": "3o30ft4g",
+          "slot": "image"
+        },
+        "slicing": {
+          "enabled": true,
+          "name": "星海徽记",
+          "nineGrid": null
+        },
+        "builtinOrigin": {
+          "id": "icon/star",
+          "width": 216,
+          "height": 80,
+          "catalog": "6b77d8f80dea4cf3a36fdfd96860d60447a39982e0d8984d7e16614d1aca6c13",
+          "pixels": "b654574c2105c37a4dc9da9289964659d52b9e114d85c75a1ae570b2fd0e7c82"
+        },
+        "atlasName": "login"
+      }
+    },
+    {
+      "id": "cd8bdd6a-19bf-5faf-a2db-83252b4fefc3",
+      "sourceKey": 3,
+      "nativeId": 3,
+      "name": "背景",
+      "config": {
+        "enabled": false,
+        "name": "背景",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "0ba9bc45-76bc-5eda-a37f-0da4a2653cc6",
+        "layerId": "cd8bdd6a-19bf-5faf-a2db-83252b4fefc3",
+        "prototype": {
+          "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
+          "pageId": "umlxcxo4",
+          "nodeId": "ofnub76o"
+        },
+        "slicing": {
+          "enabled": false,
+          "name": "背景",
+          "nineGrid": null
+        },
+        "atlasName": "login"
+      }
+    },
+    {
+      "id": "25631c23-6c63-50a8-aca8-45beb3712f8c",
+      "sourceKey": 2,
+      "nativeId": 2,
+      "name": "星点与轨道",
+      "config": {
+        "enabled": true,
+        "name": "星点与轨道",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "0ba9bc45-76bc-5eda-a37f-0da4a2653cc6",
+        "layerId": "25631c23-6c63-50a8-aca8-45beb3712f8c",
+        "prototype": {
+          "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
+          "pageId": "umlxcxo4",
+          "nodeId": "ct08f7f6",
+          "slot": "image"
+        },
+        "slicing": {
+          "enabled": true,
+          "name": "星点与轨道",
+          "nineGrid": null
+        },
+        "builtinOrigin": {
+          "id": "image/default",
+          "width": 750,
+          "height": 1334,
+          "catalog": "3dccf74ca613bd63269ffb5762dda833b4314c84a0f9a91e5946c16f24fb1e07",
+          "pixels": "6540b94bb88bd83bff0740ecf0ce0296fb43499e595897a74133cc2a18ba9b50"
+        },
+        "atlasName": "login"
+      }
+    },
+    {
+      "id": "f2f45355-58f7-5aca-a80a-a2a84903f1fe",
+      "sourceKey": 1,
+      "nativeId": 1,
+      "name": "深空渐变",
+      "config": {
+        "enabled": true,
+        "name": "深空渐变",
+        "nineGrid": {
+          "top": 6,
+          "right": 6,
+          "bottom": 6,
+          "left": 6,
+          "repeat": false
+        }
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "0ba9bc45-76bc-5eda-a37f-0da4a2653cc6",
+        "layerId": "f2f45355-58f7-5aca-a80a-a2a84903f1fe",
+        "prototype": {
+          "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
+          "pageId": "umlxcxo4",
+          "nodeId": "ptkmcxds",
+          "slot": "image"
+        },
+        "slicing": {
+          "enabled": true,
+          "name": "深空渐变",
+          "nineGrid": {
+            "top": 6,
+            "right": 6,
+            "bottom": 6,
+            "left": 6,
+            "repeat": false
+          }
+        },
+        "builtinOrigin": {
+          "id": "block/fill-gray",
+          "width": 750,
+          "height": 1334,
+          "catalog": "3424903c66b71c9c4026d603f50c46aaab21d12912c560873c4fe87c9edb1106",
+          "pixels": "29528f1639b7df8012aa37737a9a600fbc3f74ab10d1cc9d970b4e24ef749986"
+        },
+        "atlasName": "login"
+      }
+    }
+  ]
+}
