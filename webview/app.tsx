@@ -34,6 +34,7 @@ import { RenameDialog } from "./editor/rename-dialog";
 import { NodeView, orderedNodes } from "./editor/node-view";
 import { ContainerOutlines } from "./editor/container-outlines";
 import { useDocument } from "./use-document";
+import { useToolbarChoice } from "./lib/use-toolbar-choice";
 import { isBrowserPreview, postHostMessage } from "./vscode-api";
 import { cn } from "./lib/utils";
 import { PsdWorkspace, type OpenBoundSlice, type WorkspaceMode } from "./psd/workspace";
@@ -72,7 +73,7 @@ function IconTool({ label, active, disabled, onClick, children }: { label: strin
 
 export function App() {
   const [mode, setMode] = useState<WorkspaceMode>("prototype");
-  const [resourceMode, setResourceMode] = useState<import("../shared/image-slots").ResourceMode>("prototype");
+  const [resourceMode, setResourceMode] = useToolbarChoice("resourceMode", ["prototype", "art", "prefab"]);
   const psdEditor = usePsdEditor(() => switchMode("slice"));
   const openBrowserSlice = useRef<OpenBoundSlice>(null);
   const [openingSlice, setOpeningSlice] = useState(false);
@@ -95,8 +96,8 @@ export function App() {
   const [scopeIds, setScopeIds] = useState<string[]>([]);
   const [canvasSelection, setCanvasSelection] = useState(0);
   const [tool, setTool] = useState<Tool>("select");
-  const [directSelection, setDirectSelection] = useState(false);
-  const [showContainerOutlines, setShowContainerOutlines] = useState(false);
+  const [directSelection, setDirectSelection] = useToolbarChoice("directSelection", [false, true]);
+  const [showContainerOutlines, setShowContainerOutlines] = useToolbarChoice("containerOutlines", [false, true]);
   const [spaceHand, setSpaceHand] = useState(false);
   const [preview, setPreview] = useState<Gesture | null>(null);
   const [colorPreview, setColorPreview] = useState<ColorPreview | null>(null);
@@ -587,8 +588,8 @@ export function App() {
   const switchResourceMode = (next: import("../shared/image-slots").ResourceMode) => {
     if (next !== resourceMode) {
       setSelectedNodeId(null); setCanvasMenu(null); gesture.current = null; setPreview(null);
-      setResourceMode(next);
     }
+    setResourceMode(next);
     runtimeResources.refresh();
   };
   const switchMode = (next: WorkspaceMode) => { setCanvasMenu(null); setRenameTarget(null); gesture.current = null; setPreview(null); setSpaceHand(false); setInsertOpen(false); setMode(next); };
@@ -728,8 +729,8 @@ export function App() {
         {page && inspectorOpen ? <Inspector makeId={newIds()} variablePage={{...page,nodes:page.nodes.filter(node=>composition?.info.get(node.id)?.scope===selectedMeta?.scope)}} referenceMeta={selectedMeta} referenceName={referenceName} overrideManager={overrideManager} overrideActions={overrideActions} onOpenSource={() => { if (selectedNode) openSource(selectedNode.id); }} referenceError={selectedMeta?.ownerId ? composition?.errors.get(selectedMeta.ownerId) : undefined} onColorPreview={setColorPreview} selectedNodes={selectionBlocked ? [] : page.nodes.filter(node => selectedNodeIds.includes(node.id))} onCreateParts={() => { if (editingId && selectedNodeId) { const makeId = newIds(); updatePage(editingId, item => createControlParts(item, selectedNodeId, makeId)); } }} panelRef={panels.rightRef} panelStyle={panels.rightStyle} page={page} node={selectionBlocked ? null : selectedNode} editingPage={!!editingId} onNode={patchNode} onPage={(transform) => updatePage(page.id, transform)} onClose={() => setInspectorOpen(false)} onEnter={() => enter(page)} onImport={requestImport} /> : null}
         {canvasDocument.pages.length === 0 ? <div className="empty-canvas"><LayoutPanelTop size={32} /><strong>从第一个页面开始</strong><p>用底部 + 添加游戏界面</p><Button onClick={() => addPage()}><Plus size={15} />添加页面</Button></div> : null}
         <div className="canvas-toolbar floating-panel" onPointerDown={(event) => event.stopPropagation()}>
-          <IconTool label="直选模式" active={directSelection} onClick={() => setDirectSelection(value => !value)}><MousePointerClick size={19} /></IconTool>
-          <IconTool label="虚线框" active={showContainerOutlines} onClick={() => setShowContainerOutlines(value => !value)}><SquareDashed size={19} /></IconTool>
+          <IconTool label="直选模式" active={directSelection} onClick={() => setDirectSelection(!directSelection)}><MousePointerClick size={19} /></IconTool>
+          <IconTool label="虚线框" active={showContainerOutlines} onClick={() => setShowContainerOutlines(!showContainerOutlines)}><SquareDashed size={19} /></IconTool>
           <Separator orientation="vertical" /><div className="resource-mode-tools" role="group" aria-label="资源显示模式">{([{ id: "prototype", label: "原型", icon: PrototypeIcon }, { id: "art", label: "美术 PSD", icon: Layers3 }, { id: "prefab", label: "预制体", icon: Box }] as const).map(({ id, label, icon: Icon }) => <IconTool key={id} label={label + "资源"} active={resourceMode === id} onClick={() => switchResourceMode(id)}><Icon size={17} /></IconTool>)}</div>
           <Separator orientation="vertical" /><Popover open={insertOpen} onOpenChange={setInsertOpen}><PopoverTrigger asChild><Button size="icon" variant="ghost" className="toolbar-button insert-trigger" aria-label="添加页面或控件"><Plus size={20} /><ChevronDown size={9} /></Button></PopoverTrigger><PopoverContent side="top" align="start" collisionPadding={12} className="insert-menu" aria-label="添加页面或控件菜单">
             <div className="menu-heading">添加到画布</div>

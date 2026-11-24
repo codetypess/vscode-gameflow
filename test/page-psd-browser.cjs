@@ -28,6 +28,31 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
     };
     assert.equal(await page.locator(".canvas-toolbar").getByRole("button", { name: /^(生成 PSD|绑定 PSD|重新绑定 PSD)$/ }).count(), 0);
     const beforeViewing = await page.evaluate(() => localStorage.getItem("gameflow.prototype.v1"));
+    const toolbarButton = name => page.locator(".canvas-toolbar").getByRole("button", { name, exact: true });
+    const direct = toolbarButton("直选模式"), outlines = toolbarButton("虚线框");
+    assert.equal(await direct.getAttribute("aria-pressed"), "false");
+    assert.equal(await outlines.getAttribute("aria-pressed"), "false");
+    assert.equal(await toolbarButton("原型资源").getAttribute("aria-pressed"), "true");
+    await direct.click();
+    await outlines.click();
+    await page.reload();
+    assert.equal(await direct.getAttribute("aria-pressed"), "true");
+    assert.equal(await outlines.getAttribute("aria-pressed"), "true");
+    await page.locator(".container-outlines polygon").first().waitFor();
+    await direct.click();
+    for (const name of ["美术 PSD资源", "预制体资源", "原型资源"]) {
+      await toolbarButton(name).click();
+      await page.reload();
+      assert.equal(await toolbarButton(name).getAttribute("aria-pressed"), "true");
+      assert.equal(await direct.getAttribute("aria-pressed"), "false");
+      assert.equal(await outlines.getAttribute("aria-pressed"), "true");
+      await page.locator(name === "原型资源" ? ".container-outlines polygon" : '[data-art-state="unbound"]').first().waitFor();
+    }
+    await outlines.click();
+    await page.reload();
+    assert.equal(await outlines.getAttribute("aria-pressed"), "false");
+    assert.equal(await page.locator(".container-outlines").count(), 0);
+    assert.equal(await page.evaluate(() => localStorage.getItem("gameflow.prototype.v1")), beforeViewing);
     await checkMore(false);
     await page.locator('[data-page-id="pagea001"] .page-caption').click();
     await checkMore(true);
