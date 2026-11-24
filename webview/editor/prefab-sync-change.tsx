@@ -6,12 +6,17 @@ const sides = { proto: "原型", psd: "预制体" };
 const baselineHelp = "此属性最近一次同步一致时的值，保存在当前画布页面的 prefabSync 记录中。";
 
 export function changeTitle(change: Change) {
+  if (change.replacement) return "Prefab 引用结构";
   return prefabChangeName(change) ?? fieldNames[change.field];
 }
 
 export function changeValue(tree: SyncNode[], change: Change): string {
   const node = tree.find(item => item.id === change.id);
   if (!node) return "不存在";
+  if (change.replacement) {
+    const count = change.members.filter(id => tree.some(item => item.id === id)).length;
+    return count < change.members.length ? "Prefab 引用" : "展开节点（" + count + " 个）";
+  }
   const { field, property } = change;
   if (field === "exist") return node.name;
   if (field === "parent") return tree.find(item => item.id === node.parent)?.name ?? "页面";
@@ -30,6 +35,7 @@ export function changeValue(tree: SyncNode[], change: Change): string {
 export function describeDecision(review: PrefabReview, change: Change, decision?: Decision) {
   if (!decision) return "待决定";
   if (decision === "skip") return "本轮跳过";
+  if (change.replacement) return decision === change.replacement ? "把预制体替换为 Prefab 引用" : "本轮跳过";
   const target = decision === "proto" ? "预制体" : "原型";
   const source = review.comparison[decision];
   if (change.field === "exist") {
@@ -55,9 +61,10 @@ export function PrefabSyncChange({ review, change, decision, disabled, onChoose,
   const changedSide = change.suggested === "skip" ? undefined : change.suggested;
   const structure = change.field === "exist";
   const valueFrom = (side: Side) => changeValue(comparison[side], change);
-  const decisions: Decision[] = ["proto", "psd", "skip"];
+  const decisions: Decision[] = change.replacement ? [change.replacement, "skip"] : ["proto", "psd", "skip"];
   let status = recorded ? "双方已改" : "来源待定";
-  if (structure) {
+  if (change.replacement) status = "生成方式已变更";
+  else if (structure) {
     const onPrototype = comparison.proto.some(node => node.id === change.id);
     const present = sides[onPrototype ? "proto" : "psd"];
     if (change.kind === "delete") status = sides[onPrototype ? "psd" : "proto"] + "已删除";

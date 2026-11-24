@@ -52,8 +52,8 @@ function layoutDefault(type:NodeType,key:keyof NodeLayout):SyncPropertyValue {
   if(key==="clipContent") return type==="panel";
   return 0;
 }
-function nodeLayoutKeys(node:Pick<GameFlowNode,"type">) {
-  return NODE_LAYOUT_KEYS.filter(key=>!(["paddingLeft","paddingRight","paddingTop","paddingBottom","gap","gapX","gapY","align","valign","direction","wrapCount","clipContent","scrollX","scrollY"] as (keyof NodeLayout)[]).includes(key) || node.type === "list" || canHaveChildren(node));
+function nodeLayoutKeys(node:Pick<GameFlowNode,"type" | "prefab" | "cellPrefab" | "layout">, reference=!!node.prefab) {
+  return NODE_LAYOUT_KEYS.filter(key=>!(["paddingLeft","paddingRight","paddingTop","paddingBottom","gap","gapX","gapY","align","valign","direction","wrapCount","clipContent","scrollX","scrollY"] as (keyof NodeLayout)[]).includes(key) || node.type === "list" || !reference && canHaveChildren(node));
 }
 function widgetDefaults(type:NodeType,side:"prototype"|"prefab"):Partial<Record<keyof WidgetProps,SyncPropertyValue>> {
   const result:Partial<Record<keyof WidgetProps,SyncPropertyValue>>={};
@@ -130,7 +130,7 @@ export function recordNodeProperties(type:NodeType,source:RecordNode,resolveRef:
     put(properties,"style.fontWeight",source.bold===true?700:400);
     put(properties,"style.textAlign",enumValue(source.align,["left","center","right"],style.textAlign));
   }
-  for(const key of nodeLayoutKeys({type})) {
+  for(const key of nodeLayoutKeys({type},typeof source._$prefab==="string")) {
     const value=source[key],fallback=layoutDefault(type,key);
     if(CONSTRAINTS.includes(key as never)) put(properties,"layout."+key,typeof value==="number"&&Number.isFinite(value)?value:value===null?null:fallback);
     else if(typeof fallback==="number") put(properties,"layout."+key,typeof value==="number"&&Number.isFinite(value)?value:fallback);

@@ -20,11 +20,12 @@ import {syncDialogResizeEdges,useSyncDialogSize} from "./use-sync-dialog-size";
 const noAssets:PsdAsset[]=[], noPageAssets:Record<string,PsdAsset>={};
 
 export type PrefabMerge = ReturnType<typeof mergePrefab>;
-export const prefabSyncLabels:Record<PrefabSyncMode,string>={review:"预制体同步",push:"从原型到预制体",pull:"从预制体到原型",art:"从 PSD 到预制体"};
+export const prefabSyncLabels:Record<PrefabSyncMode,string>={review:"预制体同步",push:"原型 → 预制体",pull:"预制体 → 原型",art:"预制体同步"};
 export function PrefabSyncDialog({review,cells,plan,mode,asset,skins,resourceRoot,close,commit,reload}:{review:PrefabReview;cells:Map<string,GameFlowPage>;plan:PrefabPlan;mode:PrefabSyncMode;asset?:PsdAsset;skins?:Record<string,string>;resourceRoot?:string;close:()=>void;commit:(merge:PrefabMerge)=>Promise<void>;reload:()=>Promise<void>}) {
   const c=review.comparison,ref=useRef<HTMLDialogElement>(null);
   const {size,resizeEdgeProps}=useSyncDialogSize({storageKey:"gameflow.prefabSync.size.v2",defaultWidth:1280,defaultHeight:760,minWidth:360,minHeight:300});
   const union=useMemo(()=>new Map([...c.base?.nodes??[],...c.psd,...c.proto].map(n=>[n.id,n])),[c]);
+  const hiddenReplacementMembers=useMemo(()=>new Set(c.changes.filter(ch=>ch.replacement).flatMap(ch=>ch.members.filter(id=>id!==ch.id))),[c]);
   const [expanded,setExpanded]=useState(()=>{
     const open=new Set([""]);
     for(const ch of c.changes) {
@@ -35,7 +36,8 @@ export function PrefabSyncDialog({review,cells,plan,mode,asset,skins,resourceRoo
   });
   const [id,select]=useState(c.changes.find(ch=>!ch.suggested)?.id??c.changes[0]?.id??"");
   const fixedSide=mode==="review"?undefined:mode==="pull"?"psd":"proto";
-  const [choices,choose]=useState<Record<string,Decision>>(()=>Object.fromEntries(c.changes.filter(ch=>fixedSide || ch.suggested).map(ch=>[ch.key,fixedSide ?? ch.suggested!])));
+  const [choices,choose]=useState<Record<string,Decision>>(()=>Object.fromEntries(c.changes.filter(ch=>fixedSide || ch.suggested).map(ch=>
+    [ch.key,fixedSide && ch.replacement && ch.replacement!==fixedSide ? "skip" : fixedSide ?? ch.suggested!] as const)));
   const [result,setResult]=useState(false),[details,setDetails]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState("");
   useEffect(()=>{
     const dialog=ref.current!;
@@ -72,7 +74,10 @@ export function PrefabSyncDialog({review,cells,plan,mode,asset,skins,resourceRoo
     return disk.status==="ready" ? disk : plannedPixels.get(ref.path)??disk;
   }};
   const [extra,setExtra]=useState<number|null>(null);
-  function selectNode(next:string,component:number|null=null){select(next);setExtra(component);}
+  function selectNode(next:string,component:number|null=null){
+    const replacement=component===null?c.changes.find(ch=>ch.replacement && ch.members.includes(next)):undefined;
+    select(replacement?.id??next);setExtra(replacement?null:component);
+  }
   const node=union.get(id),selected=c.changes.filter(ch=>ch.members.includes(id));
   const native=review.originals.get(id)??(id===review.page.id?review.root:undefined);
   const rawChildren=Array.isArray(native?._$child)?native._$child:[];
@@ -93,7 +98,7 @@ export function PrefabSyncDialog({review,cells,plan,mode,asset,skins,resourceRoo
     <DialogHeading heading={prefabSyncLabels[mode]} closeLabel="关闭同步窗" onClose={close} closeDisabled={busy}>
       <span title={review.target}>{review.page.name} / {review.target}</span>
     </DialogHeading>
-    <div className="sync-layout"><SyncTree page={review.page} nodes={union.values()} changes={c.changes}
+    <div className="sync-layout"><SyncTree page={review.page} nodes={[...union.values()].filter(node=>!hiddenReplacementMembers.has(node.id))} changes={c.changes}
       selected={id} selectedComponent={extra} components={review.engine} expanded={expanded} onToggle={toggle} onSelect={selectNode} />
       <section className="sync-main"><div className="sync-bar"><strong>{node?.name??review.page.name}</strong><div><button aria-pressed={!result} onClick={()=>{setResult(false);setDetails(false);}}>当前</button><button aria-pressed={result} onClick={()=>setResult(true)}>同步后</button></div></div>
         <div className="sync-boards"><figure><figcaption>{asset?"美术 PSD":"原型 · 内置资源"}</figcaption><SyncPreview asset={asset} page={result && m?m.page:review.page} canvasSize={review.page.frame} selected={extra===null?id:""} nodes={trees.proto} changes={c.changes} old={c.base?.nodes??[]} onSelect={selectNode}/></figure>
@@ -113,7 +118,7 @@ export function PrefabSyncDialog({review,cells,plan,mode,asset,skins,resourceRoo
         {hasAssets && <p>待同步资源文件　{[...(review.metadata?.prefabMetaChanged?[review.target+".meta"]:[]),...cellChanges,...m?.batch.images.map(i=>i.path)??[]].join("、")}</p>}
         {extra===null && selected.map(ch=>fixedSide ? <fieldset key={ch.key}><legend>{changeTitle(ch)}</legend>
           <dl className="sync-values"><dt>{asset?"PSD":"原型"}</dt><dd>{changeValue(c.proto,ch)}</dd><dt>预制体</dt><dd>{changeValue(c.psd,ch)}</dd></dl>
-          <p>{describeDecision(review,ch,fixedSide)}</p></fieldset> : <PrefabSyncChange key={ch.key} review={review} change={ch} decision={choices[ch.key]} disabled={busy}
+          <p>{describeDecision(review,ch,choices[ch.key])}</p></fieldset> : <PrefabSyncChange key={ch.key} review={review} change={ch} decision={choices[ch.key]} disabled={busy}
           onChoose={decision=>{choose(current=>({...current,[ch.key]:decision}));setError("");setResult(true);setDetails(false);}}>
           {ch.kind==="delete" && ch.members.some(i=>review.engine.has(i)) && <p>删除预制体节点会同时移除　{ch.members.flatMap(i=>review.engine.get(i)?.map(e=>e.name)??[]).join("、")}</p>}
         </PrefabSyncChange>)}

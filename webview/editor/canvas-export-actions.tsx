@@ -6,6 +6,7 @@ import {ArrowRight, ChevronRight, GitMerge, MoreHorizontal, Pin, RefreshCw} from
 import type {GameFlowDocument,GameFlowPage} from "../../shared/model";
 import type {CanvasSources} from "../../shared/canvas-references";
 import {planListPrefabExport} from "../../shared/list-prefab-export";
+import {composeCanvasPage} from "../../shared/canvas-instances";
 import {nodeSlots,prefabFileName,type PrefabExportBatch,type PrefabPlan,type PrefabTarget} from "../../shared/prefab-export";
 import {initialPrefabBase,inspectPrefab,prefabTarget,type PrefabReview,type PrefabSyncMode} from "../../shared/prefab-sync";
 import {PrefabSyncDialog,prefabSyncLabels,type PrefabMerge} from "./prefab-sync-dialog";
@@ -73,7 +74,8 @@ export function CanvasExportActions({document,sources,page,sourcePage,resources,
   async function finish(operation:PrefabOperation,updated:GameFlowPage,batch:PrefabExportBatch,write:boolean,added:string[]) {
     const {doc,source,snapshot,mode,art}=operation;
     await art?.verify();
-    const prepared=prepare(doc,source,updated), next=art ? doc : prepared;
+    const composedUpdated=art ? updated : composeCanvasPage(doc,updated,sources).page;
+    const prepared=prepare(doc,source,composedUpdated), next=art ? doc : prepared;
     const guard={hash:snapshot.hash,writePrefab:write,added,source:art?"psd" as const:mode==="pull"?"prefab" as const:undefined};
     await commitPrefab(batch,snapshot,guard,next,()=>applyBrowser(doc,next));
     setSession(null);setMissing(null);resources.refresh();
@@ -84,7 +86,8 @@ export function CanvasExportActions({document,sources,page,sourcePage,resources,
     setBusy(true);setTargetChoice(null);
     try {
       const art=mode==="art"?await readPsdPrefabSource(document,sourcePage):undefined;
-      const exportPage=art?.page ?? (mode==="pull"?{...sourcePage,nodes:[]}:mode==="push"?prototypeExportPage(sourcePage):page);
+      const canonical=document.pages.find(item=>item.id===sourcePage.id) ?? sourcePage;
+      const exportPage=art?.page ?? (mode==="pull"?{...sourcePage,nodes:[]}:mode==="push"?prototypeExportPage(canonical):canonical);
       const cellPlan=await planListPrefabExport(document,exportPage,sources,
         item=>art && item===art.page?art.resolve:exportImageResolver(resources.forPage?.(item)??resources),file=>inspectPrefabTarget(file,[]),chosen);
       const {plan}=cellPlan;
@@ -97,7 +100,7 @@ export function CanvasExportActions({document,sources,page,sourcePage,resources,
       const operation={mode,doc:document,source:sourcePage,snapshot,art};
       if(snapshot.prefab) {
         await cellPlan.locateDiskBindings(snapshot.prefab);
-        const comparison=inspectPrefab(document,art?.page??sourcePage,path,snapshot.prefab,snapshot.metadata,cellPlan.refs,mode);
+        const comparison=inspectPrefab(document,art?.page??canonical,path,snapshot.prefab,snapshot.metadata,cellPlan.refs,mode);
         setSession({...operation,cells:cellPlan.previews,plan,comparison});
       } else {
         if(mode==="pull") throw new Error("找不到来源预制体："+path);

@@ -1,4 +1,4 @@
-import type { GameFlowDocument, GameFlowNode, GameFlowPage } from "./model";
+import { CANVAS_INSTANCE_LAYOUT_KEYS, type GameFlowDocument, type GameFlowNode, type GameFlowPage } from "./model";
 import { COMPONENTS, pageRootType } from "./ui-components";
 import { builtinImage, builtinPath, type ImageSlot, type ImageSlotField } from "./image-slots";
 import { isSliceResourcePath, type SliceResourceDescription, type SliceResourceRef } from "./slice-resources";
@@ -112,7 +112,8 @@ export function prefabFileName(page: GameFlowPage): string {
   return name+".lh";
 }
 
-export async function planPrefabExport(document: GameFlowDocument, page: GameFlowPage, resolve: ExportImageResolver, cellUuid?: (node: GameFlowNode) => string): Promise<PrefabPlan> {
+export async function planPrefabExport(document: GameFlowDocument, page: GameFlowPage, resolve: ExportImageResolver,
+  cellUuid?: (node: GameFlowNode) => string, prefabUuid?: (node: GameFlowNode) => string | undefined): Promise<PrefabPlan> {
   const images = new Map<string,PrefabImage>(), refs = new Map<string,string>(), missing: MissingImage[] = [];
   for (const node of page.nodes) for (const [field,slot] of nodeSlots(node)) {
     if (!slot) continue;
@@ -137,7 +138,20 @@ export async function planPrefabExport(document: GameFlowDocument, page: GameFlo
   const skin = (node:GameFlowNode,field:ImageSlotField) => { const path=refs.get(node.id+":"+field); return path ? failed.has(path) ? path : resourceUrl(path) : ""; };
   const nodeRecord = (node:GameFlowNode): Record<string,unknown> => {
     const type=COMPONENTS[node.type].laya, widget=node.widget ?? {}, style=node.style ?? {};
-    const record:Record<string,unknown> = {"_$id":node.id,"_$type":type,name:node.variableName ?? node.name,scriptPath:scriptPath(type),...node.frame,...node.layout,...node.transform};
+    const reference = node.prefab ? prefabUuid?.(node) : undefined;
+    if (node.prefab && !reference) throw new Error(node.name + " 的画布引用尚未解析。");
+    if (reference && (node.instanceEdits?.overrides.length || node.instanceEdits?.additions.length))
+      throw new Error(node.name + " 的画布引用包含局部编辑，暂不能按独立 Prefab 引用生成。");
+    const referenceLayout=Object.fromEntries(Object.entries(node.layout??{}).filter(([key])=>CANVAS_INSTANCE_LAYOUT_KEYS.includes(key)));
+    const record:Record<string,unknown> = reference
+      ? {"_$id":node.id,"_$prefab":reference,name:node.variableName ?? node.name,...node.frame,...referenceLayout,...node.transform}
+      : {"_$id":node.id,"_$type":type,name:node.variableName ?? node.name,scriptPath:scriptPath(type),...node.frame,...node.layout,...node.transform};
+    if (reference) {
+      if (node.variableName) record._$var = true;
+      if (node.hidden) record.visible = false;
+      if (style.opacity!==undefined) record.alpha = style.opacity;
+      return record;
+    }
     if (node.type === "list") {
       record.scrollType = node.layout?.scrollType ?? (node.layout?.direction === "vertical" ? 1 : 2);
       if (node.cellPrefab) {
@@ -186,7 +200,7 @@ export function isPrefabExportBatch(value: unknown): value is PrefabExportBatch 
     for (const cell of batch.cells) {
       if (!validPrefabTarget(cell) || typeof cell.uuid !== "string" || !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(cell.uuid)) return false;
       const path = [cell.directory,cell.name].filter(Boolean).join("/").toLowerCase();
-      if (targets.has(path) || !(cell.hash === null ? cell.prefab?._$type === "UIBox" : typeof cell.hash === "string" && /^[a-f0-9]{64}$/.test(cell.hash) && !cell.prefab)) return false;
+      if (targets.has(path) || !(cell.hash === null ? ["UIBox","UIStack","UITop","UIScene"].includes(String(cell.prefab?._$type)) : typeof cell.hash === "string" && /^[a-f0-9]{64}$/.test(cell.hash) && !cell.prefab)) return false;
       targets.add(path);
       size += JSON.stringify(cell).length;
       if (size > 16*1024*1024) return false;
@@ -298,7 +312,7 @@ export async function exportPrefabToDirectories(resources:ResourceDirectory, pre
     const before = await prefabs.read(path), oldMeta = await prefabs.read(path+".meta");
     const meta = mergeLayaMeta(path,oldMeta);
     if ((before ? await codec.hash(before) : null) !== cell.hash || meta.uuid !== cell.uuid)
-      throw new Error(path + " 列表项模板在审阅后已变化，请重新比较。");
+      throw new Error(path + " 引用模板在审阅后已变化，请重新比较。");
     await stage(prefabs,path+".meta",meta.bytes,oldMeta);
     const bytes = cell.prefab ? new TextEncoder().encode(JSON.stringify(cell.prefab,(key,value) =>
       ["skin","normalSkin","selectedSkin","disabledSkin"].includes(key) && urls.has(value) ? urls.get(value) : value,2)+"\n") : null;

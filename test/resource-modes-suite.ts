@@ -95,6 +95,56 @@ test("CellPrefab export creates a separate external UIBox, respects disk UUID an
   await assert.rejects(exportPrefabToDirectories(resources.io,absent.io,batch,codec),/已恢复/);
   assert.equal(absent.files.has(file),false);
 });
+
+test("canvas prefab instances export as UUID references instead of expanded source children",async()=>{
+  const list=makeNode("list","celllist",0,0), itemNode=makeNode("container","instance",10,20);
+  const current=page([list,itemNode]), document=doc(current);
+  const item:GameFlowPage={...page([makeNode("text","itemtext",0,0)]),rootType:"UIBox",id:"cellpage",name:"背包格",exportName:"InventoryCell"};
+  const external={...doc(item),documentId:"external",exportDirectory:"ui/items"};
+  const ref={source:"items.gameflow.json",pageId:item.id,documentId:external.documentId};
+  list.cellPrefab=ref; itemNode.prefab=ref;
+  const sources={[ref.source]:{source:ref.source,document:external}};
+  const resources=memoryDirectory(),files=memoryDirectory(),file="ui/items/InventoryCell.lh";
+  const uuid="abcde123-1234-4567-a901-abcdef123456";
+  files.files.set(file+".meta",Buffer.from(JSON.stringify({uuid})));
+  const target={name:prefabFileName(current)};
+  const planned=await planListPrefabExport(document,current,sources,()=>missing,t=>readPrefabSnapshot(files.io,t,hash),target);
+  const records=planned.plan.batch.prefab._$child as Record<string,unknown>[];
+  const instance=records.find(record=>record._$id==="instance")!;
+  assert.equal(instance._$prefab,uuid);
+  assert.equal(instance._$type,undefined);
+  assert.equal(instance._$child,undefined);
+  assert.equal(instance.paddingLeft,undefined);
+  assert.equal(instance.gap,undefined);
+  assert.equal(planned.plan.batch.cells?.length,1);
+  assert.equal(planned.plan.batch.cells?.[0].name,file.split("/").at(-1));
+  assert.ok(planned.plan.batch.cells?.[0].prefab);
+  const review=inspectPrefab(document,current,target.name,planned.plan.batch.prefab,undefined,planned.refs);
+  assert.equal(review.originals.get("instance")?._$prefab,uuid);
+  const expanded=composeCanvasPage(document,current,sources).page;
+  const old=await planPrefabExport(document,expanded,missing,()=>uuid);
+  const conversion=inspectPrefab(document,current,target.name,old.batch.prefab,undefined,planned.refs);
+  const expandedChild=conversion.comparison.psd.find(node=>node.parent==="instance")!;
+  assert.equal(conversion.comparison.changes.length,1);
+  assert.deepEqual(conversion.comparison.changes[0],{
+    id:"instance",key:"instance/reference",field:"exist",kind:"edit",members:["instance",expandedChild.id],
+    replacement:"proto",suggested:"proto"
+  });
+  const reverse=mergePrefab(conversion,{[conversion.comparison.changes[0].key]:"psd"},planned.plan.batch);
+  const retained=(reverse.batch.prefab._$child as Record<string,unknown>[]).find(record=>record._$id==="instance")!;
+  assert.equal(retained._$prefab,undefined);
+  assert.ok(Array.isArray(retained._$child));
+  assert.deepEqual(reverse.page.nodes.map(node=>node.id),current.nodes.map(node=>node.id));
+  const decisions=Object.fromEntries(conversion.comparison.changes.map(change=>[change.key,"proto" as const]));
+  const merged=mergePrefab(conversion,decisions,planned.plan.batch);
+  const converted=(merged.batch.prefab._$child as Record<string,unknown>[]).find(record=>record._$id==="instance")!;
+  assert.equal(converted._$prefab,uuid);
+  assert.equal(converted._$type,undefined);
+  assert.equal(converted._$child,undefined);
+  const repeated=inspectPrefab(document,merged.page,target.name,merged.batch.prefab,undefined,planned.refs);
+  assert.deepEqual(repeated.comparison.changes,[]);
+});
+
 test("prefab sync merges both additions, maps foreign IDs, preserves components and clears accepted differences",async()=>{
   const initial=page([{...makeNode("text","caption1",0,0),text:"登录"}]);
   const file="登录.lh", document=doc(initial);

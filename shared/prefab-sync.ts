@@ -1,8 +1,9 @@
 import type { CanvasReference, Frame, GameFlowDocument, GameFlowPage } from "./model";
+import { resolveCanvasSource } from "./canvas-references";
 import { allocateElementId, reserveDocumentElementIds } from "./element-id";
 import { inheritedFlag, makeNode } from "./editor-ops";
 import { COMPONENTS, COMPONENT_TYPES, pageRootType } from "./ui-components";
-import { applyPrototypeTree, compareTrees, coordinatedBase, frameFields, plannedTrees, prototypeTree, type Decision, type SyncNode } from "./page-sync";
+import { applyPrototypeTree, compareTrees, coordinatedBase, frameFields, plannedTrees, prototypeTree, syncSubtree, type Decision, type SyncNode } from "./page-sync";
 import { type PrefabExportBatch, type PrefabMetadataReview, referencedCellUuids, resourceUrl } from "./prefab-export";
 import { applyNodeProperty, applyNodeRecordProperty, applyPageProperty, applyRootRecordProperty, prefabPropertyNames, prototypeNodeProperties, prototypePageProperties, recordNodeProperties, recordPageProperties, sameSyncProperty } from "./prefab-sync-properties";
 import { variableNameError } from "./node-variable";
@@ -13,6 +14,12 @@ type RecordNode = Record<string,unknown>;
 export type PrefabBase = NonNullable<GameFlowPage["prefabSync"]>;
 export const prefabTarget = (target:{name:string;directory?:string}) => [target.directory,target.name].filter(Boolean).join("/");
 const record = (o:unknown):o is RecordNode => !!o && typeof o==="object" && !Array.isArray(o);
+const referenceManagedFields=new Set([
+  "_$id","_$type","_$prefab","_$child","_$var","name","scriptPath","visible","alpha",...frameFields,
+  "left","right","top","bottom","centerX","centerY","layoutUnit","widthMode","heightMode","crossAxisMode","positionOffsetX","positionOffsetY",
+  "paddingLeft","paddingRight","paddingTop","paddingBottom","gap","gapX","gapY","align","valign","direction","wrapCount","clipContent","scrollX","scrollY",
+  "anchorX","anchorY","scaleX","scaleY","skewX","skewY","rotation"
+]);
 function children(node:RecordNode):RecordNode[] {
   if (node._$child===undefined) return [];
   if (!Array.isArray(node._$child) || !node._$child.every(record)) throw new Error("预制体子节点格式无效："+node.name);
@@ -64,7 +71,8 @@ export function inspectPrefab(document:GameFlowDocument,page:GameFlowPage,target
       const external=child._$id;
       const previous=typeof external==="string"?known.get(external):undefined;
       const existing=protoIds.get(previous?.id??String(external));
-      const type=child._$prefab || child._$override ? undefined : COMPONENT_TYPES.find(t=>COMPONENTS[t].laya===child._$type);
+      const reference=typeof child._$prefab === "string";
+      const type=reference ? existing?.type ?? previous?.type : child._$prefab || child._$override ? undefined : COMPONENT_TYPES.find(t=>COMPONENTS[t].laya===child._$type);
       if (!type) {
         if (existing || previous) throw new Error("已关联节点类型已改变："+child.name);
         continue;
@@ -75,7 +83,7 @@ export function inspectPrefab(document:GameFlowDocument,page:GameFlowPage,target
       if (originals.has(id)) throw new Error("多个预制体控件对应原型节点："+id);
       reserved.add(id); nativeIds.set(id,external); originals.set(id,child);
       const nodeType=existing?.type ?? previous?.type ?? type;
-      if (COMPONENTS[nodeType].laya!==child._$type) throw new Error("控件类型已改变："+child.name);
+      if (!reference && COMPONENTS[nodeType].laya!==child._$type) throw new Error("控件类型已改变："+child.name);
       const defaults=makeNode(nodeType,id,0,0).frame, local={...defaults,x:0,y:0};
       for (const key of frameFields) if (typeof child[key]==="number" && Number.isFinite(child[key])) local[key]=child[key];
       const frame={...local,x:origin.x+local.x,y:origin.y+local.y};
@@ -87,7 +95,7 @@ export function inspectPrefab(document:GameFlowDocument,page:GameFlowPage,target
       if(simple && typeof child.width==="number") bounds.width=local.width;
       if(simple && typeof child.height==="number") bounds.height=local.height;
       tree.push({id,type:nodeType,name,parent,frame,text:(nodeType==="text" || nodeType==="input") && typeof child.text==="string"?child.text:"",variable,layer:external,...bounds});
-      read(child,id,frame);
+      if (!reference) read(child,id,frame);
     }
   }
   read(root,"",{x:0,y:0,width:0,height:0});
@@ -104,6 +112,16 @@ export function inspectPrefab(document:GameFlowDocument,page:GameFlowPage,target
     node.variable=typeof variable==="string"&&variable?variable:undefined;
   }
   const comparison=compareTrees(proto,tree,base,true,mode!=="review");
+  const referenceKey=(ref:CanvasReference)=>JSON.stringify([resolveCanvasSource("",ref.source),ref.documentId,ref.pageId]);
+  const plannedReferences=new Set([...cellReferences.values()].map(referenceKey));
+  for(const node of page.nodes) {
+    if(!node.prefab || !plannedReferences.has(referenceKey(node.prefab))) continue;
+    const original=originals.get(node.id);
+    if(!original || typeof original._$prefab==="string") continue;
+    const members=syncSubtree(tree,node.id), memberIds=new Set(members);
+    comparison.changes=comparison.changes.filter(change=>!memberIds.has(change.id));
+    comparison.changes.push({id:node.id,key:node.id+"/reference",field:"exist",kind:"edit",members,replacement:"proto",suggested:"proto"});
+  }
   if(mode==="art") {
     // Keep Laya-only settings when the source is a PSD layer tree.
     comparison.changes=comparison.changes.filter(ch=>ch.field!=="property" || ch.property==="hidden" || ch.property==="page.width" || ch.property==="page.height");
@@ -187,12 +205,20 @@ export function mergePrefab(review:PrefabReview,decisions:Record<string,Decision
   }
   const logicalId=new Map([...originals].map(([id,source])=>[source,id]));
   const current=new Map(c.psd.map(n=>[n.id,n]));
+  const acceptedReplacements=new Set(c.changes.filter(change=>change.replacement && decisions[change.key]===change.replacement).map(change=>change.id));
   const externalId=(id:string)=>{const external=rawIds.get(id);if(!external)throw new Error("请同时同步控件引用的节点："+id);return external;};
   function build(n:SyncNode):RecordNode {
     const source=originals.get(n.id);
+    const generated=exported.get(n.id);
     let node:RecordNode;
     if(source) {
-      node={...source};
+      if (acceptedReplacements.has(n.id) && typeof generated?._$prefab === "string" && !trees.psd.some(child=>child.parent===n.id)) {
+        const preserved=Object.fromEntries(Object.entries(source).filter(([key])=>!referenceManagedFields.has(key)));
+        node={...preserved,...generated};
+        return node;
+      }
+      if (source._$prefab && !generated?._$prefab) {node={...source,...generated};delete node._$prefab;}
+      else node={...source};
       const before=current.get(n.id)!;
       if(before.name!==n.name && !node._$var) node.name=n.name;
       if(before.text!==n.text) node.text=n.text;
@@ -204,7 +230,6 @@ export function mergePrefab(review:PrefabReview,decisions:Record<string,Decision
           else delete node.cellPrefab;
         } else applyNodeRecordProperty(node,n.type,n.name,path,value,externalId);
       }
-      const generated=exported.get(n.id);
       for(const key of ["skin","normalSkin","selectedSkin","disabledSkin"]) {
         const planned=generated?.[key];
         if(typeof planned!=="string") continue;
@@ -225,7 +250,6 @@ export function mergePrefab(review:PrefabReview,decisions:Record<string,Decision
         node[key]=url;
       }
     } else {
-      const generated=exported.get(n.id);
       if(!generated) throw new Error("缺少待新增控件："+n.name);
       const {_$child,...fields}=generated;
       node=remapNew(fields) as RecordNode;

@@ -1,6 +1,7 @@
 import type { CanvasReference, GameFlowDocument, GameFlowNode, GameFlowPage } from "./model";
 import type { CanvasSources } from "./canvas-references";
-import { cellKey, resolveCellPage } from "./list-cell";
+import { resolveCanvasSource } from "./canvas-references";
+import { cellKey, resolveCellPage, resolvePrefabPage } from "./list-cell";
 import { referencedCellUuids, planPrefabExport, prefabFileName, resourceUrl, type CellPrefabFile, type ExportImageResolver, type PrefabSnapshot, type PrefabTarget } from "./prefab-export";
 import { inspectPrefab, prefabPreviewPage, prefabTarget } from "./prefab-sync";
 
@@ -30,7 +31,7 @@ export async function planListPrefabExport(document: GameFlowDocument, page: Gam
   }
   function bind(ref: CanvasReference, uuid: string) {
     const key = cellKey(ref);
-    if (refs.has(uuid) && cellKey(refs.get(uuid)!) !== key) throw new Error("多个列表项画板具有相同的 Prefab UUID：" + uuid);
+    if (refs.has(uuid) && cellKey(refs.get(uuid)!) !== key) throw new Error("多个引用画板具有相同的 Prefab UUID：" + uuid);
     refs.set(uuid,ref); uuids.set(key,uuid);
   }
   function rememberPreview(doc: GameFlowDocument, source: GameFlowPage, ref: CanvasReference, file: PrefabTarget, disk: Snapshot) {
@@ -39,17 +40,22 @@ export async function planListPrefabExport(document: GameFlowDocument, page: Gam
     previews.set(disk.uuid!,{...visual,background:"transparent"});
     previews.set(cellKey(ref),previews.get(disk.uuid!)!);
   }
-  const uuidFor = (node: GameFlowNode) => uuids.get(cellKey(node.cellPrefab!))!;
-  async function dependency(ref: CanvasReference) {
-    const key = cellKey(ref);
-    if (creating.has(key)) throw new Error("列表项模板循环引用。");
+  const normalized = (ref: CanvasReference, containing: string): CanvasReference => ({...ref,source:resolveCanvasSource(containing,ref.source)});
+  const uuidResolvers = (containing: string) => ({
+    cell: (node: GameFlowNode) => uuids.get(cellKey(normalized(node.cellPrefab as CanvasReference,containing)))!,
+    prefab: (node: GameFlowNode) => node.prefab ? uuids.get(cellKey(normalized(node.prefab,containing))) : undefined
+  });
+  async function dependency(input: CanvasReference, cellsOnly: boolean, containing = "") {
+    const ref = normalized(input,containing), key = cellKey(ref);
+    if (creating.has(key)) throw new Error("Prefab 模板循环引用。");
+    const source = cellsOnly ? resolveCellPage(document,sources,ref) : resolvePrefabPage(document,sources,ref);
     if (uuids.has(key)) return;
-    const source = resolveCellPage(document,sources,ref);
-    const file = targetOf(source.document,source.page), path = prefabTarget(file).toLowerCase();
-    if (owners.has(path)) throw new Error("列表项画板的导出路径冲突：" + path);
+    const canonical = source.document.pages.find(page => page.id === source.page.id) ?? source.page;
+    const file = targetOf(source.document,canonical), path = prefabTarget(file).toLowerCase();
+    if (owners.has(path)) throw new Error("引用画板的导出路径冲突：" + path);
     owners.set(path,key);
     const disk = await snapshot(file);
-    if (!disk.uuid) throw new Error("无法读取列表项模板 UUID：" + path);
+    if (!disk.uuid) throw new Error("无法读取引用模板 UUID：" + path);
     bind(ref,disk.uuid);
     const cell: CellPrefabFile = {...file,uuid:disk.uuid,hash:disk.hash,metaChanged:!disk.prefab || disk.metadata?.prefabMetaChanged};
     files.push(cell);
@@ -58,8 +64,12 @@ export async function planListPrefabExport(document: GameFlowDocument, page: Gam
       return;
     }
     creating.add(key);
-    for (const node of source.page.nodes) if (node.cellPrefab && "source" in node.cellPrefab) await dependency(node.cellPrefab);
-    const plan = await planPrefabExport(source.document,source.page,resolve(source.page),uuidFor);
+    for (const node of canonical.nodes) {
+      if (node.cellPrefab && "source" in node.cellPrefab) await dependency(node.cellPrefab,true,source.source);
+      if (node.prefab) await dependency(node.prefab,false,source.source);
+    }
+    const resolvers = uuidResolvers(source.source);
+    const plan = await planPrefabExport(source.document,canonical,resolve(source.page),resolvers.cell,resolvers.prefab);
     cell.prefab = plan.batch.prefab;
     for (const image of plan.batch.images) images.set(image.path,image);
     missing.push(...plan.missing);
@@ -67,8 +77,12 @@ export async function planListPrefabExport(document: GameFlowDocument, page: Gam
     rememberPreview(source.document,source.page,ref,file,{...disk,prefab:cell.prefab,skins});
     creating.delete(key);
   }
-  for (const node of page.nodes) if (node.cellPrefab && "source" in node.cellPrefab) await dependency(node.cellPrefab);
-  const plan = await planPrefabExport(document,page,resolve(page),uuidFor);
+  for (const node of page.nodes) {
+    if (node.cellPrefab && "source" in node.cellPrefab) await dependency(node.cellPrefab,true);
+    if (node.prefab) await dependency(node.prefab,false);
+  }
+  const resolvers = uuidResolvers("");
+  const plan = await planPrefabExport(document,page,resolve(page),resolvers.cell,resolvers.prefab);
   for (const image of plan.batch.images) images.set(image.path,image);
   plan.batch.images = [...images.values()]; plan.missing.push(...missing);
   if (files.length) plan.batch.cells = files;

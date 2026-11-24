@@ -18,7 +18,7 @@ export type Side = "proto" | "psd";
 export type Decision = Side | "skip";
 export const frameFields = ["x","y","width","height"] as const;
 export type Field = "exist" | "text" | "name" | "parent" | "order" | "property" | keyof Frame;
-export interface Change { key: string; id: string; field: Field; property?: string; kind: "add" | "delete" | "edit"; suggested?: Decision; members: string[] }
+export interface Change { key: string; id: string; field: Field; property?: string; kind: "add" | "delete" | "edit"; suggested?: Decision; replacement?: Side; members: string[] }
 export interface Comparison { proto: SyncNode[]; psd: SyncNode[]; base?: SyncBase; changes: Change[] }
 export const fieldNames: Record<Field,string> = { exist:"控件结构", name:"节点名称", text:"文字内容", parent:"父节点", order:"同级顺序", property:"属性", x:"横坐标", y:"纵坐标", width:"宽度", height:"高度" };
 
@@ -169,7 +169,7 @@ export function plannedTrees(c:Comparison, decisions:Record<string,Decision>, fi
   const trees={proto:c.proto.map(clone),psd:c.psd.map(clone)};
   for (const change of c.changes) {
     const side=decisions[change.key];
-    if (!side || side==="skip") continue;
+    if (!side || side==="skip" || change.replacement && side!==change.replacement) continue;
     const source=c[side], target=trees[side==="proto"?"psd":"proto"];
     for (const id of change.members) {
       const from=source.find(n=>n.id===id), index=target.findIndex(n=>n.id===id);

@@ -5,16 +5,18 @@ import type { CanvasReference, Frame, GameFlowDocument, GameFlowNode, GameFlowPa
 export type CellReference = NonNullable<GameFlowNode["cellPrefab"]>;
 export const cellKey = (ref: CellReference) => "uuid" in ref ? ref.uuid : JSON.stringify([ref.source, ref.documentId, ref.pageId]);
 
-export function resolveCellPage(document: GameFlowDocument, sources: CanvasSources, ref: CanvasReference) {
+export function resolvePrefabPage(document: GameFlowDocument, sources: CanvasSources, ref: CanvasReference, cell = false) {
   const target = findCanvasTarget(document, sources, ref);
-  if (!target.page || target.error) throw new Error(target.error ?? "找不到列表项画板。");
-  if (target.page.rootType !== "UIBox") throw new Error("列表项模板需要 UIBox 画板。");
-  if (Object.entries(target.page.layout ?? {}).some(([key,value])=>key !== "layoutUnit" && value != null)) throw new Error("列表项画板根节点需要清除相对约束。");
+  if (!target.page || target.error) throw new Error(target.error ?? "找不到引用画板。");
+  if (cell && target.page.rootType !== "UIBox") throw new Error("列表项模板需要 UIBox 画板。");
+  if (cell && Object.entries(target.page.layout ?? {}).some(([key,value])=>key !== "layoutUnit" && value != null)) throw new Error("列表项画板根节点需要清除相对约束。");
   const sourceDocument = target.key ? sources[target.key].document! : document;
   const composed = composeCanvasPage(document, target.page, sources, target.key);
   if (composed.errors.size) throw new Error([...composed.errors.values()].join("；"));
-  return { document: sourceDocument, page:composed.page };
+  return { document: sourceDocument, page:composed.page, source:target.key };
 }
+
+export const resolveCellPage = (document: GameFlowDocument, sources: CanvasSources, ref: CanvasReference) => resolvePrefabPage(document,sources,ref,true);
 
 /** The IDE repeats complete lines while the start of the line lies inside the content viewport. */
 export function listCellPositions(list: GameFlowNode, bounds: Frame, template: GameFlowPage) {

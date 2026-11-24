@@ -102,21 +102,23 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
       await Laya.init(320,240);
       const template=new Laya.PrefabImpl(null,cell);
       Laya.loader.cacheRes("res://"+meta.uuid,template,Laya.Loader.HIERARCHY);
+      screen._$child.push({_$id:"reference",_$prefab:meta.uuid,name:"引用项",x:200,y:20,width:80,height:20});
       const errors=[],root=Laya.HierarchyParser.parse(screen,null,errors);
       const view=Array.isArray(root)?root[0]:root;
       const list=view.getChildByName("物品列表");
+      const reference=view.getChildByName("引用项");
       Laya.stage.addChild(view);
       list.dataSource=Array.from({length:20},(_,i)=>i);
       const first=list.getCell(0), second=list.getCell(1);
-      const result={errors:errors.map(String),bound:list.cellPrefab===template,text:first?.getChildAt(0)?.text,
+      const result={errors:errors.map(String),bound:list.cellPrefab===template,text:first?.getChildAt(0)?.text,referenceText:reference?.getChildAt(0)?.text,
         x:second?.x,width:first?.width,far:list.getCell(19)===null};
       view.destroy(true);
       return result;
     },exported);
-    assert.deepEqual(actual,{errors:[],bound:true,text:"引擎模板",x:80,width:80,far:true});
+    assert.deepEqual(actual,{errors:[],bound:true,text:"引擎模板",referenceText:"引擎模板",x:80,width:80,far:true});
     await game.close();
     assert.deepEqual(errors,[]);
-    console.log("Passed local and imported CellPrefab selection, viewport fill, horizontal layout, export, independent disk preview and Laya runtime cell binding");
+    console.log("Passed local and imported CellPrefab selection, viewport fill, horizontal layout, UUID reference export, independent disk preview and Laya runtime binding");
   } finally {
     await browser?.close(); await server.close();
   }

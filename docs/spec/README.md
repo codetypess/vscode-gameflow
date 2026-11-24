@@ -34,6 +34,8 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 
 ## Active Work Items
 
+- [prefab-reference-generation.md](prefab-reference-generation.md) — Done：画布引用导出为 Laya `_$prefab` UUID，模板独立生成；旧展开产物可同步转换，编辑器临时展开和 UIList `cellPrefab` 契约保持不变。
+
 - [未绑定资源页面的节点选择](unbound-resource-selection.md) — Done。未绑定、加载中或失败的资源状态保持不透明，页内编辑保留不可见命中层，支持直选单个控件并同步选框、图层树和属性面板。
 
 - [画布同步菜单](canvas-sync-menu.md) — 「更多」中的 PSD、预制体双向审阅和四个单向操作。
