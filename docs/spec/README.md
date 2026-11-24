@@ -34,6 +34,14 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 
 ## Active Work Items
 
+- [component-root-prefab-alias.md](component-root-prefab-alias.md) — Done：组件源、引用实例与 Laya Prefab 共用单一语义根；不再为选中 UIBox 额外输出包装层，非法根类型直接提示。386 项共享测试、类型检查、生产构建、示例 Prefab 解析及星海样例浏览器层级验证通过。
+
+- [psd-bottom-export-toolbar.md](psd-bottom-export-toolbar.md) — Done：PSD 切图画布底部提供“导出”和“在文件管理器中打开”，宿主只打开本机设置中的资源导出根目录；386 项共享测试、生产构建、宿主专项与 Edge 360px 回归通过。
+
+- [workspace-mode-menu.md](workspace-mode-menu.md) — Done：顶栏中央的原型、PSD 合并、PSD 切图按钮收拢到最左侧当前模式菜单，保留原有切换和禁用行为；385 项共享测试、生产构建、两组 Edge 回归及 520px/360px 布局验证通过。
+
+- [single-step-node-insertion.md](single-step-node-insertion.md) — Done：底部添加菜单、常用控件图标和字母快捷键由“选择工具后点击放置”改为单次操作直接添加到当前编辑层；385 项共享测试、生产构建和浏览器交互验证通过。
+
 - [prefab-reference-generation.md](prefab-reference-generation.md) — Done：画布引用导出为 Laya `_$prefab` UUID，模板独立生成；旧展开产物可同步转换，编辑器临时展开和 UIList `cellPrefab` 契约保持不变。
 
 - [未绑定资源页面的节点选择](unbound-resource-selection.md) — Done。未绑定、加载中或失败的资源状态保持不透明，页内编辑保留不可见命中层，支持直选单个控件并同步选框、图层树和属性面板。
@@ -76,7 +84,7 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 
 - [inspector-property-rows.md](inspector-property-rows.md) — Done：普通属性一行一个，范围及外观属性拆行，标签列/操作区统一对齐，组合控件保留分组；280 项测试、生产构建及普通/窄窗口浏览器验收通过。
 
-- [workbench-toolbar-settings.md](workbench-toolbar-settings.md) — Done：PSD 操作集中顶栏，独立“导出”按钮及工作台设置面板；资源/预制体目录保存在本机 workspaceState，沿用旧目录并在下次导出使用新设置。280 项共享测试、生产构建、29 项真实宿主检查及浏览器真实 PSD/模式切换/520px 窄窗口验收通过。Prefab 导出未接通。
+- [workbench-toolbar-settings.md](workbench-toolbar-settings.md) — Done：设置按钮统一移到左侧保存按钮之后，原型、PSD 合并、PSD 切图及独立 PSD 编辑器共用该位置，不再在右侧重复显示。385 项共享测试、生产构建、两组 Edge 回归及 520px/360px 布局验证通过。
 
 - [psd-in-workbench.md](psd-in-workbench.md) — Verifying：PSD 在当前工作台内打开，聚合原型与 PSD 的原生保存/历史/关闭保护/恢复。10 项真实工作台检查通过，基线同步完成；原生 × 对话框逐按钮点击仍待人工验收。
 

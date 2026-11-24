@@ -2,9 +2,9 @@ import { DialogHeading } from "../components/dialog-heading";
 import { useEffect, useImperativeHandle, useRef, useState, type ReactNode, type Ref } from "react";
 import { createPortal } from "react-dom";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { AlertTriangle, Check, ChevronDown, ChevronRight, Crop, Download, Ellipsis, FileImage, FolderOpen, Grid3X3, ImageIcon, Layers3, Redo2, Save, Scissors, Share2, Undo2, X } from "lucide-react";
+import { AlertTriangle, Check, ChevronDown, ChevronRight, Crop, Download, Ellipsis, FileImage, FolderOpen, Grid3X3, ImageIcon, Layers3, MousePointerClick, Redo2, Save, Scissors, Share2, SquareDashed, Undo2, X } from "lucide-react";
 import { identityProblems, makeSidecar, newLayerIdentity, selectedMergeTree, sidecarName, sliceRegion, validConfig, type PsdAsset, type PsdLayer, type PsdLayerMeta, type SliceConfig } from "../../shared/psd-meta";
-import type { WorkbenchSettingsUI } from "../workbench-settings";
+import { WorkbenchSettingsButton, type WorkbenchSettingsUI } from "../workbench-settings";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Separator } from "../components/ui/separator";
@@ -24,6 +24,7 @@ import { cn } from "../lib/utils";
 import { defaultLayerVariableName, effectiveExportName, effectiveVariableName, exportNameError, isLayerVariableNameFixed, layerVariableOverride, psdSliceDirectory, sliceExportIssues, SliceExportConflict, type ExportIssue } from "../../shared/psd-export";
 import { resourceExport } from "./export";
 import { restoreBrowserDraft, saveBrowserDraft } from "./browser-draft";
+import { useToolbarChoice } from "../lib/use-toolbar-choice";
 import "./workspace.css";
 
 export type WorkspaceMode = "prototype" | "merge" | "slice";
@@ -101,8 +102,10 @@ function MergeSourceDrop({ side, disabled, onFile, onError, children }: {
   return <section className="psd-merge-pane psd-drop-target" aria-label={`合并来源 ${side}`} {...drop.handlers}>{children}{drop.dragging ? <DropHint label={`松开以打开来源 ${side}`} /> : null}</section>;
 }
 
-export function PsdWorkspace({ mode, active, binding, documentActions, exportActions, settings, exportPending, onAsset, openBoundRef, onReveal }: { mode: "slice" | "merge"; active: boolean; binding?: PsdWorkspaceBinding; documentActions?: HTMLElement | null; exportActions?: HTMLElement | null; settings: WorkbenchSettingsUI; exportPending?: boolean; onAsset?: (asset: PsdAsset) => void; openBoundRef?: Ref<OpenBoundSlice>; onReveal?: () => void }) {
+export function PsdWorkspace({ mode, active, binding, documentActions, settings, exportPending, onAsset, openBoundRef, onReveal }: { mode: "slice" | "merge"; active: boolean; binding?: PsdWorkspaceBinding; documentActions?: HTMLElement | null; settings: WorkbenchSettingsUI; exportPending?: boolean; onAsset?: (asset: PsdAsset) => void; openBoundRef?: Ref<OpenBoundSlice>; onReveal?: () => void }) {
   const [localLoaded, setLoaded] = useState<Loaded | null>(null), [selectedKey, setSelectedKey] = useState<number | null>(null);
+  const [directSelection, setDirectSelection] = useToolbarChoice("psdDirectSelection", [true, false]);
+  const [showContainerOutlines, setShowContainerOutlines] = useToolbarChoice("psdContainerOutlines", [false, true]);
   const loaded = binding?.loaded ?? localLoaded;
   const [canvasSelection, setCanvasSelection] = useState(0);
   const [atlasInputError, setAtlasInputError] = useState<string | null>(null);
@@ -192,19 +195,25 @@ export function PsdWorkspace({ mode, active, binding, documentActions, exportAct
     }
     finally { setBusy(false); }
   };
-  return <section className="psd-workspace" hidden={!active} aria-label={mode === "slice" ? "PSD 切图工作区" : "PSD 合并工作区"} {...(mode === "slice" ? drop.handlers : {})}>
+  const revealResources = async () => {
+    if (busy || settings.busy || isBrowserPreview || !settings.settings.resourceDirectory) return;
+    const result = await settings.reveal("resources");
+    if (result?.error) setMessage(result.error);
+  };
+  return <section className={cn("psd-workspace", mode === "slice" && asset && "has-bottom-toolbar")} hidden={!active} aria-label={mode === "slice" ? "PSD 切图工作区" : "PSD 合并工作区"} {...(mode === "slice" ? drop.handlers : {})}>
     {mode === "merge" ? <MergeWorkspace active={active} /> : <>
       {active && documentActions ? createPortal(<>
         <Button size="icon" variant="ghost" className="workbench-icon" disabled={busy} aria-label="打开 PSD" title="打开 PSD" onClick={openSource}><FolderOpen size={15} /></Button>
         <Button size="icon" variant="ghost" className="workbench-icon workbench-history" disabled={!asset || busy || (!binding && !past.length)} aria-label="撤销 (Ctrl+Z)" title="撤销 (Ctrl+Z)" onClick={() => undo()}><Undo2 size={15} /></Button>
         <Button size="icon" variant="ghost" className="workbench-icon workbench-history" disabled={!asset || busy || (!binding && !future.length)} aria-label="重做 (Ctrl+Shift+Z)" title="重做 (Ctrl+Shift+Z)" onClick={() => undo(true)}><Redo2 size={15} /></Button>
         <Button size="icon" variant="ghost" className="workbench-icon" disabled={!asset || busy} aria-label="保存 (Ctrl+S)" title={`保存 (Ctrl+S)${binding?.configPath ? `\n配置：${binding.configPath}` : ""}`} onClick={() => void save(false)}><Save size={15} /></Button>
+        <WorkbenchSettingsButton settings={settings} />
         <DropdownMenu.Root><DropdownMenu.Trigger asChild><Button size="icon" variant="ghost" className="workbench-icon" aria-label="更多操作" title="更多操作"><Ellipsis size={15} /></Button></DropdownMenu.Trigger><DropdownMenu.Portal><DropdownMenu.Content className="layer-context-menu" align="start" sideOffset={5}><DropdownMenu.Item disabled={!asset || busy} onSelect={() => void save(true)}>导出带配置的 PSD…</DropdownMenu.Item></DropdownMenu.Content></DropdownMenu.Portal></DropdownMenu.Root>
       </>, documentActions) : null}
-      {active && exportActions ? createPortal(<Button size="sm" variant="secondary" className="workbench-export-button" disabled={!asset || busy || binding?.pending || exportPending || !!exportIssues.length || !!atlasInputError || !asset.layers.some(l => l.config.enabled)} title="导出标记的切图" onClick={() => void exportResources()}><Download size={14} />导出</Button>, exportActions) : null}
       {binding?.notice ? <p className="psd-config-notice">{binding.notice}</p> : null}
       {binding?.error ? <div className="psd-config-notice psd-warning" role="alert">{binding.error}<Button size="sm" variant="ghost" onClick={binding.retry}>重新提交修改</Button></div> : null}
-      {asset ? <PsdSliceCanvas key={`${asset.sourceHash}:${asset.name}`} asset={asset} selected={selected} active={active} onSelect={key => { setSelectedKey(key); setCanvasSelection(n => n + 1); }}
+      {asset ? <PsdSliceCanvas key={`${asset.sourceHash}:${asset.name}`} asset={asset} selected={selected} active={active} directSelection={directSelection} showContainerOutlines={showContainerOutlines} onSelect={key => { setSelectedKey(key); setCanvasSelection(n => n + 1); }}
+        toolbar={<><Button size="icon" variant={directSelection ? "secondary" : "ghost"} className={cn("psd-toolbar-action", directSelection && "tool-active")} aria-label="直选模式" aria-pressed={directSelection} title="直选模式" onClick={() => setDirectSelection(!directSelection)}><MousePointerClick size={19} /></Button><Button size="icon" variant={showContainerOutlines ? "secondary" : "ghost"} className={cn("psd-toolbar-action", showContainerOutlines && "tool-active")} aria-label="虚线框" aria-pressed={showContainerOutlines} title="虚线框" onClick={() => setShowContainerOutlines(!showContainerOutlines)}><SquareDashed size={19} /></Button><Separator orientation="vertical" /><Button size="icon" variant="ghost" className="psd-toolbar-action" aria-label="导出" disabled={busy || !!binding?.pending || !!exportPending || !!exportIssues.length || !!atlasInputError || !asset.layers.some(l => l.config.enabled)} title="导出标记的切图" onClick={() => void exportResources()}><Download size={15} /></Button><Separator orientation="vertical" /><Button size="icon" variant="ghost" className="psd-toolbar-action" aria-label="在文件管理器中打开" disabled={busy || settings.busy || isBrowserPreview || !settings.settings.resourceDirectory} title={isBrowserPreview ? "仅 VS Code 支持在文件管理器中打开" : settings.settings.resourceDirectory ? `在文件管理器中打开 ${settings.settings.resourceDirectory}` : "请先设置资源导出根目录"} onClick={() => void revealResources()}><FolderOpen size={15} /></Button></>}
         tree={<><div className="floating-heading"><Layers3 size={14} /><strong>图层</strong><span>{asset.layers.length}</span></div>
           <button type="button" className="psd-tree-label psd-document-row" aria-pressed={!selected} title={asset.name} onClick={() => setSelectedKey(null)}>
             <FileImage size={13} /><span>{asset.name}</span>

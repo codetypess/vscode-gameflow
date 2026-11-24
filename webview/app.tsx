@@ -9,7 +9,7 @@ import { ArrowLeft, Box, Check, ChevronDown, ChevronRight, Focus, FileImage, Git
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import type { Frame, GameFlowNode, GameFlowPage, PageRootType } from "../shared/model";
 import { allocateElementId, reserveDocumentElementIds } from "../shared/element-id";
-import { createControlParts, descendants, duplicatePage, inheritedFlag, insertNode, makeComponent, NODE_LABELS, removeNode, removePage, type Handle, type InsertType, type LayerDrop } from "../shared/editor-ops";
+import { createControlParts, descendants, duplicatePage, inheritedFlag, insertNode, NODE_LABELS, removeNode, removePage, type Handle, type InsertType, type LayerDrop } from "../shared/editor-ops";
 import { convertNodeType, editNodeFrame, nodeDragFrame, nodeResizeFrame } from "../shared/ui-edit";
 import { mapPoint, type Matrix } from "../shared/ui-transform";
 import { pasteNode, type NodeClipboard } from "../shared/node-clipboard";
@@ -44,7 +44,7 @@ import { usePsdEditor } from "./psd/use-psd-editor";
 import { useWorkbenchSettings, WorkbenchSettingsButton, WorkbenchSettingsPanel } from "./workbench-settings";
 import { PROTOTYPE_PANELS, useFollowingPanels } from "./editor/use-following-panels";
 import { canvasPanelMetrics } from "./lib/canvas-panels";
-import { canvasContextTarget, canvasHitNode, canvasPasteTarget, canvasScopePath, placeCanvasComponent, reconcileCanvasScope } from "./lib/canvas-scope";
+import { canvasContextTarget, canvasHitNode, canvasPasteTarget, canvasScopePath, insertCanvasComponent, placeCanvasComponent, reconcileCanvasScope } from "./lib/canvas-scope";
 import { pickSelection, reconcileSelection, singleSelection, type NodeSelection, type SelectionIntent } from "./lib/node-selection";
 import { commonSelectionParent, copySelection, duplicateSelection, moveSelection, removeSelection, translateSelection } from "../shared/selection-ops";
 import { applyColorPreview, type ColorPreview } from "./lib/color-edit";
@@ -60,12 +60,17 @@ import { requestPsd, sourceBytes, usePagePsds } from "./runtime/page-psd";
 import { PageSyncDialog, type SyncSession } from "./editor/page-sync-dialog";
 import { PageArtState, pagePreviewBlocked } from "./editor/page-art-state";
 
-type Tool = "select" | "hand" | InsertType;
+type Tool = "select" | "hand";
 type Camera = { x: number; y: number; zoom: number };
 type CanvasMenuState = { kind: "nodes" | "overview"; pageId: string | null; target: LayerMenuTarget; backgroundParentId?: string; point: { x: number; y: number } };
 type Gesture = { kind: "pan" | "page" | "node" | "resize"; clientX: number; clientY: number; camera: Camera; pageId?: string; nodeId?: string; nodeIds?: string[]; sourcePage?: GameFlowPage; collapseId?: string; handle?: Handle; origin: Frame; next: Frame; moved: boolean; transform?: { node: GameFlowNode; matrix: Matrix; parentMatrix: Matrix } };
 const HANDLES: Handle[] = ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
 const TOOLS = COMPONENT_TOOLS;
+const WORKSPACE_MODES = [
+  { id: "prototype", label: "原型", icon: LayoutPanelTop },
+  { id: "merge", label: "PSD 合并", icon: GitMerge },
+  { id: "slice", label: "PSD 切图", icon: Scissors },
+] as const;
 const clampZoom = (value: number) => Math.max(0.1, Math.min(3, value));
 const isField = (target: EventTarget | null) => target instanceof Element && !!target.closest("input, textarea, select, [contenteditable=true]");
 
@@ -81,7 +86,6 @@ export function App() {
   const [openingSlice, setOpeningSlice] = useState(false);
   const settings = useWorkbenchSettings();
   const [documentActions, setDocumentActions] = useState<HTMLDivElement | null>(null);
-  const [exportActions, setExportActions] = useState<HTMLDivElement | null>(null);
   const { document: canvasDocument, resourceName, dirty, pending, error, edit, read, history, save, applyCanvas } = useDocument();
   const viewport = useRef<HTMLDivElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -328,32 +332,17 @@ export function App() {
     edit((document) => ({ ...document, pages: [...document.pages, next] }));
     setSelectedPageId(id); setSelectedNodeId(null); setInspectorOpen(true); setInsertOpen(false);
   };
-  const chooseInsertTool = (type: InsertType) => {
-    if (!editingId) return;
-    setTool(type); setInsertOpen(false);
-  };
-  const placeNode = (type: InsertType, x: number, y: number) => {
-    const currentPage = readPage(editingId);
-    if (!currentPage) return;
-    const result = placeCanvasComponent(currentPage, scopeId, type, { x, y }, newIds());
-    if (!result.id) return;
-    updatePage(currentPage.id, () => result.page); selectNode(result.id);
-    setCanvasSelection(previous => previous + 1);
-  };
   const addLayer = (type: InsertType, parentId?: string, afterId?: string) => {
     if (!editingId) return;
     if (page?.nodes.some(node => node.id === page.componentRootId)) parentId ??= page.componentRootId;
     const makeId = newIds();
     const id = makeId();
-    updatePage(editingId, (item) => {
-      const parent = item.nodes.find((node) => node.id === parentId);
-      const bounds = parent ? pageLayout(item).nodes.get(parent.id)!.local : item.frame;
-      const offset = item.nodes.filter((node) => node.parentId === parentId).length % 4 * 12;
-      const nodes = makeComponent(type, id, bounds.width / 2 + offset, bounds.height / 2 + offset, makeId);
-      const inserted = insertNode(item, nodes[0], parentId, afterId);
-      return inserted === item ? item : { ...inserted, nodes: [...inserted.nodes, ...nodes.slice(1)] };
-    });
+    updatePage(editingId, item => insertCanvasComponent(item,parentId,type,id,makeId,afterId).page);
     selectNode(id);
+  };
+  const addFromToolbar = (type: InsertType) => {
+    if (!editingId) return;
+    addLayer(type,scopeId ?? undefined); setInsertOpen(false);
   };
   const deleteLayer = (id: string) => {
     if (!editingId) return;
@@ -536,7 +525,7 @@ export function App() {
       if (command || event.altKey) return;
       if (key === "+") { event.preventDefault(); addPage(); return; }
       if (key === "v") setTool("select"); if (key === "h") setTool("hand");
-      const next = TOOLS.find((item) => item.key.toLowerCase() === key); if (next && !event.repeat) chooseInsertTool(next.type);
+      const next = TOOLS.find((item) => item.key.toLowerCase() === key); if (next && !event.repeat) {event.preventDefault();addFromToolbar(next.type);}
     };
     const keyup = (event: KeyboardEvent) => { if (event.key === " ") setSpaceHand(false); };
     const blur = () => { setSpaceHand(false); gesture.current = null; setPreview(null); };
@@ -553,8 +542,6 @@ export function App() {
     const latestPage = readPage(editingId);
     event.preventDefault();
     event.currentTarget.focus({ preventScroll: true });
-    const bounds = event.currentTarget.getBoundingClientRect();
-    const world = { x: (event.clientX - bounds.left - camera.x) / camera.zoom, y: (event.clientY - bounds.top - camera.y) / camera.zoom };
     const hitPageId = target.closest<HTMLElement>("[data-page-id]")?.dataset.pageId;
     const hitNodeId = target.closest<HTMLElement>("[data-node-id]")?.dataset.nodeId;
     const handle = target.closest<HTMLElement>("[data-handle]")?.dataset.handle as Handle | undefined;
@@ -563,7 +550,6 @@ export function App() {
     let transform: Gesture["transform"];
     if (event.button === 1 || tool === "hand" || spaceHand) { /* Pan over any object. */ }
     else if (editingId && latestPage) {
-      if (tool !== "select") { if (hitPageId) placeNode(tool, world.x, world.y); return; }
       const node = handle || (selectedNodeIds.length > 1 && selectedNodeIds.includes(hitNodeId ?? "")) ? latestPage.nodes.find(item => item.id === (handle ? selectedNodeId : hitNodeId)) : canvasHitNode(latestPage, scopeId, hitNodeId, directSelection);
       if (node) {
         if (!handle) setCanvasSelection(previous => previous + 1);
@@ -692,19 +678,24 @@ export function App() {
     if (mode === "prototype" && next === "slice" && canonicalPage?.artPsd) void openPageSlice();
     else switchMode(next);
   };
+  const currentWorkspace = WORKSPACE_MODES.find(item => item.id === mode) ?? WORKSPACE_MODES[0];
+  const CurrentWorkspaceIcon = currentWorkspace.icon;
 
   return <ListCells.Provider value={listCells}><SliceResourcesProvider value={{ ...selectedResources, forPage: runtimeResources.forPage }}><TooltipProvider delayDuration={300}><main className="app-shell">
-    <header className="topbar"><span className="brand-mark"><Layers3 size={18} /></span><strong>工作台</strong><Separator orientation="vertical" className="topbar-separator" />
+    <header className="topbar"><DropdownMenu.Root modal={false}>
+      <DropdownMenu.Trigger asChild><Button size="sm" variant="ghost" className="workspace-mode-trigger" aria-label={`工作台模式：${currentWorkspace.label}`}><CurrentWorkspaceIcon size={17} aria-hidden="true" /><span>{currentWorkspace.label}</span><ChevronDown size={13} aria-hidden="true" /></Button></DropdownMenu.Trigger>
+      <DropdownMenu.Portal><DropdownMenu.Content loop side="bottom" align="start" sideOffset={5} collisionPadding={6} className="layer-context-menu workspace-mode-menu" aria-label="工作模式" onPointerDown={event => event.stopPropagation()} onKeyDown={event => event.stopPropagation()}>
+        {WORKSPACE_MODES.map(({ id, label, icon: Icon }) => <DropdownMenu.Item key={id} aria-current={mode === id ? "page" : undefined} disabled={id === "slice" && mode === "prototype" && !!canonicalPage?.artPsd && pageActionBusy} onSelect={() => selectWorkspace(id)}><Icon size={15} aria-hidden="true" /><span>{label}</span>{mode === id ? <Check size={14} aria-hidden="true" /> : null}</DropdownMenu.Item>)}
+      </DropdownMenu.Content></DropdownMenu.Portal>
+    </DropdownMenu.Root><Separator orientation="vertical" className="topbar-separator" />
       <div ref={setDocumentActions} className="workbench-document-actions" role="group" aria-label="文档操作">{mode === "prototype" ? <>
         <IconTool label="撤销 (Ctrl+Z)" disabled={pending || !canvasDocument} onClick={() => history("undo")}><Undo2 size={15} /></IconTool>
         <IconTool label="重做 (Ctrl+Shift+Z)" disabled={pending || !canvasDocument} onClick={() => history("redo")}><Redo2 size={15} /></IconTool>
         <IconTool label="保存 (Ctrl+S)" disabled={pending || !canvasDocument} onClick={save}><Save size={15} /></IconTool>
-      </> : null}</div>
-      {mode === "prototype" ? <Separator orientation="vertical" className="topbar-separator" /> : null}
+      </> : null}{mode !== "slice" ? <WorkbenchSettingsButton settings={settings} /> : null}</div>
+      <Separator orientation="vertical" className="topbar-separator" />
       {mode === "prototype" && editingId && page ? <><Button size="sm" variant="ghost" onClick={back}><ArrowLeft size={14} />总览</Button><span className="breadcrumb">/</span></> : null}
       <span className="document-title">{mode === "prototype" ? editingId ? page?.name : canvasDocument?.title ?? "正在打开画布" : "美术工作区"}</span>
-      <nav className="mode-switcher" aria-label="工作模式">{([{ id: "prototype", label: "原型", icon: LayoutPanelTop }, { id: "merge", label: "PSD 合并", icon: GitMerge }, { id: "slice", label: "PSD 切图", icon: Scissors }] as const).map(({ icon: Icon, ...item }) => <Tooltip key={item.id}><TooltipTrigger asChild><Button size="icon" variant="ghost" aria-label={item.label} aria-pressed={mode === item.id} className={mode === item.id ? "mode-active" : ""} onClick={() => selectWorkspace(item.id)} disabled={item.id === "slice" && mode === "prototype" && !!canonicalPage?.artPsd && pageActionBusy}><Icon size={16} aria-hidden="true" /></Button></TooltipTrigger><TooltipContent side="bottom">{item.label}</TooltipContent></Tooltip>)}</nav>
-<div className="workbench-right"><div ref={setExportActions} className="workbench-export-actions" /><WorkbenchSettingsButton settings={settings} /></div>
     </header>
     <WorkbenchSettingsPanel settings={settings} file={canvasDocument ? { directory: canvasDocument.exportDirectory, name: resourceName || canvasDocument.title, change: exportDirectory => edit(document => ({ ...document, exportDirectory })) } : undefined} />
     <div ref={viewport} tabIndex={-1} hidden={mode !== "prototype"} className={cn("canvas-viewport", (tool === "hand" || spaceHand) && "hand-tool", preview?.kind === "pan" && "is-panning", (preview?.kind === "node" || preview?.kind === "page") && "is-moving")} aria-label={editingId ? "页面编辑画布" : "页面总览画布"}
@@ -781,10 +772,10 @@ export function App() {
             <div className="menu-heading">添加到画布</div>
             <div className="insert-grid" role="group" aria-label="添加到画布">{PAGE_ROOT_TYPES.map((type) => { const Icon = type === "UIBox" ? LayoutDashboard : LayoutPanelTop; return <button key={type} onClick={() => addPage(type)}><Icon size={16} /><span>{PAGE_ROOTS[type].label} <small className="menu-class">({type})</small></span></button>; })}</div>
             <Separator /><div className="insert-grid"><button disabled={!editingId} onClick={() => { setInsertOpen(false); setCellPicker(null); setPickerSource(""); }}><Box size={16} /><span>引用画布组件…</span></button></div>
-            <Separator /><div className="menu-heading">{editingId ? "选择工具后点击页面放置" : "双击进入页面后添加控件"}</div>
-            <div className="insert-grid" role="group" aria-label="添加控件">{TOOLS.map(({ type, icon: Icon }) => <button key={type} disabled={!editingId} onClick={() => chooseInsertTool(type)}><Icon size={16} /><span>{NODE_LABELS[type]} <small className="menu-class">({COMPONENTS[type].laya})</small></span></button>)}</div>
+            <Separator /><div className="menu-heading">{editingId ? "添加到当前层" : "双击进入页面后添加控件"}</div>
+            <div className="insert-grid" role="group" aria-label="添加控件">{TOOLS.map(({ type, icon: Icon }) => <button key={type} disabled={!editingId} onClick={() => addFromToolbar(type)}><Icon size={16} /><span>{NODE_LABELS[type]} <small className="menu-class">({COMPONENTS[type].laya})</small></span></button>)}</div>
           </PopoverContent></Popover>
-          <div className="direct-tools">{TOOLS.filter((item) => item.key).map(({ type, icon: Icon, key }) => <IconTool key={type} label={`${NODE_LABELS[type]} (${key})`} disabled={!editingId} active={tool === type} onClick={() => chooseInsertTool(type)}><Icon size={19} /></IconTool>)}</div>
+          <div className="direct-tools">{TOOLS.filter((item) => item.key).map(({ type, icon: Icon, key }) => <IconTool key={type} label={`${NODE_LABELS[type]} (${key})`} disabled={!editingId} onClick={() => addFromToolbar(type)}><Icon size={19} /></IconTool>)}</div>
           <Separator orientation="vertical" /><CanvasExportActions sources={sources} document={canvasDocument} page={page} sourcePage={composition?.page}
             prepare={(expected,source,updated)=>{
               const current=read(), canonical=current?.pages.find(p=>p.id===source.id);
@@ -816,7 +807,7 @@ export function App() {
         onClose={() => {setPickerSource(null);setCellPicker(null);}} /> : null}
     </div>
     <PsdWorkspace mode="merge" active={mode === "merge"} settings={settings} />
-    <PsdWorkspace mode="slice" active={mode === "slice"} binding={psdEditor.binding} openBoundRef={openBrowserSlice} onReveal={() => switchMode("slice")} documentActions={documentActions} exportActions={exportActions} settings={settings} exportPending={pending} onAsset={observePsd} />
+    <PsdWorkspace mode="slice" active={mode === "slice"} binding={psdEditor.binding} openBoundRef={openBrowserSlice} onReveal={() => switchMode("slice")} documentActions={documentActions} settings={settings} exportPending={pending} onAsset={observePsd} />
     {syncSession && <PageSyncDialog session={syncSession} loadedAsset={
       canvasDocument?.documentId === syncSession.document.documentId && loadedPsds.states[syncSession.page.id]?.key === pagePsdKey(syncSession.page.artPsd)
         ? loadedPsds.assets[syncSession.page.id] : undefined

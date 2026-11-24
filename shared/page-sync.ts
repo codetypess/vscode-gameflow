@@ -18,7 +18,7 @@ export type Side = "proto" | "psd";
 export type Decision = Side | "skip";
 export const frameFields = ["x","y","width","height"] as const;
 export type Field = "exist" | "text" | "name" | "parent" | "order" | "property" | keyof Frame;
-export interface Change { key: string; id: string; field: Field; property?: string; kind: "add" | "delete" | "edit"; suggested?: Decision; replacement?: Side; members: string[] }
+export interface Change { key: string; id: string; field: Field; property?: string; kind: "add" | "delete" | "edit"; suggested?: Decision; replacement?: Side; representation?: "prefab-reference" | "component-root"; members: string[] }
 export interface Comparison { proto: SyncNode[]; psd: SyncNode[]; base?: SyncBase; changes: Change[] }
 export const fieldNames: Record<Field,string> = { exist:"控件结构", name:"节点名称", text:"文字内容", parent:"父节点", order:"同级顺序", property:"属性", x:"横坐标", y:"纵坐标", width:"宽度", height:"高度" };
 

@@ -16,6 +16,10 @@ import { searchLayers } from "../lib/layer-search";
 
 export { NodeIcon } from "./layer-row";
 
+export function componentLayerRoot(page: GameFlowPage) {
+  return page.nodes.find(node=>node.id===page.componentRootId && node.type==="container" && !node.parentId && !node.prefab) ?? null;
+}
+
 interface TreeDrag { id: string; pointerId: number; x: number; y: number; active: boolean; drop: LayerDrop | null }
 
 export function LayerTree({ page, scopeId, selectedId, selectedIds, reveal, onSelect, onPatch, onBack, onAdd, onDelete, onMove, panelRef, panelStyle, hasClipboard, onCopy, onPaste, onDuplicate, onConvert, onSaveToCanvas, onOpenSource, composition, onRepair, onCopyOrphan }: {
@@ -36,8 +40,9 @@ export function LayerTree({ page, scopeId, selectedId, selectedIds, reveal, onSe
   const searchInput = useRef<HTMLInputElement | null>(null);
   const filtering = !!query.trim();
   const { matches, visible } = searchLayers(page, query);
+  const componentRoot = componentLayerRoot(page);
   const activeCollapsed = filtering ? searchCollapsed : new Set(page.nodes.filter(node => !expanded.has(node.id)).map(node => node.id));
-  const selectionOrder = visibleLayerOrder(page, visible, activeCollapsed);
+  const selectionOrder = visibleLayerOrder(page, visible, activeCollapsed).filter(id=>id!==componentRoot?.id);
   const [menu, setMenu] = useState<LayerMenuTarget | null>(null);
   const [dragging, setDragging] = useState<string | null>(null);
   const [drop, setDrop] = useState<LayerDrop | null>(null);
@@ -69,6 +74,7 @@ export function LayerTree({ page, scopeId, selectedId, selectedIds, reveal, onSe
     if (revealed.current === reveal) return;
     const node = page.nodes.find((item) => item.id === selectedId);
     if (!node) { revealed.current = reveal; return; }
+    if (node.id === componentRoot?.id) { revealed.current = reveal; return; }
     if (filtering && !visible.has(node.id)) { setQuery(""); setSearchCollapsed(new Set()); return; }
     const ancestors = new Set<string>();
     let parentId = node.parentId;
@@ -200,14 +206,14 @@ export function LayerTree({ page, scopeId, selectedId, selectedIds, reveal, onSe
     onPointerDownCapture={() => { if (!drag.current?.active) suppressClick.current = false; }}
     onPointerDown={(event) => event.stopPropagation()} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={cancelDrag} onLostPointerCapture={cancelDrag}
     onClickCapture={(event) => { if (suppressClick.current) { event.preventDefault(); event.stopPropagation(); suppressClick.current = false; } }}>
-    <div className="floating-heading"><strong>图层</strong><span aria-live="polite">{filtering ? `${matches.size}/${page.nodes.length}` : page.nodes.length}</span><Button variant="ghost" size="icon" aria-label="返回总览" onClick={onBack}><X size={14} /></Button></div>
+    <div className="floating-heading"><strong>图层</strong><span aria-live="polite">{filtering ? `${matches.size-Number(!!componentRoot && matches.has(componentRoot.id))}/${page.nodes.length-Number(!!componentRoot)}` : page.nodes.length-Number(!!componentRoot)}</span><Button variant="ghost" size="icon" aria-label="返回总览" onClick={onBack}><X size={14} /></Button></div>
     <div className="layer-search"><Search size={13} aria-hidden="true" /><input ref={searchInput} type="search" aria-label="搜索图层" placeholder="搜索名称、变量、类型或 ID" value={query}
       onChange={(event) => changeQuery(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); clearSearch(); } }} />
       {query ? <button aria-label="清除图层搜索" title="清除搜索 (Esc)" onClick={clearSearch}><X size={12} /></button> : null}
     </div>
-    <LayerRoot name={page.name} rootType={pageRootType(page)} data-layer-root className={cn(!selectedId && !scopeId && "is-selected", dropClass())} aria-haspopup="menu" onContextMenu={(event) => openMenu(event, null)}
-      onPointerDown={(event) => { if (event.button === 0) { event.preventDefault(); panel.current?.focus({ preventScroll: true }); } }} onClick={() => onSelect(null)} />
-    <ScrollArea className="layer-tree-scroll" label="图层内容" viewportRef={treeViewport}><div role="tree" aria-multiselectable="true" aria-label={page.name} data-layer-root className="layer-tree" onContextMenu={(event) => openMenu(event, null)}>{branch(undefined, 0)}{filtering && !matches.size ? <p className="empty-layers" role="status">没有匹配的图层</p> : page.nodes.length === 0 ? <p className="empty-layers">右键添加节点<br />或用底部工具条点击放置</p> : null}
+    <LayerRoot name={page.name} rootType={pageRootType(page)} data-layer-root className={cn((componentRoot ? selectedId===componentRoot.id : !selectedId && !scopeId) && "is-selected", dropClass())} aria-haspopup="menu" onContextMenu={(event) => openMenu(event, null)}
+      onPointerDown={(event) => { if (event.button === 0) { event.preventDefault(); panel.current?.focus({ preventScroll: true }); } }} onClick={() => onSelect(componentRoot?.id ?? null)} />
+    <ScrollArea className="layer-tree-scroll" label="图层内容" viewportRef={treeViewport}><div role="tree" aria-multiselectable="true" aria-label={page.name} data-layer-root className="layer-tree" onContextMenu={(event) => openMenu(event, null)}>{branch(componentRoot?.id, 0)}{filtering && matches.size===Number(!!componentRoot && matches.has(componentRoot.id)) ? <p className="empty-layers" role="status">没有匹配的图层</p> : page.nodes.length===Number(!!componentRoot) ? <p className="empty-layers">当前页面暂无节点</p> : null}
       <div className={cn("tree-root-drop", drop && !drop.targetId && "layer-drop-inside")} data-layer-root>{dragging ? "移到页面根节点" : ""}</div>
     </div></ScrollArea>
     <div className="layer-footer">{filtering ? "搜索中 · 清除搜索后可拖动排序" : "右键编辑节点 · 拖动调整层级"}</div>

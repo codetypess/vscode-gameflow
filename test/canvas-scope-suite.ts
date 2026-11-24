@@ -3,7 +3,7 @@ import type { GameFlowNode, GameFlowPage } from "../shared/model";
 import { makeComponent, removeNode, reparentNode } from "../shared/editor-ops";
 import { resolvePageLayout } from "../shared/ui-layout";
 import { mapPoint } from "../shared/ui-transform";
-import { canvasContextTarget, canvasHitNode, canvasPasteTarget, canvasPlacementPoint, canvasScopePath, placeCanvasComponent, reconcileCanvasScope } from "../webview/lib/canvas-scope";
+import { canvasContextTarget, canvasHitNode, canvasPasteTarget, canvasPlacementPoint, canvasScopePath, insertCanvasComponent, placeCanvasComponent, reconcileCanvasScope } from "../webview/lib/canvas-scope";
 import { copyNode, pasteNode } from "../shared/node-clipboard";
 
 export const canvasScopeTests: { name: string; run: () => void }[] = [];
@@ -36,6 +36,34 @@ test("context insertion keeps clicked parent coordinates and inserts after the c
   assert.ok(local.x>0 && local.y>0);
   const locked={...p,nodes:p.nodes.map(node=>node.id==="group" ? {...node,locked:true} : node)};
   assert.equal(placeCanvasComponent(locked,"group","text",point,()=>"blocked","first").id,null);
+});
+
+test("single-step insertion uses the current layer center, offsets repeats and honors component roots", () => {
+  let serial=0;
+  const p=page(node("group","container"));
+  const first=insertCanvasComponent(p,"group","text","first",()=>`part${++serial}`);
+  const firstNode=first.page.nodes.find(item=>item.id==="first")!;
+  assert.equal(firstNode.parentId,"group");
+  assert.equal(firstNode.frame.x+firstNode.frame.width/2,100);
+  assert.equal(firstNode.frame.y+firstNode.frame.height/2,40);
+  const second=insertCanvasComponent(first.page,"group","image","second",()=>`part${++serial}`);
+  const secondNode=second.page.nodes.find(item=>item.id==="second")!;
+  assert.equal(secondNode.frame.x+secondNode.frame.width/2,112);
+  assert.equal(secondNode.frame.y+secondNode.frame.height/2,52);
+
+  const rooted={...p,componentRootId:"group"};
+  const child=insertCanvasComponent(rooted,undefined,"button","child",()=>`part${++serial}`);
+  assert.equal(child.page.nodes.find(item=>item.id==="child")?.parentId,"group");
+});
+
+test("single-step insertion rejects locked and invalid parents before allocating child IDs", () => {
+  const p=page({...node("locked","container"),locked:true},node("leaf","text"));
+  let allocations=0;
+  for(const parentId of ["locked","leaf","missing"]) {
+    const result=insertCanvasComponent(p,parentId,"slider","new",()=>{allocations++;return `part${allocations}`;});
+    assert.equal(result.page,p);assert.equal(result.id,null);
+  }
+  assert.equal(allocations,0);
 });
 
 test("canvas picks composite controls before their parts, one editing level at a time", () => {

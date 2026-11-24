@@ -31,7 +31,7 @@ RadioGroup 为可含子节点的容器，`widget.optionNodeIds` 保存同页 Rad
 
 底部添加菜单将页面根和控件分别以紧凑单列展示，正常宽 225px，保留中文名称、类名和图标；窄视口按可用宽度收缩，菜单按实际可用高度限位并在必要时内部滚动。最左侧“直选模式”使用带点击射线的鼠标指针（Lucide `MousePointerClick`）；按钮控件使用圆角矩形内带三点的 `RectangleEllipsis`；自由容器使用四块错落排列的线框布局图标 `LayoutDashboard`，包括添加到画布的 UIBox 入口。控件图标在底部快捷入口、添加菜单、图层树、层级导航及图层菜单保持一致。
 
-底部工具条的选中按钮（包括直选模式、虚线框、添加工具及属性面板开关）使用主题主按钮亮色背景及对应前景色，悬停仍保留选中色，使开启状态与普通按钮清楚区分。
+底部工具条的选中按钮（包括直选模式、虚线框及属性面板开关）使用主题主按钮亮色背景及对应前景色，悬停仍保留选中色，使开启状态与普通按钮清楚区分。控件快捷入口是立即执行的添加命令，不显示持续选中状态。
 
 ## Geometry
 
@@ -68,7 +68,7 @@ UILabel 的文字区支持可选 `widget.leading/letterSpacing`（有限正负�
 
 进入容器层时，40% 黑色半透明遮罩压暗点阵背景、页面与其他节点分支，当前容器和后代在遮罩上方保持原有绘制（含祖先透明度、变换与裁剪）。每层始终使用同一遮罩强度，不按深度叠加；切层更新目标子树，页根移除。遮罩不接收指针，不遮挡导航、树、属性及工具条。顶部预留 48px 给路径导航，跟随面板在该区域下方限位。
 
-属性面板只呈现属性，不放图层顺序、上移/下移和复制/删除操作。选中控件或总览中的页面后 Ctrl+D（macOS Cmd+D）生成副本，Delete/Backspace 删除；页内空选时这些快捷键不操作整页。页面内 Ctrl/Cmd+C/V 复制/粘贴子树，空选粘贴进入当前层，选中时仍按容器子级/叶子同级确定位置。工具栏放置使用当前层，页面坐标经容器逆矩阵及滚动换算，锁定或不可逆父容器拒绝放置。图层树 F2 行内重命名。焦点位于输入字段时不触发节点快捷键。右键一级菜单集中编辑操作；新增与转换类型各用二级菜单承载 15 种控件，不再提供冗余的矩形选项。旧 rectangle 类型继续读写和渲染，新建列表的静态子项使用 panel。
+属性面板只呈现属性，不放图层顺序、上移/下移和复制/删除操作。选中控件或总览中的页面后 Ctrl+D（macOS Cmd+D）生成副本，Delete/Backspace 删除；页内空选时这些快捷键不操作整页。页面内 Ctrl/Cmd+C/V 复制/粘贴子树，空选粘贴进入当前层，选中时仍按容器子级/叶子同级确定位置。底部添加菜单、常用控件图标和字母快捷键以单次命令向当前编辑层中心添加节点，连续添加按同级数量错位，创建后选中新节点；不再进入等待下一次画布点击的放置工具。锁定父层拒绝添加。画布右键新增仍使用右键页面坐标，经容器逆矩阵及滚动换算后放入当前层。图层树 F2 行内重命名。焦点位于输入字段时不触发节点快捷键。右键一级菜单集中编辑操作；新增与转换类型各用二级菜单承载 15 种控件，不再提供冗余的矩形选项。旧 rectangle 类型继续读写和渲染，新建列表的静态子项使用 panel。详见 [一段式节点添加](single-step-node-insertion.md)。
 
 原型画板也提供编辑器右键菜单：总览命中画板时可进入编辑、重命名、生成副本、删除和新建画板；总览空白只提供新建及适应画布。页内节点复用图层菜单及锁定/继承保护，遵循逐层或直选命中，右键已选成员保留多选。页内空白清空节点选择但保留当前层，粘贴/新增使用该层；菜单新增按右键页面坐标换算父变换和滚动，并保留同级插入顺序。菜单提供适应画布、返回上一级/总览，支持 Escape、外部点击及画布上的 Shift+F10/菜单键。关闭恢复画布焦点；重命名对话框支持 Enter/Escape、非空去空格提交及焦点循环。右键不放置、拖动或缩放，面板及工具条不会误触画布菜单。详见 [画板右键菜单](canvas-context-menu.md)。
 
@@ -121,6 +121,8 @@ UILabel 的文字区支持可选 `widget.leading/letterSpacing`（有限正负�
 ## Reusable Canvas Components
 
 `page.componentRootId` identifies an extracted UIBox definition root. Save-to-canvas accepts only one unlocked ordinary UIBox with positive resolved dimensions; contained nodes may have any supported type. It clones and remaps the subtree into a transparent board to the right, normalizes definition-root placement and leaves one linked instance retaining the original ID, affine placement and constraints. Cross-boundary skin/radio references block extraction. The operation is one undoable edit and preserves the camera. New/pasted content defaults inside the definition root; its root type cannot be converted, and moving children cannot create root siblings. Root duplication creates content inside the existing root; whole-board duplication remaps componentRootId. Deleting a definition/root leaves references visibly invalid.
+
+The board root and `componentRootId` remain separate internal identities but form one external semantic root. The component source layer tree aliases its root row to the component root and lists the component root's children directly, matching composed instances. Prefab export keeps the board ID, export name and UIBox type, promotes exportable component-root properties onto that record, and emits the component root's children directly; root placement and variable markers do not move onto the Prefab root. Prefab sync projects a flattened record back onto both internal identities. A legacy two-root Prefab is offered as one explicit component-root-structure migration. Save-to-canvas never creates a wrapper for an otherwise invalid root: only UIBox is accepted, and rejection names the actual target class.
 
 Instances retain `prefab: { source, documentId, pageId }`, type container, independent explicit/constrained dimensions, placement transform, identity, visibility/lock and optional opacity. In v5, `instanceEdits.overrides` stores target + field-level set/unset; `additions` stores full owned nodes with scoped parent/before anchors and optional scoped control references. Source roots alias the instance root. Unmodified properties follow the source, while explicit false/0/null/empty values and unset remain local until reverted. Temporary display IDs never become serialized targets. Any legal canvas root can be referenced; applying synthetic-root properties requires an actual writable component root, otherwise the UI reports why the mapping is unavailable.
 

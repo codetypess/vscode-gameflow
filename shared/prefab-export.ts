@@ -185,7 +185,20 @@ export async function planPrefabExport(document: GameFlowDocument, page: GameFlo
     return record;
   };
   const root=pageRootType(page);
-  const prefab:Record<string,unknown>={"_$ver":1,"_$id":page.id,"_$type":root,name:page.exportName ?? page.name,scriptPath:scriptPath(root),width:page.frame.width,height:page.frame.height,...page.layout,"_$child":page.nodes.filter(node=>!node.parentId).map(nodeRecord)};
+  const componentRoot=page.componentRootId ? page.nodes.find(node=>node.id===page.componentRootId) : undefined;
+  if(page.componentRootId && (!componentRoot || componentRoot.parentId || componentRoot.prefab || componentRoot.type!=="container" || root!=="UIBox" || page.nodes.some(node=>node.id!==componentRoot.id && !node.parentId))) {
+    const type=componentRoot ? componentRoot.prefab ? "Prefab 引用" : COMPONENTS[componentRoot.type].laya : "已删除节点";
+    throw new Error(`根节点不能为 ${type}，组件预制体仅支持单一 UIBox 根。`);
+  }
+  let prefab:Record<string,unknown>;
+  if(componentRoot) {
+    const promoted=nodeRecord(componentRoot);
+    const {_$child,...fields}=promoted;
+    delete fields._$id;delete fields._$type;delete fields.name;delete fields.scriptPath;delete fields.x;delete fields.y;delete fields._$var;
+    prefab={...fields,"_$ver":1,"_$id":page.id,"_$type":root,name:page.exportName ?? page.name,scriptPath:scriptPath(root),width:componentRoot.frame.width,height:componentRoot.frame.height,...(_$child ? {"_$child":_$child} : {})};
+  } else {
+    prefab={"_$ver":1,"_$id":page.id,"_$type":root,name:page.exportName ?? page.name,scriptPath:scriptPath(root),width:page.frame.width,height:page.frame.height,...page.layout,"_$child":page.nodes.filter(node=>!node.parentId).map(nodeRecord)};
+  }
   return {batch:{name:prefabFileName(page),directory:document.exportDirectory,prefab,images:[...images.values()].filter(image=>!failed.has(image.path))},missing};
 }
 

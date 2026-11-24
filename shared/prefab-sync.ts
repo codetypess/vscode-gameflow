@@ -53,6 +53,9 @@ function baseSignature(base:PrefabBase | undefined) {
 
 export function inspectPrefab(document:GameFlowDocument,page:GameFlowPage,target:string,root:RecordNode,metadata?:PrefabMetadataReview, cellReferences: ReadonlyMap<string,CanvasReference> = new Map(), mode:PrefabSyncMode="review") {
   if (root._$id!==page.id || root._$type!==pageRootType(page)) throw new Error("目标文件的页面身份或根类型不匹配，请检查导出名称和目标文件。");
+  const componentRoot=page.componentRootId ? page.nodes.find(node=>node.id===page.componentRootId && node.type==="container" && !node.parentId && !node.prefab) : undefined;
+  const legacyComponentRecord=componentRoot ? children(root).find(child=>child._$id===componentRoot.id) : undefined;
+  const flattenedComponentRoot=!!componentRoot && !legacyComponentRecord;
   const saved=page.prefabSync;
   const base=saved?.documentId===document.documentId && saved.pageId===page.id && saved.target===target ? {...saved,psdId:target} : undefined;
   const proto=prototypeNodes(page), originals=new Map<string,RecordNode>(), allIds=new Set<string>();
@@ -98,11 +101,19 @@ export function inspectPrefab(document:GameFlowDocument,page:GameFlowPage,target
       if (!reference) read(child,id,frame);
     }
   }
-  read(root,"",{x:0,y:0,width:0,height:0});
+  if(flattenedComponentRoot && componentRoot) {
+    const defaults=makeNode(componentRoot.type,componentRoot.id,0,0).frame;
+    const frame={...defaults,x:0,y:0};
+    for(const key of ["width","height"] as const) if(typeof root[key]==="number" && Number.isFinite(root[key])) frame[key]=root[key] as number;
+    nativeIds.set(componentRoot.id,String(root._$id));originals.set(componentRoot.id,root);
+    tree.push({id:componentRoot.id,type:componentRoot.type,name:componentRoot.name,parent:"",frame,text:"",layer:String(root._$id),x:0,y:0,width:frame.width,height:frame.height});
+    read(root,componentRoot.id,frame);
+  } else read(root,"",{x:0,y:0,width:0,height:0});
   const logicalIds=new Map([...nativeIds].map(([id,external])=>[external,id]));
   const resolveRef=(value:unknown)=>record(value)&&typeof value._$ref==="string"?logicalIds.get(value._$ref)??null:null;
   for(const node of tree) if(!node.root) {
     node.properties=recordNodeProperties(node.type,originals.get(node.id)!,resolveRef);
+    if(flattenedComponentRoot && node.id===componentRoot?.id) node.properties.variableName=componentRoot.variableName??"";
     const cell = node.properties.cellPrefab;
     if (cell && typeof cell === "object" && "uuid" in cell && typeof cell.uuid === "string") {
       const reference = cellReferences.get(cell.uuid);
@@ -120,7 +131,12 @@ export function inspectPrefab(document:GameFlowDocument,page:GameFlowPage,target
     if(!original || typeof original._$prefab==="string") continue;
     const members=syncSubtree(tree,node.id), memberIds=new Set(members);
     comparison.changes=comparison.changes.filter(change=>!memberIds.has(change.id));
-    comparison.changes.push({id:node.id,key:node.id+"/reference",field:"exist",kind:"edit",members,replacement:"proto",suggested:"proto"});
+    comparison.changes.push({id:node.id,key:node.id+"/reference",field:"exist",kind:"edit",members,replacement:"proto",representation:"prefab-reference",suggested:"proto"});
+  }
+  if(componentRoot && legacyComponentRecord) {
+    const members=syncSubtree(tree,componentRoot.id), memberIds=new Set(members);
+    comparison.changes=comparison.changes.filter(change=>!memberIds.has(change.id));
+    comparison.changes.push({id:componentRoot.id,key:componentRoot.id+"/component-root",field:"exist",kind:"edit",members,replacement:"proto",representation:"component-root",suggested:"proto"});
   }
   if(mode==="art") {
     // Keep Laya-only settings when the source is a PSD layer tree.
@@ -133,7 +149,7 @@ export function inspectPrefab(document:GameFlowDocument,page:GameFlowPage,target
     if(Array.isArray(node._$comp)) for(const component of node._$comp) extras.push({name:String(component?._$type??"组件"),value:component});
     if(extras.length) engine.set(id,extras);
   }
-  return {root,comparison,originals,nativeIds,allIds,target,page,document,engine,metadata,cellReferences};
+  return {root,comparison,originals,nativeIds,allIds,target,page,document,engine,metadata,cellReferences,componentRoot:componentRoot ? {id:componentRoot.id,flattened:flattenedComponentRoot} : undefined};
 }
 export type PrefabReview = ReturnType<typeof inspectPrefab>;
 
@@ -183,6 +199,7 @@ export function mergePrefab(review:PrefabReview,decisions:Record<string,Decision
   const rawIds=new Map(nativeIds);
   const exported=new Map<string,RecordNode>();
   walk(batch.prefab,node=>exported.set(String(node._$id),node));
+  if(review.componentRoot) exported.set(review.componentRoot.id,batch.prefab);
   const added=new Set<string>();
   for(const node of trees.psd) if(!node.root && !originals.has(node.id)) {
     if(review.allIds.has(node.id)) throw new Error("新增控件的 ID 已在预制体内使用："+node.name);
@@ -276,9 +293,24 @@ export function mergePrefab(review:PrefabReview,decisions:Record<string,Decision
     if(output.length || source?._$child!==undefined) node._$child=output;
     return node;
   }
-  const prefabRoot={...review.root},plannedRoot=trees.psd.find(n=>n.root),currentRoot=c.psd.find(n=>n.root);
-  if(plannedRoot?.properties) for(const [path,value] of Object.entries(plannedRoot.properties)) if(!sameSyncProperty(currentRoot?.properties?.[path],value)) applyRootRecordProperty(prefabRoot,path,value);
-  const prefab=rebuildChildren(prefabRoot,"",review.root);
+  const plannedRoot=trees.psd.find(n=>n.root),currentRoot=c.psd.find(n=>n.root);
+  const promoteComponentRoot=!!review.componentRoot && (review.componentRoot.flattened || c.changes.some(change=>change.representation==="component-root" && decisions[change.key]===change.replacement));
+  let prefab:RecordNode;
+  if(promoteComponentRoot && review.componentRoot) {
+    const logical=trees.psd.find(node=>node.id===review.componentRoot!.id);
+    if(!logical) throw new Error("组件根节点不能从预制体中删除。");
+    const built=build(logical), generated=batch.prefab;
+    const outerExtras=review.componentRoot.flattened ? [] : children(review.root).filter(child=>child!==originals.get(review.componentRoot!.id));
+    const builtChildren=children(built);
+    prefab={...Object.fromEntries(Object.entries(review.root).filter(([key])=>!referenceManagedFields.has(key))),...built,
+      "_$ver":generated._$ver??review.root._$ver,"_$id":page.id,"_$type":pageRootType(page),name:review.root.name,scriptPath:generated.scriptPath??review.root.scriptPath};
+    delete prefab.x;delete prefab.y;delete prefab._$var;
+    if(builtChildren.length || outerExtras.length || built._$child!==undefined) prefab._$child=[...builtChildren,...outerExtras];
+    else delete prefab._$child;
+  } else {
+    prefab=rebuildChildren({...review.root},"",review.root);
+  }
+  if(plannedRoot?.properties) for(const [path,value] of Object.entries(plannedRoot.properties)) if(!sameSyncProperty(currentRoot?.properties?.[path],value)) applyRootRecordProperty(prefab,path,value);
   walk(prefab,node=>{
     if (node._$type === "UIList" && node.cellPrefab && children(node).length) throw new Error("请同时移除列表的静态子项。Laya UIList 会根据渲染项生成子节点。");
   });

@@ -3,6 +3,7 @@ import { ownedCanvasNodes, remapCanvasEdits } from "./canvas-instance-data";
 import { descendants, inheritedFlag } from "./editor-ops";
 import { resolvePageLayout, type ResourceSizes } from "./ui-layout";
 import { remapControlReferences } from "./ui-parts";
+import { COMPONENTS } from "./ui-components";
 
 export interface CanvasSource { source: string; document?: GameFlowDocument; error?: string; readOnly?: boolean }
 export type CanvasSources = Record<string, CanvasSource>;
@@ -53,7 +54,9 @@ export async function loadCanvasSources(document: GameFlowDocument, read: (sourc
 
 export function canvasExtractionIssue(page: GameFlowPage, id: string, resourceSizes?: ResourceSizes): string | null {
   const root = page.nodes.find(node => node.id === id);
-  if (!root || root.type !== "container" || root.prefab) return "只有可添加到画布的自由容器 UIBox 可以存到画布。";
+  if (!root) return "根节点不存在。";
+  if (root.prefab) return "根节点不能为 Prefab 引用，仅支持普通 UIBox。";
+  if (root.type !== "container") return `根节点不能为 ${COMPONENTS[root.type].laya}，仅支持 UIBox。`;
   if (page.componentRootId === id) return "该节点已是画布组件的根节点。";
   const size = resolvePageLayout(page, resourceSizes).nodes.get(id)!.local;
   if (size.width <= 0 || size.height <= 0) return "容器的布局尺寸为空，请先设置有效宽高。";
@@ -82,7 +85,7 @@ export function extractCanvasComponent(document: GameFlowDocument, pageId: strin
       const next = remapControlReferences(remapCanvasEdits(structuredClone(node), remap, {documentId:document.documentId,pageId:componentId}), remap);
       next.id = remap.get(node.id)!;
       if (node.id === id) {
-        delete next.parentId; delete next.transform; delete next.hidden; delete next.locked;
+        delete next.parentId; delete next.transform; delete next.hidden; delete next.locked; delete next.variableName;
         next.frame = { x: 0, y: 0, width: local.width, height: local.height };
         next.layout = { ...next.layout, left: null, right: null, centerX: null, top: null, bottom: null, centerY: null, widthMode: "explicit", heightMode: "explicit" };
         delete next.layout.positionOffsetX; delete next.layout.positionOffsetY; delete next.layout.crossAxisMode;

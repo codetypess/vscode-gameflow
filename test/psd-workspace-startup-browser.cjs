@@ -32,10 +32,26 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
       };
     }, document);
     await page.goto(process.env.GAMEFLOW_TEST_URL || "http://127.0.0.1:5191");
-    const modes = page.getByRole("navigation", { name: "工作模式" });
-    const prototype = modes.getByRole("button", { name: "原型", exact: true });
-    const slice = modes.getByRole("button", { name: "PSD 切图", exact: true });
+    const modeTrigger = page.getByRole("button", { name: /^工作台模式：/ });
+    const modeMenu = page.locator(".workspace-mode-menu");
+    const expectMode = async name => assert.equal(await modeTrigger.getAttribute("aria-label"), "工作台模式：" + name);
+    const selectMode = async name => { await modeTrigger.click(); await modeMenu.getByRole("menuitem", { name, exact: true }).click(); };
+    const documentActions = page.getByRole("group", { name: "文档操作" });
+    const expectActions = async labels => {
+      await page.waitForFunction(expected => JSON.stringify(Array.from(document.querySelector('[aria-label="文档操作"]')?.querySelectorAll("button") ?? [], button => button.getAttribute("aria-label"))) === JSON.stringify(expected), labels);
+      assert.deepEqual(await documentActions.getByRole("button").evaluateAll(buttons => buttons.map(button => button.getAttribute("aria-label"))), labels);
+    };
     await page.locator(".page-group").waitFor();
+    await expectActions(["撤销 (Ctrl+Z)", "重做 (Ctrl+Shift+Z)", "保存 (Ctrl+S)", "工作台设置"]);
+    await modeTrigger.click();
+    await modeMenu.waitFor();
+    assert.deepEqual(await modeMenu.getByRole("menuitem").allTextContents(), ["原型", "PSD 合并", "PSD 切图"]);
+    assert.equal(await modeMenu.getByRole("menuitem", { name: "原型", exact: true }).getAttribute("aria-current"), "page");
+    await page.keyboard.press("Escape");
+    await selectMode("PSD 合并");
+    await expectActions(["工作台设置"]);
+    await selectMode("原型");
+    await expectActions(["撤销 (Ctrl+Z)", "重做 (Ctrl+Shift+Z)", "保存 (Ctrl+S)", "工作台设置"]);
     const base64 = fs.readFileSync(path.join(__dirname, "../examples/psd-metadata/GameFlow-PSD-Metadata-Sample.psd")).toString("base64");
     const fixture = await page.evaluate(async ({ base64, root }) => {
       const { psdTask } = await import("/psd/io.ts");
@@ -50,28 +66,29 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
     await send(fixture);
     await page.locator('.psd-workspace[aria-label="PSD 切图工作区"] .psd-tree-row').first().waitFor({ state: "attached" });
     await settle();
-    assert.equal(await prototype.getAttribute("aria-pressed"), "true", "restoring PSD pixels must keep the prototype workspace");
+    await expectMode("原型");
     await page.screenshot({ path: path.join(output, "restored-prototype.png") });
     // Explicitly opening the already loaded PSD reveals it without a reload.
     await send({ type: "psdEditorReveal" });
-    await slice.waitFor(); await settle();
-    assert.equal(await slice.getAttribute("aria-pressed"), "true");
+    await modeTrigger.waitFor(); await settle();
+    await expectMode("PSD 切图");
+    await expectActions(["打开 PSD", "撤销 (Ctrl+Z)", "重做 (Ctrl+Shift+Z)", "保存 (Ctrl+S)", "工作台设置", "更多操作"]);
     assert.ok(await page.locator('.psd-workspace[aria-label="PSD 切图工作区"] .psd-tree-row').first().isVisible());
-    await prototype.click();
+    await selectMode("原型");
     // Hold a real worker completion to make the navigation race deterministic.
     await page.evaluate(() => { window.__holdPsd = true; });
     await send({ type: "psdEditorReveal" }); await send(fixture);
     await page.waitForFunction(() => window.__heldPsd.length === 1);
-    assert.equal(await slice.getAttribute("aria-pressed"), "true");
-    await prototype.click();
+    await expectMode("PSD 切图");
+    await selectMode("原型");
     await page.evaluate(() => { window.__holdPsd = false; for (const release of window.__heldPsd.splice(0)) release(); });
     await page.locator('.psd-workspace[aria-label="PSD 切图工作区"] .psd-tree-row').first().waitFor({ state: "attached" });
     await settle();
-    assert.equal(await prototype.getAttribute("aria-pressed"), "true", "late decoding must preserve the user's workspace choice");
+    await expectMode("原型");
     // Plain reinitialization/revert also preserves whichever workspace is selected.
     await send(fixture); await settle();
     await page.locator('.psd-workspace[aria-label="PSD 切图工作区"] .psd-tree-row').first().waitFor({ state: "attached" });
-    await settle(); assert.equal(await prototype.getAttribute("aria-pressed"), "true");
+    await settle(); await expectMode("原型");
     await page.getByRole("button", { name: "美术 PSD资源", exact: true }).click();
     assert.equal(await page.locator('[data-art-state="unbound"]').count(), 1);
     assert.equal(await page.locator(".page-surface").getByRole("button", { name: "生成 PSD", exact: true }).count(), 1);

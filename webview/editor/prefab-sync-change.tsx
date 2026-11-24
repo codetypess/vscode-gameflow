@@ -6,7 +6,8 @@ const sides = { proto: "原型", psd: "预制体" };
 const baselineHelp = "此属性最近一次同步一致时的值，保存在当前画布页面的 prefabSync 记录中。";
 
 export function changeTitle(change: Change) {
-  if (change.replacement) return "Prefab 引用结构";
+  if (change.representation === "component-root") return "组件根结构";
+  if (change.representation === "prefab-reference") return "Prefab 引用结构";
   return prefabChangeName(change) ?? fieldNames[change.field];
 }
 
@@ -14,6 +15,7 @@ export function changeValue(tree: SyncNode[], change: Change): string {
   const node = tree.find(item => item.id === change.id);
   if (!node) return "不存在";
   if (change.replacement) {
+    if (change.representation === "component-root") return change.members.filter(id => tree.some(item => item.id === id)).length < change.members.length ? "单一组件根" : "额外 UIBox 包装层";
     const count = change.members.filter(id => tree.some(item => item.id === id)).length;
     return count < change.members.length ? "Prefab 引用" : "展开节点（" + count + " 个）";
   }
@@ -35,7 +37,7 @@ export function changeValue(tree: SyncNode[], change: Change): string {
 export function describeDecision(review: PrefabReview, change: Change, decision?: Decision) {
   if (!decision) return "待决定";
   if (decision === "skip") return "本轮跳过";
-  if (change.replacement) return decision === change.replacement ? "把预制体替换为 Prefab 引用" : "本轮跳过";
+  if (change.replacement) return decision === change.replacement ? change.representation === "component-root" ? "移除预制体的额外 UIBox 包装层" : "把预制体替换为 Prefab 引用" : "本轮跳过";
   const target = decision === "proto" ? "预制体" : "原型";
   const source = review.comparison[decision];
   if (change.field === "exist") {

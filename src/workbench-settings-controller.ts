@@ -5,7 +5,11 @@ import { EXPORT_SETTINGS_KEY, LEGACY_RESOURCE_DIRECTORY_KEY, isWorkbenchSettings
 export class WorkbenchSettingsController implements vscode.Disposable {
   private readonly changes = new vscode.EventEmitter<WorkbenchSettings>();
   private operations: Promise<unknown> = Promise.resolve();
-  constructor(private readonly context: Pick<vscode.ExtensionContext, "workspaceState">, private readonly pickDirectory: typeof vscode.window.showOpenDialog = options => vscode.window.showOpenDialog(options)) {}
+  constructor(
+    private readonly context: Pick<vscode.ExtensionContext, "workspaceState">,
+    private readonly pickDirectory: typeof vscode.window.showOpenDialog = options => vscode.window.showOpenDialog(options),
+    private readonly revealDirectory: (uri: vscode.Uri) => Thenable<unknown> = uri => vscode.commands.executeCommand("revealFileInOS", uri)
+  ) {}
   private stored() { return readExportSettings(this.context.workspaceState.get(EXPORT_SETTINGS_KEY), this.context.workspaceState.get<string>(LEGACY_RESOURCE_DIRECTORY_KEY)); }
   directory(kind: ExportDirectoryKind): vscode.Uri | undefined {
     const value = this.stored()[kind];
@@ -30,6 +34,19 @@ export class WorkbenchSettingsController implements vscode.Disposable {
     if (!selected?.[0]) return false;
     await this.set(kind, selected[0]); return true;
   }
+  async reveal(kind: ExportDirectoryKind): Promise<void> {
+    const label = kind === "resources" ? "资源导出根目录" : "预制体导出根目录";
+    const uri = this.directory(kind);
+    if (!uri) throw new Error(`请先在工作台设置中选择${label}。`);
+    let stat: vscode.FileStat;
+    try { stat = await vscode.workspace.fs.stat(uri); }
+    catch (error) {
+      if (error instanceof vscode.FileSystemError && error.code === "FileNotFound") throw new Error(`${label}不存在，请重新选择。`);
+      throw error;
+    }
+    if (!(stat.type & vscode.FileType.Directory)) throw new Error(`${label}不是文件夹，请重新选择。`);
+    await this.revealDirectory(uri);
+  }
   attach(panel: vscode.WebviewPanel, source: vscode.Uri): vscode.Disposable {
     const changes = this.changes.event(settings => { void panel.webview.postMessage({ type: "workbenchSettingsResult", settings } satisfies WorkbenchSettingsResult); });
     const requests = panel.webview.onDidReceiveMessage(async (raw: unknown) => {
@@ -38,6 +55,7 @@ export class WorkbenchSettingsController implements vscode.Disposable {
         let cancelled = false;
         if (raw.action === "choose") cancelled = !await this.choose(raw.directory, source);
         else if (raw.action === "clear") await this.set(raw.directory);
+        else if (raw.action === "reveal") await this.reveal(raw.directory);
         await panel.webview.postMessage({ type: "workbenchSettingsResult", requestId: raw.requestId, settings: this.snapshot(), cancelled } satisfies WorkbenchSettingsResult);
       } catch (error) {
         let settings: WorkbenchSettings = {}; try { settings = this.snapshot(); } catch { /* Preserve the original settings diagnostic. */ }

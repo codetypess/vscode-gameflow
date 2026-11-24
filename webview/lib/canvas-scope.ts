@@ -56,6 +56,19 @@ export function canvasPasteTarget(page: GameFlowPage, scopeId: string | null, se
   return canHaveChildren(selected) ? { parentId: selected.id } : { parentId: selected.parentId, afterId: selected.id };
 }
 
+/** Insert immediately at the center of the current layer, offsetting repeated additions. */
+export function insertCanvasComponent(page: GameFlowPage, parentId: string | undefined, type: InsertType, id: string, makeId: () => string, afterId?: string): { page: GameFlowPage; id: string | null } {
+  if (!parentId && page.nodes.some(node => node.id === page.componentRootId)) parentId = page.componentRootId;
+  const parent = page.nodes.find(node => node.id === parentId);
+  if (parentId && (!parent || !canHaveChildren(parent) || inheritedFlag(page,parent,"locked"))) return {page,id:null};
+  const bounds = parent ? resolvePageLayout(page).nodes.get(parent.id)?.local : page.frame;
+  if (!bounds) return {page,id:null};
+  const offset = page.nodes.filter(node => node.parentId === parentId).length % 4 * 12;
+  const nodes = makeComponent(type,id,bounds.width / 2 + offset,bounds.height / 2 + offset,makeId);
+  const inserted = insertNode(page,nodes[0],parentId,afterId);
+  return inserted === page ? {page,id:null} : {page:{...inserted,nodes:[...inserted.nodes,...nodes.slice(1)]},id};
+}
+
 /** Convert page-space placement into the scope's child coordinates, including scrolling. */
 export function canvasPlacementPoint(page: GameFlowPage, scopeId: string | null, point: Point): Point | null {
   if (!scopeId) return point;

@@ -11,8 +11,8 @@ import { createPixelHitCache } from "./pixel-hit-cache";
 
 const isPanel = (target: EventTarget | null) => target instanceof Element && !!target.closest(".psd-follow-panel, .psd-canvas-controls");
 
-export function PsdSliceCanvas({ asset, selected, onSelect, active, tree, properties }: {
-  asset: PsdAsset; selected: PsdLayer | null; onSelect: (key: number | null) => void; active: boolean; tree: ReactNode; properties: ReactNode;
+export function PsdSliceCanvas({ asset, selected, onSelect, active, directSelection, showContainerOutlines, tree, properties, toolbar }: {
+  asset: PsdAsset; selected: PsdLayer | null; onSelect: (key: number | null) => void; active: boolean; directSelection: boolean; showContainerOutlines: boolean; tree: ReactNode; properties: ReactNode; toolbar?: ReactNode;
 }) {
   const stage = useRef<HTMLDivElement>(null), leftPanel = useRef<HTMLElement>(null), rightPanel = useRef<HTMLElement>(null);
   const [view, setView] = useState<{ size: CanvasSize; camera: PsdCamera; ready: boolean }>({ size: { width: 0, height: 0 }, camera: { x: 0, y: 0, zoom: 1 }, ready: false });
@@ -21,7 +21,7 @@ export function PsdSliceCanvas({ asset, selected, onSelect, active, tree, proper
   const gesture = useRef<{ pointerId: number; button: number; moved: boolean; x: number; y: number; camera: PsdCamera } | null>(null);
   const [hasPixel] = useState(createPixelHitCache);
   const selectionRequest = useRef(0);
-  useEffect(() => { selectionRequest.current++; }, [selected?.key]);
+  useEffect(() => { selectionRequest.current++; }, [selected?.key, directSelection]);
 
   useLayoutEffect(() => {
     const element = stage.current; if (!element) return;
@@ -89,7 +89,7 @@ export function PsdSliceCanvas({ asset, selected, onSelect, active, tree, proper
     if (reason === "up") {
       g.moved ||= isCanvasDrag(g, { x: event.clientX, y: event.clientY });
       if (g.moved) setView(old => ({ ...old, camera: { ...g.camera, x: g.camera.x + event.clientX - g.x, y: g.camera.y + event.clientY - g.y } }));
-      else if (g.button === 0) {
+      else if (g.button === 0 && directSelection) {
         const bounds = event.currentTarget.getBoundingClientRect();
         const point = psdPoint({ x: event.clientX - bounds.left, y: event.clientY - bounds.top }, g.camera);
         const request = ++selectionRequest.current;
@@ -111,12 +111,14 @@ export function PsdSliceCanvas({ asset, selected, onSelect, active, tree, proper
       <div className="psd-page-caption"><span>{asset.name}</span><small>{asset.width} × {asset.height}</small></div>
       <div className="psd-preview-world checkerboard" style={{ width: asset.width, height: asset.height, transform: `scale(${camera.zoom})` }}>
         <img className="psd-composite" src={asset.preview} alt={`${asset.name} 整图预览`} draggable={false} />
+        {showContainerOutlines ? <svg className="psd-container-outlines" width={asset.width} height={asset.height} viewBox={`0 0 ${asset.width} ${asset.height}`} aria-hidden="true" focusable="false">{asset.layers.filter(layer => layer.group && !layer.hidden && layer.width > 0 && layer.height > 0).map(layer => <rect key={layer.key} x={layer.left} y={layer.top} width={layer.width} height={layer.height} fill="none" stroke="currentColor" strokeWidth={1 / camera.zoom} strokeDasharray={`${4 / camera.zoom} ${3 / camera.zoom}`} />)}</svg> : null}
         {selected && !selected.group ? <div className="psd-selected-outline" style={{ left: selected.left, top: selected.top, width: selected.width, height: selected.height, borderWidth: 1 / camera.zoom }} /> : null}
       </div>
     </div>
     {selected && !selected.group && region ? <div className="psd-export-outline" aria-label="自定义导出区域" style={{ left: camera.x + (selected.left + region.x) * camera.zoom, top: camera.y + (selected.top + region.y) * camera.zoom, width: region.width * camera.zoom, height: region.height * camera.zoom, visibility: view.ready ? "visible" : "hidden" }} /> : null}
     <aside ref={leftPanel} aria-label="PSD 图层面板" className="psd-tree-panel psd-follow-panel floating-panel" style={{ ...panels.left, visibility: view.ready ? "visible" : "hidden" }}>{tree}</aside>
     <aside ref={rightPanel} aria-label="PSD 切图属性面板" className="psd-properties psd-follow-panel floating-panel" style={{ ...panels.right, visibility: view.ready ? "visible" : "hidden" }}>{properties}</aside>
+    {toolbar ? <div className="canvas-toolbar psd-canvas-controls psd-export-toolbar floating-panel" role="toolbar" aria-label="PSD 切图工具栏">{toolbar}</div> : null}
     <div className="canvas-top-controls psd-canvas-controls">
       <div className="canvas-zoom floating-panel" role="group" aria-label="PSD 视图控制">
         <Button className="toolbar-button" size="icon" variant="ghost" aria-label="PSD 缩小" title="缩小" onClick={() => zoom(1 / 1.2)}><Minus size={14} /></Button>

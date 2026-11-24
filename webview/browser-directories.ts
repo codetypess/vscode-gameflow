@@ -16,6 +16,7 @@ const snapshot = (): WorkbenchSettings => ({ resourceDirectory: directories.reso
 export async function browserSettings(request: WorkbenchSettingsRequest): Promise<WorkbenchSettingsResult> {
   let cancelled = false;
   try {
+    if (request.action === "reveal") throw new Error("浏览器预览不支持打开系统文件管理器，请在 VS Code 中使用此功能。");
     if (request.action === "clear") delete directories[request.directory];
     else if (request.action === "choose") {
       const picker = (window as unknown as { showDirectoryPicker?: (options: { mode: "readwrite" }) => Promise<BrowserDirectory> }).showDirectoryPicker;

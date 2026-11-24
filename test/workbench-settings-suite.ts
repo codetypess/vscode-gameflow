@@ -16,11 +16,11 @@ export const workbenchSettingsTests = [
   } },
   { name: "workbench settings protocol accepts fixed actions and refuses arbitrary paths", run() {
     const base = { type: "workbenchSettings", requestId: "settings-test" };
-    for (const action of [{ action: "read" }, { action: "choose", directory: "resources" }, { action: "clear", directory: "prefabs" }]) {
+    for (const action of [{ action: "read" }, { action: "choose", directory: "resources" }, { action: "clear", directory: "prefabs" }, { action: "reveal", directory: "resources" }]) {
       assert.equal(isWorkbenchSettingsRequest({ ...base, ...action }), true);
       assert.equal(isWebviewToHostMessage({ ...base, ...action }), true);
     }
-    for (const action of [{ action: "read", directory: "resources" }, { action: "choose", directory: "other" }, { action: "write", directory: "resources" }, { action: "choose", directory: "resources", path: "C:/arbitrary" }, { action: "read", command: "run" }]) {
+    for (const action of [{ action: "read", directory: "resources" }, { action: "choose", directory: "other" }, { action: "write", directory: "resources" }, { action: "choose", directory: "resources", path: "C:/arbitrary" }, { action: "reveal", directory: "resources", path: "C:/arbitrary" }, { action: "read", command: "run" }]) {
       assert.equal(isWorkbenchSettingsRequest({ ...base, ...action }), false);
       assert.equal(isWebviewToHostMessage({ ...base, ...action }), false);
     }

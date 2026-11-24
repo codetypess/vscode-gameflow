@@ -546,7 +546,8 @@
             "source": "",
             "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
             "pageId": "qs1b6zrv"
-          }
+          },
+          "variableName": "serverList"
         }
       ],
       "artPsd": {
@@ -1560,6 +1561,48 @@
             "width": 460,
             "height": 282,
             "layer": "85559x9k"
+          },
+          {
+            "id": "t46xrozm",
+            "name": "服务器列表项",
+            "type": "container",
+            "parent": "",
+            "text": "",
+            "frame": {
+              "x": 148,
+              "y": 197,
+              "width": 378,
+              "height": 40
+            },
+            "properties": {
+              "variableName": "",
+              "hidden": false,
+              "transform.anchorX": 0,
+              "transform.anchorY": 0,
+              "transform.scaleX": 1,
+              "transform.scaleY": 1,
+              "transform.skewX": 0,
+              "transform.skewY": 0,
+              "transform.rotation": 0,
+              "style.opacity": 1,
+              "layout.left": null,
+              "layout.right": null,
+              "layout.centerX": null,
+              "layout.top": null,
+              "layout.bottom": null,
+              "layout.centerY": null,
+              "layout.layoutUnit": "absolute",
+              "layout.widthMode": "explicit",
+              "layout.heightMode": "explicit",
+              "layout.crossAxisMode": "aligned",
+              "layout.positionOffsetX": 0,
+              "layout.positionOffsetY": 0
+            },
+            "x": 148,
+            "y": 197,
+            "width": 378,
+            "height": 40,
+            "layer": "t46xrozm"
           }
         ]
       },

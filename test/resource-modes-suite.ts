@@ -128,7 +128,7 @@ test("canvas prefab instances export as UUID references instead of expanded sour
   assert.equal(conversion.comparison.changes.length,1);
   assert.deepEqual(conversion.comparison.changes[0],{
     id:"instance",key:"instance/reference",field:"exist",kind:"edit",members:["instance",expandedChild.id],
-    replacement:"proto",suggested:"proto"
+    replacement:"proto",representation:"prefab-reference",suggested:"proto"
   });
   const reverse=mergePrefab(conversion,{[conversion.comparison.changes[0].key]:"psd"},planned.plan.batch);
   const retained=(reverse.batch.prefab._$child as Record<string,unknown>[]).find(record=>record._$id==="instance")!;
@@ -143,6 +143,52 @@ test("canvas prefab instances export as UUID references instead of expanded sour
   assert.equal(converted._$child,undefined);
   const repeated=inspectPrefab(document,merged.page,target.name,merged.batch.prefab,undefined,planned.refs);
   assert.deepEqual(repeated.comparison.changes,[]);
+});
+
+test("component definitions promote their owned UIBox to the Prefab root",async()=>{
+  const root={...makeNode("container","component-root",0,0),frame:{x:0,y:0,width:320,height:80},layout:{gap:9,paddingLeft:12,widthMode:"explicit" as const,heightMode:"explicit" as const}};
+  const label={...makeNode("text","component-label",8,10),parentId:root.id,text:"一区"};
+  const component:GameFlowPage={...page([root,label]),id:"component-page",name:"服务器列表项",exportName:"LoginServerListItem",rootType:"UIBox",componentRootId:root.id,frame:{x:500,y:0,width:320,height:80}};
+  const document=doc(component), plan=await planPrefabExport(document,component,missing), native=plan.batch.prefab;
+  assert.equal(native._$id,component.id);
+  assert.equal(native._$type,"UIBox");
+  assert.equal(native.name,component.exportName);
+  assert.equal(native.gap,9);
+  assert.equal(native.paddingLeft,12);
+  assert.equal(native.x,undefined);
+  assert.equal(native.y,undefined);
+  const children=native._$child as Record<string,unknown>[];
+  assert.deepEqual(children.map(child=>child._$id),[label.id]);
+  assert.equal(JSON.stringify(native).includes(root.id),false);
+  assert.deepEqual(inspectPrefab(document,component,plan.batch.name,native).comparison.changes,[]);
+
+  const editedNative=structuredClone(native);
+  editedNative.width=360;
+  editedNative.gap=17;
+  const rootReview=inspectPrefab(document,component,plan.batch.name,editedNative);
+  const pullRoot=mergePrefab(rootReview,Object.fromEntries(rootReview.comparison.changes.map(change=>[change.key,"psd" as const])),plan.batch);
+  const pulledRoot=pullRoot.page.nodes.find(node=>node.id===root.id)!;
+  assert.equal(pullRoot.page.frame.width,360);
+  assert.equal(pulledRoot.frame.width,360);
+  assert.equal(pulledRoot.layout.gap,17);
+  assert.deepEqual(inspectPrefab(document,pullRoot.page,plan.batch.name,pullRoot.batch.prefab).comparison.changes,[]);
+  const pushRoot=mergePrefab(rootReview,Object.fromEntries(rootReview.comparison.changes.map(change=>[change.key,"proto" as const])),plan.batch);
+  assert.equal(pushRoot.batch.prefab.width,320);
+  assert.equal(pushRoot.batch.prefab.gap,9);
+  assert.deepEqual(inspectPrefab(document,pushRoot.page,plan.batch.name,pushRoot.batch.prefab).comparison.changes,[]);
+
+  const legacyPage={...component,componentRootId:undefined};
+  const legacy=(await planPrefabExport(document,legacyPage,missing)).batch.prefab;
+  const migration=inspectPrefab(document,component,plan.batch.name,legacy);
+  assert.deepEqual(migration.comparison.changes,[{
+    id:root.id,key:root.id+"/component-root",field:"exist",kind:"edit",members:[root.id,label.id],
+    replacement:"proto",representation:"component-root",suggested:"proto"
+  }]);
+  const skipped=mergePrefab(migration,{[root.id+"/component-root"]:"skip"},plan.batch);
+  assert.equal((skipped.batch.prefab._$child as Record<string,unknown>[])[0]._$id,root.id);
+  const promoted=mergePrefab(migration,{[root.id+"/component-root"]:"proto"},plan.batch);
+  assert.deepEqual((promoted.batch.prefab._$child as Record<string,unknown>[]).map(child=>child._$id),[label.id]);
+  assert.deepEqual(inspectPrefab(document,promoted.page,plan.batch.name,promoted.batch.prefab).comparison.changes,[]);
 });
 
 test("prefab sync merges both additions, maps foreign IDs, preserves components and clears accepted differences",async()=>{

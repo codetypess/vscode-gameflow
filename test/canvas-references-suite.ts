@@ -13,6 +13,7 @@ import { changeContainerType, convertNodeType } from "../shared/ui-edit";
 import { isWebviewToHostMessage, type WebviewToHostMessage } from "../shared/protocol";
 import { DocumentSession } from "../webview/document-session";
 import { NodeView } from "../webview/editor/node-view";
+import { componentLayerRoot } from "../webview/editor/layer-tree";
 import { canvasHitNode, canvasScopePath } from "../webview/lib/canvas-scope";
 import { placeCanvasComponent } from "../webview/lib/canvas-scope";
 import { duplicateSelection } from "../shared/selection-ops";
@@ -47,6 +48,9 @@ test("saving an eligible UIBox creates one component and an identity-preserving 
   assert.deepEqual(root.frame, { x: 0, y: 0, width: 220, height: 100 });
   assert.equal(root.parentId, undefined); assert.equal(root.transform, undefined);
   assert.equal(source.nodes[1].parentId, root.id);
+  assert.equal(componentLayerRoot(source)?.id,root.id);
+  assert.deepEqual(source.nodes.filter(node=>node.parentId===componentLayerRoot(source)?.id).map(node=>node.id),[source.nodes[1].id]);
+  assert.equal(componentLayerRoot(before.pages[0]),null);
   assert.deepEqual(parseGameFlowDocument(serializeGameFlowDocument(after)), JSON.parse(JSON.stringify(after)));
   assert.equal(serializeGameFlowDocument(after).includes("@reference:"), false);
 });
@@ -98,7 +102,7 @@ test("save-to-canvas rejects non-canvas types, existing definitions, references 
   const input = fixture(), p = input.pages[0];
   for (const type of ["text", "button", "panel", "hbox", "image"] as const) {
     const candidate = { ...p, nodes: [{ ...p.nodes[0], type }] };
-    assert.match(canvasExtractionIssue(candidate, "root")!, /UIBox/);
+    assert.match(canvasExtractionIssue(candidate, "root")!, new RegExp(`根节点不能为 ${type === "text" ? "UILabel" : type === "button" ? "UIButton" : type === "panel" ? "UIPanel" : type === "hbox" ? "UIHBox" : "UIImage"}`));
   }
   p.nodes[1].locked = true;
   assert.throws(() => extractCanvasComponent(input, p.id, "root", ids), /解锁/);

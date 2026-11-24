@@ -48,6 +48,10 @@ button svg { flex-shrink: 0; }
 .topbar { height: 40px; min-height: 40px; display: flex; align-items: center; gap: 10px; padding: 0 10px; border-bottom: 1px solid var(--vscode-panel-border, #303030); background: var(--vscode-editorGroupHeader-tabsBackground, #181818); }
 .topbar > strong { font-weight: 600; }
 .brand-mark { display: flex; align-items: center; color: var(--vscode-icon-foreground, #c5c5c5); }
+.workspace-mode-trigger { flex-shrink: 0; padding: 0 6px; color: var(--foreground); font-weight: 600; }
+.workspace-mode-trigger > span { white-space: nowrap; }
+.workspace-mode-trigger[data-state=open] { background: var(--vscode-toolbar-activeBackground, var(--accent)); }
+.workspace-mode-menu { width: 168px; }
 .topbar-separator { height: 18px !important; margin: 0 2px; }
 .topbar button { height: 28px; gap: 6px; }
 .topbar-actions { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }

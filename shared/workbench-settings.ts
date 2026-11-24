@@ -13,7 +13,7 @@ export function readExportSettings(value: unknown, legacy?: string): StoredExpor
 }
 export type WorkbenchSettingsRequest = { type: "workbenchSettings"; requestId: string } & (
   | { action: "read" }
-  | { action: "choose" | "clear"; directory: ExportDirectoryKind }
+  | { action: "choose" | "clear" | "reveal"; directory: ExportDirectoryKind }
 );
 export interface WorkbenchSettingsResult {
   type: "workbenchSettingsResult"; requestId?: string; settings: WorkbenchSettings; cancelled?: boolean; error?: string;
@@ -22,5 +22,5 @@ export function isWorkbenchSettingsRequest(raw: unknown): raw is WorkbenchSettin
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return false;
   const message = raw as Record<string, unknown>;
   return message.type === "workbenchSettings" && typeof message.requestId === "string" && message.requestId.length > 0 && message.requestId.length <= 80 && !Object.keys(message).some(key => !["type", "requestId", "action", "directory"].includes(key)) &&
-    (message.action === "read" ? message.directory === undefined : (message.action === "choose" || message.action === "clear") && (message.directory === "resources" || message.directory === "prefabs"));
+    (message.action === "read" ? message.directory === undefined : (message.action === "choose" || message.action === "clear" || message.action === "reveal") && (message.directory === "resources" || message.directory === "prefabs"));
 }

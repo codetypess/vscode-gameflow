@@ -32,6 +32,11 @@ export function useWorkbenchSettings() {
     settings, open, busy, error, focus,
     show: () => { setFocus("resources"); setOpen(true); }, close: () => setOpen(false),
     ensureResources: () => { if (settings.resourceDirectory) return true; setFocus("resources"); setOpen(true); return false; },
+    reveal: async (directory: ExportDirectoryKind) => {
+      if (busy) return;
+      setBusy(true); setError("");
+      try { return await request("reveal", directory); } finally { setBusy(false); }
+    },
     choose: async (directory: ExportDirectoryKind) => {
       if (busy) return;
       setBusy(true); setError("");

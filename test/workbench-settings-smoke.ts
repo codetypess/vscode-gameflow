@@ -150,10 +150,13 @@ export async function settingsChecks(api: { psd: PsdEditorProvider }, root: stri
     checks.push("PSD independent atlas directory is rooted directly and uses the root ledger", "host atlas policy overrides stale client directories", "shared output takes precedence over independent atlas and transfers provenance", "PSD atlas and directory switches and root changes update destinations", "reserved atlas names and unsafe independent folders reject before writes");
     const values = new Map<string, unknown>([[LEGACY_RESOURCE_DIRECTORY_KEY, first.toString()]]);
     const context = { workspaceState: { keys: () => [...values.keys()], get: (key: string, fallback?: unknown) => values.has(key) ? values.get(key) : fallback, update: async (key: string, value: unknown) => { values.set(key, value); } } } as Pick<vscode.ExtensionContext, "workspaceState">;
-    const controller = new WorkbenchSettingsController(context, async () => undefined);
+    const revealed: string[] = [];
+    const controller = new WorkbenchSettingsController(context, async () => undefined, async uri => { revealed.push(uri.toString()); });
     const received: unknown[] = [];
     const listener = controller.attach({ webview: { postMessage: async (value: unknown) => { received.push(value); return true; }, onDidReceiveMessage: () => new vscode.Disposable(() => {}) } } as unknown as vscode.WebviewPanel, source);
     assert.equal(controller.directory("resources")?.toString(), first.toString());
+    await controller.reveal("resources");
+    assert.deepEqual(revealed, [first.toString()]);
     assert.equal(await controller.choose("resources", source), false);
     assert.equal(values.has(EXPORT_SETTINGS_KEY), false);
     await controller.set("prefabs", prefab);
@@ -163,13 +166,14 @@ export async function settingsChecks(api: { psd: PsdEditorProvider }, root: stri
     assert.equal(reopened.directory("prefabs")?.toString(), prefab.toString());
     await reopened.set("resources");
     assert.equal(controller.directory("resources"), undefined);
+    await assert.rejects(reopened.reveal("resources"), /选择资源导出根目录/);
     await assert.rejects(reopened.set("resources", vscode.Uri.file(join(first.fsPath, filename))), /文件夹/);
     assert.equal(reopened.directory("resources"), undefined);
     values.set(EXPORT_SETTINGS_KEY, { version: 1, resources: "invalid" });
     const invalidSettings = await readWorkbenchSlices(reopened, [filename]);
     assert.match(invalidSettings[0].error!, /目录/);
     listener.dispose(); controller.dispose(); reopened.dispose();
-    checks.push("settings persist through controller recreation and legacy migration", "folder picker cancellation preserves configuration and broadcasts changes", "invalid directory rejected without restoring cleared legacy path", "preview returns invalid settings as resource diagnostics");
+    checks.push("settings persist through controller recreation and legacy migration", "folder picker cancellation preserves configuration and broadcasts changes", "file manager reveal uses only the configured resource root", "missing resource roots reject reveal without an arbitrary path", "invalid directory rejected without restoring cleared legacy path", "preview returns invalid settings as resource diagnostics");
   } finally {
     await settings.set("resources", resources); await settings.set("prefabs", prefabs);
   }
