@@ -34,6 +34,8 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 
 ## Active Work Items
 
+- [existing-psd-layer-id-migration.md](existing-psd-layer-id-migration.md) — Done：迁移样例中 15 个旧 UUID 图层身份，同步 PSD、配置与画布引用；像素保真检查、重复执行预检、391 项共享测试及类型检查通过。
+
 - [layer-prefab-unbinding.md](layer-prefab-unbinding.md) — Done：图层原型组件子菜单支持当前等级与递归解绑，390 项共享测试及生产打包通过。
 
 - [component-root-prefab-alias.md](component-root-prefab-alias.md) — Done：组件源、引用实例与 Laya Prefab 共用单一语义根；不再为选中 UIBox 额外输出包装层，非法根类型直接提示。386 项共享测试、类型检查、生产构建、示例 Prefab 解析及星海样例浏览器层级验证通过。

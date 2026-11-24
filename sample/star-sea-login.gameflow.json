@@ -81,7 +81,7 @@
               "path": "builtin/block/fill_gray.png",
               "source": {
                 "documentId": "0ba9bc45-76bc-5eda-a37f-0da4a2653cc6",
-                "layerId": "f2f45355-58f7-5aca-a80a-a2a84903f1fe"
+                "layerId": "eg4yrblm"
               }
             }
           },
@@ -120,7 +120,7 @@
               "path": "builtin/image/default_750x1334.png",
               "source": {
                 "documentId": "0ba9bc45-76bc-5eda-a37f-0da4a2653cc6",
-                "layerId": "25631c23-6c63-50a8-aca8-45beb3712f8c"
+                "layerId": "rzzs5kot"
               }
             }
           },
@@ -180,7 +180,7 @@
               "path": "builtin/icon/star.png",
               "source": {
                 "documentId": "0ba9bc45-76bc-5eda-a37f-0da4a2653cc6",
-                "layerId": "2f0af511-e374-54b2-ace7-42c89dad6dc6"
+                "layerId": "qd466q4x"
               }
             }
           },
@@ -310,7 +310,7 @@
               "path": "builtin/block/outline_gray.png",
               "source": {
                 "documentId": "0ba9bc45-76bc-5eda-a37f-0da4a2653cc6",
-                "layerId": "06dc5ef6-3447-5ec9-a3b0-539fc5acf6fd"
+                "layerId": "1xdur618"
               }
             }
           },
@@ -347,7 +347,7 @@
               "path": "builtin/circle/fill_green.png",
               "source": {
                 "documentId": "0ba9bc45-76bc-5eda-a37f-0da4a2653cc6",
-                "layerId": "9b555532-988a-5b8d-a1c6-df932ef7e889"
+                "layerId": "7wsmwjh1"
               }
             }
           },
@@ -417,7 +417,7 @@
               "path": "builtin/button/yellow.png",
               "source": {
                 "documentId": "0ba9bc45-76bc-5eda-a37f-0da4a2653cc6",
-                "layerId": "51bc3d98-9d0a-54f1-a765-d9833a3cfdad"
+                "layerId": "ph9letqb"
               }
             }
           }
@@ -573,7 +573,7 @@
               "height": 1334
             },
             "variable": "background",
-            "layer": "cd8bdd6a-19bf-5faf-a2db-83252b4fefc3"
+            "layer": "zbfe8vim"
           },
           {
             "id": "ptkmcxds",
@@ -588,7 +588,7 @@
               "height": 1334
             },
             "variable": "deepSpace",
-            "layer": "f2f45355-58f7-5aca-a80a-a2a84903f1fe"
+            "layer": "eg4yrblm"
           },
           {
             "id": "ct08f7f6",
@@ -603,7 +603,7 @@
               "height": 1334
             },
             "variable": "stars",
-            "layer": "25631c23-6c63-50a8-aca8-45beb3712f8c"
+            "layer": "rzzs5kot"
           },
           {
             "id": "5amcsa7u",
@@ -618,7 +618,7 @@
               "height": 295
             },
             "variable": "titleArea",
-            "layer": "565b77ac-dc36-5265-a02a-79d31e9ee6b1"
+            "layer": "98ps2h28"
           },
           {
             "id": "3o30ft4g",
@@ -633,7 +633,7 @@
               "height": 80
             },
             "variable": "emblem",
-            "layer": "2f0af511-e374-54b2-ace7-42c89dad6dc6"
+            "layer": "qd466q4x"
           },
           {
             "id": "2uij4u4o",
@@ -648,7 +648,7 @@
               "height": 106
             },
             "variable": "gameTitle",
-            "layer": "391e5722-cbff-591b-a666-82b9a9714b0f"
+            "layer": "lx99gbzq"
           },
           {
             "id": "3y70xjmg",
@@ -663,7 +663,7 @@
               "height": 40
             },
             "variable": "subtitle",
-            "layer": "dac9cd0d-10d8-5798-a116-7392288e374c"
+            "layer": "fymtfa98"
           },
           {
             "id": "k865l2ly",
@@ -678,7 +678,7 @@
               "height": 64
             },
             "variable": "serverInfo",
-            "layer": "9982ab93-633b-5406-ac6a-a1c40ea61c92"
+            "layer": "wn2eu9gf"
           },
           {
             "id": "i57rqmsq",
@@ -693,7 +693,7 @@
               "height": 64
             },
             "variable": "serverBackground",
-            "layer": "06dc5ef6-3447-5ec9-a3b0-539fc5acf6fd"
+            "layer": "1xdur618"
           },
           {
             "id": "3zt548wx",
@@ -708,7 +708,7 @@
               "height": 10
             },
             "variable": "connectionStatus",
-            "layer": "9b555532-988a-5b8d-a1c6-df932ef7e889"
+            "layer": "7wsmwjh1"
           },
           {
             "id": "wy3s8pwe",
@@ -723,7 +723,7 @@
               "height": 40
             },
             "variable": "serverLabel",
-            "layer": "4d6e7fc8-a783-5511-ae32-63f3bede9dd5"
+            "layer": "hevamp16"
           },
           {
             "id": "fud92jz0",
@@ -738,7 +738,7 @@
               "height": 94
             },
             "variable": "startButton",
-            "layer": "ec5dcce2-81fa-5b8f-a751-b881cb637843"
+            "layer": "4vu2akna"
           },
           {
             "id": "92i5vexr",
@@ -753,7 +753,7 @@
               "height": 94
             },
             "variable": "startLabel",
-            "layer": "ee521ec8-ad12-5485-a3da-f08bad23c809"
+            "layer": "8u7hp4a0"
           },
           {
             "id": "bz0nfn04",
@@ -768,7 +768,7 @@
               "height": 30
             },
             "variable": "footer",
-            "layer": "8e6982c0-d7cf-5f61-a4f9-bc1761b18c9d"
+            "layer": "9373p48r"
           }
         ]
       },

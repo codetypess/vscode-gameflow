@@ -5,13 +5,13 @@
   "atlasName": "login",
   "source": {
     "name": "星海远征 · 登录.psd",
-    "sha256": "7ef0897823814bf2426eb649f33a59e41fc72c88db91a28fbbdfe8c4ae27fcbe",
+    "sha256": "162a5fdae208f1697034827b6e3a1efa081700e15f2929b338c6e395377d6c84",
     "width": 750,
     "height": 1334
   },
   "layers": [
     {
-      "id": "8e6982c0-d7cf-5f61-a4f9-bc1761b18c9d",
+      "id": "9373p48r",
       "sourceKey": 18,
       "nativeId": 15,
       "name": "底部提示",
@@ -24,7 +24,7 @@
         "namespace": "com.codetypes.gameflow",
         "version": 1,
         "documentId": "0ba9bc45-76bc-5eda-a37f-0da4a2653cc6",
-        "layerId": "8e6982c0-d7cf-5f61-a4f9-bc1761b18c9d",
+        "layerId": "9373p48r",
         "prototype": {
           "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
           "pageId": "umlxcxo4",
@@ -39,7 +39,7 @@
       }
     },
     {
-      "id": "ec5dcce2-81fa-5b8f-a751-b881cb637843",
+      "id": "4vu2akna",
       "sourceKey": 17,
       "nativeId": 14,
       "name": "开始远征",
@@ -52,7 +52,7 @@
         "namespace": "com.codetypes.gameflow",
         "version": 1,
         "documentId": "0ba9bc45-76bc-5eda-a37f-0da4a2653cc6",
-        "layerId": "ec5dcce2-81fa-5b8f-a751-b881cb637843",
+        "layerId": "4vu2akna",
         "prototype": {
           "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
           "pageId": "umlxcxo4",
@@ -67,7 +67,7 @@
       }
     },
     {
-      "id": "ee521ec8-ad12-5485-a3da-f08bad23c809",
+      "id": "8u7hp4a0",
       "sourceKey": 16,
       "nativeId": 13,
       "name": "按钮文案",
@@ -80,7 +80,7 @@
         "namespace": "com.codetypes.gameflow",
         "version": 1,
         "documentId": "0ba9bc45-76bc-5eda-a37f-0da4a2653cc6",
-        "layerId": "ee521ec8-ad12-5485-a3da-f08bad23c809",
+        "layerId": "8u7hp4a0",
         "prototype": {
           "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
           "pageId": "umlxcxo4",
@@ -95,7 +95,7 @@
       }
     },
     {
-      "id": "51bc3d98-9d0a-54f1-a765-d9833a3cfdad",
+      "id": "ph9letqb",
       "sourceKey": 15,
       "nativeId": 12,
       "name": "@normal",
@@ -114,7 +114,7 @@
         "namespace": "com.codetypes.gameflow",
         "version": 1,
         "documentId": "0ba9bc45-76bc-5eda-a37f-0da4a2653cc6",
-        "layerId": "51bc3d98-9d0a-54f1-a765-d9833a3cfdad",
+        "layerId": "ph9letqb",
         "prototype": {
           "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
           "pageId": "umlxcxo4",
@@ -143,7 +143,7 @@
       }
     },
     {
-      "id": "9982ab93-633b-5406-ac6a-a1c40ea61c92",
+      "id": "wn2eu9gf",
       "sourceKey": 13,
       "nativeId": 11,
       "name": "服务器信息",
@@ -156,7 +156,7 @@
         "namespace": "com.codetypes.gameflow",
         "version": 1,
         "documentId": "0ba9bc45-76bc-5eda-a37f-0da4a2653cc6",
-        "layerId": "9982ab93-633b-5406-ac6a-a1c40ea61c92",
+        "layerId": "wn2eu9gf",
         "prototype": {
           "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
           "pageId": "umlxcxo4",
@@ -171,7 +171,7 @@
       }
     },
     {
-      "id": "4d6e7fc8-a783-5511-ae32-63f3bede9dd5",
+      "id": "hevamp16",
       "sourceKey": 12,
       "nativeId": 10,
       "name": "服务器名称",
@@ -184,7 +184,7 @@
         "namespace": "com.codetypes.gameflow",
         "version": 1,
         "documentId": "0ba9bc45-76bc-5eda-a37f-0da4a2653cc6",
-        "layerId": "4d6e7fc8-a783-5511-ae32-63f3bede9dd5",
+        "layerId": "hevamp16",
         "prototype": {
           "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
           "pageId": "umlxcxo4",
@@ -199,7 +199,7 @@
       }
     },
     {
-      "id": "9b555532-988a-5b8d-a1c6-df932ef7e889",
+      "id": "7wsmwjh1",
       "sourceKey": 11,
       "nativeId": 9,
       "name": "连接状态灯",
@@ -212,7 +212,7 @@
         "namespace": "com.codetypes.gameflow",
         "version": 1,
         "documentId": "0ba9bc45-76bc-5eda-a37f-0da4a2653cc6",
-        "layerId": "9b555532-988a-5b8d-a1c6-df932ef7e889",
+        "layerId": "7wsmwjh1",
         "prototype": {
           "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
           "pageId": "umlxcxo4",
@@ -235,7 +235,7 @@
       }
     },
     {
-      "id": "06dc5ef6-3447-5ec9-a3b0-539fc5acf6fd",
+      "id": "1xdur618",
       "sourceKey": 10,
       "nativeId": 8,
       "name": "服务器底板",
@@ -254,7 +254,7 @@
         "namespace": "com.codetypes.gameflow",
         "version": 1,
         "documentId": "0ba9bc45-76bc-5eda-a37f-0da4a2653cc6",
-        "layerId": "06dc5ef6-3447-5ec9-a3b0-539fc5acf6fd",
+        "layerId": "1xdur618",
         "prototype": {
           "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
           "pageId": "umlxcxo4",
@@ -283,7 +283,7 @@
       }
     },
     {
-      "id": "565b77ac-dc36-5265-a02a-79d31e9ee6b1",
+      "id": "98ps2h28",
       "sourceKey": 8,
       "nativeId": 7,
       "name": "标题区",
@@ -296,7 +296,7 @@
         "namespace": "com.codetypes.gameflow",
         "version": 1,
         "documentId": "0ba9bc45-76bc-5eda-a37f-0da4a2653cc6",
-        "layerId": "565b77ac-dc36-5265-a02a-79d31e9ee6b1",
+        "layerId": "98ps2h28",
         "prototype": {
           "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
           "pageId": "umlxcxo4",
@@ -311,7 +311,7 @@
       }
     },
     {
-      "id": "dac9cd0d-10d8-5798-a116-7392288e374c",
+      "id": "fymtfa98",
       "sourceKey": 7,
       "nativeId": 6,
       "name": "副标题",
@@ -324,7 +324,7 @@
         "namespace": "com.codetypes.gameflow",
         "version": 1,
         "documentId": "0ba9bc45-76bc-5eda-a37f-0da4a2653cc6",
-        "layerId": "dac9cd0d-10d8-5798-a116-7392288e374c",
+        "layerId": "fymtfa98",
         "prototype": {
           "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
           "pageId": "umlxcxo4",
@@ -339,7 +339,7 @@
       }
     },
     {
-      "id": "391e5722-cbff-591b-a666-82b9a9714b0f",
+      "id": "lx99gbzq",
       "sourceKey": 6,
       "nativeId": 5,
       "name": "游戏标题",
@@ -352,7 +352,7 @@
         "namespace": "com.codetypes.gameflow",
         "version": 1,
         "documentId": "0ba9bc45-76bc-5eda-a37f-0da4a2653cc6",
-        "layerId": "391e5722-cbff-591b-a666-82b9a9714b0f",
+        "layerId": "lx99gbzq",
         "prototype": {
           "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
           "pageId": "umlxcxo4",
@@ -367,7 +367,7 @@
       }
     },
     {
-      "id": "2f0af511-e374-54b2-ace7-42c89dad6dc6",
+      "id": "qd466q4x",
       "sourceKey": 5,
       "nativeId": 4,
       "name": "星海徽记",
@@ -380,7 +380,7 @@
         "namespace": "com.codetypes.gameflow",
         "version": 1,
         "documentId": "0ba9bc45-76bc-5eda-a37f-0da4a2653cc6",
-        "layerId": "2f0af511-e374-54b2-ace7-42c89dad6dc6",
+        "layerId": "qd466q4x",
         "prototype": {
           "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
           "pageId": "umlxcxo4",
@@ -403,7 +403,7 @@
       }
     },
     {
-      "id": "cd8bdd6a-19bf-5faf-a2db-83252b4fefc3",
+      "id": "zbfe8vim",
       "sourceKey": 3,
       "nativeId": 3,
       "name": "背景",
@@ -416,7 +416,7 @@
         "namespace": "com.codetypes.gameflow",
         "version": 1,
         "documentId": "0ba9bc45-76bc-5eda-a37f-0da4a2653cc6",
-        "layerId": "cd8bdd6a-19bf-5faf-a2db-83252b4fefc3",
+        "layerId": "zbfe8vim",
         "prototype": {
           "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
           "pageId": "umlxcxo4",
@@ -431,7 +431,7 @@
       }
     },
     {
-      "id": "25631c23-6c63-50a8-aca8-45beb3712f8c",
+      "id": "rzzs5kot",
       "sourceKey": 2,
       "nativeId": 2,
       "name": "星点与轨道",
@@ -444,7 +444,7 @@
         "namespace": "com.codetypes.gameflow",
         "version": 1,
         "documentId": "0ba9bc45-76bc-5eda-a37f-0da4a2653cc6",
-        "layerId": "25631c23-6c63-50a8-aca8-45beb3712f8c",
+        "layerId": "rzzs5kot",
         "prototype": {
           "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
           "pageId": "umlxcxo4",
@@ -467,7 +467,7 @@
       }
     },
     {
-      "id": "f2f45355-58f7-5aca-a80a-a2a84903f1fe",
+      "id": "eg4yrblm",
       "sourceKey": 1,
       "nativeId": 1,
       "name": "深空渐变",
@@ -486,7 +486,7 @@
         "namespace": "com.codetypes.gameflow",
         "version": 1,
         "documentId": "0ba9bc45-76bc-5eda-a37f-0da4a2653cc6",
-        "layerId": "f2f45355-58f7-5aca-a80a-a2a84903f1fe",
+        "layerId": "eg4yrblm",
         "prototype": {
           "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
           "pageId": "umlxcxo4",

@@ -266,7 +266,7 @@ export function PsdWorkspace({ mode, active, binding, documentActions, settings,
           <div className="psd-grid-summary">{selectedRegion!.width} × {selectedRegion!.height} px<small>{selected.config.region ? `图片位置 X ${-selectedRegion!.x} · Y ${-selectedRegion!.y}` : "使用图层原始范围"}</small></div>
           <Button variant="secondary" disabled={!selected.image || selected.group || !!selected.limitation} onClick={() => setEditingRegion(selected.key)}><Crop size={14} />编辑区域</Button>
           </section>
-          <p className="psd-hint">{binding ? "Ctrl+S 保存配置；重新打开 PSD 时自动读取。PNG 导出和 PSD 副本独立操作。" : "导出 PNG 和来源清单，九宫格随清单保存。浏览器本地草稿可在重新选择同一 PSD 后恢复。"}</p>
+          {!binding ? <p className="psd-hint">导出 PNG 和来源清单，九宫格随清单保存。浏览器本地草稿可在重新选择同一 PSD 后恢复。</p> : null}
         </> : null}</div></ScrollArea></>}
       /> : <div className="psd-empty"><FileImage size={40} /><h2>从 PSD 开始切图</h2><p>{isBrowserPreview ? "拖入 PSD 文件，或点击打开。选择图层后可标记切图并设置九宫格。" : "在当前工作台打开 PSD。修改后支持保存，关闭工作台时提醒保存。"}</p><Button disabled={busy} onClick={openSource}><FolderOpen size={16} />打开 PSD</Button><small>支持 8 位 RGB · 最大 32 MB</small></div>}
       {drop.dragging ? <DropHint label="松开以打开 PSD" /> : null}

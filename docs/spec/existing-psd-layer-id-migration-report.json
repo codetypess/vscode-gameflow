@@ -1,0 +1,29 @@
+{
+  "layerIds": {
+    "06dc5ef6-3447-5ec9-a3b0-539fc5acf6fd": "1xdur618",
+    "25631c23-6c63-50a8-aca8-45beb3712f8c": "rzzs5kot",
+    "2f0af511-e374-54b2-ace7-42c89dad6dc6": "qd466q4x",
+    "391e5722-cbff-591b-a666-82b9a9714b0f": "lx99gbzq",
+    "4d6e7fc8-a783-5511-ae32-63f3bede9dd5": "hevamp16",
+    "51bc3d98-9d0a-54f1-a765-d9833a3cfdad": "ph9letqb",
+    "565b77ac-dc36-5265-a02a-79d31e9ee6b1": "98ps2h28",
+    "8e6982c0-d7cf-5f61-a4f9-bc1761b18c9d": "9373p48r",
+    "9982ab93-633b-5406-ac6a-a1c40ea61c92": "wn2eu9gf",
+    "9b555532-988a-5b8d-a1c6-df932ef7e889": "7wsmwjh1",
+    "cd8bdd6a-19bf-5faf-a2db-83252b4fefc3": "zbfe8vim",
+    "dac9cd0d-10d8-5798-a116-7392288e374c": "fymtfa98",
+    "ec5dcce2-81fa-5b8f-a751-b881cb637843": "4vu2akna",
+    "ee521ec8-ad12-5485-a3da-f08bad23c809": "8u7hp4a0",
+    "f2f45355-58f7-5aca-a80a-a2a84903f1fe": "eg4yrblm"
+  },
+  "sourceHashes": {
+    "7ef0897823814bf2426eb649f33a59e41fc72c88db91a28fbbdfe8c4ae27fcbe": "162a5fdae208f1697034827b6e3a1efa081700e15f2929b338c6e395377d6c84",
+    "3b94c39d334156894e56a7a19dd3fabc7fccb7b3697bd8a39308e2d84811ac4c": "5023f0a6260fffd2faac27e98ccb7c426b7ba1174e6f6db68d3a2b1eb7d55358"
+  },
+  "files": [
+    "sample\\星海远征 · 登录.psd",
+    "examples\\star-sea-login\\星海远征 · 登录.psd",
+    "sample\\star-sea-login.gameflow.json",
+    "sample\\星海远征 · 登录.meta.json"
+  ]
+}
