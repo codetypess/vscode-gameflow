@@ -26,7 +26,7 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
     const button=name=>page.getByRole("button",{name,exact:true});
     const item=name=>page.getByRole("menuitem",{name,exact:true});
     const pin=name=>page.getByRole("menuitemcheckbox",{name:"固定"+name,exact:true});
-    const directions=["从原型到预制体","从预制体到原型","从原型到 PSD","从 PSD 到预制体"];
+    const directions=["原型 → 预制体","预制体 → 原型","原型 → PSD","PSD → 原型"];
     const openSub=async()=>{
       await button("更多").click();
       await item("单向同步").focus();
@@ -124,17 +124,6 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
     await pin("预制体同步").click();
     assert.equal(await button("预制体同步").count(),0);
     await page.keyboard.press("Escape");
-    const beforeArt=await page.evaluate(()=>window.readPrototype());
-    await run(3);await confirm(3);
-    const fromArt=await page.evaluate(()=>window.readPrefab());
-    assert.equal(fromArt._$child[0].text,"美术文案");
-    assert.deepEqual(fromArt._$child[0]._$comp,beforePull._$child[0]._$comp);
-    assert.notEqual(fromArt._$child[1].skin,beforePull._$child[1].skin);
-    assert.deepEqual(await page.evaluate(()=>window.readPrototype()),beforeArt);
-    await run(3);
-    await page.getByRole("dialog",{name:directions[3]}).waitFor();
-    assert(await button("预演应用").isDisabled(),"a second PSD sync has no pending writes");
-    await button("关闭同步窗").click();
     const downloaded=page.waitForEvent("download");
     await run(2);await confirm(2);
     const output=await downloaded;
@@ -147,7 +136,23 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
       return asset.layers.find(l=>l.text).textContent;
     },Array.from(Buffer.concat(chunks)));
     assert.equal(copy,"使用引擎文案");
-    assert.deepEqual(await page.evaluate(()=>window.readPrefab()),fromArt);
+    assert.deepEqual(await page.evaluate(()=>window.readPrefab()),beforePull);
+
+    await button("更多").click();
+    const rebind=page.waitForEvent("filechooser");
+    await item("重新绑定 PSD").click();
+    await (await rebind).setFiles({name:"art.psd",mimeType:"image/vnd.adobe.photoshop",buffer:Buffer.from(art)});
+    await page.waitForFunction(()=>window.readPrototype().pages[0].artPsd.source==="art.psd");
+    const beforeArt=await page.evaluate(()=>window.readPrototype());
+    await run(3);await confirm(3);
+    const fromArt=await page.evaluate(()=>window.readPrototype());
+    assert.equal(fromArt.pages[0].nodes[0].text,"美术文案");
+    assert.deepEqual(fromArt.pages[0].nodes[1].image,beforeArt.pages[0].nodes[1].image,"PSD-to-prototype keeps prototype image resources");
+    assert.deepEqual(await page.evaluate(()=>window.readPrefab()),beforePull,"PSD-to-prototype keeps the prefab read-only");
+    await run(3);
+    await page.getByRole("dialog",{name:directions[3]}).waitFor();
+    assert(await button("预演应用").isDisabled(),"a second PSD-to-prototype sync has no pending writes");
+    await button("关闭同步窗").click();
     assert.deepEqual(errors,[]);
     console.log("PASS independent sync pins, keyboard toggling, reload, narrow toolbar, both shortcuts and four directed writes");
   } finally {await browser.close();}

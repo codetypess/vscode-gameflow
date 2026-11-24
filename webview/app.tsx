@@ -666,10 +666,10 @@ export function App() {
 
   const pageActionBusy = openingSlice || pending || !!page && pagePsds.busy.has(page.id);
   const psdActionDisabled = !page || pageActionBusy || !!composition?.errors.size;
-  function openPsdSync(fromPrototype = false) {
+  function openPsdSync(source?: SyncSession["source"]) {
     if (!canvasDocument || !composition || psdActionDisabled) return;
-    if (composition.page.artPsd) setSyncSession({document:canvasDocument,page:composition.page,makeId:newIds(),fromPrototype});
-    else if (fromPrototype) void pagePsds.run(composition.page.id, "generate");
+    if (composition.page.artPsd) setSyncSession({document:canvasDocument,page:composition.page,makeId:newIds(),source});
+    else if (source === "proto") void pagePsds.run(composition.page.id, "generate");
   }
   const openPageSlice = async () => {
     if (!canonicalPage?.artPsd || pageActionBusy) return;
@@ -793,7 +793,7 @@ export function App() {
               if(!valid.ok) throw new Error(valid.errors.join("；"));
               return next;
             }} applyBrowser={(expected,next)=>{if(JSON.stringify(read())!==JSON.stringify(expected)) throw new Error("原型已变化，请重新比较。");if(next!==expected) edit(()=>next);}}
-            resources={runtimeResources} settings={settings} disabled={psdActionDisabled} mappingError={!!page && !!mappingErrors[page.id]} onNotice={setNotice} onPsdSync={()=>openPsdSync()} onPushPsd={()=>openPsdSync(true)}>
+            resources={runtimeResources} settings={settings} disabled={psdActionDisabled} mappingError={!!page && !!mappingErrors[page.id]} onNotice={setNotice} onPsdSync={()=>openPsdSync()} onPushPsd={()=>openPsdSync("proto")} onPullPsd={()=>openPsdSync("psd")}>
               <DropdownMenu.Item disabled={!canonicalPage?.artPsd || pageActionBusy} onSelect={() => void openPageSlice()}><Scissors size={15} /><span>PSD 切图</span></DropdownMenu.Item>
               <DropdownMenu.Item disabled={psdActionDisabled} onSelect={() => { if (page && !psdActionDisabled) void pagePsds.run(page.id, "generate"); }}><FileImage size={15} /><span>生成 PSD</span></DropdownMenu.Item>
               <DropdownMenu.Item disabled={psdActionDisabled} onSelect={() => { if (page && !psdActionDisabled) void pagePsds.run(page.id, "choose"); }}><Link2 size={15} /><span>{page?.artPsd ? "重新绑定 PSD" : "绑定 PSD"}</span></DropdownMenu.Item>

@@ -3,7 +3,7 @@ import { Button } from "../components/ui/button";
 import { DialogHeading } from "../components/dialog-heading";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { Frame, GameFlowDocument, GameFlowPage } from "../../shared/model";
-import { compareTrees, plannedTrees, coordinatedBase, currentSyncBase, prototypeTree, psdTree, applyPrototypeTree, fieldNames, type Change, type Decision, type SyncNode } from "../../shared/page-sync";
+import { compareTrees, plannedTrees, coordinatedBase, currentSyncBase, prototypeTree, psdTree, applyPrototypeTree, fieldNames, type Change, type Decision, type Side, type SyncNode } from "../../shared/page-sync";
 import { draftStamp } from "../../shared/psd-draft";
 import type { PsdAsset } from "../../shared/psd-meta";
 import { requestPsd, sourceBytes } from "../runtime/page-psd";
@@ -72,10 +72,11 @@ export function SyncPreview({page,asset,nodes,selected,changes,old,resourceMode=
     </div></div>
   </div>;
 }
-export interface SyncSession { document:GameFlowDocument; page:GameFlowPage; makeId:()=>string; fromPrototype?:boolean }
+export interface SyncSession { document:GameFlowDocument; page:GameFlowPage; makeId:()=>string; source?:Side }
 interface Props { session:SyncSession; loadedAsset?:PsdAsset; close():void; apply(page:GameFlowPage,checkOnly?:boolean):void }
 export function PageSyncDialog({session,loadedAsset,close,apply}:Props) {
   const {page,document:doc}=session, dialog=useRef<HTMLDialogElement>(null);
+  const fixedSource=session.source;
   const {size,resizeEdgeProps}=useSyncDialogSize({storageKey:"gameflow.pagePsdSync.size.v2",defaultWidth:1280,defaultHeight:760,minWidth:360,minHeight:300});
   const canReview = isBrowserPreview || !!document.querySelector('meta[name="gameflow-page-psd-sync"][content="1"]');
   const [reviewedAsset,setAsset]=useState<PsdAsset>(), [error,setError]=useState(""), [busy,setBusy]=useState(false);
@@ -102,7 +103,7 @@ export function PageSyncDialog({session,loadedAsset,close,apply}:Props) {
       const art=psdTree(doc.documentId,page,asset,layer=>{
         const key=layer.metadata.layerId;if(!ids.current.has(key))ids.current.set(key,session.makeId());return ids.current.get(key)!;
       },pairs);
-      return {data:compareTrees(prototypeTree(page),art,currentSyncBase(doc.documentId,page,asset),false,session.fromPrototype)};
+      return {data:compareTrees(prototypeTree(page),art,currentSyncBase(doc.documentId,page,asset),false,!!fixedSource)};
     } catch(e){return {issue:String(e)};}
   },[session,asset,pairs]);
   const c=comparison.data, changes=c?.changes??[];
@@ -122,15 +123,15 @@ export function PageSyncDialog({session,loadedAsset,close,apply}:Props) {
   },[c,nodeList]);
   const decisions:Record<string,Decision>={...choices};
   for(const ch of changes) {
-    if(session.fromPrototype) decisions[ch.key]="proto";
+    if(fixedSource) decisions[ch.key]=fixedSource;
     else if(!decisions[ch.key] && ch.suggested) decisions[ch.key]=ch.suggested;
   }
   const stamp=JSON.stringify(decisions);
   const plan=useMemo(()=>{
     if(!c)return {};
     try{
-      const trees=plannedTrees(c,decisions,session.fromPrototype?"proto":undefined);
-      const proto=session.fromPrototype ? page : applyPrototypeTree(page,trees.proto);
+      const trees=plannedTrees(c,decisions,fixedSource);
+      const proto=fixedSource==="proto" ? page : applyPrototypeTree(page,trees.proto);
       const push=c.changes.some(ch=>decisions[ch.key]==="proto");
       const base=coordinatedBase(doc.documentId,page.id,asset!.documentId,c,trees);
       const signature=(nodes:SyncNode[])=>JSON.stringify(nodes.map(n=>[n.id,n.parent,n.name,n.type,n.text,n.layer,n.undecided]));
@@ -205,7 +206,7 @@ export function PageSyncDialog({session,loadedAsset,close,apply}:Props) {
   const message=error || comparison.issue || plan.issue || copyIssue;
   return <dialog ref={dialog} className="floating-panel workbench-dialog page-sync-dialog" aria-labelledby="page-sync-title" style={{width:size.width,height:size.height}}
     onCancel={e=>{e.preventDefault();if(!busy)close();}}>
-    <DialogHeading heading={session.fromPrototype?"从原型到 PSD":"PSD 同步"} headingId="page-sync-title" closeLabel="关闭同步窗" onClose={close} closeDisabled={busy}>
+    <DialogHeading heading={fixedSource==="proto"?"原型 → PSD":fixedSource==="psd"?"PSD → 原型":"PSD 同步"} headingId="page-sync-title" closeLabel="关闭同步窗" onClose={close} closeDisabled={busy}>
       <span title={page.artPsd?.source}>{page.name} / {page.artPsd?.source}</span>
     </DialogHeading>
     <div className="sync-layout"><SyncTree page={page} nodes={nodeList} changes={changes} loading={!c}
@@ -222,7 +223,7 @@ export function PageSyncDialog({session,loadedAsset,close,apply}:Props) {
         {items.map(ch=><fieldset disabled={busy || !canReview} key={ch.key}><legend>{fieldNames[ch.field]} · {c?.base?({add:"新增",delete:"删除",edit:"修改"}[ch.kind]):"首次对照"}</legend>
           <SyncValues previous={c?.base ? fieldValue(ch,c.base.nodes) : "无记录"} prototype={fieldValue(ch,c!.proto)} targetLabel="PSD" target={fieldValue(ch,c!.psd)} />
           {ch.field==="exist" && !!artChildren?.length && <p>随组处理　{artChildren.join("、")}</p>}
-          {session.fromPrototype ? <p>{describe(ch,"proto")}</p> : (["proto","psd","skip"] as const).map(v=><button key={v} aria-pressed={decisions[ch.key]===v} onClick={()=>choose(ch.key,v)}>{describe(ch,v)}</button>)}</fieldset>)}
+          {fixedSource ? <p>{describe(ch,fixedSource)}</p> : (["proto","psd","skip"] as const).map(v=><button key={v} aria-pressed={decisions[ch.key]===v} onClick={()=>choose(ch.key,v)}>{describe(ch,v)}</button>)}</fieldset>)}
         {asset && c && node && !c.psd.some(n=>n.id===node.id) && c.proto.some(n=>n.id===node.id) && <fieldset disabled={busy || !canReview}><legend>对应已有 PSD 图层</legend>
           <select aria-label="对应 PSD 图层" value={candidate} onChange={e=>setCandidate(e.target.value)}><option value="">选择图层</option>{asset.layers.filter(l=>!c.psd.some(n=>n.layer===l.metadata.layerId && page.nodes.some(p=>p.id===n.id))).map(l=><option key={l.key} value={l.metadata.layerId}>{l.name}</option>)}</select>
           <button disabled={!candidate} onClick={()=>{setPairs(p=>new Map(p).set(candidate,selected));setCandidate("");setChoices({});}}>关联</button></fieldset>}

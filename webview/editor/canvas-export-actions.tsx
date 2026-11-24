@@ -24,6 +24,7 @@ interface ExportProps {
   onNotice:(message:string)=>void;
   onPsdSync:()=>void;
   onPushPsd:()=>void;
+  onPullPsd:()=>void;
   children:ReactNode;
 }
 type Snapshot=Awaited<ReturnType<typeof inspectPrefabTarget>>;
@@ -63,7 +64,7 @@ function useSyncPin(action:"psd"|"prefab") {
   }
   return {pinned,setPin};
 }
-export function CanvasExportActions({document,sources,page,sourcePage,resources,settings,onNotice,disabled,mappingError,prepare,applyBrowser,onPsdSync,onPushPsd,children}:ExportProps){
+export function CanvasExportActions({document,sources,page,sourcePage,resources,settings,onNotice,disabled,mappingError,prepare,applyBrowser,onPsdSync,onPushPsd,onPullPsd,children}:ExportProps){
   const [busy,setBusy]=useState(false),[session,setSession]=useState<ReviewSession|null>(null);
   const [missing,setMissing]=useState<{plan:PrefabPlan;finish:()=>Promise<void>}|null>(null);
   const [targetChoice,setTargetChoice]=useState<PrefabSyncMode|null>(null);
@@ -160,8 +161,8 @@ export function CanvasExportActions({document,sources,page,sourcePage,resources,
           <DropdownMenu.Portal><DropdownMenu.SubContent loop sideOffset={3} collisionPadding={8} className="layer-context-menu" onPointerDown={event=>event.stopPropagation()}>
             <DropdownMenu.Item onSelect={()=>exportPrefab("push")}>{prefabSyncLabels.push}</DropdownMenu.Item>
             <DropdownMenu.Item onSelect={()=>exportPrefab("pull")}>{prefabSyncLabels.pull}</DropdownMenu.Item>
-            <DropdownMenu.Item onSelect={onPushPsd}>从原型到 PSD</DropdownMenu.Item>
-            <DropdownMenu.Item disabled={!sourcePage?.artPsd} onSelect={()=>exportPrefab("art")}>{prefabSyncLabels.art}</DropdownMenu.Item>
+            <DropdownMenu.Item onSelect={onPushPsd}>原型 → PSD</DropdownMenu.Item>
+            <DropdownMenu.Item disabled={!sourcePage?.artPsd} onSelect={onPullPsd}>PSD → 原型</DropdownMenu.Item>
           </DropdownMenu.SubContent></DropdownMenu.Portal>
         </DropdownMenu.Sub>
       </DropdownMenu.Content></DropdownMenu.Portal>
