@@ -83,9 +83,9 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
     assert.equal(await page.locator(".topbar").getByRole("button", { name: /^(生成 PSD|绑定 PSD|重新绑定 PSD)$/ }).count(), 0);
     await page.getByRole("button", { name: "美术 PSD资源", exact: true }).click();
     assert.equal(await page.locator('[data-art-state="unbound"]').count(), 2);
-    assert.equal(await page.locator(".page-surface [data-node-id]").count(), 0);
     for (const id of ["pagea001", "pageb001"]) {
       const surface = page.locator('[data-page-id="' + id + '"] .page-surface');
+      assert.equal(await surface.locator("[data-node-id]").count(), 1, "unbound overview keeps hidden node hit targets");
       assert.equal(await surface.getByRole("button", { name: "生成 PSD", exact: true }).count(), 1);
       assert.equal(await surface.getByRole("button", { name: "绑定 PSD", exact: true }).count(), 1);
     }

@@ -331,6 +331,16 @@ label.dialog-body > input { margin-top: 0; }
 .page-art-state-card strong { font-size: 1.08em; font-weight: 500; }
 .page-art-state-card p { margin: 0; color: var(--vscode-descriptionForeground, #999); overflow-wrap: anywhere; max-width: 260px; }
 .page-art-state-card > div { display: flex; gap: 8px; }
+.page-art-state-card.is-compact, .page-art-state-card.is-minimal { width: auto; flex-basis: auto; flex-direction: row; gap: 6px; padding: 4px 6px; text-align: left; }
+.page-art-state-card.is-compact > svg, .page-art-state-card.is-minimal > svg { width: 16px; height: 16px; flex: none; }
+.page-art-state-card.is-compact strong, .page-art-state-card.is-minimal strong { font-size: 12px; white-space: nowrap; }
+.page-art-state-card.is-compact p, .page-art-state-card.is-minimal p { display: none; }
+.page-art-state-card.is-compact > div, .page-art-state-card.is-minimal > div { gap: 4px; }
+.page-art-state-card.is-compact button, .page-art-state-card.is-minimal button { height: 26px; min-height: 26px; gap: 3px; padding: 0 7px; border-radius: 3px; font-size: 12px; line-height: 1; }
+.page-art-state-card.is-compact button svg, .page-art-state-card.is-minimal button svg { width: 12px; height: 12px; flex: none; }
+.page-art-state-card.is-minimal { gap: 4px; }
+.page-art-state-card.is-minimal strong, .page-art-state-card.is-minimal .page-art-action-label { display: none; }
+.page-art-state-card.is-minimal button { width: 26px; padding: 0; }
 /* Prototype component and layout properties retain the compact VS Code shell. */
 .property-details { border-top: 1px solid var(--vscode-panel-border, #353535); padding-top: 8px; }
 .property-details summary { cursor: pointer; font-weight: 600; margin-bottom: 10px; }
