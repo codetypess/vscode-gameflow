@@ -288,6 +288,57 @@
       },
       "_$var": true,
       "alpha": 1
+    },
+    {
+      "_$id": "t46xrozm",
+      "_$type": "UIBox",
+      "name": "服务器列表项",
+      "scriptPath": "../src/game/app/core/ui/ui-box.ts",
+      "x": 148,
+      "y": 197,
+      "width": 378,
+      "height": 40,
+      "gap": 8,
+      "gapX": 8,
+      "gapY": 8,
+      "wrapCount": 2,
+      "paddingLeft": 12,
+      "paddingRight": 12,
+      "paddingTop": 12,
+      "paddingBottom": 12,
+      "clipContent": false,
+      "widthMode": "explicit",
+      "heightMode": "explicit",
+      "alpha": 1,
+      "_$child": [
+        {
+          "_$id": "t46xrozm/@%5B%5B%22b7350d9a-6015-4f0a-9508-4567406ed8f7%22%2C%22qs1b6zrv%22%2C%22node%22%2C%22d9jimlmp%22%5D%5D",
+          "_$type": "UILabel",
+          "name": "serverLabel2",
+          "scriptPath": "../src/game/app/core/ui/ui-label.ts",
+          "x": 0,
+          "y": 0,
+          "width": 378,
+          "height": 40,
+          "left": null,
+          "right": null,
+          "centerY": null,
+          "centerX": null,
+          "top": null,
+          "bottom": null,
+          "widthMode": "explicit",
+          "heightMode": "explicit",
+          "_$var": true,
+          "text": "星港一区   ·   连接正常",
+          "fontSize": 21,
+          "color": "#b2c2d0",
+          "bold": false,
+          "align": "center",
+          "wordWrap": false,
+          "overflow": "hidden",
+          "valign": "middle"
+        }
+      ]
     }
   ]
 }

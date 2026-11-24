@@ -531,6 +531,22 @@
             "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
             "pageId": "qs1b6zrv"
           }
+        },
+        {
+          "id": "t46xrozm",
+          "name": "服务器列表项",
+          "type": "container",
+          "frame": {
+            "x": 148,
+            "y": 197,
+            "width": 378,
+            "height": 40
+          },
+          "prefab": {
+            "source": "",
+            "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
+            "pageId": "qs1b6zrv"
+          }
         }
       ],
       "artPsd": {
@@ -1427,49 +1443,6 @@
             "layer": "92i5vexr"
           },
           {
-            "id": "jvo920jt",
-            "name": "图片",
-            "type": "image",
-            "parent": "fud92jz0",
-            "text": "",
-            "frame": {
-              "x": 296,
-              "y": 977,
-              "width": 140,
-              "height": 90
-            },
-            "properties": {
-              "variableName": "",
-              "hidden": false,
-              "transform.anchorX": 0,
-              "transform.anchorY": 0,
-              "transform.scaleX": 1,
-              "transform.scaleY": 1,
-              "transform.skewX": 0,
-              "transform.skewY": 0,
-              "transform.rotation": 0,
-              "style.opacity": 1,
-              "layout.left": null,
-              "layout.right": null,
-              "layout.centerX": null,
-              "layout.top": null,
-              "layout.bottom": null,
-              "layout.centerY": null,
-              "layout.layoutUnit": "absolute",
-              "layout.widthMode": "explicit",
-              "layout.heightMode": "explicit",
-              "layout.crossAxisMode": "aligned",
-              "layout.positionOffsetX": 0,
-              "layout.positionOffsetY": 0,
-              "widget.imageFit": "fill"
-            },
-            "x": 166,
-            "y": -1,
-            "width": 140,
-            "height": 90,
-            "layer": "jvo920jt"
-          },
-          {
             "id": "bz0nfn04",
             "name": "底部提示",
             "type": "text",
@@ -1524,6 +1497,69 @@
               "widget.scrollY": 0
             },
             "layer": "bz0nfn04"
+          },
+          {
+            "id": "85559x9k",
+            "name": "列表",
+            "type": "list",
+            "parent": "",
+            "text": "",
+            "frame": {
+              "x": 148,
+              "y": 576,
+              "width": 460,
+              "height": 282
+            },
+            "variable": "loginList",
+            "properties": {
+              "variableName": "loginList",
+              "hidden": false,
+              "transform.anchorX": 0,
+              "transform.anchorY": 0,
+              "transform.scaleX": 1,
+              "transform.scaleY": 1,
+              "transform.skewX": 0,
+              "transform.skewY": 0,
+              "transform.rotation": 0,
+              "style.opacity": 1,
+              "layout.left": null,
+              "layout.right": null,
+              "layout.centerX": null,
+              "layout.top": null,
+              "layout.bottom": null,
+              "layout.centerY": null,
+              "layout.layoutUnit": "absolute",
+              "layout.widthMode": "explicit",
+              "layout.heightMode": "explicit",
+              "layout.crossAxisMode": "aligned",
+              "layout.positionOffsetX": 0,
+              "layout.positionOffsetY": 0,
+              "layout.paddingLeft": 0,
+              "layout.paddingRight": 0,
+              "layout.paddingTop": 0,
+              "layout.paddingBottom": 0,
+              "layout.gap": 0,
+              "layout.gapX": 0,
+              "layout.gapY": 0,
+              "layout.align": "left",
+              "layout.valign": "top",
+              "layout.direction": "horizontal",
+              "layout.wrapCount": 1,
+              "layout.clipContent": false,
+              "layout.scrollX": 0,
+              "layout.scrollY": 0,
+              "cellPrefab": {
+                "source": "",
+                "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
+                "pageId": "qs1b6zrv"
+              },
+              "layout.scrollType": 2
+            },
+            "x": 148,
+            "y": 576,
+            "width": 460,
+            "height": 282,
+            "layer": "85559x9k"
           }
         ]
       },
