@@ -55,7 +55,7 @@ const sharedUrl = file => "/@fs/" + path.resolve(__dirname, "../shared", file).s
     }, { base64: resaved.toString("base64"), layers: generated.layers });
     assert.deepEqual(outputs.find(item => item.name.endsWith("_normal")), { name: "shop_dlan_normal", builtin: undefined });
     assert.deepEqual(outputs.find(item => item.name === "yellow"), { name: "yellow", builtin: "button/yellow" });
-    assert.deepEqual(outputs.find(item => item.builtin === "image/default"), { name: "default_90x52", builtin: "image/default" });
+    assert.deepEqual(outputs.find(item => item.builtin === "image/default"), { name: "default", builtin: "image/default" });
     const rgba=(width,height,color)=>({width,height,data:new Uint8ClampedArray(Array.from({length:width*height},()=>color).flat())});
     const grouped=ag.writePsdBuffer({width:16,height:16,imageData:rgba(16,16,[0,0,0,0]),children:[{name:"@normal",children:[{name:"red",left:2,top:1,imageData:rgba(8,8,[255,0,0,255])},{name:"blue",left:6,top:5,imageData:rgba(4,4,[0,0,255,255])}]}]},{generateThumbnail:false});
     const groupResult=await page.evaluate(async base64=>{const io=await import("/psd/io.ts"),bytes=Uint8Array.from(atob(base64),c=>c.charCodeAt(0));const {asset}=await io.openPsd(new File([bytes],"group.psd")),group=asset.layers.find(l=>l.name==="@normal");const image=new Image();image.src=group.image;await image.decode();const c=document.createElement("canvas");c.width=image.width;c.height=image.height;const ctx=c.getContext("2d");ctx.drawImage(image,0,0);return{width:group.width,height:group.height,limitation:group.limitation,overlap:Array.from(ctx.getImageData(5,5,1,1).data)};},grouped.toString("base64"));

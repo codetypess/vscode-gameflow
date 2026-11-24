@@ -75,6 +75,7 @@ export interface GameFlowNode {
   layout?: NodeLayout;
   widget?: WidgetProps;
   transform?: NodeTransform;
+  cellPrefab?: CanvasReference | { uuid: string };
   prefab?: CanvasReference;
   instanceEdits?: CanvasInstanceEdits;
 }
@@ -263,6 +264,7 @@ function validateNode(
           if (field === "widget.optionNodeIds" && Array.isArray(v) && v.length <= 1000 && v.every(item => item === null || isRecord(item) && Object.keys(item).length === 1 && validCanvasTarget(item.canvasTarget))) continue;
           if (["widget.skinNodeId", "widget.optionNodeIds", "widget.textLabelNodeId"].includes(field) && v !== null) { errors.push(`${at}.set.${field} must use scoped canvas targets`); optionalValid = false; continue; }
           const test = writeProperty({ id: "validate", name: "validate", type: "container", frame: { x: 0, y: 0, width: 1, height: 1 } }, field, v);
+          if (field === "cellPrefab" || field === "layout.scrollType") test.type = "list";
           if (["sliceResource", "image"].includes(field)) test.type = "image";
           if (["normalSkin", "selectedSkin", "disabledSkin"].includes(field)) test.type = "button";
           if (field.startsWith("widget.")) test.type = field === "widget.optionNodeIds" ? "radioGroup" : field === "widget.skinNodeId" ? "slider" : field === "widget.textLabelNodeId" ? "combo" : field === "widget.mode" ? "progress" : "text";
@@ -286,6 +288,12 @@ function validateNode(
         if (addition.references !== undefined && (!isRecord(addition.references) || Object.entries(addition.references).some(([k,v]) => (["widget.skinNodeId", "widget.textLabelNodeId"].includes(k) ? !validCanvasTarget(v) : k === "widget.optionNodeIds" ? !(Array.isArray(v) && v.length <= 1000 && v.every(item => item === null || validCanvasTarget(item))) : true)))) { errors.push(`${at}.references is invalid`); optionalValid = false; }
       }
     }
+  }
+  if (value.cellPrefab !== undefined) {
+    const ref = value.cellPrefab;
+    const valid = isRecord(ref) && (Object.keys(ref).length === 1 && typeof ref.uuid === "string" && /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(ref.uuid)
+      || Object.keys(ref).length === 3 && isCanvasReferenceSource(ref.source) && typeof ref.documentId === "string" && !!ref.documentId && typeof ref.pageId === "string" && !!ref.pageId);
+    if (value.type !== "list" || !valid) { errors.push(path + ".cellPrefab 列表项模板引用无效"); optionalValid = false; }
   }
   if (value.prefab !== undefined) {
     if (!isRecord(value.prefab) || !isCanvasReferenceSource(value.prefab.source)) {
@@ -580,7 +588,7 @@ export function validateGameFlowDocument(value: unknown): ValidationResult {
           }
           visited.add(ancestor);
           const parent = page.nodes.find((item) => item.id === ancestor)!;
-          if (!canHaveChildren(parent)) {
+          if (!canHaveChildren(parent) && !(parent.type === "list" && !parent.cellPrefab)) {
             errors.push(`node ${node.id} parent must support children`);
             break;
           }

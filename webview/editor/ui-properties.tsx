@@ -1,3 +1,7 @@
+import { useContext } from "react";
+import { Box, SquareMousePointer } from "lucide-react";
+import { ListCells } from "./list-cell-context";
+import { listScrollType } from "../../shared/list-cell";
 import { useSliceResources } from "../runtime/resource-context";
 import type { ConstraintLayout, GameFlowNode, GameFlowPage, NodeLayout, WidgetProps, NodeType } from "../../shared/model";
 import { canHaveChildren, COMPONENTS, flowType } from "../../shared/ui-components";
@@ -35,6 +39,14 @@ export function LayoutProperties({ page, node, locked, onNode, onPage, structure
   onNode: (id: string, patch: Partial<GameFlowNode>) => void; onPage: (transform: (page: GameFlowPage) => GameFlowPage) => void;
 }) {
   const resources = useSliceResources();
+  const cells = useContext(ListCells);
+  const cellOverride = useOverrideAttributes("渲染项");
+  let cellName = "未绑定";
+  if (node.cellPrefab) {
+    try { cellName = cells.resolve(node.cellPrefab).name; }
+    catch { cellName = "uuid" in node.cellPrefab ? node.cellPrefab.uuid : node.cellPrefab.pageId; }
+  }
+  const templateList = node.type === "list" && (!!node.cellPrefab || !page.nodes.some(child => child.parentId === node.id));
   const layout = node.layout ?? {}, parent = page.nodes.find((n) => n.id === node.parentId), flow = flowType(node);
   const resolved = resolvePageLayout(page, resources.sizes).nodes.get(node.id)!;
   const set = (patch: Partial<NodeLayout>) => onNode(node.id, { layout: { ...layout, ...patch } });
@@ -57,19 +69,33 @@ export function LayoutProperties({ page, node, locked, onNode, onPage, structure
       <ConstraintControl layout={layout} disabledX={locked || !!sliderOwner(page, node) || managedAxis(parent, "x")} disabledY={locked || !!sliderOwner(page, node) || managedAxis(parent, "y")} onChange={set} onToggle={(key, enabled) => onPage((p) => setNodeConstraint(p, node.id, key, enabled, resources.sizes))} />
       {node.type === "text" && (layout.widthMode === "measured" || layout.heightMode === "measured") ? <p className="property-hint">文字内容尺寸为原型估算，实际以游戏字体为准。</p> : null}
     </details>
-    {canHaveChildren(node) ? <details className="property-details" open><summary>容器布局</summary>
+    {canHaveChildren(node) || node.type === "list" ? <details className="property-details" open><summary>容器布局</summary>
       {["container", "hbox", "vbox", "grid"].includes(node.type) ? <Select label="排布方式" value={node.type} disabled={locked || structureProtected || page.componentRootId === node.id || page.nodes.some((n) => n.parentId === node.id && n.locked)} options={[["container", "自由布局"], ["hbox", "横向排列"], ["vbox", "纵向排列"], ["grid", "网格排列"]]} onChange={(value) => onPage((p) => changeContainerType(p, node.id, value as NodeType, resources.sizes))} /> : null}
+      {node.type === "list" && <div {...cellOverride} className="property-field"><span>渲染项</span>
+        <button type="button" className="cell-prefab-field" disabled={locked} aria-haspopup="dialog"
+          aria-label={`选择渲染项，${cellName}`} title={`${cellName} · 选择渲染项，Delete / Backspace 清空`}
+          onClick={() => cells.choose?.(node.id, node.cellPrefab)}
+          onKeyDown={event => {
+            if (event.key !== "Delete" && event.key !== "Backspace") return;
+            event.preventDefault(); event.stopPropagation();
+            if (node.cellPrefab) onNode(node.id, {cellPrefab:undefined});
+          }}>
+          <Box aria-hidden="true" size={15} />
+          <span className="cell-prefab-name" data-empty={!node.cellPrefab}>{cellName}</span>
+          <SquareMousePointer aria-hidden="true" size={13} />
+        </button>
+      </div>}
       <PaddingControl layout={layout} disabled={locked} onChange={set} />
       {flow === "hbox" || flow === "vbox" ? <Field label="间距" type="number" integer value={layout.gap ?? 0} disabled={locked || (flow === "hbox" ? layout.align === "justify" : layout.valign === "justify")} onCommit={(v) => set({ gap: Number(v) })} /> : null}
       {flow === "grid" ? <>
-        <Select label="排列方向" value={layout.direction ?? "horizontal"} disabled={locked} options={[["horizontal", "横向优先"], ["vertical", "纵向优先"]]} onChange={(v) => set({ direction: v as "horizontal" | "vertical" })} />
-        <Field label={layout.direction === "vertical" ? "每列数量" : "每行数量"} type="number" integer min={1} max={1000} value={layout.wrapCount ?? (node.type === "list" ? 4 : 2)} disabled={locked} onCommit={(v) => set({ wrapCount: Math.round(Number(v)) })} />
+        {templateList ? <Select label="滚动方向" value={String(listScrollType(node))} disabled={locked} options={[["2","纵向"],["1","横向"],["0","不滚动"]]} onChange={v => set({scrollType:Number(v) as 0|1|2})}/> : <Select label="排列方向" value={layout.direction ?? "horizontal"} disabled={locked} options={[["horizontal", "横向优先"], ["vertical", "纵向优先"]]} onChange={(v) => set({ direction: v as "horizontal" | "vertical" })} />}
+        <Field label={(templateList ? listScrollType(node) === 1 : layout.direction === "vertical") ? "每列数量" : "每行数量"} type="number" integer min={1} max={1000} value={layout.wrapCount ?? (node.type === "list" ? templateList ? 1 : 4 : 2)} disabled={locked} onCommit={(v) => set({ wrapCount: Math.round(Number(v)) })} />
         <NumericPropertyRow label="间距" integer disabled={locked} fields={[{ axis: "X", ariaLabel: "水平间距", value: layout.gapX ?? 0, onCommit: gapX => set({ gapX }) }, { axis: "Y", ariaLabel: "垂直间距", value: layout.gapY ?? 0, onCommit: gapY => set({ gapY }) }]} />
       </> : null}
-      {flow !== "free" ? <ContainerAlignment layout={layout} flow={flow} disabled={locked} onChange={set} /> : null}
-      <Toggle label="裁剪内容" value={layout.clipContent ?? node.type === "panel"} disabled={locked} onChange={(v) => set({ clipContent: v })} />
-      {node.type === "panel" || node.type === "list" ? <NumericPropertyRow label="滚动" integer disabled={locked} fields={[{ axis: "X", ariaLabel: "滚动 X", min: 0, value: layout.scrollX ?? 0, onCommit: scrollX => set({ scrollX }) }, { axis: "Y", ariaLabel: "滚动 Y", min: 0, value: layout.scrollY ?? 0, onCommit: scrollY => set({ scrollY }) }]} /> : null}
-      {node.type === "list" ? <p className="property-hint">静态列表项可在层级树中编辑、复制和排序。</p> : null}
+      {!templateList && flow !== "free" ? <ContainerAlignment layout={layout} flow={flow} disabled={locked} onChange={set} /> : null}
+      {!templateList && <Toggle label="裁剪内容" value={layout.clipContent ?? node.type === "panel"} disabled={locked} onChange={(v) => set({ clipContent: v })} />}
+      {node.type === "panel" || node.type === "list" && !templateList ? <NumericPropertyRow label="滚动" integer disabled={locked} fields={[{ axis: "X", ariaLabel: "滚动 X", min: 0, value: layout.scrollX ?? 0, onCommit: scrollX => set({ scrollX }) }, { axis: "Y", ariaLabel: "滚动 Y", min: 0, value: layout.scrollY ?? 0, onCommit: scrollY => set({ scrollY }) }]} /> : null}
+      {node.type === "list" && !templateList ? <p className="property-hint">静态列表项可在层级树中编辑、复制和排序。</p> : null}
     </details> : null}
   </>;
 }

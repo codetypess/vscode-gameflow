@@ -14,6 +14,7 @@ export interface NodeLayout extends ConstraintLayout {
   align?: "left" | "center" | "right" | "justify";
   valign?: "top" | "middle" | "bottom" | "justify";
   direction?: "horizontal" | "vertical"; wrapCount?: number;
+  scrollType?: 0 | 1 | 2;
   clipContent?: boolean; scrollX?: number; scrollY?: number;
 }
 
@@ -62,7 +63,8 @@ export function validateUIConfig(node: Record<string, unknown>, path: string, er
     const numbers = group === "layout" ? [...CONSTRAINTS, "paddingLeft", "paddingRight", "paddingTop", "paddingBottom", "gap", "gapX", "gapY", "wrapCount", "scrollX", "scrollY", "positionOffsetX", "positionOffsetY"] : ["min", "max", "value", "maxChars", "selectedIndex", "leading", "letterSpacing", "scrollX", "scrollY"];
     for (const [key, value] of Object.entries(values)) {
       let valid = false;
-      if (Object.hasOwn(enums, key)) valid = typeof value === "string" && enums[key].includes(value) && (key !== "mode" || node.type === "progress");
+      if (group === "layout" && key === "scrollType") valid = node.type === "list" && [0,1,2].includes(value as number);
+      else if (Object.hasOwn(enums, key)) valid = typeof value === "string" && enums[key].includes(value) && (key !== "mode" || node.type === "progress");
       else if (booleans.includes(key)) valid = typeof value === "boolean";
       else if (numbers.includes(key)) {
         valid = (group === "layout" && CONSTRAINTS.includes(key as Constraint) && value === null) || (typeof value === "number" && Number.isFinite(value));

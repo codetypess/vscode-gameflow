@@ -1,4 +1,7 @@
-import type { CSSProperties } from "react";
+import { useContext, type CSSProperties } from "react";
+import { cellKey, listCellPositions, listScrollType } from "../../shared/list-cell";
+import { orderedNodes } from "../../shared/editor-ops";
+import { ListCells } from "./list-cell-context";
 import { nodeImageSlot, progressRatio } from "../../shared/image-slots";
 import { SlotImage } from "../runtime/slot-image";
 import type { GameFlowNode, GameFlowPage } from "../../shared/model";
@@ -7,11 +10,11 @@ import { resolvePageLayout, type ResolvedNode } from "../../shared/ui-layout";
 import { intersectPolygons, mapPoint } from "../../shared/ui-transform";
 import { skinOwner } from "../../shared/ui-parts";
 import { LabelView } from "./label-view";
-import { ResourceCanvas, useSliceResources } from "../runtime/resource-context";
+import { ResourceCanvas, SliceResourcesProvider, useSliceResources } from "../runtime/resource-context";
 
 export { orderedNodes } from "../../shared/editor-ops";
 
-export function NodeView({ page, node, geometry, hitId, referenceError }: { page: GameFlowPage; node: GameFlowNode; geometry?: ResolvedNode; hitId?: string; referenceError?: string }) {
+export function NodeView({ page, node, geometry, hitId, referenceError, cellTrail = [], previewBudget = 5000 }: { page: GameFlowPage; node: GameFlowNode; geometry?: ResolvedNode; hitId?: string; referenceError?: string; cellTrail?: string[]; previewBudget?: number }) {
   const resources = useSliceResources();
   const resource = node.sliceResource && resources.mode !== "prototype" ? resources.resolve(node.sliceResource) : undefined;
   if (inheritedFlag(page, node, "hidden")) return null;
@@ -44,15 +47,16 @@ export function NodeView({ page, node, geometry, hitId, referenceError }: { page
     textDecorationLine: [appearance.underline && "underline", appearance.strikethrough && "line-through"].filter(Boolean).join(" ") || "none",
     textAlign: appearance.textAlign, justifyContent: appearance.textAlign === "left" ? "flex-start" : appearance.textAlign === "right" ? "flex-end" : "center",
     opacity: opacity * disabledOpacity(node),
-    overflow: node.type === "text" && widget.overflow === "visible" ? "visible" : "hidden",
+    overflow: node.type === "list" && listScrollType(node) === 0 || node.type === "text" && widget.overflow === "visible" ? "visible" : "hidden",
     alignItems: widget.valign === "top" ? "flex-start" : widget.valign === "bottom" ? "flex-end" : node.type === "text" && !widget.valign ? "flex-start" : "center",
     ...(clipLocal?.length ? { clipPath: `polygon(${clipLocal.map(p => `${p.x}px ${p.y}px`).join(",")})` } : {}),
     ...(!resolved.inverse || (clipped && clipped.length < 3) ? { visibility: "hidden" } : {})
   };
   return <div className={`node-body node-${node.type}${referenceError ? " reference-broken" : ""}`} data-node-id={hitId ?? node.id} data-reference-error={referenceError} data-locked={inheritedFlag(page, node, "locked")} style={style}>
     {referenceError ? <span className="reference-error-label" role="status">组件引用失效<br />{referenceError}</span> : null}
+    {node.type === "list" && node.cellPrefab && <ListCellPreview list={node} bounds={bounds} trail={cellTrail} budget={previewBudget} />}
     {node.type === "image" || node.type === "button" ? node.type === "button" || node.image !== undefined
-      ? <SlotImage sourceSize={resources.sizes.get("@builtin:" + node.id)} slot={nodeImageSlot(node, resources.mode)} width={bounds.width} height={bounds.height} label={node.name} fit={widget.imageFit ?? "fill"} progress={progress} />
+      ? <SlotImage slot={nodeImageSlot(node, resources.mode)} width={bounds.width} height={bounds.height} label={node.name} fit={widget.imageFit ?? "fill"} progress={progress} />
       : resource ? resource.status === "ready" ? <ResourceCanvas resource={resource} width={bounds.width} height={bounds.height} fit={widget.imageFit ?? "fill"} label={node.name} progress={progress} />
         : <span className="slice-resource-placeholder" role="status" data-resource-status={resource.status}>{resource.status === "error" ? "切图异常\n" + resource.error : "装载中…"}</span>
       : resources.mode !== "prototype" && node.imageData ? <img src={node.imageData} alt={node.name} draggable={false} style={{ objectFit: widget.imageFit ?? "fill" }} />
@@ -62,4 +66,33 @@ export function NodeView({ page, node, geometry, hitId, referenceError }: { page
       : null}
 
   </div>;
+}
+
+function ListCellPreview({ list, bounds, trail, budget }: { list: GameFlowNode; bounds: GameFlowNode["frame"]; trail: string[]; budget: number }) {
+  const cells = useContext(ListCells), resources = useSliceResources();
+  try {
+    const ref = list.cellPrefab!, key = cellKey(ref);
+    if (trail.includes(key)) throw new Error("列表项模板循环引用。");
+    const page = cells.resolve(ref);
+    const positions = listCellPositions(list, bounds, page);
+    const { left, top, width, height, rows, columns, dx, dy, horizontal } = positions;
+    const count = rows * columns;
+    if (!count || !page.nodes.length) return null;
+    const itemBudget = Math.floor(budget / (count * page.nodes.length));
+    if (!itemBudget) throw new Error("列表项预览超过节点数量上限。");
+    const scoped = resources.forPage?.(page) ?? resources;
+    const geometry = resolvePageLayout(page, scoped.sizes), nodes = orderedNodes(page);
+    const nextTrail = [...trail, key];
+    return <SliceResourcesProvider value={{...scoped,mode:resources.mode,forPage:resources.forPage, ...(resources.mode === "prefab" ? {resolve:resources.resolve} : {})}}><div aria-hidden="true" style={{position:"absolute", left, top, width, height, pointerEvents:"none", overflow:listScrollType(list) === 0 ? "visible" : "hidden"}}>
+      {Array.from({length:count}, (_, index) => {
+        const x = horizontal ? Math.floor(index / rows) : index % columns;
+        const y = horizontal ? index % rows : Math.floor(index / columns);
+        return <div key={index} data-cell-index={index} style={{position:"absolute", left:x*dx, top:y*dy, width:page.frame.width, height:page.frame.height}}>
+          {nodes.map(node => <NodeView key={node.id} page={page} node={node} hitId={list.id} geometry={geometry.nodes.get(node.id)} cellTrail={nextTrail} previewBudget={itemBudget}/>)}
+        </div>;
+      })}
+    </div></SliceResourcesProvider>;
+  } catch (error) {
+    return <span className="reference-error-label" role="status">{error instanceof Error ? error.message : String(error)}</span>;
+  }
 }

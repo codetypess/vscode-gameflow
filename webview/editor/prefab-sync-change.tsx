@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useId, type ReactNode } from "react";
 import { fieldNames, hasSyncedValue, type Change, type Decision, type Side, type SyncNode } from "../../shared/page-sync";
 import { prefabChangeName, type PrefabReview } from "../../shared/prefab-sync";
 
@@ -47,6 +47,7 @@ export function PrefabSyncChange({ review, change, decision, disabled, onChoose,
   children?: ReactNode;
 }) {
   const { comparison } = review;
+  const groupName = useId();
   const old = comparison.base?.nodes.find(node => node.id === change.id);
   const recorded = hasSyncedValue(old, change.field, change.property);
   const previous = recorded ? changeValue(comparison.base!.nodes, change) : "未记录";
@@ -78,14 +79,15 @@ export function PrefabSyncChange({ review, change, decision, disabled, onChoose,
       </>}
     </dl>
     {children}
-    <label className="prefab-change-choice">
+    <div className="prefab-change-choice">
       <span>本轮</span>
-      <select aria-label={title + "的同步方向"} value={decision ?? ""} title={describeDecision(review, change, decision)}
-        onChange={event => onChoose(event.currentTarget.value as Decision)}>
-        <option value="" disabled>选择同步方向…</option>
+      <div role="radiogroup" aria-label={title + "的同步方向"}>
         {decisions.filter(side => change.kind !== "add" || side === "skip" || comparison[side].some(node => node.id === change.id))
-          .map(side => <option key={side} value={side}>{describeDecision(review, change, side)}</option>)}
-      </select>
-    </label>
+          .map(side => <label key={side}>
+            <input type="radio" name={groupName} value={side} checked={decision === side} onChange={() => onChoose(side)} />
+            <span>{describeDecision(review, change, side)}{change.suggested === side && <small>推荐</small>}</span>
+          </label>)}
+      </div>
+    </div>
   </fieldset>;
 }

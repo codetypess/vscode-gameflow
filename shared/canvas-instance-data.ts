@@ -25,11 +25,11 @@ export interface CanvasInstanceEdits { overrides: CanvasOverride[]; additions: C
 export const ROOT_TARGET: CanvasTarget = { path: [] };
 export const targetKey = (target: CanvasTarget) => JSON.stringify(target.path.map(part => [part.documentId, part.pageId, part.kind, part.nodeId]));
 export const sameTarget = (a: CanvasTarget, b: CanvasTarget) => targetKey(a) === targetKey(b);
-const SCALARS = new Set(["name", "variableName", "text", "imageData", "sliceResource", "image", "normalSkin", "selectedSkin", "disabledSkin", "hidden"]);
+const SCALARS = new Set(["cellPrefab", "name", "variableName", "text", "imageData", "sliceResource", "image", "normalSkin", "selectedSkin", "disabledSkin", "hidden"]);
 const PROPERTY_GROUPS: Record<string, readonly string[]> = {
   frame: ["x", "y", "width", "height"],
   style: ["fill", "color", "borderColor", "borderWidth", "radius", "fontSize", "fontWeight", "italic", "underline", "strikethrough", "textAlign", "opacity"],
-  layout: ["left", "right", "centerX", "top", "bottom", "centerY", "layoutUnit", "widthMode", "heightMode", "crossAxisMode", "positionOffsetX", "positionOffsetY", "paddingLeft", "paddingRight", "paddingTop", "paddingBottom", "gap", "gapX", "gapY", "align", "valign", "direction", "wrapCount", "clipContent", "scrollX", "scrollY"],
+  layout: ["left", "right", "centerX", "top", "bottom", "centerY", "layoutUnit", "widthMode", "heightMode", "crossAxisMode", "positionOffsetX", "positionOffsetY", "paddingLeft", "paddingRight", "paddingTop", "paddingBottom", "gap", "gapX", "gapY", "align", "valign", "direction", "scrollType", "wrapCount", "clipContent", "scrollX", "scrollY"],
   widget: ["mode", "textLabelNodeId", "skinNodeId", "optionNodeIds", "selected", "disabled", "min", "max", "value", "direction", "placeholder", "password", "maxChars", "options", "selectedIndex", "wordWrap", "overflow", "valign", "imageFit", "leading", "letterSpacing", "html", "ubb", "templateVars", "scrollX", "scrollY"],
   transform: ["anchorX", "anchorY", "scaleX", "scaleY", "skewX", "skewY", "rotation"]
 };

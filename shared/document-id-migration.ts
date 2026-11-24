@@ -31,6 +31,7 @@ export function migrateDocumentElementIds(
       nodes: page.nodes.map(node => rekeyCanvasTargets(remapCanvasEdits(remapControlReferences({
         ...node,
         id: remap(node.id),
+        ...(node.cellPrefab && "source" in node.cellPrefab && !node.cellPrefab.source && node.cellPrefab.documentId === document.documentId ? {cellPrefab:{...node.cellPrefab,pageId:remap(node.cellPrefab.pageId)}} : {}),
         ...(node.prefab?.source === "" && node.prefab.documentId === document.documentId ? { prefab: { ...node.prefab, pageId: remap(node.prefab.pageId) } } : {}),
         ...(node.parentId !== undefined ? { parentId: remap(node.parentId) } : {})
       }, replacements), replacements), document.documentId, replacements))

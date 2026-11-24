@@ -2,7 +2,7 @@ import { initializeCanvas, writePsdUint8Array, type Layer, type Psd } from "ag-p
 import type { GameFlowDocument, GameFlowNode, GameFlowPage } from "../../shared/model";
 import { PSD_SLOT_MARKERS } from "../../shared/psd-slot-markers";
 import { builtinImage } from "../../shared/image-slots";
-import { builtinOrigin } from "../../shared/psd-builtin";
+import { builtinLayerGrid, builtinOrigin } from "../../shared/psd-builtin";
 import { nodeSlots, resourceUuid } from "../../shared/prefab-export";
 import { parsePsdBinary, patchPsdMetadata } from "../../shared/psd-binary";
 import type { PsdLayerMeta } from "../../shared/psd-meta";
@@ -10,7 +10,7 @@ import { resolvePageLayout } from "../../shared/ui-layout";
 import { controlHidden } from "../../shared/ui-parts";
 import { layoutLabel } from "../../shared/label-text";
 import { loadSliceImage } from "../psd/slice-render";
-import { paintBuiltin } from "./paint-builtin";
+import { paintSlice } from "./paint-slice";
 import { imageRenderSize } from "../../shared/image-rendering";
 
 export async function generatePrototypePsd(document:GameFlowDocument,page:GameFlowPage):Promise<Uint8Array>{
@@ -27,8 +27,8 @@ export async function generatePrototypePsd(document:GameFlowDocument,page:GameFl
     const geometry=layout.nodes.get(node.id)!;const local=geometry.local;
     // Fill resources are authored at full size. Progress only changes how the runtime displays them.
     const {width}=imageRenderSize(page,node,layout);
-    const source=makeCanvas(width,local.height);paintBuiltin(source,await loadSliceImage(builtin.dataUri),builtin,width,local.height,node.widget?.imageFit??"fill");
-    const m=meta(node.id,field);m.slicing={enabled:true,name,nineGrid:builtin.nineGrid};
+    const source=window.document.createElement("canvas");paintSlice(source,await loadSliceImage(builtin.dataUri),builtin,width,local.height,node.widget?.imageFit??"fill");
+    const m=meta(node.id,field);m.slicing={enabled:true,name,nineGrid:builtinLayerGrid(builtin.nineGrid,source.width,source.height)};
     const pixels = source.getContext("2d")!.getImageData(0, 0, source.width, source.height);
     m.builtinOrigin = await builtinOrigin(builtin, width, local.height, pixels.data);
     const layer=withMeta({name,left:Math.round(geometry.matrix[4]),top:Math.round(geometry.matrix[5]),imageData:pixels,hidden:node.hidden||field==="selectedSkin"||field==="disabledSkin"||controlHidden(page,node)},m);

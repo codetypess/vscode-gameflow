@@ -1,8 +1,6 @@
 import type { GameFlowDocument, GameFlowNode, GameFlowPage } from "./model";
-import { DEFAULT_IMAGE_ID, imageRenderSize } from "./image-rendering";
-import { resolvePageLayout } from "./ui-layout";
 import { COMPONENTS, pageRootType } from "./ui-components";
-import { builtinImage, builtinPath, nodeImageSlot, type BuiltinImage, type ImageSlot, type ImageSlotField } from "./image-slots";
+import { builtinImage, builtinPath, type ImageSlot, type ImageSlotField } from "./image-slots";
 import { isSliceResourcePath, type SliceResourceDescription, type SliceResourceRef } from "./slice-resources";
 import { parseResourceManifest, RESOURCE_MANIFEST, type ResourceManifest } from "./psd-export";
 import { exportDirectoryError } from "./export-directory";
@@ -10,17 +8,28 @@ import { validatePng, type ExportCodec, type ResourceDirectory } from "./psd-exp
 import { mergeLayaMeta, resourceUuid } from "./laya-meta";
 import type { NineGrid } from "./psd-meta";
 import { sameGrid } from "./psd-builtin";
+import { isLegacyDefault } from "./builtin-image";
 export { resourceUuid } from "./laya-meta";
 
 export interface PrefabImage { path: string; base64: string; description: SliceResourceDescription; expectedUuid?:string }
-export interface PrefabExportBatch { name: string; directory?: string; prefab: Record<string, unknown>; images: PrefabImage[] }
+export function referencedCellUuids(root: Record<string,unknown>) {
+  const uuids = new Set<string>();
+  JSON.stringify(root,(key,value) => {
+    if (key === "cellPrefab" && typeof value?._$uuid === "string") uuids.add(value._$uuid);
+    return value;
+  });
+  return uuids;
+}
+export interface CellPrefabFile extends PrefabTarget { uuid: string; hash: string | null; metaChanged?: boolean; prefab?: Record<string,unknown> }
+export interface PrefabExportBatch { cells?: CellPrefabFile[]; name: string; directory?: string; prefab: Record<string, unknown>; images: PrefabImage[] }
 export interface PrefabTarget {name:string;directory?:string}
 export interface ImageMetaTarget {path:string; nineGrid:NineGrid|null; sha256?:string}
 export interface PrefabMetadataReview {
   prefabMetaChanged: boolean;
   images: Record<string, {uuid:string; changed:boolean}>;
+  legacyDefaultSkins?: string[];
 }
-export interface PrefabSnapshot {prefab:Record<string,unknown>|null;hash:string|null;root:string;version:number;skins?:Record<string,string>;metadata?:PrefabMetadataReview}
+export interface PrefabSnapshot {uuid?:string;prefab:Record<string,unknown>|null;hash:string|null;root:string;version:number;skins?:Record<string,string>;metadata?:PrefabMetadataReview}
 export interface PrefabWriteGuard {hash:string|null; writePrefab:boolean; added:string[]; source?:"prefab"|"psd"}
 export function validPrefabTarget(value:unknown):value is PrefabTarget {
   const t=value as PrefabTarget|undefined;
@@ -30,12 +39,13 @@ export async function readPrefabSnapshot(directory:ResourceDirectory,target:Pref
   if(!validPrefabTarget(target)) throw new Error("预制体路径无效。");
   const file = [target.directory,target.name].filter(Boolean).join("/");
   const data=await directory.read(file);
-  if(!data) return {prefab:null,hash:null};
+  const meta = mergeLayaMeta(file, await directory.read(file+".meta"));
+  if(!data) return {prefab:null,hash:null,uuid:meta.uuid};
   if(data.length>8*1024*1024) throw new Error("预制体超过 8 MB。");
   const prefab=JSON.parse(new TextDecoder().decode(data));
   if(!prefab || typeof prefab!=="object" || Array.isArray(prefab)) throw new Error("预制体根节点无效。");
   const skins:Record<string,string>={};
-  const metadata:PrefabMetadataReview = {prefabMetaChanged:!!mergeLayaMeta(file,await directory.read(file+".meta")).bytes, images:{}};
+  const metadata:PrefabMetadataReview = {prefabMetaChanged:!!meta.bytes, images:{}};
   if(resources) {
     const needed=new Set<string>();
     JSON.stringify(prefab,(key,value)=>{
@@ -74,16 +84,23 @@ export async function readPrefabSnapshot(directory:ResourceDirectory,target:Pref
           if(!bytes || bytes.length>1024*1024) return;
           let meta;try {meta=JSON.parse(new TextDecoder().decode(bytes));}catch{return;}
           const url="res://"+meta?.uuid;
-          if(needed.delete(url)) skins[url]=path;
+          if(needed.delete(url)) {
+            skins[url]=path;
+            const entry=records.get(path)!;
+            if(metadata.images[builtinPath("image/default")] && isLegacyDefault(path,entry)) {
+              const png=await resources.read(path);
+              if(png && await hash(png)===entry.sha256) (metadata.legacyDefaultSkins??=[]).push(url);
+            }
+          }
         }));
       }
     }
   }
-  return {prefab:prefab as Record<string,unknown>,hash:await hash(data),skins,metadata};
+  return {prefab:prefab as Record<string,unknown>,uuid:meta.uuid,hash:await hash(data),skins,metadata};
 }
 export interface MissingImage { nodeId: string; nodeName: string; slot: ImageSlotField; path: string; error: string }
 export interface PrefabPlan { batch: PrefabExportBatch; missing: MissingImage[] }
-export type ExportImageResolver = (ref: SliceResourceRef, render?: { builtin: BuiltinImage; width: number; height: number }) => Promise<{ status: "ready"; image: PrefabImage } | { status: "error"; error: string }>;
+export type ExportImageResolver = (ref: SliceResourceRef) => Promise<{ status: "ready"; image: PrefabImage } | { status: "error"; error: string }>;
 
 export const resourceUrl = (path: string) => "res://" + resourceUuid(path);
 const scriptPath = (type: string) => "../src/game/app/core/ui/" + "ui-" + type.slice(2).replace(/([a-z0-9])([A-Z])/g, "$1-$2").toLowerCase() + ".ts";
@@ -95,9 +112,8 @@ export function prefabFileName(page: GameFlowPage): string {
   return name+".lh";
 }
 
-export async function planPrefabExport(document: GameFlowDocument, page: GameFlowPage, resolve: ExportImageResolver): Promise<PrefabPlan> {
+export async function planPrefabExport(document: GameFlowDocument, page: GameFlowPage, resolve: ExportImageResolver, cellUuid?: (node: GameFlowNode) => string): Promise<PrefabPlan> {
   const images = new Map<string,PrefabImage>(), refs = new Map<string,string>(), missing: MissingImage[] = [];
-  const placeholders: {node:GameFlowNode;field:ImageSlotField;builtin:BuiltinImage}[] = [];
   for (const node of page.nodes) for (const [field,slot] of nodeSlots(node)) {
     if (!slot) continue;
     const path = slot.art?.path ?? (slot.builtin ? builtinPath(slot.builtin) : undefined);
@@ -106,30 +122,14 @@ export async function planPrefabExport(document: GameFlowDocument, page: GameFlo
     if (slot.art) {
       const result = await resolve(slot.art);
       if (result.status === "error") missing.push({nodeId:node.id,nodeName:node.name,slot:field,path,error:result.error});
-      else images.set(path,result.image);
+      else {
+        refs.set(node.id + ":" + field,result.image.path);
+        images.set(result.image.path,result.image);
+      }
     } else {
       const builtin = builtinImage(slot.builtin!);
       if (!builtin) { missing.push({nodeId:node.id,nodeName:node.name,slot:field,path,error:"内置图片不存在"}); continue; }
-      if (builtin.id === DEFAULT_IMAGE_ID) { placeholders.push({node,field,builtin}); continue; }
       images.set(path,{path,base64:builtin.dataUri.split(",")[1],description:{path,width:builtin.width,height:builtin.height,nineGrid:builtin.nineGrid,source:{documentId:"gameflow-builtin",psdName:"builtin.psd",sourceHash:"0".repeat(64)},layerId:builtin.id,layerName:builtin.name,shared:true}});
-    }
-  }
-  // Geometry follows the resources being exported, independently of the active preview mode.
-  if (placeholders.length) {
-    const sizes = new Map<string,{width:number;height:number}>();
-    for (const node of page.nodes) {
-      const slot = nodeImageSlot(node, "art"), art = slot?.art ?? (node.image === undefined ? node.sliceResource : undefined);
-      const image = art ? images.get(art.path)?.description : slot?.builtin ? builtinImage(slot.builtin) : undefined;
-      if (image) sizes.set("@node:" + node.id, "logicalSize" in image && image.logicalSize ? image.logicalSize : image);
-    }
-    const layout = resolvePageLayout(page, sizes);
-    for (const {node,field,builtin} of placeholders) {
-      const size = imageRenderSize(page,node,layout), path = builtinPath(builtin.id,size);
-      refs.set(node.id+":"+field,path);
-      if (images.has(path)) continue;
-      const result = await resolve({path},{builtin,...size});
-      if (result.status === "error") missing.push({nodeId:node.id,nodeName:node.name,slot:field,path,error:result.error});
-      else images.set(path,result.image);
     }
   }
   // Missing references retain their portable path; successful images use importer UUIDs.
@@ -138,6 +138,14 @@ export async function planPrefabExport(document: GameFlowDocument, page: GameFlo
   const nodeRecord = (node:GameFlowNode): Record<string,unknown> => {
     const type=COMPONENTS[node.type].laya, widget=node.widget ?? {}, style=node.style ?? {};
     const record:Record<string,unknown> = {"_$id":node.id,"_$type":type,name:node.variableName ?? node.name,scriptPath:scriptPath(type),...node.frame,...node.layout,...node.transform};
+    if (node.type === "list") {
+      record.scrollType = node.layout?.scrollType ?? (node.layout?.direction === "vertical" ? 1 : 2);
+      if (node.cellPrefab) {
+        const uuid = "uuid" in node.cellPrefab ? node.cellPrefab.uuid : cellUuid?.(node);
+        if (!uuid) throw new Error(node.name + " 的列表项模板尚未解析。");
+        record.cellPrefab = { "_$uuid": uuid, "_$type": "Prefab" };
+      }
+    }
     if (node.variableName) record._$var=true;
     if (node.hidden) record.visible=false;
     if (style.opacity!==undefined) record.alpha=style.opacity;
@@ -172,6 +180,18 @@ export function isPrefabExportBatch(value: unknown): value is PrefabExportBatch 
   const batch=value as PrefabExportBatch;
   if(typeof batch.name!=="string" || !/^[^\\/:*?"<>|\x00-\x1f]{1,128}\.lh$/.test(batch.name) || batch.name.includes("..") || /^(con|prn|aux|nul|com[1-9]|lpt[1-9])\./i.test(batch.name) || exportDirectoryError(batch.directory) || !batch.prefab || Array.isArray(batch.prefab) || typeof batch.prefab!=="object" || !Array.isArray(batch.images) || batch.images.length>512) return false;
   let size:number; try { size=JSON.stringify(batch.prefab).length; } catch { return false; } if(size>8*1024*1024) return false;
+  if (batch.cells !== undefined) {
+    if (!Array.isArray(batch.cells) || batch.cells.length > 512) return false;
+    const targets = new Set([[batch.directory,batch.name].filter(Boolean).join("/").toLowerCase()]);
+    for (const cell of batch.cells) {
+      if (!validPrefabTarget(cell) || typeof cell.uuid !== "string" || !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(cell.uuid)) return false;
+      const path = [cell.directory,cell.name].filter(Boolean).join("/").toLowerCase();
+      if (targets.has(path) || !(cell.hash === null ? cell.prefab?._$type === "UIBox" : typeof cell.hash === "string" && /^[a-f0-9]{64}$/.test(cell.hash) && !cell.prefab)) return false;
+      targets.add(path);
+      size += JSON.stringify(cell).length;
+      if (size > 16*1024*1024) return false;
+    }
+  }
   const paths=new Set<string>();
   return batch.images.every(image=>{
     size+=typeof image?.base64==="string"?image.base64.length:Infinity;
@@ -229,7 +249,7 @@ export async function exportPrefabToDirectories(resources:ResourceDirectory, pre
   };
   if(guard) await assertReviewed(original);
   if(guard?.source==="prefab") {
-    if(!original || guard.writePrefab || batch.images.length) throw new Error("从预制体读取时来源必须存在且只读。");
+    if(!original || guard.writePrefab || batch.images.length || batch.cells?.length) throw new Error("从预制体读取时来源必须存在且只读。");
     await finish?.();
     return 0;
   }
@@ -273,6 +293,17 @@ export async function exportPrefabToDirectories(resources:ResourceDirectory, pre
     await stage(resources,image.path,diskHash===sha256 || keepPixels ? null : bytes,exists);
   }
   if(!incremental || ledgerChanged) await stage(resources,RESOURCE_MANIFEST,new TextEncoder().encode(JSON.stringify({...ledger,version:2,resources:[...records.values()].sort((a,b)=>a.file.localeCompare(b.file))},null,2)+"\n"),ledgerBytes);
+  for (const cell of batch.cells ?? []) {
+    const path = [cell.directory,cell.name].filter(Boolean).join("/");
+    const before = await prefabs.read(path), oldMeta = await prefabs.read(path+".meta");
+    const meta = mergeLayaMeta(path,oldMeta);
+    if ((before ? await codec.hash(before) : null) !== cell.hash || meta.uuid !== cell.uuid)
+      throw new Error(path + " 列表项模板在审阅后已变化，请重新比较。");
+    await stage(prefabs,path+".meta",meta.bytes,oldMeta);
+    const bytes = cell.prefab ? new TextEncoder().encode(JSON.stringify(cell.prefab,(key,value) =>
+      ["skin","normalSkin","selectedSkin","disabledSkin"].includes(key) && urls.has(value) ? urls.get(value) : value,2)+"\n") : null;
+    await stage(prefabs,path,bytes,before);
+  }
   const oldPrefabMeta=await prefabs.read(target+".meta");
   await stage(prefabs,target+".meta",mergeLayaMeta(target,oldPrefabMeta).bytes,oldPrefabMeta);
   if(!guard || guard.writePrefab) {

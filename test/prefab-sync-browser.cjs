@@ -88,6 +88,21 @@ async function checkRuntime(browser,root,prefab) {
     await dialog.waitFor();
     assert.equal(await dialog.locator(".sync-boards figure").count(),2);
     const changedRow=dialog.locator(".layer-name").filter({hasText:"按钮文案"});
+    const nodeName=changedRow.locator("span").first();
+    const nodeFont=()=>nodeName.evaluate(element=>{
+      const {fontSize,fontFamily}=getComputedStyle(element);
+      return {fontSize,fontFamily};
+    });
+    assert.equal((await nodeFont()).fontSize,"13px","sync node names use the VS Code default size");
+    await p.evaluate(()=>{
+      document.documentElement.style.setProperty("--vscode-font-size","15px");
+      document.documentElement.style.setProperty("--vscode-font-family","Arial, sans-serif");
+    });
+    assert.deepEqual(await nodeFont(),{fontSize:"15px",fontFamily:"Arial, sans-serif"},"sync node names inherit host typography");
+    await p.evaluate(()=>{
+      document.documentElement.style.removeProperty("--vscode-font-size");
+      document.documentElement.style.removeProperty("--vscode-font-family");
+    });
     const changedParts=await changedRow.evaluate(row=>[...row.children].map(child=>child.matches("span")?"name":child.matches(".sync-change-slot")?"marker":child.matches(".layer-variable")?"variable":"icon"));
     assert.deepEqual(changedParts,["icon","name","marker"],"changed node marker follows its name when no variable badge exists");
     assert.equal(await changedRow.locator(".sync-change-slot").textContent(),"~");
@@ -97,20 +112,21 @@ async function checkRuntime(browser,root,prefab) {
     const textDiff=dialog.locator("fieldset").filter({hasText:"文字内容"});
     const fontDiff=dialog.locator("fieldset").filter({hasText:"字号"});
     const wrapDiff=dialog.getByRole("group",{name:/自动换行\s*来源待定/});
-    const wrapChoice=dialog.getByRole("combobox",{name:"自动换行的同步方向"});
+    const choicesFor=name=>dialog.getByRole("radiogroup",{name:name+"的同步方向",exact:true});
+    const wrapChoices=choicesFor("自动换行");
     assert.match(await textDiff.locator("legend").innerText(),/双方已改/);
     assert.deepEqual(await textDiff.locator("dt").allTextContents(), ["上次同步值", "原型", "预制体"]);
     assert.deepEqual(await textDiff.locator("dd").allTextContents(), ["登录", "进入游戏", "开始冒险"]);
-    assert.equal(await textDiff.getByRole("combobox").inputValue(),"");
+    assert.equal(await textDiff.getByRole("radio").count(),3);
+    assert.equal(await textDiff.getByRole("radio",{checked:true}).count(),0);
     assert.match(await fontDiff.locator("legend").innerText(),/预制体已改/);
     assert.match(await fontDiff.locator("dd").textContent(),/32 px → 33 px/);
-    assert.equal(await fontDiff.getByRole("combobox").inputValue(),"psd");
-    assert.equal(await fontDiff.locator("option:checked").textContent(),"把原型改为「33 px」");
-    const italic=dialog.getByRole("combobox",{name:"斜体的同步方向"});
-    assert.equal(await italic.inputValue(),"proto");
-    assert.equal(await italic.locator("option:checked").textContent(),"把预制体改为「是」");
+    const recommendedFont=fontDiff.getByRole("radio",{name:/把原型改为「33 px」\s*推荐/});
+    const recommendedItalic=choicesFor("斜体").getByRole("radio",{name:/把预制体改为「是」\s*推荐/});
+    assert(await recommendedFont.isChecked());
+    assert(await recommendedItalic.isChecked());
     assert.deepEqual(await wrapDiff.locator("dd").allTextContents(),["未记录","关闭","开启"]);
-    assert.equal(await wrapChoice.inputValue(),"");
+    assert.equal(await wrapChoices.getByRole("radio",{checked:true}).count(),0);
     assert(await button("预演应用").isDisabled());
     const heading = await dialog.locator("header").boundingBox();
     const inspectorHeading = await p.locator(".inspector .floating-heading").boundingBox();
@@ -127,6 +143,8 @@ async function checkRuntime(browser,root,prefab) {
     const selectedName=dialog.locator(".sync-bar > strong");
     await previews[0].locator('[data-node-id="help0001"]').click();
     assert.equal(await selectedName.innerText(),"帮助","prototype preview directly selects its node");
+    assert.equal(await choicesFor("控件结构").getByRole("radio").count(),2);
+    assert(await choicesFor("控件结构").getByRole("radio",{name:/补到预制体/}).isChecked());
     await previews[1].locator('[data-node-id="text0001"]').click();
     assert.equal(await selectedName.innerText(),"按钮文案","prefab preview directly selects its node");
     const initialSize = await dialog.boundingBox();
@@ -146,17 +164,23 @@ async function checkRuntime(browser,root,prefab) {
     assert(Math.abs(resizedSize.x + resizedSize.width - shrinkTarget.x - shrinkInset.x) <= 3, "right edge follows the horizontal pointer position");
     assert(Math.abs(resizedSize.y + resizedSize.height - shrinkTarget.y - shrinkInset.y) <= 3, "bottom edge follows the vertical pointer position");
     if (process.env.GAMEFLOW_PREFAB_SYNC_SCREENSHOT) await dialog.screenshot({path: process.env.GAMEFLOW_PREFAB_SYNC_SCREENSHOT});
-    await textDiff.getByRole("combobox").selectOption("psd");
+    await recommendedFont.press("ArrowDown");
+    assert(await fontDiff.getByRole("radio",{name:"本轮跳过"}).isChecked());
+    assert(await recommendedItalic.isChecked());
+    await fontDiff.getByRole("radio",{name:"本轮跳过"}).press("ArrowUp");
+    assert(await recommendedFont.isChecked());
+    await textDiff.getByText("把原型改为「开始冒险」",{exact:true}).click();
+    assert(await textDiff.getByRole("radio",{name:"把原型改为「开始冒险」"}).isChecked());
     await dialog.getByText("同步后属性预览",{exact:true}).click();
     const wrapRow=dialog.locator(".prefab-result tr").filter({hasText:"自动换行"});
-    for(const [direction,values] of [["proto",["关闭","关闭"]],["skip",["关闭","开启"]],["psd",["开启","开启"]]]) {
-      await wrapChoice.selectOption(direction);
+    for(const [action,values] of [["把预制体改为「关闭」",["关闭","关闭"]],["本轮跳过",["关闭","开启"]],["把原型改为「开启」",["开启","开启"]]]) {
+      await wrapChoices.getByRole("radio",{name:action}).check();
       assert.deepEqual(await wrapRow.locator("td").allTextContents(),values);
-      if(direction==="skip") assert.match(await dialog.locator("footer").innerText(),/跳过 1 项/);
+      if(action==="本轮跳过") assert.match(await dialog.locator("footer").innerText(),/跳过 1 项/);
     }
     assert.equal(await button("同步后").getAttribute("aria-pressed"),"true");
     await dialog.locator(".tree-root").click();
-    for(const name of ["页面宽度","页面高度"]) assert.equal(await dialog.getByRole("combobox",{name:name+"的同步方向"}).inputValue(),"psd");
+    for(const name of ["页面宽度","页面高度"]) assert.equal(await choicesFor(name).getByRole("radio",{checked:true}).inputValue(),"psd");
     await button("预演应用").click();await button("确认应用").click();
     await dialog.waitFor({state:"hidden"});
     const data=await p.evaluate(async()=>{

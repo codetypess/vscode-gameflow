@@ -1,12 +1,13 @@
-import type { Frame, GameFlowDocument, GameFlowPage } from "./model";
+import type { CanvasReference, Frame, GameFlowDocument, GameFlowPage } from "./model";
 import { allocateElementId, reserveDocumentElementIds } from "./element-id";
 import { inheritedFlag, makeNode } from "./editor-ops";
 import { COMPONENTS, COMPONENT_TYPES, pageRootType } from "./ui-components";
 import { applyPrototypeTree, compareTrees, coordinatedBase, frameFields, plannedTrees, prototypeTree, type Decision, type SyncNode } from "./page-sync";
-import { type PrefabExportBatch, type PrefabMetadataReview, resourceUrl } from "./prefab-export";
+import { type PrefabExportBatch, type PrefabMetadataReview, referencedCellUuids, resourceUrl } from "./prefab-export";
 import { applyNodeProperty, applyNodeRecordProperty, applyPageProperty, applyRootRecordProperty, prefabPropertyNames, prototypeNodeProperties, prototypePageProperties, recordNodeProperties, recordPageProperties, sameSyncProperty } from "./prefab-sync-properties";
 import { variableNameError } from "./node-variable";
 import { isSliceResourcePath } from "./slice-resources";
+import { builtinPath } from "./builtin-image";
 
 type RecordNode = Record<string,unknown>;
 export type PrefabBase = NonNullable<GameFlowPage["prefabSync"]>;
@@ -43,7 +44,7 @@ function baseSignature(base:PrefabBase | undefined) {
   });
 }
 
-export function inspectPrefab(document:GameFlowDocument,page:GameFlowPage,target:string,root:RecordNode,metadata?:PrefabMetadataReview, mode:PrefabSyncMode="review") {
+export function inspectPrefab(document:GameFlowDocument,page:GameFlowPage,target:string,root:RecordNode,metadata?:PrefabMetadataReview, cellReferences: ReadonlyMap<string,CanvasReference> = new Map(), mode:PrefabSyncMode="review") {
   if (root._$id!==page.id || root._$type!==pageRootType(page)) throw new Error("目标文件的页面身份或根类型不匹配，请检查导出名称和目标文件。");
   const saved=page.prefabSync;
   const base=saved?.documentId===document.documentId && saved.pageId===page.id && saved.target===target ? {...saved,psdId:target} : undefined;
@@ -94,6 +95,11 @@ export function inspectPrefab(document:GameFlowDocument,page:GameFlowPage,target
   const resolveRef=(value:unknown)=>record(value)&&typeof value._$ref==="string"?logicalIds.get(value._$ref)??null:null;
   for(const node of tree) if(!node.root) {
     node.properties=recordNodeProperties(node.type,originals.get(node.id)!,resolveRef);
+    const cell = node.properties.cellPrefab;
+    if (cell && typeof cell === "object" && "uuid" in cell && typeof cell.uuid === "string") {
+      const reference = cellReferences.get(cell.uuid);
+      if (reference) node.properties.cellPrefab = {source:reference.source,documentId:reference.documentId,pageId:reference.pageId};
+    }
     const variable=node.properties.variableName;
     node.variable=typeof variable==="string"&&variable?variable:undefined;
   }
@@ -109,7 +115,7 @@ export function inspectPrefab(document:GameFlowDocument,page:GameFlowPage,target
     if(Array.isArray(node._$comp)) for(const component of node._$comp) extras.push({name:String(component?._$type??"组件"),value:component});
     if(extras.length) engine.set(id,extras);
   }
-  return {root,comparison,originals,nativeIds,allIds,target,page,document,engine,metadata};
+  return {root,comparison,originals,nativeIds,allIds,target,page,document,engine,metadata,cellReferences};
 }
 export type PrefabReview = ReturnType<typeof inspectPrefab>;
 
@@ -191,7 +197,13 @@ export function mergePrefab(review:PrefabReview,decisions:Record<string,Decision
       if(before.name!==n.name && !node._$var) node.name=n.name;
       if(before.text!==n.text) node.text=n.text;
       for(const f of frameFields) if(n[f]!==undefined && before[f]!==n[f]) node[f]=n[f];
-      for(const [path,value] of Object.entries(n.properties??{})) if(!sameSyncProperty(before.properties?.[path],value)) applyNodeRecordProperty(node,n.type,n.name,path,value,externalId);
+      for(const [path,value] of Object.entries(n.properties??{})) if(!sameSyncProperty(before.properties?.[path],value)) {
+        if (path === "cellPrefab") {
+          const binding = exported.get(n.id)?.cellPrefab;
+          if (binding) node.cellPrefab = binding;
+          else delete node.cellPrefab;
+        } else applyNodeRecordProperty(node,n.type,n.name,path,value,externalId);
+      }
       const generated=exported.get(n.id);
       for(const key of ["skin","normalSkin","selectedSkin","disabledSkin"]) {
         const planned=generated?.[key];
@@ -207,7 +219,8 @@ export function mergePrefab(review:PrefabReview,decisions:Record<string,Decision
         }
         if(!meta) continue;
         const url="res://"+meta.uuid;
-        if(node[key]!==url && node[key]!==planned && node[key]!==path) continue;
+        const legacyDefault=path===builtinPath("image/default") && review.metadata?.legacyDefaultSkins?.includes(String(node[key]));
+        if(node[key]!==url && node[key]!==planned && node[key]!==path && !legacyDefault) continue;
         if(meta.changed || node[key]!==url) neededUrls.add(planned);
         node[key]=url;
       }
@@ -242,6 +255,9 @@ export function mergePrefab(review:PrefabReview,decisions:Record<string,Decision
   const prefabRoot={...review.root},plannedRoot=trees.psd.find(n=>n.root),currentRoot=c.psd.find(n=>n.root);
   if(plannedRoot?.properties) for(const [path,value] of Object.entries(plannedRoot.properties)) if(!sameSyncProperty(currentRoot?.properties?.[path],value)) applyRootRecordProperty(prefabRoot,path,value);
   const prefab=rebuildChildren(prefabRoot,"",review.root);
+  walk(prefab,node=>{
+    if (node._$type === "UIList" && node.cellPrefab && children(node).length) throw new Error("请同时移除列表的静态子项。Laya UIList 会根据渲染项生成子节点。");
+  });
   const removed=new Set<string>();
   JSON.stringify(review.root,(key,value)=>{if(key==="_$id" && typeof value==="string")removed.add(value);return value;});
   JSON.stringify(prefab,(key,value)=>{
@@ -276,11 +292,23 @@ export function mergePrefab(review:PrefabReview,decisions:Record<string,Decision
   const base=coordinatedBase(review.document.documentId,page.id,review.target,c,{proto:prototypeNodes(proto),psd:trees.psd});
   const nodes=base.nodes.map(n=>({...n,layer:rawIds.get(n.id)??n.layer??n.id}));
   const prefabSync:PrefabBase={version:1,documentId:base.documentId,pageId:page.id,target:review.target,nodes};
+  const activeCells = referencedCellUuids(prefab);
+  const byUuid = new Map(batch.cells?.map(cell=>[cell.uuid,cell]));
+  for (const uuid of activeCells) {
+    const template = byUuid.get(uuid)?.prefab;
+    if (!template) continue;
+    for (const nested of referencedCellUuids(template)) activeCells.add(nested);
+    JSON.stringify(template,(key,value)=>{
+      if (["skin","normalSkin","selectedSkin","disabledSkin"].includes(key) && imageByUrl.has(value)) neededUrls.add(value);
+      return value;
+    });
+  }
+  const cells = batch.cells?.filter(cell=>activeCells.has(cell.uuid));
   const images=batch.images.filter(image=>neededUrls.has(resourceUrl(image.path))).map(image=>{
     const meta=review.metadata?.images[image.path];
     return meta ? {...image,expectedUuid:meta.uuid} : image;
   });
-  const output={...batch,prefab,images};
+  const output={...batch,prefab,images,...(cells ? {cells} : {})};
   const baseChanged=baseSignature(prefabSync)!==baseSignature(page.prefabSync);
   return {page:{...proto,prefabSync},trees,batch:output,added:[...added],baseChanged,changed:JSON.stringify(prefab)!==JSON.stringify(review.root)};
 }

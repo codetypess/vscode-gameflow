@@ -36,9 +36,16 @@ export async function loadCanvasSources(document: GameFlowDocument, read: (sourc
       catch (error) { sources[item.source] = { source: item.source, error: `无法读取源画布：${error instanceof Error ? error.message : String(error)}` }; }
     }
     if (!current) continue;
-    for (const page of current.pages) for (const node of ownedCanvasNodes(page.nodes)) if (node.prefab) {
-      const source = resolveCanvasSource(item.source, node.prefab.source);
-      if (source && !seen.has(source)) queue.push({ source });
+    for (const page of current.pages) for (const node of ownedCanvasNodes(page.nodes)) {
+      for (const ref of [node.prefab, node.cellPrefab]) {
+        if (!ref || !("source" in ref)) continue;
+        const source = resolveCanvasSource(item.source, ref.source);
+        if (source && !seen.has(source)) queue.push({ source });
+      }
+      for (const patch of node.instanceEdits?.overrides ?? []) {
+        const ref = patch.set.cellPrefab as CanvasReference | undefined;
+        if (ref && typeof ref.source === "string" && ref.source) queue.push({ source: resolveCanvasSource(item.source, ref.source) });
+      }
     }
   }
   return sources;

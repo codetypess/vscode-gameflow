@@ -1,17 +1,16 @@
 .workbench-settings-dialog { width: min(520px, calc(100vw - 32px)); max-height: calc(100dvh - 24px); overflow: hidden; }
 .workbench-settings-body { display: flex; flex-direction: column; gap: 12px; padding: 12px; overflow-y: auto; }
 .workbench-setting { display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: 5px 7px; align-items: center; min-width: 0; }
-.workbench-setting > label { font-size: 11px; color: var(--muted-foreground); }
+.workbench-setting > label { color: var(--muted-foreground); }
 .workbench-setting > small, .workbench-setting > [role=alert] { grid-column: 2; }
 .workbench-file-setting > strong { grid-column: 1; }
-.workbench-setting input { height: 27px; border-radius: 2px; font-size: 12px; background: var(--vscode-input-background, #313131); }
+.workbench-setting input { height: 27px; border-radius: 2px; background: var(--vscode-input-background, #313131); }
 .workbench-file-setting { padding-top: 12px; border-top: 1px solid var(--border); }
-.workbench-file-setting > strong { font-size: 12px; }
 .workbench-export-destination { overflow-wrap: anywhere; }
 .workbench-directory { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.workbench-directory input { flex: 1; min-width: 0; font-size: 11px; text-overflow: ellipsis; }
+.workbench-directory input { flex: 1; min-width: 0; text-overflow: ellipsis; }
 .workbench-directory button { flex-shrink: 0; height: 27px; gap: 6px; }
-.workbench-setting small, .workbench-settings-note { margin: 0; font-size: 11px; line-height: 1.6; color: var(--muted-foreground); }
+.workbench-setting small, .workbench-settings-note { margin: 0; line-height: 1.6; color: var(--muted-foreground); }
 .workbench-document-actions, .workbench-export-actions, .workbench-right { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
 .workbench-right { margin-left: auto; gap: 6px; }
 .topbar .workbench-icon { width: 28px; height: 28px; padding: 0; }

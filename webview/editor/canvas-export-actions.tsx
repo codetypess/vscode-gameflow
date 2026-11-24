@@ -4,7 +4,9 @@ import {createPortal} from "react-dom";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import {ArrowRight, ChevronRight, GitMerge, MoreHorizontal, Pin, RefreshCw} from "lucide-react";
 import type {GameFlowDocument,GameFlowPage} from "../../shared/model";
-import {planPrefabExport,nodeSlots,prefabFileName,type PrefabExportBatch,type PrefabPlan,type PrefabTarget} from "../../shared/prefab-export";
+import type {CanvasSources} from "../../shared/canvas-references";
+import {planListPrefabExport} from "../../shared/list-prefab-export";
+import {nodeSlots,prefabFileName,type PrefabExportBatch,type PrefabPlan,type PrefabTarget} from "../../shared/prefab-export";
 import {initialPrefabBase,inspectPrefab,prefabTarget,type PrefabReview,type PrefabSyncMode} from "../../shared/prefab-sync";
 import {PrefabSyncDialog,prefabSyncLabels,type PrefabMerge} from "./prefab-sync-dialog";
 import type {Resources} from "../runtime/resource-context";
@@ -15,7 +17,7 @@ import {Button} from "../components/ui/button";
 import {Tooltip,TooltipContent,TooltipTrigger} from "../components/ui/tooltip";
 
 interface ExportProps {
-  document:GameFlowDocument;page:GameFlowPage|null;sourcePage?:GameFlowPage;resources:Resources;settings:WorkbenchSettingsUI;disabled:boolean;mappingError:boolean;
+  sources:CanvasSources;document:GameFlowDocument;page:GameFlowPage|null;sourcePage?:GameFlowPage;resources:Resources;settings:WorkbenchSettingsUI;disabled:boolean;mappingError:boolean;
   prepare:(expected:GameFlowDocument,source:GameFlowPage,next:GameFlowPage)=>GameFlowDocument;
   applyBrowser:(expected:GameFlowDocument,next:GameFlowDocument)=>void;
   onNotice:(message:string)=>void;
@@ -29,7 +31,7 @@ interface PrefabOperation {
   mode:PrefabSyncMode;source:GameFlowPage;doc:GameFlowDocument;snapshot:Snapshot;art?:ArtSource;
 }
 interface ReviewSession extends PrefabOperation {
-  plan:PrefabPlan;comparison:PrefabReview;
+  cells:Map<string,GameFlowPage>;plan:PrefabPlan;comparison:PrefabReview;
 }
 function prototypeExportPage(page:GameFlowPage):GameFlowPage {
   return {...page,nodes:page.nodes.map(node=>{
@@ -60,7 +62,7 @@ function useSyncPin(action:"psd"|"prefab") {
   }
   return {pinned,setPin};
 }
-export function CanvasExportActions({document,page,sourcePage,resources,settings,onNotice,disabled,mappingError,prepare,applyBrowser,onPsdSync,onPushPsd,children}:ExportProps){
+export function CanvasExportActions({document,sources,page,sourcePage,resources,settings,onNotice,disabled,mappingError,prepare,applyBrowser,onPsdSync,onPushPsd,children}:ExportProps){
   const [busy,setBusy]=useState(false),[session,setSession]=useState<ReviewSession|null>(null);
   const [missing,setMissing]=useState<{plan:PrefabPlan;finish:()=>Promise<void>}|null>(null);
   const [targetChoice,setTargetChoice]=useState<PrefabSyncMode|null>(null);
@@ -83,7 +85,9 @@ export function CanvasExportActions({document,page,sourcePage,resources,settings
     try {
       const art=mode==="art"?await readPsdPrefabSource(document,sourcePage):undefined;
       const exportPage=art?.page ?? (mode==="pull"?{...sourcePage,nodes:[]}:mode==="push"?prototypeExportPage(sourcePage):page);
-      const plan=await planPrefabExport(document,exportPage,art?.resolve??exportImageResolver(resources.forPage?.(exportPage)??resources));
+      const cellPlan=await planListPrefabExport(document,exportPage,sources,
+        item=>art && item===art.page?art.resolve:exportImageResolver(resources.forPage?.(item)??resources),file=>inspectPrefabTarget(file,[]),chosen);
+      const {plan}=cellPlan;
       const images=await Promise.all(plan.batch.images.map(async({path,description,base64})=>({
         path,nineGrid:description.nineGrid,sha256:art?await browserHash(Uint8Array.from(atob(base64),c=>c.charCodeAt(0))):undefined
       })));
@@ -92,8 +96,9 @@ export function CanvasExportActions({document,page,sourcePage,resources,settings
       const path=prefabTarget(chosen);
       const operation={mode,doc:document,source:sourcePage,snapshot,art};
       if(snapshot.prefab) {
-        const comparison=inspectPrefab(document,art?.page??sourcePage,path,snapshot.prefab,snapshot.metadata,mode);
-        setSession({...operation,plan,comparison});
+        await cellPlan.locateDiskBindings(snapshot.prefab);
+        const comparison=inspectPrefab(document,art?.page??sourcePage,path,snapshot.prefab,snapshot.metadata,cellPlan.refs,mode);
+        setSession({...operation,cells:cellPlan.previews,plan,comparison});
       } else {
         if(mode==="pull") throw new Error("找不到来源预制体："+path);
         const next=art ? sourcePage : {...sourcePage,prefabSync:initialPrefabBase(document,sourcePage,path)};
@@ -114,7 +119,12 @@ export function CanvasExportActions({document,page,sourcePage,resources,settings
     if(!session)return;
     const updated=session.art?session.source:merge.page;
     const commit=()=>finish(session,updated,merge.batch,session.mode!=="pull" && merge.changed,merge.added);
-    const missing=session.plan.missing.filter(i=>session.mode==="art" || session.mode==="push" || merge.added.includes(i.nodeId));
+    const templateNodes = new Set<string>();
+    for (const cell of merge.batch.cells ?? []) if (cell.prefab) JSON.stringify(cell.prefab,(key,value)=>{
+      if(key === "_$id" && typeof value === "string") templateNodes.add(value);
+      return value;
+    });
+    const missing=session.plan.missing.filter(i=>session.mode==="art" || session.mode==="push" || merge.added.includes(i.nodeId) || templateNodes.has(i.nodeId));
     if(missing.length)setMissing({plan:{...session.plan,missing},finish:commit});else await commit();
   }
   const unavailable=disabled || busy;
@@ -154,7 +164,7 @@ export function CanvasExportActions({document,page,sourcePage,resources,settings
       </DropdownMenu.Content></DropdownMenu.Portal>
     </DropdownMenu.Root>
     {createPortal(<>
-    {session && <PrefabSyncDialog mode={session.mode} asset={session.art?.asset} review={session.comparison} plan={session.plan} skins={session.snapshot.skins} resourceRoot={settings.settings.resourceDirectory} close={()=>setSession(null)} commit={applyMerge} reload={async()=>{setSession(null);await load(session.plan.batch,session.mode,true);}}/>}
+    {session && <PrefabSyncDialog mode={session.mode} asset={session.art?.asset} cells={session.cells} review={session.comparison} plan={session.plan} skins={session.snapshot.skins} resourceRoot={settings.settings.resourceDirectory} close={()=>setSession(null)} commit={applyMerge} reload={async()=>{setSession(null);await load(session.plan.batch,session.mode,true);}}/>}
     {recreate && <MissingTarget path={recreate.path} source={recreate.source} cancel={()=>setRecreate(null)} generate={()=>{setRecreate(null);setBusy(true);void recreate.run().catch(e=>onNotice(String(e))).finally(()=>setBusy(false));}}/>}
     {missing && <MissingResourcesDialog plan={missing.plan} onCancel={()=>setMissing(null)} onContinue={()=>{const action=missing.finish;setMissing(null);setBusy(true);void action().catch(e=>onNotice(String(e))).finally(()=>setBusy(false));}}/>}
     {targetChoice && saved && <TargetChoice previous={saved} current={prefabTarget(target)} select={p=>{if(!p){setTargetChoice(null);return;}const parts=p.split("/"),name=parts.pop()!;void load({name,directory:parts.join("/")||undefined},targetChoice);}}/>}

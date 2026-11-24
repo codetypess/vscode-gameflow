@@ -106,10 +106,16 @@
       "sha256": "e57a892e7ad60083416d6351a21bde0fa126a5c2433cc3bee6da5c2535c370a4"
     },
     {
-      "path": "builtin/image/default_750x1334.png",
-      "width": 750,
-      "height": 1334,
-      "nineGrid": null,
+      "path": "builtin/image/default.png",
+      "width": 64,
+      "height": 64,
+      "nineGrid": {
+        "top": 34,
+        "right": 0,
+        "bottom": 0,
+        "left": 38,
+        "repeat": false
+      },
       "source": {
         "documentId": "gameflow-builtin",
         "psdName": "builtin.psd",
@@ -118,9 +124,9 @@
       "layerId": "image/default",
       "layerName": "默认图片",
       "shared": true,
-      "name": "default_750x1334",
-      "file": "builtin/image/default_750x1334.png",
-      "sha256": "e095903228dc0ecfde27340585edbaa29828d17bf0779282a812a0a5d8ef6c3b"
+      "name": "default",
+      "file": "builtin/image/default.png",
+      "sha256": "1a4672011bdd9e5773f0d73f2893ae8292f5d026ffaedb1b506d1d35dedaa2ad"
     }
   ]
 }

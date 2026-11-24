@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { nodeArtRefs, IMAGE_SLOT_FIELDS, builtinPath, builtinImage, nodeImageSlot, imageSlotRequest, type ResourceMode } from "../../shared/image-slots";
-import { resolvePageLayout } from "../../shared/ui-layout";
-import { DEFAULT_IMAGE_ID, imageRenderSize } from "../../shared/image-rendering";
 import type { GameFlowPage } from "../../shared/model";
+import { legacyDefaultPath } from "../../shared/builtin-image";
 import { exportLayerName, psdLayerPath } from "../../shared/psd-export";
 import { builtinSlice, builtinSliceDescription } from "../../shared/psd-builtin";
 import type { PsdAsset } from "../../shared/psd-meta";
@@ -54,13 +53,9 @@ export function useRuntimeResources(observedAssets: PsdAsset[], pages: GameFlowP
   const [disk, setDisk] = useState<{ stamp: string; root?: string; entries: Map<string, RuntimeResource>; owners: Map<string, { exists: boolean; documentId?: string }> }>({ stamp: "", entries: new Map(), owners: new Map() });
   const paths = useMemo(() => {
     return [...new Set([...Array.from(memory.values(), entry => entry.description!.path), ...pages.flatMap(page => {
-      const sizes = new Map<string, {width:number;height:number}>(), asset = pageAssets[page.id], owner = asset ? assets.indexOf(asset) : -1;
-      if (disk.root === root) for (const [path, entry] of disk.entries) if (entry.status === "ready") sizes.set(path, entry.description.logicalSize ?? entry.description);
-      if (mode !== "prefab") for (const [key, entry] of memory) if (key.startsWith(owner + ":") && entry.status === "ready" && asset?.documentId === page.artPsd?.documentId) sizes.set(entry.description.path, entry.description.logicalSize ?? entry.description);
-      const layout = resolvePageLayout(page, sizes);
-      return page.nodes.flatMap(node => [...nodeArtRefs(node).map(ref => ref.path), ...IMAGE_SLOT_FIELDS.flatMap(field => node[field]?.builtin ? [builtinPath(node[field]!.builtin!, imageRenderSize(page, node, layout))] : [])]);
+      return page.nodes.flatMap(node => [...nodeArtRefs(node).map(ref => ref.path), ...IMAGE_SLOT_FIELDS.flatMap(field => node[field]?.builtin ? [builtinPath(node[field]!.builtin!)] : [])]);
     })])].sort();
-  }, [memory, pages, pageAssets, assets, disk.entries, disk.root, root, mode]);
+  }, [memory, pages]);
   const pathsKey = JSON.stringify(paths), diskStamp = JSON.stringify([pathsKey, root, revision]);
   useEffect(() => {
     const controller = new AbortController();
@@ -110,11 +105,11 @@ export function useRuntimeResources(observedAssets: PsdAsset[], pages: GameFlowP
         if (request.kind === "builtin") sizes.set("@node:" + node.id, request.image);
         if (request.kind === "resource") { const resource = resolve(request.ref); if (resource.status === "ready") sizes.set("@node:" + node.id, resource.description.logicalSize ?? resource.description); }
       }
-      if (page.nodes.some(node => IMAGE_SLOT_FIELDS.some(field => node[field]?.builtin === DEFAULT_IMAGE_ID))) {
-        const layout = resolvePageLayout(page, sizes);
-        for (const node of page.nodes) sizes.set("@builtin:" + node.id, imageRenderSize(page, node, layout));
-      }
-      const resolveForExport = (ref: SliceResourceRef) => scoped.has(ref.path) || ref.source && sources.has(sourceKey(ref.source)) ? resolveSliceResource(ref, scoped, sources) : resolveSliceResource(ref, diskEntries);
+      const resolveForExport = (ref: SliceResourceRef) => {
+        if (ref.source && legacyDefaultPath(ref.path) && sources.get(sourceKey(ref.source)) === builtinPath("image/default"))
+          return resolveSliceResource({ ...ref, path: builtinPath("image/default") }, scoped, sources);
+        return scoped.has(ref.path) || ref.source && sources.has(sourceKey(ref.source)) ? resolveSliceResource(ref, scoped, sources) : resolveSliceResource(ref, diskEntries);
+      };
       return { mode, entries, memoryEntries: scoped, diskEntries, sizes, resolve, resolveForExport, refresh: () => setRevision(n => n + 1) };
     };
     const scoped = pages.map(forPage), base = scoped[0];

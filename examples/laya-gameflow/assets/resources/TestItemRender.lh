@@ -1,0 +1,22 @@
+{
+  "_$ver": 1,
+  "_$id": "06thyb7t",
+  "_$type": "UIBox",
+  "name": "UIBox",
+  "scriptPath": "../src/core/ui/ui-box.ts",
+  "width": 400,
+  "height": 50,
+  "_$child": [
+    {
+      "_$id": "ik7jy9vg",
+      "_$type": "UILabel",
+      "name": "UILabel",
+      "scriptPath": "../src/core/ui/ui-label.ts",
+      "x": 74,
+      "y": 16,
+      "width": 100,
+      "height": 28,
+      "text": "测试文本"
+    }
+  ]
+}

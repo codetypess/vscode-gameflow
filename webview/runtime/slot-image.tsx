@@ -11,13 +11,13 @@ function loadBuiltin(image: BuiltinImage) {
   }));
   return cache.get(image.id)!;
 }
-export function SlotImage({ slot, width, height, label, fit = "fill", progress, sourceSize }: { slot: ImageSlot | null | undefined; width: number; height: number; label: string; fit?: "fill" | "contain" | "cover"; sourceSize?: { width: number; height: number }; progress?: { ratio: number; mode: "horizontal" | "circular"; fullWidth: number } }) {
-  const resources = useSliceResources(), request = imageSlotRequest(slot, resources.mode ?? "art", sourceSize ?? { width: progress?.fullWidth ?? width, height });
+export function SlotImage({ slot, width, height, label, fit = "fill", progress }: { slot: ImageSlot | null | undefined; width: number; height: number; label: string; fit?: "fill" | "contain" | "cover"; progress?: { ratio: number; mode: "horizontal" | "circular"; fullWidth: number } }) {
+  const resources = useSliceResources(), request = imageSlotRequest(slot, resources.mode ?? "art");
   const id = request.kind === "builtin" ? request.image.id : undefined;
   const [loaded, setLoaded] = useState<{ id: string; resource: RuntimeResource }>();
   useEffect(() => { let cancelled = false; if (request.kind === "builtin") void loadBuiltin(request.image).then(resource => { if (!cancelled) setLoaded({ id: request.image.id, resource }); }); return () => { cancelled = true; }; }, [id]);
   if (request.kind === "empty") return null;
   const resource: RuntimeResource = request.kind === "error" ? { status: "error", error: request.error } : request.kind === "resource" ? resources.resolve(request.ref) : loaded && loaded.id === id ? loaded.resource : { status: "loading" };
-  return resource.status === "ready" ? <ResourceCanvas resource={resource} width={width} height={height} label={label} fit={fit} progress={progress} builtin={request.kind === "builtin" ? request.image : undefined} />
+  return resource.status === "ready" ? <ResourceCanvas resource={resource} width={width} height={height} label={label} fit={fit} progress={progress} />
     : <span className="slice-resource-placeholder" role="status" data-resource-status={resource.status} title={resource.status === "error" ? resource.error : "正在装载图片"}>{resource.status === "error" ? "图片异常\n" + resource.error : "装载中…"}</span>;
 }

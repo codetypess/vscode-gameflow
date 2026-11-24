@@ -1,5 +1,13 @@
 import { isSliceExportBatch, MAX_EXPORT_BYTES, parseResourceManifest, planSliceExport, RESOURCE_MANIFEST, sliceExportPath, type ResourceManifest, type SliceExportBatch } from "./psd-export";
 import { mergeLayaMeta } from "./laya-meta";
+import { BUILTIN_SOURCE } from "./builtin-image";
+
+const previousDefaultPngHashes = new Set([
+  "4a692bee813449c981ba1d300d7d9117e998aad6083a39a84b36640cf72ceb06",
+  "7768b3695949981544ad444419d81314a62cfbb4bb5051c0ce21aedf8259a4c5",
+  "40c8f35dd6beb8b783507b9eccd4cd74aeba23e7e9694d6e44198352f5cedd2d",
+  "aca6de9608bd1d1ed01c04c4e7815ebe453adbfbe118584212cf7196de329410"
+]);
 
 export interface ResourceDirectory {
   list(folder?: string): Promise<string[]>;
@@ -59,7 +67,15 @@ export async function exportSlicesToDirectory(directory: ResourceDirectory, batc
     const meta = mergeLayaMeta(file, oldMeta, item.nineGrid);
     if (meta.bytes) outputs.set(metaPath, meta.bytes);
     if (item.builtin && previous) {
-      if (await codec.hash(previous) !== hash) throw new Error(file + " 已有不同内容，无法复用内置资源。");
+      const previousHash = await codec.hash(previous);
+      if (previousHash !== hash) {
+        const entry = manifest.resources.find(record => record.file === file);
+        const oldDefault = item.builtin.id === "image/default" && entry?.layerId === item.builtin.id &&
+          entry.source.documentId === BUILTIN_SOURCE.documentId && entry.sha256 === previousHash &&
+          previousDefaultPngHashes.has(previousHash);
+        if (!oldDefault) throw new Error(file + " 已有不同内容，无法复用内置资源。");
+        outputs.set(file, bytes);
+      }
     } else outputs.set(file, bytes);
   }
   const next = planSliceExport(batch, manifest, files, generatedHashes);

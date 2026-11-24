@@ -28,13 +28,13 @@ export function nodeArtRefs(node: GameFlowNode): SliceResourceRef[] {
   return [...(node.sliceResource ? [node.sliceResource] : []), ...IMAGE_SLOT_FIELDS.flatMap(field => node[field]?.art ? [node[field]!.art!] : [])];
 }
 export type SlotRequest = { kind: "empty" } | { kind: "builtin"; image: BuiltinImage } | { kind: "resource"; ref: SliceResourceRef } | { kind: "error"; error: string };
-export function imageSlotRequest(slot: ImageSlot | null | undefined, mode: ResourceMode, size?: { width: number; height: number }): SlotRequest {
+export function imageSlotRequest(slot: ImageSlot | null | undefined, mode: ResourceMode): SlotRequest {
   if (!slot) return { kind: "empty" };
   if (mode !== "prototype" && slot.art) return { kind: "resource", ref: slot.art };
   if (!slot.builtin) return { kind: "empty" };
   const image = builtinImage(slot.builtin);
   if (!image) return { kind: "error", error: "内置图片不存在：" + slot.builtin };
-  return mode === "prefab" ? { kind: "resource", ref: { path: builtinPath(image.id, size) } } : { kind: "builtin", image };
+  return mode === "prefab" ? { kind: "resource", ref: { path: builtinPath(image.id) } } : { kind: "builtin", image };
 }
 export const progressRatio = (node: GameFlowNode) => {
   const min = node.widget?.min ?? 0, max = node.widget?.max ?? 1;

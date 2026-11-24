@@ -2,8 +2,6 @@ import { sliceRegion, type NineGrid, type PsdAsset, type SliceRegion } from "../
 import { effectiveExportName, exportLayerName, makeSliceExportBatch, MAX_EXPORT_BYTES, psdLayerPath, sliceExportIssues, type SliceProductGeometry } from "../../shared/psd-export";
 import { builtinSlice, builtinSliceDescription } from "../../shared/psd-builtin";
 import { builtinImage } from "../../shared/builtin-image";
-import { DEFAULT_IMAGE_ID } from "../../shared/image-rendering";
-import { paintBuiltin } from "../runtime/paint-builtin";
 import { compactNineGrid } from "../../shared/nine-grid";
 import type { SliceResourceDescription, SliceResourceState } from "../../shared/slice-resources";
 
@@ -31,11 +29,8 @@ export function generateSliceProducts(asset: PsdAsset): Promise<Map<number, Slic
           const image = builtinImage(builtin.id)!;
           const source = await loadSliceImage(image.dataUri);
           const pixels = document.createElement("canvas");
-          if (image.id === DEFAULT_IMAGE_ID) paintBuiltin(pixels, source, image, builtin.width, builtin.height);
-          else {
-            pixels.width = image.width; pixels.height = image.height;
-            pixels.getContext("2d")!.drawImage(source, 0, 0);
-          }
+          pixels.width = image.width; pixels.height = image.height;
+          pixels.getContext("2d")!.drawImage(source, 0, 0);
           entries.set(layer.key, { status: "ready", description: builtinSliceDescription(builtin), pixels });
           continue;
         }
@@ -91,7 +86,7 @@ export async function renderSliceExportBatch(asset: PsdAsset) {
     if (seen.has(product.description.path)) continue;
     seen.add(product.description.path);
     const builtin = builtinSlice(asset.layers.find(layer => layer.key === key)!);
-    const image = builtin && builtin.id !== DEFAULT_IMAGE_ID ? builtinImage(builtin.id)!.dataUri : product.pixels.toDataURL("image/png");
+    const image = builtin ? builtinImage(builtin.id)!.dataUri : product.pixels.toDataURL("image/png");
     bytes += image.length * .75;
     if (bytes > MAX_EXPORT_BYTES) throw new Error("切图总数据超过 48 MB，请分批导出。");
     images.set(key, { image, geometry: product.description });

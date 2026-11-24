@@ -153,6 +153,8 @@
                     "layout.align",
                     "layout.valign",
                     "layout.direction",
+                    "cellPrefab",
+                    "layout.scrollType",
                     "widget.skinNodeId",
                     "widget.optionNodeIds",
                     "widget.selected",
@@ -354,6 +356,8 @@
         "layout.align": {"enum": ["left","center","right","justify"]},
         "layout.valign": {"enum": ["top","middle","bottom","justify"]},
         "layout.direction": {"enum": ["horizontal","vertical"]},
+        "cellPrefab": { "$ref":"#/$defs/node/properties/cellPrefab" },
+        "layout.scrollType": { "enum":[0,1,2] },
         "widget.skinNodeId": {
           "anyOf": [
             {"type": "null"},
@@ -490,6 +494,7 @@
     "node": {
       "allOf": [
         { "if": { "required": ["sliceResource"] }, "then": { "properties": { "type": { "const": "image" } } } },
+        { "if": { "properties": { "type": { "not": { "const":"list" } } } }, "then": { "properties": { "cellPrefab":false,"layout":{"properties":{"scrollType":false}} } } },
         { "if": { "not": { "required": ["prefab"] } }, "then": { "properties": { "instanceEdits": false } } },
         { "if": { "required": ["prefab"] }, "then": { "properties": { "type": { "const": "container" }, "text": false, "imageData": false, "sliceResource": false, "widget": false, "style": { "propertyNames": { "const": "opacity" } }, "layout": { "propertyNames": { "enum": ["left","right","centerX","top","bottom","centerY","layoutUnit","widthMode","heightMode","crossAxisMode","positionOffsetX","positionOffsetY"] }, "properties": { "widthMode": { "const": "explicit" }, "heightMode": { "const": "explicit" } } }, "image": false, "normalSkin": false, "selectedSkin": false, "disabledSkin": false } } },
         { "if": { "properties": { "type": { "not": { "enum": ["checkbox","radio","slider", "progress"] } } } }, "then": { "properties": { "widget": { "not": { "required": ["skinNodeId"] } } } } },
@@ -591,6 +596,7 @@
         "type": { "enum": ["container","rectangle","text","button","image","list","input","hbox","vbox","grid","panel","checkbox","radio","radioGroup","progress","slider","combo"] },
         "parentId": { "type": "string", "minLength": 1 },
         "instanceEdits": { "$ref": "#/$defs/instanceEdits" },
+        "cellPrefab": { "oneOf": [{"$ref":"#/$defs/node/properties/prefab"},{"type":"object","additionalProperties":false,"required":["uuid"],"properties":{"uuid":{"type":"string","pattern":"^[a-fA-F0-9]{8}(?:-[a-fA-F0-9]{4}){3}-[a-fA-F0-9]{12}$"}}}] },
         "prefab": {
           "type": "object", "additionalProperties": false, "required": ["source","documentId","pageId"],
           "properties": {
@@ -682,6 +688,7 @@
         "gap": { "type": "number" },
         "gapX": { "type": "number" },
         "gapY": { "type": "number" },
+        "scrollType": { "enum": [0,1,2] },
         "wrapCount": { "type": "integer", "minimum": 1 },
         "clipContent": { "type": "boolean" },
         "layoutUnit": { "enum": ["absolute","percent"] },

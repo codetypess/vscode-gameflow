@@ -36,6 +36,10 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 
 - [画布同步菜单](canvas-sync-menu.md) — 「更多」中的 PSD、预制体双向审阅和四个单向操作。
 
+- [list-cell-prefab.md](list-cell-prefab.md) — UIList 同文件与跨文件列表项模板、视口铺排及 Laya Prefab 同步。
+
+- [webview-typography.md](webview-typography.md) — Done。工作台和 PSD 编辑器使用 VS Code Webview 的字体、字号与基础字重，浏览器预览默认 13 px。生产构建、379 项共享测试和 Chrome 界面回归通过。
+
 - [canvas-prefab-action.md](canvas-prefab-action.md) — Done：移除独立运行预览，当时采用“更多”左侧的状态图标，现行入口见 [画布同步菜单](canvas-sync-menu.md)；376 项共享测试、生产构建及三组 Edge 回归通过。
 
 - [workbench-dialog-layout.md](workbench-dialog-layout.md) — 工作台弹窗统一采用页面属性的布局与主题。
@@ -186,7 +190,7 @@ Remove completed work items from this list after their lasting decisions have be
 
 [页面 PSD 的 Windows 相对路径修复](page-psd-windows-path-regression.md) — Done：同盘盘符和目录大小写不再误判为跨盘；共享宿主控制器回归与真实 VS Code 另存为验证通过。
 
-- [default-image-rendering.md](default-image-rendering.md) — Done：默认图片灰白背景加居中等比图标，PSD 与尺寸对应的 Prefab PNG 一致；覆盖磁盘读取、内容测量布局及临时预览缩放。364 项共享测试、生产构建及浏览器像素回归通过。
+- [默认图片九宫格资源](default-image-nine-grid.md) 已完成。原型、PSD 切图和预制体共用一张 64×64 PNG，原版山景图标固定在左上角，纯色背景随控件拉伸。此规格取代[默认图片分离渲染](default-image-rendering.md)。
 
 - [resource-mode-selection.md](resource-mode-selection.md) — Done：画布切换三种资源模式清空节点选择，保留页面、相机及层级位置；独立运行预览的历史规则已被 canvas-prefab-action 取代。
 

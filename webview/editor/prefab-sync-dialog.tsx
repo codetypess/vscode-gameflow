@@ -1,3 +1,6 @@
+import { ListCells } from "./list-cell-context";
+import { cellKey } from "../../shared/list-cell";
+import type { GameFlowPage } from "../../shared/model";
 import { SyncTree } from "./sync-tree";
 import { Button } from "../components/ui/button";
 import { DialogHeading } from "../components/dialog-heading";
@@ -18,7 +21,7 @@ const noAssets:PsdAsset[]=[], noPageAssets:Record<string,PsdAsset>={};
 
 export type PrefabMerge = ReturnType<typeof mergePrefab>;
 export const prefabSyncLabels:Record<PrefabSyncMode,string>={review:"预制体同步",push:"从原型到预制体",pull:"从预制体到原型",art:"从 PSD 到预制体"};
-export function PrefabSyncDialog({review,plan,mode,asset,skins,resourceRoot,close,commit,reload}:{review:PrefabReview;plan:PrefabPlan;mode:PrefabSyncMode;asset?:PsdAsset;skins?:Record<string,string>;resourceRoot?:string;close:()=>void;commit:(merge:PrefabMerge)=>Promise<void>;reload:()=>Promise<void>}) {
+export function PrefabSyncDialog({review,cells,plan,mode,asset,skins,resourceRoot,close,commit,reload}:{review:PrefabReview;cells:Map<string,GameFlowPage>;plan:PrefabPlan;mode:PrefabSyncMode;asset?:PsdAsset;skins?:Record<string,string>;resourceRoot?:string;close:()=>void;commit:(merge:PrefabMerge)=>Promise<void>;reload:()=>Promise<void>}) {
   const c=review.comparison,ref=useRef<HTMLDialogElement>(null);
   const {size,resizeEdgeProps}=useSyncDialogSize({storageKey:"gameflow.prefabSync.size.v2",defaultWidth:1280,defaultHeight:760,minWidth:360,minHeight:300});
   const union=useMemo(()=>new Map([...c.base?.nodes??[],...c.psd,...c.proto].map(n=>[n.id,n])),[c]);
@@ -49,7 +52,7 @@ export function PrefabSyncDialog({review,plan,mode,asset,skins,resourceRoot,clos
     }
     return prefabPreviewPage(review,trees.psd,result && m?m.batch.prefab:review.root,paths);
   },[review,trees.psd,result,m,skins]);
-  const pages=useMemo(()=>[preview],[preview]);
+  const pages=useMemo(()=>[preview,...new Set(cells.values())],[preview,cells]);
   const resources=useRuntimeResources(noAssets,pages,resourceRoot,"prefab",noPageAssets);
   const [plannedPixels,setPlannedPixels]=useState(new Map<string,RuntimeResource>());
   useEffect(()=>{
@@ -79,7 +82,8 @@ export function PrefabSyncDialog({review,plan,mode,asset,skins,resourceRoot,clos
     typeof s==="string" && !!s && !skins?.[s] && !isSliceResourcePath(s));
   const pending=c.changes.filter(ch=>!choices[ch.key]).length, applied=c.changes.filter(ch=>choices[ch.key] && choices[ch.key]!=="skip");
   const skipped=c.changes.length-pending-applied.length;
-  const hasAssets=mode!=="pull" && (review.metadata?.prefabMetaChanged || !!m?.batch.images.length);
+  const cellChanges = m?.batch.cells?.filter(cell=>cell.prefab || cell.metaChanged).map(cell=>[cell.directory,cell.name].filter(Boolean).join("/")) ?? [];
+  const hasAssets=mode!=="pull" && (review.metadata?.prefabMetaChanged || !!m?.batch.images.length || !!cellChanges.length);
   const toggle=(key:string)=>setExpanded(prev=>{const next=new Set(prev);if(next.has(key))next.delete(key);else next.add(key);return next;});
   async function run(action:()=>Promise<void>) {
     setBusy(true);setError("");
@@ -93,13 +97,20 @@ export function PrefabSyncDialog({review,plan,mode,asset,skins,resourceRoot,clos
       selected={id} selectedComponent={extra} components={review.engine} expanded={expanded} onToggle={toggle} onSelect={selectNode} />
       <section className="sync-main"><div className="sync-bar"><strong>{node?.name??review.page.name}</strong><div><button aria-pressed={!result} onClick={()=>{setResult(false);setDetails(false);}}>当前</button><button aria-pressed={result} onClick={()=>setResult(true)}>同步后</button></div></div>
         <div className="sync-boards"><figure><figcaption>{asset?"美术 PSD":"原型 · 内置资源"}</figcaption><SyncPreview asset={asset} page={result && m?m.page:review.page} canvasSize={review.page.frame} selected={extra===null?id:""} nodes={trees.proto} changes={c.changes} old={c.base?.nodes??[]} onSelect={selectNode}/></figure>
-          <figure><figcaption>预制体 · 静态 UI</figcaption><SliceResourcesProvider value={previewResources}><SyncPreview page={preview} canvasSize={review.page.frame} resourceMode="prefab" selected={id} nodes={trees.psd} changes={c.changes} old={c.base?.nodes??[]} onSelect={selectNode}/></SliceResourcesProvider></figure></div></section>
+          <figure><figcaption>预制体 · 静态 UI</figcaption><ListCells.Provider value={{resolve(ref) {
+            const key = cellKey(ref);
+            const uuid = "uuid" in ref ? ref.uuid : [...review.cellReferences].find(([,binding])=>cellKey(binding)===key)?.[0];
+            if (!result && plan.batch.cells?.some(cell=>cell.uuid===uuid && cell.hash===null)) throw new Error("磁盘上的列表项模板尚未生成。");
+            const template = cells.get(key);
+            if (!template) throw new Error("找不到磁盘列表项模板 " + ("uuid" in ref ? ref.uuid : ref.pageId));
+            return template;
+          }}}><SliceResourcesProvider value={previewResources}><SyncPreview page={preview} canvasSize={review.page.frame} resourceMode="prefab" selected={id} nodes={trees.psd} changes={c.changes} old={c.base?.nodes??[]} onSelect={selectNode}/></SliceResourcesProvider></ListCells.Provider></figure></div></section>
       <aside className="sync-detail" aria-label="同步属性详情">
         {unknownSkins.length>0 && <p>未定位到预览贴图　{[...new Set(unknownSkins)].join("、")}</p>}
         {extra!==null && <fieldset><legend>仅预制体 · {review.engine.get(id)?.[extra]?.name}</legend><pre>{JSON.stringify(review.engine.get(id)?.[extra]?.value,null,2)}</pre></fieldset>}
         {!c.base && !fixedSide && <p>首次对照。请确认单侧控件的对应关系和处理方向。</p>}
         {!c.changes.length && <p>可同步的控件与属性已一致。</p>}
-        {hasAssets && <p>待同步资源文件　{[...(review.metadata?.prefabMetaChanged?[review.target+".meta"]:[]),...m?.batch.images.map(i=>i.path)??[]].join("、")}</p>}
+        {hasAssets && <p>待同步资源文件　{[...(review.metadata?.prefabMetaChanged?[review.target+".meta"]:[]),...cellChanges,...m?.batch.images.map(i=>i.path)??[]].join("、")}</p>}
         {extra===null && selected.map(ch=>fixedSide ? <fieldset key={ch.key}><legend>{changeTitle(ch)}</legend>
           <dl className="sync-values"><dt>{asset?"PSD":"原型"}</dt><dd>{changeValue(c.proto,ch)}</dd><dt>预制体</dt><dd>{changeValue(c.psd,ch)}</dd></dl>
           <p>{describeDecision(review,ch,fixedSide)}</p></fieldset> : <PrefabSyncChange key={ch.key} review={review} change={ch} decision={choices[ch.key]} disabled={busy}

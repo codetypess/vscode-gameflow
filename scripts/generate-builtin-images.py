@@ -17,8 +17,8 @@ def line(d,points,fill='#596777',width=3):
  points=[(x*S,y*S) for x,y in points]; d.line(points,fill=fill,width=width*S,joint='curve')
  for x,y in [points[0],points[-1]]:d.ellipse((x-width*S/2,y-width*S/2,x+width*S/2,y+width*S/2),fill=fill)
 def ellipse(d,xy,fill=None,outline=None,width=3): d.ellipse(tuple(v*S for v in xy),fill=fill,outline=outline,width=width*S)
-def save(id,name,category,im,grid=None):
- im=im.resize((im.width//S,im.height//S),Image.Resampling.LANCZOS)
+def save(id,name,category,im,grid=None,scale=S):
+ if scale!=1: im=im.resize((im.width//scale,im.height//scale),Image.Resampling.LANCZOS)
  file=OUT/(id+'.png');file.parent.mkdir(parents=True,exist_ok=True);im.save(file)
  entries.append(dict(id=id,name=name,category=category,width=im.width,height=im.height,nineGrid=grid,dataUri='data:image/png;base64,'+base64.b64encode(file.read_bytes()).decode()))
 def grid(n):return dict(top=n,right=n,bottom=n,left=n,repeat=False)
@@ -28,7 +28,12 @@ for color,(fill,stroke) in colors.items():
   im,d=canvas(32,32);box(d,(1,1,30,30),fill,stroke if border else None,2,4 if border else 0);save('block/'+('outline-' if border else 'fill-')+color,labels[color]+('描边色块' if border else '色块'),'色块',im,grid(6))
  for border in [False,True]:
   im,d=canvas();ellipse(d,(3,3,60,60),fill,stroke if border else None,3);save('circle/'+('outline-' if border else 'fill-')+color,labels[color]+('描边圆形' if border else '圆形'),'圆形',im)
-im,d=canvas(64,64);box(d,(0,0,63,63),'#e3e7ec',r=0);box(d,(19,22,44,42),None,'#657385',2,2);ellipse(d,(24,26,29,31),'#657385');line(d,[(21,39),(29,32),(35,37),(39,33),(43,37)],width=2);save('image/default','默认图片','色块',im)
+im=Image.new('RGBA',(64,64),'#e3e7ec')
+with Image.open(ROOT/'scripts'/'art'/'default-landscape.png') as glyph:
+ inset=6
+ im.paste(glyph,(inset,inset))
+ frame_grid=dict(top=glyph.height+inset,right=0,bottom=0,left=glyph.width+inset,repeat=False)
+save('image/default','默认图片','色块',im,frame_grid,scale=1)
 for radio in [True,False]:
  prefix='radio' if radio else 'checkbox'
  im,d=canvas(32,32)

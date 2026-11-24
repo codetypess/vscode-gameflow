@@ -1,7 +1,7 @@
 import type { ResourceSizes } from "./ui-layout";
 import { GAMEFLOW_SCHEMA_VERSION, validateGameFlowDocument, type CanvasReference, type GameFlowDocument, type GameFlowNode, type GameFlowPage } from "./model";
 import { CANVAS_INSTANCE_LAYOUT_KEYS } from "./model";
-import { extractCanvasComponent, findCanvasTarget, type CanvasSources } from "./canvas-references";
+import { extractCanvasComponent, findCanvasTarget, resolveCanvasSource, type CanvasSources } from "./canvas-references";
 import { canHaveChildren } from "./ui-components";
 import { inheritedFlag } from "./editor-ops";
 import { copySelection } from "./selection-ops";
@@ -55,7 +55,7 @@ function decodeValue(value: unknown, entries: Entry[]): unknown {
 }
 
 /** One composed tree for rendering and editing. Persistence always stores stable scoped targets. */
-export function composeCanvasPage(document: GameFlowDocument, page: GameFlowPage, sources: CanvasSources): CanvasComposition {
+export function composeCanvasPage(document: GameFlowDocument, page: GameFlowPage, sources: CanvasSources, containingSource = ""): CanvasComposition {
   const info = new Map<string, CanvasNodeInfo>(), errors = new Map<string, string>(), orphans: CanvasOrphan[] = [];
   let budget = 5000;
   const expand = (instance: GameFlowNode, containing: GameFlowDocument, containingPage: GameFlowPage, source: string, stack: string[], editable: boolean, depth = 0): Entry[] => {
@@ -84,6 +84,7 @@ export function composeCanvasPage(document: GameFlowDocument, page: GameFlowPage
       if (--budget < 0) { errors.set(instance.id, "组件展开超过 5000 个节点限制。"); break; }
       const address = addresses.get(child.id)!;
       const node = remapControlReferences({ ...child, id: ids.get(child.id)!, parentId: child.parentId ? ids.get(child.parentId) : instance.id }, ids);
+      if (child.cellPrefab && "source" in child.cellPrefab) node.cellPrefab = { ...child.cellPrefab, source: resolveCanvasSource(target.key, child.cellPrefab.source) };
       if (child.prefab) {
         const nested = expand(node, sourceDocument, definition, target.key, [...stack, token], false, depth + 1);
         if (errors.has(node.id)) errors.set(instance.id,errors.get(node.id)!);
@@ -102,6 +103,7 @@ export function composeCanvasPage(document: GameFlowDocument, page: GameFlowPage
         pending.splice(i--, 1); changed = true;
         const address: CanvasTarget = { path: [partFor(containing, containingPage, addition.node.id, "addition")] };
         const node = remapControlReferences({ ...addition.node, id: localIds.get(addition.node.id)!, parentId: parent.node.id }, localIds);
+        if (node.cellPrefab && "source" in node.cellPrefab) node.cellPrefab = {...node.cellPrefab,source:resolveCanvasSource(source,node.cellPrefab.source)};
         let added: Entry[];
         if (node.prefab) {
           added = expand(node, containing, containingPage, source, editable ? stack : [...stack, token], editable, depth + 1);
@@ -127,6 +129,7 @@ export function composeCanvasPage(document: GameFlowDocument, page: GameFlowPage
           if (field === "text" && !["text","input","button","checkbox","radio"].includes(entry.node.type) || ["imageData", "sliceResource", "image"].includes(field) && entry.node.type !== "image" || ["normalSkin", "selectedSkin", "disabledSkin"].includes(field) && entry.node.type !== "button") throw new Error("源节点类型已变化，该内容覆盖暂不可用。");
           if (!isCanvasProperty(field) || !patch.target.path.length && nativeRoot(field)) throw new Error("实例独立属性不能作为源覆盖。");
           candidate = writeProperty(candidate, field, decodeValue(patch.set[field], entries), patch.unset.includes(field));
+          if (field === "cellPrefab" && candidate.cellPrefab && "source" in candidate.cellPrefab) candidate.cellPrefab = {...candidate.cellPrefab,source:resolveCanvasSource(source,candidate.cellPrefab.source)};
         }
         const check = { ...candidate, id: "check", parentId: undefined, variableName: undefined, widget: { ...candidate.widget } };
         delete check.widget!.skinNodeId; delete check.widget!.optionNodeIds; delete check.widget!.textLabelNodeId;
@@ -153,8 +156,8 @@ export function composeCanvasPage(document: GameFlowDocument, page: GameFlowPage
   };
   const nodes: GameFlowNode[] = [];
   for (const node of page.nodes) {
-    if (!node.prefab) { nodes.push(node); info.set(node.id, { target: ROOT_TARGET, inherited: false, source: "", base: node, overrides: [] }); continue; }
-    for (const entry of expand(node, document, page, "", [`\0${page.id}`], true)) { nodes.push(entry.node); info.set(entry.node.id, entry.meta); }
+    if (!node.prefab) { nodes.push(containingSource && node.cellPrefab && "source" in node.cellPrefab ? { ...node, cellPrefab: { ...node.cellPrefab, source: resolveCanvasSource(containingSource, node.cellPrefab.source) } } : node); info.set(node.id, { target: ROOT_TARGET, inherited: false, source: "", base: node, overrides: [] }); continue; }
+    for (const entry of expand(node, document, page, containingSource, [`${containingSource}\0${page.id}`], true)) { nodes.push(entry.node); info.set(entry.node.id, entry.meta); }
   }
   const composed = { ...page, nodes };
   for (const node of nodes) info.get(node.id)!.scope = canvasVariableScope(composed, info, node.id);

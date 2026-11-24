@@ -5,7 +5,6 @@ import { exportDirectoryError } from "./export-directory";
 import { builtinImage, builtinPath, BUILTIN_SOURCE } from "./builtin-image";
 import { builtinSlice, builtinSliceDescription, sameGrid, validBuiltinSlice } from "./psd-builtin";
 import type { BuiltinSlice } from "./psd-meta";
-import { DEFAULT_IMAGE_ID } from "./image-rendering";
 
 export const RESOURCE_MANIFEST = "image-files.meta.json";
 export const LEGACY_RESOURCE_MANIFEST = "gameflow-resources.json";
@@ -79,7 +78,7 @@ export function effectiveVariableName(asset: PsdAsset, layer: PsdLayer): string 
 }
 export function effectiveExportName(asset: PsdAsset, layer: PsdLayer): string {
   const builtin = builtinSlice(layer);
-  if (builtin) return builtinPath(builtin.id, builtin).split("/").pop()!.slice(0, -4);
+  if (builtin) return builtinPath(builtin.id).split("/").pop()!.slice(0, -4);
   const atlas = normalizeAtlasName(asset.atlasName) ?? defaultAtlasName(asset.name);
   const variable = effectiveVariableName(asset, layer);
   return atlas && variable ? `${atlas}_${variable}` : "";
@@ -96,12 +95,12 @@ function validAtlasDirectory(value: unknown): value is string {
   return typeof value === "string" && /^[a-z0-9_]{1,120}$/.test(value) && !atlasNameError(value) && !exportDirectoryError(value);
 }
 export function sliceExportPath(batch: Pick<SliceExportBatch, "directory">, item: Pick<SliceExport, "name" | "shared" | "builtin">): string {
-  if (item.builtin) return builtinPath(item.builtin.id, item.builtin);
+  if (item.builtin) return builtinPath(item.builtin.id);
   return `${item.shared ? "shared" : batch.directory ?? "unclassified"}/${item.name}.png`;
 }
 export function psdLayerPath(asset: PsdAsset, layer: PsdLayer) {
   const builtin = builtinSlice(layer);
-  return builtin ? builtinPath(builtin.id, builtin) : `${psdSliceDirectory(asset, layer.config.shared)}/${effectiveExportName(asset, layer)}.png`;
+  return builtin ? builtinPath(builtin.id) : `${psdSliceDirectory(asset, layer.config.shared)}/${effectiveExportName(asset, layer)}.png`;
 }
 export function psdSliceDirectory(asset: Pick<PsdAsset, "name" | "atlasName" | "independentDirectory">, shared = false): string {
   const atlas = psdExportDirectory(asset);
@@ -149,8 +148,7 @@ export function makeSliceExportBatch(asset: PsdAsset, products?: ReadonlyMap<num
       const builtin = builtinSlice(l);
       if (builtin) {
         const description = builtinSliceDescription(builtin);
-        const image = builtin.id === DEFAULT_IMAGE_ID ? product?.image : builtinImage(builtin.id)!.dataUri;
-        if (!image) throw new Error(l.name + "：需先生成内置占位图。");
+        const image = builtinImage(builtin.id)!.dataUri;
         return { builtin, name: effectiveExportName(asset, l), layerId: description.layerId, layerName: description.layerName,
           shared: true, width: description.width, height: description.height, nineGrid: description.nineGrid, base64: image.split(",")[1] };
       }
@@ -187,7 +185,7 @@ export function isSliceExportBatch(v: unknown): v is SliceExportBatch {
       const expected = builtinSliceDescription(item.builtin);
       if (item.name + ".png" !== expected.path.split("/").pop() || item.layerId !== expected.layerId || item.layerName !== expected.layerName ||
           item.width !== expected.width || item.height !== expected.height || !sameGrid(item.nineGrid, expected.nineGrid) || !item.shared || item.logicalSize ||
-          (item.builtin.id !== DEFAULT_IMAGE_ID && item.base64 !== builtinImage(item.builtin.id)!.dataUri.split(",")[1])) return false;
+          item.base64 !== builtinImage(item.builtin.id)!.dataUri.split(",")[1]) return false;
     }
     size += item.base64.length * .75; if (size > MAX_EXPORT_BYTES) return false;
   }

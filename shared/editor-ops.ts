@@ -215,7 +215,7 @@ export function makeNode(type: InsertType, id: string, x: number, y: number): Ga
     ...(type === "image" ? { image: { builtin: "image/default" } } : {}),
     ...(type === "button" ? { normalSkin: { builtin: "button/gray" } } : {}),
     ...(type === "text" ? { text: "文本内容" } : {}),
-    ...(box ? { layout: { gap: 8, gapX: 8, gapY: 8, wrapCount: type === "list" ? 3 : 2, paddingLeft: 12, paddingRight: 12, paddingTop: 12, paddingBottom: 12, clipContent: type === "panel" || type === "list" } } : {}),
+    ...(type === "list" ? { layout: { scrollType: 2 as const, wrapCount: 1 } } : box ? { layout: { gap: 8, gapX: 8, gapY: 8, wrapCount: 2, paddingLeft: 12, paddingRight: 12, paddingTop: 12, paddingBottom: 12, clipContent: type === "panel" } } : {}),
     ...(type === "input" ? { widget: { placeholder: "请输入内容" } } : {}),
     ...(["progress", "slider"].includes(type) ? { widget: { min: 0, max: 100, value: 60, ...(type === "progress" ? { mode: "horizontal" as const } : {}) } } : {}),
     ...(type === "combo" ? { widget: { options: ["选项一", "选项二", "选项三"], selectedIndex: 0 } } : {}) };
@@ -258,7 +258,6 @@ export function makeComponent(type: InsertType, id: string, x: number, y: number
     }
     root.widget = { optionNodeIds: members, selectedIndex: -1 };
   }
-  if (type === "list") for (let i = 0; i < 6; i++) nodes.push({ ...makeNode("panel", makeId(), 0, 0), parentId: id, name: `列表项 ${i + 1}`, frame: { x: 0, y: 0, width: 64, height: 60 } });
   return nodes;
 }
 

@@ -9,7 +9,7 @@ import { ArrowLeft, Box, Check, ChevronDown, ChevronRight, Focus, FileImage, Git
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import type { Frame, GameFlowNode, GameFlowPage, PageRootType } from "../shared/model";
 import { allocateElementId, reserveDocumentElementIds } from "../shared/element-id";
-import { createControlParts, descendants, duplicatePage, inheritedFlag, insertNode, makeComponent, NODE_LABELS, removePage, type Handle, type InsertType, type LayerDrop } from "../shared/editor-ops";
+import { createControlParts, descendants, duplicatePage, inheritedFlag, insertNode, makeComponent, NODE_LABELS, removeNode, removePage, type Handle, type InsertType, type LayerDrop } from "../shared/editor-ops";
 import { convertNodeType, editNodeFrame, nodeDragFrame, nodeResizeFrame } from "../shared/ui-edit";
 import { mapPoint, type Matrix } from "../shared/ui-transform";
 import { pasteNode, type NodeClipboard } from "../shared/node-clipboard";
@@ -24,6 +24,8 @@ import { PrototypeIcon } from "./components/prototype-icon";
 import { Popover, PopoverContent, PopoverTrigger } from "./components/ui/popover";
 import { Separator } from "./components/ui/separator";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./components/ui/tooltip";
+import { ListCells } from "./editor/list-cell-context";
+import { cellKey, listScrollType, resolveCellPage, type CellReference } from "../shared/list-cell";
 import { CanvasExportActions } from "./editor/canvas-export-actions";
 import { Inspector } from "./editor/inspector";
 import { CanvasReferencePicker } from "./editor/canvas-reference-picker";
@@ -108,6 +110,7 @@ export function App() {
   const [notice, setNotice] = useState("");
   const [applyReview, setApplyReview] = useState<{request:CanvasApplyRequest; expected:Record<string,string>;source:string;fields:{target:string;field:string;value:unknown}[]}|null>(null);
   const [sources, setSources] = useState<CanvasSources>({});
+  const [cellPicker, setCellPicker] = useState<{pageId:string; nodeId:string} | null>(null);
   const [pickerSource, setPickerSource] = useState<string | null>(null);
   const [clipboard, setClipboard] = useState<NodeClipboard | null>(null);
   const [syncSession,setSyncSession]=useState<SyncSession|null>(null);
@@ -120,6 +123,27 @@ export function App() {
   const compositions = useMemo(() => new Map(canvasDocument?.pages.map(p => [p.id, composeCanvasPage(canvasDocument, p, sources)])), [canvasDocument, sources]);
   const updatePage = (id: string, transform: (page: GameFlowPage) => GameFlowPage) => edit(document => { try { return editCanvasPage(document, id, sources, transform); } catch (error) { setNotice(error instanceof Error ? error.message : String(error)); return document; } });
   const loadedPsds = usePagePsds(canvasDocument, read, updatePage, observePsd, setNotice, (document, page) => composeCanvasPage(document, page, sources).page);
+  const listCells = useMemo(() => {
+    const pages = new Map<string,GameFlowPage>();
+    return {
+      resolve(ref: CellReference) {
+        if (!canvasDocument || "uuid" in ref) throw new Error("未定位到列表项模板" + ("uuid" in ref ? " " + ref.uuid : ""));
+        const key = cellKey(ref);
+        if (!pages.has(key)) {
+          const target = resolveCellPage(canvasDocument, sources, ref);
+          const asset = !ref.source && loadedPsds.assets[ref.pageId];
+          pages.set(key, asset ? bindPrototypePsd(target.page,target.document.documentId,asset) : target.page);
+        }
+        return pages.get(key)!;
+      },
+      choose(nodeId:string, binding?: CellReference) {
+        if (editingId) {
+          setCellPicker({pageId:editingId,nodeId});
+          setPickerSource(binding && "source" in binding && sources[binding.source] ? binding.source : "");
+        }
+      }
+    };
+  }, [canvasDocument, sources, editingId, loadedPsds.assets]);
   const { resourcePages, mappingErrors } = useMemo(() => {
     const mappingErrors: typeof loadedPsds.states = {};
     const resourcePages = Array.from(compositions.values(), ({ page }) => {
@@ -144,7 +168,17 @@ export function App() {
   const selectedMeta = selectedNode ? composition?.info.get(selectedNode.id) : undefined;
   const scopePath = page && editingId ? selectedNodeIds.length ? canvasScopePath(page, commonSelectionParent(page, selectedNodeIds)) : reconcileCanvasScope(page, scopeIds, null).path : [];
   const scopeId = scopePath.at(-1)?.id ?? null;
-  const runtimeResources = useRuntimeResources(psdAssets, resourcePages, settings.settings.resourceDirectory, resourceMode, pagePsds.assets);
+  const resourceInputs = useMemo(() => {
+    const pages = [...resourcePages], seen = new Set<string>();
+    for (const item of pages) for (const node of item.nodes) {
+      const ref = node.cellPrefab;
+      if (!ref || "uuid" in ref || !ref.source || seen.has(cellKey(ref))) continue;
+      seen.add(cellKey(ref));
+      try { pages.push(listCells.resolve(ref)); } catch { /* The list displays the source error. */ }
+    }
+    return pages;
+  }, [resourcePages,listCells]);
+  const runtimeResources = useRuntimeResources(psdAssets, resourceInputs, settings.settings.resourceDirectory, resourceMode, pagePsds.assets);
   const pageLayout = (page: GameFlowPage) => resolvePageLayout(page, (runtimeResources.forPage?.(page) ?? runtimeResources).sizes);
   const selectedResources = page ? runtimeResources.forPage?.(page) ?? runtimeResources : runtimeResources;
   const patchNode = (id: string, patch: Partial<GameFlowNode>) => { if (page) updatePage(page.id, (item) => ({ ...item, nodes: item.nodes.map((node) => node.id === id ? { ...node, ...patch } : node) })); };
@@ -380,6 +414,18 @@ export function App() {
     const sourceDocument = source ? sources[source]?.document : document;
     const definition = sourceDocument?.pages.find(p => p.id === pageId);
     if (!document || !current || !sourceDocument || !definition) { setNotice("请先进入目标页面。"); return; }
+    if (cellPicker) {
+      const node = current.nodes.find(item => item.id === cellPicker.nodeId);
+      if (definition.rootType !== "UIBox" || current.id !== cellPicker.pageId || node?.type !== "list" || inheritedFlag(current,node,"locked")) return;
+      const oldItems = descendants(current,node.id);
+      if (current.nodes.some(item=>oldItems.has(item.id) && inheritedFlag(current,item,"locked"))) {setNotice("请先解锁要替换的列表项。"); return;}
+      updatePage(current.id, item=>{
+        let changed = item;
+        for (const child of item.nodes.filter(n=>n.parentId === node.id)) changed = removeNode(changed,child.id);
+        return {...changed,nodes:changed.nodes.map(n=>n.id===node.id ? {...n,layout:{...n.layout,scrollType:listScrollType(n)},cellPrefab:{source,documentId:sourceDocument.documentId,pageId}} : n)};
+      });
+      setCellPicker(null); setPickerSource(null); return;
+    }
     const node = makeCanvasInstance(sourceDocument, definition, source, newIds()(), runtimeResources.sizes);
     const next = insertNode(current, node, scopeId ?? undefined);
     if (next === current) { setNotice("当前容器已锁定，无法添加引用。"); return; }
@@ -647,7 +693,7 @@ export function App() {
     else switchMode(next);
   };
 
-  return <SliceResourcesProvider value={{ ...selectedResources, forPage: runtimeResources.forPage }}><TooltipProvider delayDuration={300}><main className="app-shell">
+  return <ListCells.Provider value={listCells}><SliceResourcesProvider value={{ ...selectedResources, forPage: runtimeResources.forPage }}><TooltipProvider delayDuration={300}><main className="app-shell">
     <header className="topbar"><span className="brand-mark"><Layers3 size={18} /></span><strong>工作台</strong><Separator orientation="vertical" className="topbar-separator" />
       <div ref={setDocumentActions} className="workbench-document-actions" role="group" aria-label="文档操作">{mode === "prototype" ? <>
         <IconTool label="撤销 (Ctrl+Z)" disabled={pending || !canvasDocument} onClick={() => history("undo")}><Undo2 size={15} /></IconTool>
@@ -689,7 +735,7 @@ export function App() {
             const foregroundNodes = activeNodes ? nodes.filter(node => activeNodes.has(node.id)) : [];
             return <article key={item.id} className={cn("page-group", !editingId && selectedPageId === item.id && "page-selected", editingId && "page-editing")} data-page-id={item.id} style={{ left: editingId ? 0 : frame.x, top: editingId ? 0 : frame.y, width: frame.width, height: frame.height }}>
               <div className="page-caption"><LayoutPanelTop size={14} /><span>{item.name}</span><small>{Math.round(frame.width)} × {Math.round(frame.height)}</small></div>
-              <SliceResourcesProvider value={runtimeResources.forPage?.(visualPage) ?? runtimeResources}><div className="page-surface" style={{ background: item.background ?? "#ffffff" }}>
+              <SliceResourcesProvider value={{...(runtimeResources.forPage?.(visualPage) ?? runtimeResources),forPage:runtimeResources.forPage}}><div className="page-surface" style={{ background: item.background ?? "#ffffff" }}>
                 {artBlocked ? <PageArtState page={visualPage} actions={pagePsds} zoom={visibleCamera.zoom}/> : <>
                 {backgroundNodes.map(node => <NodeView key={node.id} page={visualPage} node={node} referenceError={(projection ?? composition)?.errors.get(node.id)} geometry={geometry.nodes.get(node.id)} />)}
                 {showContainerOutlines ? <ContainerOutlines page={visualPage} nodes={backgroundNodes} geometry={geometry} /> : null}
@@ -735,12 +781,12 @@ export function App() {
           <Separator orientation="vertical" /><Popover open={insertOpen} onOpenChange={setInsertOpen}><PopoverTrigger asChild><Button size="icon" variant="ghost" className="toolbar-button insert-trigger" aria-label="添加页面或控件"><Plus size={20} /><ChevronDown size={9} /></Button></PopoverTrigger><PopoverContent side="top" align="start" collisionPadding={12} className="insert-menu" aria-label="添加页面或控件菜单">
             <div className="menu-heading">添加到画布</div>
             <div className="insert-grid" role="group" aria-label="添加到画布">{PAGE_ROOT_TYPES.map((type) => { const Icon = type === "UIBox" ? LayoutDashboard : LayoutPanelTop; return <button key={type} onClick={() => addPage(type)}><Icon size={16} /><span>{PAGE_ROOTS[type].label} <small className="menu-class">({type})</small></span></button>; })}</div>
-            <Separator /><div className="insert-grid"><button disabled={!editingId} onClick={() => { setInsertOpen(false); setPickerSource(""); }}><Box size={16} /><span>引用画布组件…</span></button></div>
+            <Separator /><div className="insert-grid"><button disabled={!editingId} onClick={() => { setInsertOpen(false); setCellPicker(null); setPickerSource(""); }}><Box size={16} /><span>引用画布组件…</span></button></div>
             <Separator /><div className="menu-heading">{editingId ? "选择工具后点击页面放置" : "双击进入页面后添加控件"}</div>
             <div className="insert-grid" role="group" aria-label="添加控件">{TOOLS.map(({ type, icon: Icon }) => <button key={type} disabled={!editingId} onClick={() => chooseInsertTool(type)}><Icon size={16} /><span>{NODE_LABELS[type]} <small className="menu-class">({COMPONENTS[type].laya})</small></span></button>)}</div>
           </PopoverContent></Popover>
           <div className="direct-tools">{TOOLS.filter((item) => item.key).map(({ type, icon: Icon, key }) => <IconTool key={type} label={`${NODE_LABELS[type]} (${key})`} disabled={!editingId} active={tool === type} onClick={() => chooseInsertTool(type)}><Icon size={19} /></IconTool>)}</div>
-          <Separator orientation="vertical" /><CanvasExportActions document={canvasDocument} page={page} sourcePage={composition?.page}
+          <Separator orientation="vertical" /><CanvasExportActions sources={sources} document={canvasDocument} page={page} sourcePage={composition?.page}
             prepare={(expected,source,updated)=>{
               const current=read(), canonical=current?.pages.find(p=>p.id===source.id);
               if(!current || JSON.stringify(current)!==JSON.stringify(expected) || !canonical || JSON.stringify(composeCanvasPage(current,canonical,sources).page)!==JSON.stringify(source)) throw new Error("原型已变化，请重新比较。");
@@ -764,7 +810,11 @@ export function App() {
         <div className="canvas-apply-fields"><table><thead><tr><th>节点</th><th>属性</th><th>应用值</th></tr></thead><tbody>{applyReview.fields.map((row,i)=><tr key={i}><td>{row.target}</td><td>{row.field}</td><td>{JSON.stringify(row.value)}</td></tr>)}</tbody></table></div>
         </div><footer><Button variant="outline" onClick={()=>setApplyReview(null)}>取消</Button><Button disabled={pending} onClick={()=>{applyCanvas(applyReview.request,applyReview.expected);setApplyReview(null);}}>应用这些属性</Button></footer>
       </section></div> : null}
-      {canvasDocument && pickerSource !== null ? <CanvasReferencePicker document={canvasDocument} sources={sources} source={pickerSource} currentPageId={editingId ?? undefined} onSource={setPickerSource} onPick={insertReference} onClose={() => setPickerSource(null)} /> : null}
+      {canvasDocument && pickerSource !== null ? <CanvasReferencePicker cellsOnly={!!cellPicker} replacedChildren={cellPicker && page ? descendants(page,cellPicker.nodeId).size-1 : 0} document={canvasDocument} sources={sources} source={pickerSource} currentPageId={editingId ?? undefined} onSource={setPickerSource} onPick={insertReference}
+        onClear={cellPicker && page?.id === cellPicker.pageId && selectedNode?.id === cellPicker.nodeId && selectedNode.cellPrefab && !inheritedFlag(page,selectedNode,"locked") ? () => {
+          patchNode(selectedNode.id,{cellPrefab:undefined}); setPickerSource(null); setCellPicker(null);
+        } : undefined}
+        onClose={() => {setPickerSource(null);setCellPicker(null);}} /> : null}
     </div>
     <PsdWorkspace mode="merge" active={mode === "merge"} settings={settings} />
     <PsdWorkspace mode="slice" active={mode === "slice"} binding={psdEditor.binding} openBoundRef={openBrowserSlice} onReveal={() => switchMode("slice")} documentActions={documentActions} exportActions={exportActions} settings={settings} exportPending={pending} onAsset={observePsd} />
@@ -787,5 +837,5 @@ export function App() {
       if(!checkOnly) {edit(()=>next);pagePsds.retry(updated.id);setNotice("已应用文字与结构同步");}
     }}/>}
     {psdEditor.initialError && mode === "slice" ? <div className="psd-status psd-warning" role="alert">{psdEditor.initialError}</div> : null}
-  </main></TooltipProvider></SliceResourcesProvider>;
+  </main></TooltipProvider></SliceResourcesProvider></ListCells.Provider>;
 }

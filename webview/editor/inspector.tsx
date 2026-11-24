@@ -65,7 +65,6 @@ export function Inspector({ makeId, page, variablePage = page, node, selectedNod
     </div> : <div className="inspector-content">
       <div className="component-identity"><span title={identityLabel}>{identityLabel}</span><code title="稳定节点 ID">{referenceMeta?.target.path.at(-1)?.nodeId ?? node?.id ?? page.id}</code></div>
       {referenceMeta?.ownerId ? <ReferenceBar key={node?.id} meta={referenceMeta} name={referenceName} error={referenceError} manager={overrideManager} onOpenSource={onOpenSource} /> : null}
-      {node && node.id === page.componentRootId ? <p className="property-hint">组件根节点：内容与外观同步到引用，根的位置、尺寸和变换由各实例独立保存。</p> : null}
       {geometry.issues.length ? <div className="layout-diagnostics" role="status"><strong>布局需要调整</strong>{geometry.issues.slice(0, 4).map((issue, i) => <p key={i}>{issue.message}</p>)}<p>暂用原始位置/尺寸显示，可继续修改。</p></div> : null}
       <Field label={node ? "名称" : "页面名称"} value={node?.name ?? page.name} disabled={locked} validate={(name) => !!name.trim()} onCommit={(name) => {
         if (!name.trim()) return;

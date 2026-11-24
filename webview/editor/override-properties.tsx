@@ -8,6 +8,7 @@ export interface OverrideActions {
   onRevert: (fields?: string[]) => void; onApply: (fields?: string[]) => void;
 }
 const labels: Record<string, string> = {
+  "渲染项":"cellPrefab", "滚动方向":"layout.scrollType",
   "切图资源":"sliceResource", "图片资源":"image", "普通图片":"normalSkin", "选中图片":"selectedSkin", "禁用图片":"disabledSkin", "进度模式":"widget.mode", "文本节点":"widget.textLabelNodeId", "填充图片":"widget.skinNodeId",
   "行距":"widget.leading", "字距":"widget.letterSpacing", "HTML":"widget.html", "UBB":"widget.ubb", "模板":"widget.templateVars", "模板变量":"widget.templateVars", "文字语法":"widget.html widget.ubb widget.templateVars", "文字滚动":"widget.scrollX widget.scrollY", "文字滚动 X":"widget.scrollX", "文字滚动 Y":"widget.scrollY",
   "名称":"name", "变量":"variableName", "文字内容":"text", "字号":"style.fontSize", "文字颜色":"style.color", "填充":"style.fill", "描边":"style.borderColor", "描边宽度":"style.borderWidth", "圆角":"style.radius", "不透明度":"style.opacity",

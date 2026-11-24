@@ -11,7 +11,20 @@ const {chromium}=require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE||"playwright");
     await page.locator('pre[data-complete="true"]').waitFor();
     const result=await page.locator("pre").innerText();console.log(result);
     assert.doesNotMatch(result,/FAIL/);assert.deepEqual(errors,[]);
+    const repository=path.resolve(__dirname,"..").replaceAll("\\","/");
+    const legacy=await page.evaluate(async repository=>{
+      const {openPsd}=await import("/psd/io.ts");
+      const {renderSliceExportBatch}=await import("/psd/slice-render.ts");
+      const {psdLayerPath}=await import("/@fs/"+repository+"/shared/psd-export.ts");
+      const bytes=await (await fetch("/@fs/"+repository+"/sample/星海远征 · 登录.psd")).blob();
+      const {asset}=await openPsd(new File([bytes],"login.psd"));
+      const layer=asset.layers.find(layer=>layer.metadata.builtinOrigin?.id==="image/default");
+      const product=(await renderSliceExportBatch(asset)).items.find(item=>item.builtin?.id==="image/default");
+      return {path:psdLayerPath(asset,layer),width:product?.width,grid:product?.nineGrid};
+    },repository);
+    assert.deepEqual(legacy,{path:"builtin/image/default.png",width:64,grid:{left:38,right:0,top:34,bottom:0,repeat:false}});
+    console.log("PASS 旧版星海登录 PSD 的默认图层复用共享九宫格");
     const output=fs.mkdtempSync(path.join(os.tmpdir(),"gameflow-default-image-"));
-    await page.screenshot({path:path.join(output,"default-image.png")});console.log(output);
+    await page.locator("#default-image-gallery").screenshot({path:path.join(output,"default-image.png")});console.log(output);
   } finally {await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});

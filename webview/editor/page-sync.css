@@ -13,12 +13,12 @@
 .sync-main { display: flex; flex-direction: column; padding: 12px; overflow: hidden; }
 .sync-detail { padding: 12px; overflow: auto; border-left: 1px solid var(--border); }
 .sync-tree-heading { padding: 12px 12px 0; }
-.sync-tree-heading > strong, .sync-bar > strong, .sync-detail legend { font-size: 11px; font-weight: 600; }
+.sync-tree-heading > strong, .sync-bar > strong { font-weight: 600; }
 .sync-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .sync-bar strong { min-width: 0; overflow-wrap: anywhere; }
 .sync-bar > div { display: flex; flex-shrink: 0; gap: 2px; }
 .sync-main button, .sync-detail button, .page-sync-dialog footer > button:not([class]) {
-  padding: 3px 7px; min-height: 24px; border-radius: 3px; font-size: 11px;
+  padding: 3px 7px; min-height: 24px; border-radius: 3px;
 }
 .sync-main button:hover:enabled, .sync-detail button:hover:enabled { background: var(--accent); }
 .sync-main button:disabled, .sync-detail button:disabled { opacity: .5; }
@@ -28,7 +28,7 @@
 }
 .sync-detail fieldset button, .sync-bar > div, .sync-detail select { border: 1px solid var(--border); border-radius: 3px; }
 .sync-detail select { max-width: 100%; padding: 3px 7px; background: var(--vscode-dropdown-background, var(--muted)); color: inherit; }
-.sync-legend { display: flex; flex-wrap: wrap; gap: 8px; margin: 7px 0; font-size: 10px; }
+.sync-legend { display: flex; flex-wrap: wrap; gap: 8px; margin: 7px 0; }
 .page-sync-dialog [data-kind=add] { --tone: var(--vscode-gitDecoration-addedResourceForeground, #68b786); }
 .page-sync-dialog [data-kind=delete] { --tone: var(--vscode-gitDecoration-deletedResourceForeground, #e87775); }
 .page-sync-dialog [data-kind=edit] { --tone: var(--vscode-editorWarning-foreground, #dcae48); }
@@ -37,7 +37,7 @@
 .page-sync-dialog .sync-change-slot + .layer-variable { margin-left: 0; }
 .sync-boards { display: grid; flex: 1; min-height: 0; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
 .sync-boards figure { display: flex; flex-direction: column; min-width: 0; min-height: 0; margin: 0; border: 1px solid var(--border); }
-.sync-boards figcaption { padding: 4px 7px; font-size: 11px; color: var(--muted-foreground); }
+.sync-boards figcaption { padding: 4px 7px; color: var(--muted-foreground); }
 .sync-preview { display:grid; flex: 1; min-height: 360px; place-items:center; overflow:hidden; text-align:center; }
 .sync-surface { overflow:hidden; transform-origin:0 0; position:absolute; top:0; left:0; }
 .sync-surface[data-selectable=true] { cursor: pointer; }
@@ -46,12 +46,12 @@
 .sync-box[data-ghost=true] { border-style:dashed; }
 .sync-box b { background:var(--tone,#3687bd); color:#111; vertical-align:top; line-height:1; }
 .sync-detail fieldset { min-width: 0; margin: 12px 0; padding: 6px 0 0; border: 0; border-top: 1px solid var(--border); }
-.sync-detail legend { padding-right: 7px; font-size: 11px; font-weight: 600; }
+.sync-detail legend { padding-right: 7px; font-weight: 600; }
 .sync-detail fieldset button { margin: 2px 4px 2px 0; }
 .sync-detail p, .sync-detail details { margin: 8px 0; overflow-wrap: anywhere; }
 .sync-detail details > summary { padding: 6px 0; cursor: pointer; }
 .sync-values { display: grid; grid-template-columns: var(--property-label-width) minmax(0, 1fr); gap: 5px var(--property-column-gap); align-items: baseline; margin: 4px 0 8px; }
-.sync-values dt { font-size: 11px; color: var(--muted-foreground); }
+.sync-values dt { color: var(--muted-foreground); }
 .sync-values dd { margin: 0; min-height: 22px; padding: 3px 7px; background: var(--vscode-input-background, var(--muted)); border-radius: 2px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .page-sync-dialog [role=alert] { color: var(--destructive); }
 .sync-resize-edge { position: absolute; z-index: 10; touch-action: none; }
@@ -73,16 +73,22 @@
   .sync-preview { min-height: 180px; }
 }
 .prefab-sync-dialog { min-width:min(360px,92vw); min-height:min(300px,80dvh); }
-.prefab-sync-dialog pre { white-space:pre-wrap; overflow-wrap:anywhere; font:11px/1.5 var(--vscode-editor-font-family, monospace); }
+.prefab-sync-dialog pre { white-space:pre-wrap; overflow-wrap:anywhere; font-family:var(--vscode-editor-font-family, monospace); line-height:1.5; }
 .sync-detail .prefab-change { margin: 0 0 12px; padding: 0 0 10px; border: 0; border-bottom: 1px solid var(--border); }
 .prefab-change legend { width: 100%; padding: 0 0 5px; display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
 .prefab-change-source, .prefab-change-values dt, .prefab-previous, .prefab-change-arrow, .prefab-change-choice > span {
   color: var(--muted-foreground); font-weight: 400;
 }
-.prefab-change-values, .prefab-change-choice { display: grid; grid-template-columns: 5.5em minmax(0, 1fr); gap: 3px 6px; align-items: baseline; font-size: 12px; }
+.prefab-change-values, .prefab-change-choice { display: grid; grid-template-columns: 5.5em minmax(0, 1fr); gap: 3px 6px; align-items: baseline; }
 .prefab-change-values { margin: 0 0 6px; }
 .prefab-change-values dd { min-width: 0; margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
-.prefab-change-choice select { width: 100%; min-width: 0; }
-.prefab-result table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 12px; }
+.prefab-change-choice { grid-template-columns: auto minmax(0, 1fr); column-gap: 12px; }
+.prefab-change-choice [role=radiogroup] { display: grid; }
+.prefab-change-choice label { display: flex; align-items: baseline; gap: 6px; padding: 3px 0; line-height: 1.4; cursor: pointer; }
+.prefab-change-choice input { flex: none; align-self: flex-start; margin: 2px 0 0; accent-color: var(--vscode-focusBorder, Highlight); }
+.prefab-change-choice label span { min-width: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+.prefab-change-choice small { margin-inline-start: 5px; color: var(--vscode-textLink-foreground, var(--muted-foreground)); white-space: nowrap; }
+.prefab-change:disabled label { cursor: default; opacity: .6; }
+.prefab-result table { width: 100%; table-layout: fixed; border-collapse: collapse; }
 .prefab-result th, .prefab-result td { padding: 3px; text-align: left; vertical-align: top; border-top: 1px solid var(--border); overflow-wrap: anywhere; white-space: pre-wrap; }
 .prefab-result th { font-weight: 500; }

@@ -1,10 +1,6 @@
 import type { GameFlowNode, GameFlowPage } from "./model";
 import type { LayoutResult } from "./ui-layout";
 
-export const DEFAULT_IMAGE_ID = "image/default";
-export const DEFAULT_IMAGE_BACKGROUND = "#e3e7ec";
-export const DEFAULT_IMAGE_INK = "#657385";
-
 export function rasterSize(width: number, height: number) {
   const scale = Math.min(1, 4096 / Math.max(1, width, height), Math.sqrt(8_000_000 / Math.max(1, width * height)));
   return { width: Math.max(1, Math.round(width * scale)), height: Math.max(1, Math.round(height * scale)) };

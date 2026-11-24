@@ -1,6 +1,7 @@
 # 默认图片背景与图标分离渲染
 
-Status: Done
+Status: Superseded
+Superseded by [默认图片九宫格资源](default-image-nine-grid.md)
 Date: 2026-11-19
 Scope: 内置 image/default 的画布、运行预览、PSD 与 Prefab 输出
 

@@ -17,6 +17,7 @@ const NODE_LAYOUT_KEYS = [
 
 export const prefabPropertyNames: Record<string,string> = {
   "page.width":"页面宽度","page.height":"页面高度","page.exportName":"导出名称",
+  cellPrefab:"渲染项","layout.scrollType":"滚动方向",
   variableName:"变量",hidden:"隐藏",
   "transform.anchorX":"锚点 X","transform.anchorY":"锚点 Y","transform.scaleX":"缩放 X","transform.scaleY":"缩放 Y",
   "transform.skewX":"倾斜 X","transform.skewY":"倾斜 Y","transform.rotation":"旋转角度",
@@ -47,12 +48,12 @@ function layoutDefault(type:NodeType,key:keyof NodeLayout):SyncPropertyValue {
   if(["align"].includes(key)) return "left";
   if(key==="valign") return "top";
   if(key==="direction") return "horizontal";
-  if(key==="wrapCount") return type==="list"?4:2;
+  if(key==="wrapCount") return type==="list"?1:2;
   if(key==="clipContent") return type==="panel";
   return 0;
 }
 function nodeLayoutKeys(node:Pick<GameFlowNode,"type">) {
-  return NODE_LAYOUT_KEYS.filter(key=>!(["paddingLeft","paddingRight","paddingTop","paddingBottom","gap","gapX","gapY","align","valign","direction","wrapCount","clipContent","scrollX","scrollY"] as (keyof NodeLayout)[]).includes(key) || canHaveChildren(node));
+  return NODE_LAYOUT_KEYS.filter(key=>!(["paddingLeft","paddingRight","paddingTop","paddingBottom","gap","gapX","gapY","align","valign","direction","wrapCount","clipContent","scrollX","scrollY"] as (keyof NodeLayout)[]).includes(key) || node.type === "list" || canHaveChildren(node));
 }
 function widgetDefaults(type:NodeType,side:"prototype"|"prefab"):Partial<Record<keyof WidgetProps,SyncPropertyValue>> {
   const result:Partial<Record<keyof WidgetProps,SyncPropertyValue>>={};
@@ -103,6 +104,11 @@ export function prototypeNodeProperties(node:GameFlowNode):SyncProperties {
   }
   for(const key of nodeLayoutKeys(node)) put(properties,"layout."+key,(node.layout?.[key]??layoutDefault(node.type,key)) as SyncPropertyValue);
   for(const [key,fallback] of Object.entries(widgetDefaults(node.type,"prototype")) as [keyof WidgetProps,SyncPropertyValue][]) put(properties,"widget."+key,(node.widget?.[key]??fallback) as SyncPropertyValue);
+  if (node.type === "list") {
+    const ref = node.cellPrefab;
+    put(properties,"cellPrefab",ref && "source" in ref ? {source:ref.source,documentId:ref.documentId,pageId:ref.pageId} : ref ? {uuid:ref.uuid} : null);
+    put(properties,"layout.scrollType",node.layout?.scrollType ?? (node.layout?.direction === "vertical" ? 1 : 2));
+  }
   return properties;
 }
 
@@ -145,6 +151,11 @@ export function recordNodeProperties(type:NodeType,source:RecordNode,resolveRef:
     const valid=Array.isArray(fallback)?Array.isArray(value):fallback===null?value===null||typeof value==="object":typeof value===typeof fallback;
     put(properties,"widget."+key,(valid?value:fallback) as SyncPropertyValue);
   }
+  if (type === "list") {
+    const cell = source.cellPrefab as {_$uuid?:string} | null;
+    put(properties,"cellPrefab",cell?._$uuid ? {uuid:cell._$uuid} : null);
+    put(properties,"layout.scrollType",source.scrollType === 0 || source.scrollType === 1 ? source.scrollType : source.scrollType === 2 ? 2 : source.direction === "vertical" ? 1 : 2);
+  }
   return properties;
 }
 
@@ -156,6 +167,7 @@ export function applyPageProperty(page:GameFlowPage,path:string,value:SyncProper
 }
 
 export function applyNodeProperty(node:GameFlowNode,path:string,value:SyncPropertyValue):GameFlowNode {
+  if(path==="cellPrefab") return {...node,cellPrefab:value ? value as GameFlowNode["cellPrefab"] : undefined};
   if(path==="variableName") return {...node,variableName:value?String(value):undefined};
   if(path==="hidden") return {...node,hidden:Boolean(value)};
   const dot=path.indexOf("."),group=path.slice(0,dot),key=path.slice(dot+1);
