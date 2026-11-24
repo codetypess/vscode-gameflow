@@ -85,6 +85,7 @@ export class PagePsdController {
   }
   async handle(doc: WorkbenchDocument, request: PagePsdRequest): Promise<PagePsdResult> {
     const result: PagePsdResult = { type: "pagePsdResult", requestId: request.requestId };
+    let sourceUri: vscode.Uri | undefined;
     try {
       const currentPage = () => {
         const page = parseGameFlowDocument(doc.getText()).pages.find(page => page.id === request.pageId);
@@ -103,6 +104,7 @@ export class PagePsdController {
       else if (request.action === "choose") uri = (await vscode.window.showOpenDialog({ canSelectMany: false, filters: { Photoshop: ["psd"] }, openLabel: "绑定此页面的 PSD", defaultUri: vscode.Uri.joinPath(doc.uri, "..") }))?.[0];
       else uri = await vscode.window.showSaveDialog({ defaultUri: vscode.Uri.joinPath(doc.uri, "..", request.name!), filters: { Photoshop: ["psd"] }, saveLabel: request.action === "syncCopy" ? "保存同步副本" : "生成并绑定 PSD" });
       if (!uri) return { ...result, cancelled: true };
+      sourceUri = uri;
       const source = relativeSource(doc.uri, uri);
       if (request.action === "syncCopy") {
         const input = vscode.Uri.joinPath(doc.uri, "..", page.artPsd!.source);
@@ -118,7 +120,9 @@ export class PagePsdController {
           await vscode.workspace.fs.rename(temporary,uri,{overwrite:false});
         } finally {try {await vscode.workspace.fs.delete(temporary);} catch { /* Renamed or absent. */ }}
       } else if (request.action === "generate") {
-        if (this.psd.documents.has(uri.toString()) || vscode.workspace.textDocuments.some(text => text.uri.toString() === uri!.toString() && text.isDirty)) throw new Error("目标 PSD 正在使用，请选择其他文件名。");
+        const owned = doc.psds.get(uri.toString());
+        if (owned?.model.dirty) throw new Error("目标 PSD 有未保存的切图配置，请先保存或放弃修改。");
+        if ((this.psd.documents.has(uri.toString()) && this.psd.documents.get(uri.toString()) !== owned) || vscode.workspace.textDocuments.some(text => text.uri.toString() === uri!.toString() && text.isDirty)) throw new Error("目标 PSD 正在其他编辑会话中使用，请先关闭该会话。");
         await vscode.workspace.fs.writeFile(uri, Buffer.from(request.base64!, "base64"));
       }
       const psd = await this.ensure(doc, uri, !boundFile);
@@ -130,5 +134,13 @@ export class PagePsdController {
       }
       return { ...result, source, name: uri.path.split("/").pop()!, base64: Buffer.from(psd.bytes).toString("base64"), draft: makePsdDraft(psd.model.asset) };
     } catch (error) { return { ...result, error: error instanceof Error ? error.message : String(error) }; }
+    finally {
+      // A page preview owns a snapshot, not a persistent editing session.
+      const key = sourceUri?.toString(), loaded = key ? doc.psds.get(key) : undefined;
+      if (loaded && !loaded.model.dirty && loaded !== doc.currentPsd && !loaded.panels.size) {
+        doc.psds.delete(key!);
+        loaded.dispose();
+      }
+    }
   }
 }

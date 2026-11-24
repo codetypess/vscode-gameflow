@@ -34,6 +34,8 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 
 ## Active Work Items
 
+- [psd-read-ownership-regression.md](psd-read-ownership-regression.md) — 页面后台读取后释放干净会话，避免同名重新生成误报占用。
+
 - [existing-psd-layer-id-migration.md](existing-psd-layer-id-migration.md) — Done：迁移样例中 15 个旧 UUID 图层身份，同步 PSD、配置与画布引用；像素保真检查、重复执行预检、391 项共享测试及类型检查通过。
 
 - [layer-prefab-unbinding.md](layer-prefab-unbinding.md) — Done：图层原型组件子菜单支持当前等级与递归解绑，390 项共享测试及生产打包通过。

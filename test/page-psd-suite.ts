@@ -10,7 +10,8 @@ import { prototypeTree, psdTree, compareTrees, coordinatedBase, plannedTrees } f
 import { PagePsdController, rebasePagePsds } from "../src/page-psd-controller";
 import type { PsdEditorProvider } from "../src/psd-editor-provider";
 import type { WorkbenchDocument } from "../src/workbench-document";
-import { referenceHost, Uri } from "./vscode-reference-host";
+import { referenceHost, Uri, workspace, TestTextDocument } from "./vscode-reference-host";
+import { bytesHash } from "../src/psd-document-model";
 const tests: { name: string; run: () => void | Promise<void> }[] = [];
 const test = (name: string, run: () => void | Promise<void>) => tests.push({ name, run });
 export const pagePsdTests = tests;
@@ -173,9 +174,10 @@ test("page PSD protocol constrains requests and requires an explicit load bindin
 function hostFixture(uri = new Uri("/workspace/layouts/main.gameflow.json")) {
   referenceHost.reset(); const f = fixture(); let text = serializeGameFlowDocument(f.document), opens = 0;
   const doc = { uri, psds: new Map(), currentPsd: { marker: "active editor" }, disposed: false, getText: () => text } as unknown as WorkbenchDocument;
-  const psd = { documents: new Map(), async openCustomDocument(uri: Uri) { ++opens; return { uri, bytes: Buffer.from("PSD"), model: { asset: f.asset, dirty: false }, dispose() {} }; } } as unknown as PsdEditorProvider;
+  const documents = new Map();
+  const psd = { documents, async openCustomDocument(uri: Uri) { ++opens; const loaded = { uri, panels: new Set(), bytes: Buffer.from("PSD"), model: { asset: f.asset, dirty: false }, dispose() { documents.delete(uri.toString()); } }; documents.set(uri.toString(), loaded); return loaded; } } as unknown as PsdEditorProvider;
   const controller = new PagePsdController(psd, async () => { assert.fail("A background page operation opened the slice editor"); });
-  return { ...f, doc, controller, get opens() { return opens; }, setDocument: (document: typeof f.document) => { text = serializeGameFlowDocument(document); } };
+  return { ...f, doc, psd, controller, get opens() { return opens; }, setDocument: (document: typeof f.document) => { text = serializeGameFlowDocument(document); } };
 }
 test("host page PSD choice and generation cancellation leave the working copy unchanged", async () => {
   const f = hostFixture(), before = f.doc.getText();
@@ -187,7 +189,7 @@ test("host page PSD loading uses the saved relative source and preserves the act
   const active = f.doc.currentPsd;
   const response = await f.controller.handle(f.doc, { type: "pagePsd", requestId: "load", pageId: "page", action: "load", expected: f.page.artPsd });
   assert.equal(response.error, undefined); assert.equal(response.source, "../art/login.psd"); assert.equal(response.draft?.documentId, "art");
-  assert.equal(f.doc.currentPsd, active); assert.equal(f.opens, 1); assert.ok(f.doc.psds.has("file:///workspace/art/login.psd"));
+  assert.equal(f.doc.currentPsd, active); assert.equal(f.opens, 1); assert.equal(f.doc.psds.size, 0); assert.equal(f.psd.documents.size, 0);
   const stale = await f.controller.handle(f.doc, { type: "pagePsd", requestId: "old", pageId: "page", action: "load", expected: { source: "other.psd", documentId: "art" } });
   assert.match(stale.error!, /已变化/); assert.equal(f.opens, 1);
 });
@@ -213,6 +215,45 @@ test("host choice and generation return the selected file for the captured page"
     assert.equal(result.error, undefined); assert.equal(result.source, "../art/chosen.psd"); assert.equal(result.draft?.documentId, "art");
     assert.equal(f.opens, 1); assert.equal(parseGameFlowDocument(f.doc.getText()).pages[0].artPsd, undefined);
     assert.equal(referenceHost.files.get("/workspace/art/chosen.psd"), action === "generate" ? "abc" : undefined);
+  }
+});
+
+test("background PSD reads release ownership so same-name regeneration can repeat", async () => {
+  const f = hostFixture(); referenceHost.picked = new Uri("/workspace/art/chosen.psd");
+  const request = { type: "pagePsd" as const, requestId: "repeat", pageId: "page", action: "generate" as const, name: "chosen.psd", base64: "YWJj" };
+  for (let i = 0; i < 3; i++) {
+    const result = await f.controller.handle(f.doc, request);
+    assert.equal(result.error, undefined); assert.equal(result.draft?.documentId, "art");
+    assert.equal(f.doc.psds.size, 0); assert.equal(f.psd.documents.size, 0);
+  }
+  assert.equal(f.opens, 3);
+});
+
+test("PSD regeneration protects dirty configuration and other editing sessions before writing", async () => {
+  for (const mode of ["dirty", "foreign", "text"] as const) {
+    const f = hostFixture(), uri = new Uri("/workspace/art/chosen.psd"); referenceHost.picked = uri;
+    referenceHost.files.set(uri.path, "original");
+    const loaded = await f.psd.openCustomDocument(uri as unknown as vscode.Uri, {} as never, {} as never);
+    if (mode === "dirty") { Object.defineProperty(loaded.model, "dirty", { value: true }); f.doc.psds.set(uri.toString(), loaded); }
+    if (mode === "text") { loaded.dispose(); const text = new TestTextDocument(uri, "unsaved"); text.isDirty = true; workspace.textDocuments.push(text); }
+    const result = await f.controller.handle(f.doc, { type: "pagePsd", requestId: mode, pageId: "page", action: "generate", name: "chosen.psd", base64: "YWJj" });
+    assert.ok(result.error); assert.equal(referenceHost.files.get(uri.path), "original");
+    if (mode === "dirty") assert.equal(f.doc.psds.get(uri.toString()), loaded);
+  }
+});
+
+test("page loading retains active slice sessions and unsaved drafts", async () => {
+  for (const mode of ["current", "panel", "dirty"] as const) {
+    const f = hostFixture(), uri = new Uri("/workspace/art/login.psd");
+    f.page.artPsd = { source: "../art/login.psd", documentId: "art" }; f.setDocument(f.document);
+    referenceHost.files.set(uri.path, "PSD"); f.asset.sourceHash = bytesHash(Buffer.from("PSD"));
+    const loaded = await f.psd.openCustomDocument(uri as unknown as vscode.Uri, {} as never, {} as never);
+    f.doc.psds.set(uri.toString(), loaded);
+    if (mode === "current") f.doc.currentPsd = loaded;
+    if (mode === "panel") loaded.panels.add({} as never);
+    if (mode === "dirty") Object.defineProperty(loaded.model, "dirty", { value: true });
+    const result = await f.controller.handle(f.doc, { type: "pagePsd", requestId: mode, pageId: "page", action: "load", expected: f.page.artPsd });
+    assert.equal(result.error, undefined); assert.equal(f.doc.psds.get(uri.toString()), loaded); assert.equal(f.psd.documents.get(uri.toString()), loaded);
   }
 });
 
