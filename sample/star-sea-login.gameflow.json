@@ -1574,8 +1574,9 @@
               "width": 378,
               "height": 40
             },
+            "variable": "serverList",
             "properties": {
-              "variableName": "",
+              "variableName": "serverList",
               "hidden": false,
               "transform.anchorX": 0,
               "transform.anchorY": 0,

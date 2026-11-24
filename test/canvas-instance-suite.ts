@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { composeCanvasPage, editCanvasPage, revertCanvasProperties, revertCanvasSelections, planCanvasApply, copyCanvasSelection, changeCanvasAddition, extractCanvasSelection } from "../shared/canvas-instances";
+import { unbindCanvasInstance, composeCanvasPage, editCanvasPage, revertCanvasProperties, revertCanvasSelections, planCanvasApply, copyCanvasSelection, changeCanvasAddition, extractCanvasSelection } from "../shared/canvas-instances";
 import { parseGameFlowDocument, serializeGameFlowDocument, validateGameFlowDocument, type GameFlowDocument, type GameFlowNode } from "../shared/model";
 import { ROOT_TARGET, ownedCanvasNodes } from "../shared/canvas-instance-data";
 import { removeSelection, moveSelection } from "../shared/selection-ops";
@@ -263,4 +263,39 @@ test("source reparent keeps addresses while incompatible content overrides suspe
   assert.equal(composeCanvasPage(next,next.pages[0],f.sources).page.nodes.find(n=>n.id===id)!.text,"保留覆盖");
   f.source.pages[0].nodes.find(node=>node.id==="cardtext")!.type="image";delete f.source.pages[0].nodes.find(node=>node.id==="cardtext")!.text;
   const changed=composeCanvasPage(next,next.pages[0],f.sources);assert.match(changed.errors.get("demoref1")!,/类型已变化/);assert.equal(changed.page.nodes.find(n=>n.id===id)!.text,undefined);assert.equal(owner(next).instanceEdits!.overrides[0].set.text,"保留覆盖");
+});
+
+for (const recursive of [false, true]) test(`unbind reference snapshots local text (${recursive})`,()=>{
+  const f=fixture(), id=textId(f.document,f.sources);
+  const edited=change(f.document,f.sources,id,{text:"保留覆盖"});
+  let seq=0;
+  const next=unbindCanvasInstance(edited,f.pageId,f.sources,"demoref1",recursive,()=>`unbind${++seq}`);
+  assert.equal(owner(next).prefab,undefined);
+  assert.equal(owner(next).instanceEdits,undefined);
+  assert.ok(next.pages[0].nodes.some(node=>node.text==="保留覆盖"));
+  assert.ok(owner(next,"demoref2").prefab);
+  assert.ok(validateGameFlowDocument(next).ok);
+  assert.ok(owner(edited).prefab);
+});
+test("unbind rejects missing sources and locked roots atomically",()=>{
+  const f=fixture();
+  assert.throws(()=>unbindCanvasInstance(f.document,f.pageId,{},"demoref1",true,()=>"unused"));
+  owner(f.document).locked=true;
+  assert.throws(()=>unbindCanvasInstance(f.document,f.pageId,f.sources,"demoref1",false,()=>"unused"));
+});
+
+test("unbind current level preserves nested links while recursive unbind materializes them",()=>{
+  const f=fixture(), inner=structuredClone(f.source.pages[0]);
+  inner.nodes=inner.nodes.filter(node=>node.id==="cardroot"||node.id==="cardtext");inner.id="innerpg1";inner.componentRootId="innerbox";inner.nodes[0].id="innerbox";inner.nodes[1].id="innertxt";inner.nodes[1].parentId="innerbox";
+  f.source.pages.push(inner);f.source.pages[0].nodes.push({id:"nested01",name:"嵌套",type:"container",parentId:"cardroot",frame:{x:0,y:0,width:100,height:40},prefab:{source:"",documentId:f.source.documentId,pageId:inner.id}});
+  for(const recursive of [false,true]) {
+    let seq=0;
+    const next=unbindCanvasInstance(f.document,f.pageId,f.sources,"demoref1",recursive,()=>`unb${++seq}`);
+    const nested=next.pages[0].nodes.find(node=>node.name==="嵌套")!;
+    assert.equal(!!nested.prefab,!recursive);
+    const c=composeCanvasPage(next,next.pages[0],f.sources);
+    assert.equal(c.errors.size,0);
+    assert.ok(c.page.nodes.some(node=>node.parentId===nested.id));
+    assert.ok(validateGameFlowDocument(parseGameFlowDocument(serializeGameFlowDocument(next))).ok);
+  }
 });

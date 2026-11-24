@@ -1,7 +1,7 @@
 import { SyncTree, changeSymbols } from "./sync-tree";
 import { Button } from "../components/ui/button";
 import { DialogHeading } from "../components/dialog-heading";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Frame, GameFlowDocument, GameFlowPage } from "../../shared/model";
 import { compareTrees, plannedTrees, coordinatedBase, currentSyncBase, prototypeTree, psdTree, applyPrototypeTree, fieldNames, type Change, type Decision, type Side, type SyncNode } from "../../shared/page-sync";
 import { draftStamp } from "../../shared/psd-draft";
@@ -13,21 +13,13 @@ import { NodeView, orderedNodes } from "./node-view";
 import { resolvePageLayout } from "../../shared/ui-layout";
 import { SliceResourcesProvider, useSliceResources } from "../runtime/resource-context";
 import { syncDialogResizeEdges, useSyncDialogSize } from "./use-sync-dialog-size";
+import { SyncChange, describeDecision } from "./sync-change";
+import { PsdSyncLayerPicker } from "./psd-sync-layer-picker";
 import "./page-sync.css";
 
 async function reviewStamp(asset:PsdAsset) {
   const digest=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(draftStamp(asset)));
   return Array.from(new Uint8Array(digest),byte=>byte.toString(16).padStart(2,"0")).join("");
-}
-
-export function SyncValues({ previous, prototype, targetLabel, target }: {
-  previous: ReactNode; prototype: ReactNode; targetLabel: string; target: ReactNode;
-}) {
-  return <dl className="sync-values">
-    <dt>上次</dt><dd>{previous}</dd>
-    <dt>原型</dt><dd>{prototype}</dd>
-    <dt>{targetLabel}</dt><dd>{target}</dd>
-  </dl>;
 }
 
 export function syncPreviewHitNode(nodes:SyncNode[],old:SyncNode[],x:number,y:number) {
@@ -81,7 +73,7 @@ export function PageSyncDialog({session,loadedAsset,close,apply}:Props) {
   const canReview = isBrowserPreview || !!document.querySelector('meta[name="gameflow-page-psd-sync"][content="1"]');
   const [reviewedAsset,setAsset]=useState<PsdAsset>(), [error,setError]=useState(""), [busy,setBusy]=useState(false);
   const asset = canReview ? reviewedAsset : loadedAsset;
-  const [pairs,setPairs]=useState(new Map<string,string>()), [candidate,setCandidate]=useState("");
+  const [pairs,setPairs]=useState(new Map<string,string>());
   const [selected,select]=useState(""), [expanded,setExpanded]=useState(new Set<string>([""]));
   const [choices,setChoices]=useState<Record<string,Decision>>({}), [result,setResult]=useState(false), [review,setReview]=useState(false);
   const [reload,setReload]=useState(0);
@@ -119,7 +111,8 @@ export function PageSyncDialog({session,loadedAsset,close,apply}:Props) {
       let parent=nodeList.find(n=>n.id===change.id)?.parent;
       while(parent && !open.has(parent)) {open.add(parent);parent=nodeList.find(n=>n.id===parent)?.parent;}
     }
-    setExpanded(open);select(c.changes[0]?.id??"");
+    setExpanded(open);
+    select(previous => previous && nodeList.some(node => node.id === previous) ? previous : c.changes[0]?.id ?? "");
   },[c,nodeList]);
   const decisions:Record<string,Decision>={...choices};
   for(const ch of changes) {
@@ -164,21 +157,6 @@ export function PageSyncDialog({session,loadedAsset,close,apply}:Props) {
   const pending=changes.filter(ch=>!decisions[ch.key]).length, count=changes.filter(ch=>decisions[ch.key] && decisions[ch.key]!=="skip").length;
   const needBase=!!c && !c.base;
   const choose=(key:string,value:Decision)=>{setChoices(s=>({...s,[key]:value}));setReview(false);setError("");setResult(true);};
-  const describe=(ch:Change,value?:Decision)=>{
-    if(!value)return "待决定";
-    if(value==="skip")return "本轮跳过";
-    const from=c![value].find(n=>n.id===ch.id), dest=value==="proto"?"PSD":"原型";
-    if(ch.field==="exist") return (from?"补到":"从")+dest+(from?"":"删除");
-    return "采用"+(value==="proto"?"原型":"PSD");
-  };
-  function fieldValue(ch:Change,tree:SyncNode[]) {
-    const n=tree.find(n=>n.id===ch.id); if(!n) return "不存在";
-    if(ch.field==="exist")return n.name;
-    if(ch.field==="parent")return tree.find(p=>p.id===n.parent)?.name??page.name;
-    if(ch.field==="order")return String(tree.filter(p=>p.parent===n.parent).findIndex(p=>p.id===n.id)+1);
-    if(ch.field==="property") {const value=ch.property?n.properties?.[ch.property]:undefined;return value===undefined?"（空）":typeof value==="object"?JSON.stringify(value):String(value);}
-    return n[ch.field] || "（空）";
-  }
   async function commit() {
     if(!canReview || busy || !asset || !c || !plan.proto || !plan.trees)return;
     setBusy(true);setError("");
@@ -199,7 +177,13 @@ export function PageSyncDialog({session,loadedAsset,close,apply}:Props) {
     } catch(e){setError(String(e));} finally{setBusy(false);}
   }
   function toggle(id:string){setExpanded(prev=>{const s=new Set(prev);if(s.has(id))s.delete(id);else s.add(id);return s;});}
-  const selectNode=(id:string)=>{select(id);setCandidate("");};
+  function pairLayer(layerId: string) {
+    setPairs(current => new Map(current).set(layerId, selected));
+    setChoices({});
+    setReview(false);
+    setResult(false);
+    setError("");
+  }
   const shown=result && plan.trees?plan.trees:c;
   const selectedLayer=asset?.layers.find(l=>l.metadata.layerId===c?.psd.find(n=>n.id===selected)?.layer);
   const artChildren=selectedLayer ? asset?.layers.filter(l=>l.parentKey===selectedLayer.key).map(l=>l.name) : [];
@@ -210,24 +194,27 @@ export function PageSyncDialog({session,loadedAsset,close,apply}:Props) {
       <span title={page.artPsd?.source}>{page.name} / {page.artPsd?.source}</span>
     </DialogHeading>
     <div className="sync-layout"><SyncTree page={page} nodes={nodeList} changes={changes} loading={!c}
-      selected={selected} expanded={expanded} onToggle={toggle} onSelect={selectNode} />
+      selected={selected} expanded={expanded} onToggle={toggle} onSelect={select} />
       <section className="sync-main"><div className="sync-bar"><strong>{node?.name??page.name}</strong>
         <div><button aria-pressed={!result} disabled={busy} onClick={()=>{setResult(false);setReview(false);}}>当前</button><button aria-pressed={result} disabled={busy || !canReview} onClick={()=>setResult(true)}>同步后</button></div></div>
-        {asset && shown && <div className="sync-boards"><figure><figcaption>原型 · 内置资源</figcaption><SyncPreview page={result && plan.proto?plan.proto:page} nodes={shown.proto} selected={selected} changes={changes} old={c?.base?.nodes??[]} onSelect={selectNode}/></figure>
-        <figure><figcaption>美术 PSD</figcaption>{result && plan.push && !copy ? <div className="sync-preview checkerboard">{copyIssue?"此项暂无法写出":"正在生成同步预览…"}</div>:<SyncPreview page={page} asset={result && plan.push?copy?.asset:asset} nodes={shown.psd} selected={selected} changes={changes} old={c?.base?.nodes??[]} onSelect={selectNode}/>}</figure></div>}</section>
+        {asset && shown && <div className="sync-boards"><figure><figcaption>原型 · 内置资源</figcaption><SyncPreview page={result && plan.proto?plan.proto:page} nodes={shown.proto} selected={selected} changes={changes} old={c?.base?.nodes??[]} onSelect={select}/></figure>
+        <figure><figcaption>美术 PSD</figcaption>{result && plan.push && !copy ? <div className="sync-preview checkerboard">{copyIssue?"此项暂无法写出":"正在生成同步预览…"}</div>:<SyncPreview page={page} asset={result && plan.push?copy?.asset:asset} nodes={shown.psd} selected={selected} changes={changes} old={c?.base?.nodes??[]} onSelect={select}/>}</figure></div>}</section>
       <aside className="sync-detail" aria-label="同步属性详情">
         {!canReview && <p role="alert">当前扩展宿主版本较旧，仅可查看已加载的页面。请按 F1 执行「开发人员: 重新加载窗口」，再打开同步。</p>}
         {canReview && !asset && !error && <p>正在读取绑定的 PSD…</p>}
         {canReview && needBase && <p>首次对照。确认对应关系后可建立共同基线。</p>}
         {c && !changes.length && <p>文字与结构已一致</p>}
-        {items.map(ch=><fieldset disabled={busy || !canReview} key={ch.key}><legend>{fieldNames[ch.field]} · {c?.base?({add:"新增",delete:"删除",edit:"修改"}[ch.kind]):"首次对照"}</legend>
-          <SyncValues previous={c?.base ? fieldValue(ch,c.base.nodes) : "无记录"} prototype={fieldValue(ch,c!.proto)} targetLabel="PSD" target={fieldValue(ch,c!.psd)} />
-          {ch.field==="exist" && !!artChildren?.length && <p>随组处理　{artChildren.join("、")}</p>}
-          {fixedSource ? <p>{describe(ch,fixedSource)}</p> : (["proto","psd","skip"] as const).map(v=><button key={v} aria-pressed={decisions[ch.key]===v} onClick={()=>choose(ch.key,v)}>{describe(ch,v)}</button>)}</fieldset>)}
-        {asset && c && node && !c.psd.some(n=>n.id===node.id) && c.proto.some(n=>n.id===node.id) && <fieldset disabled={busy || !canReview}><legend>对应已有 PSD 图层</legend>
-          <select aria-label="对应 PSD 图层" value={candidate} onChange={e=>setCandidate(e.target.value)}><option value="">选择图层</option>{asset.layers.filter(l=>!c.psd.some(n=>n.layer===l.metadata.layerId && page.nodes.some(p=>p.id===n.id))).map(l=><option key={l.key} value={l.metadata.layerId}>{l.name}</option>)}</select>
-          <button disabled={!candidate} onClick={()=>{setPairs(p=>new Map(p).set(candidate,selected));setCandidate("");setChoices({});}}>关联</button></fieldset>}
-        {review && <fieldset><legend>本轮应用明细</legend>{changes.map(ch=><p key={ch.key}>{nodeList.find(n=>n.id===ch.id)?.name} · {fieldNames[ch.field]}　{describe(ch,decisions[ch.key])}</p>)}</fieldset>}
+        {c && items.map(ch => <SyncChange key={ch.key} comparison={c} change={ch} title={fieldNames[ch.field]}
+          decision={decisions[ch.key]} disabled={busy || !canReview} onChoose={value => choose(ch.key, value)}
+          targetLabel="PSD" pageName={page.name} fixedSource={fixedSource}>
+          {ch.field === "exist" && !!artChildren?.length && <p>随组处理　{artChildren.join("、")}</p>}
+        </SyncChange>)}
+        {asset && c && node && !c.psd.some(n => n.id === node.id) && c.proto.some(n => n.id === node.id) &&
+          <PsdSyncLayerPicker key={node.id} layers={asset.layers} comparison={c} documentId={doc.documentId}
+            pageId={page.id} disabled={busy || !canReview} onConfirm={pairLayer} />}
+        {review && c && <fieldset><legend>本轮应用明细</legend>{changes.map(ch => <p key={ch.key}>
+          {nodeList.find(n => n.id === ch.id)?.name} · {fieldNames[ch.field]}　{describeDecision(c, ch, decisions[ch.key], "PSD", page.name)}
+        </p>)}</fieldset>}
         {message && <p role="alert">{message} {canReview && <button disabled={busy} onClick={()=>setReload(n=>n+1)}>重新比较</button>}</p>}
       </aside></div>
     <footer><span>待决定 {pending} 项　·　已选 {count} 项</span><Button size="sm" disabled={!canReview || busy || !c || pending>0 || (!count && !plan.baselineChanged) || !!plan.issue || !!(review && plan.push && !copy)}

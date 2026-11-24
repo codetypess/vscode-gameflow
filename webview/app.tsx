@@ -48,7 +48,7 @@ import { canvasContextTarget, canvasHitNode, canvasPasteTarget, canvasScopePath,
 import { pickSelection, reconcileSelection, singleSelection, type NodeSelection, type SelectionIntent } from "./lib/node-selection";
 import { commonSelectionParent, copySelection, duplicateSelection, moveSelection, removeSelection, translateSelection } from "../shared/selection-ops";
 import { applyColorPreview, type ColorPreview } from "./lib/color-edit";
-import { composeCanvasPage, editCanvasPage, canvasStructureIssue, findOwnedCanvasNode, revertCanvasProperties, revertCanvasSelections, planCanvasApply, changeCanvasAddition, canvasFingerprint, type CanvasApplyRequest, type CanvasOrphan, copyCanvasSelection, copyCanvasOrphan, extractCanvasSelection } from "../shared/canvas-instances";
+import { unbindCanvasInstance, composeCanvasPage, editCanvasPage, canvasStructureIssue, findOwnedCanvasNode, revertCanvasProperties, revertCanvasSelections, planCanvasApply, changeCanvasAddition, canvasFingerprint, type CanvasApplyRequest, type CanvasOrphan, copyCanvasSelection, copyCanvasOrphan, extractCanvasSelection } from "../shared/canvas-instances";
 import { readProperty, sameTarget, type CanvasTarget, type CanvasPropertySelection } from "../shared/canvas-instance-data";
 import type { PsdAsset } from "../shared/psd-meta";
 import { sliceGenerationStamp } from "./psd/slice-render";
@@ -376,6 +376,14 @@ export function App() {
     if (result.ids?.length) { updatePage(currentPage.id, () => result.page); selectNodes(result.ids); }
   };
   const convertLayer = (id: string, type: InsertType) => { if (editingId) updatePage(editingId, (item) => convertNodeType(item, id, type, runtimeResources.sizes)); };
+  const unbindPrefab = (id: string, recursive: boolean) => {
+    if (!editingId) return;
+    const makeId = newIds();
+    edit(document => {
+      try { return unbindCanvasInstance(document, editingId, sources, id, recursive, makeId); }
+      catch (error) { setNotice(error instanceof Error ? error.message : String(error)); return document; }
+    });
+  };
   const saveToCanvas = (id: string) => {
     if (!editingId) return;
     const makeId = newIds();
@@ -756,9 +764,9 @@ export function App() {
         </div> : null}
         {selectedGeometry?.inverse && selectionAnchor ? <span className="selection-anchor" aria-hidden="true" style={{ left: visibleCamera.x+selectionAnchor.x*visibleCamera.zoom, top: visibleCamera.y+selectionAnchor.y*visibleCamera.zoom }} /> : null}
         {editingId && page ? <LayerTree composition={composition ?? undefined} onRepair={repairOrphan} onCopyOrphan={copyOrphan} key={page.id} panelRef={panels.leftRef} panelStyle={panels.leftStyle} page={page} scopeId={scopeId} selectedIds={selectedNodeIds} selectedId={selectedNode?.id ?? null} reveal={canvasSelection} onSelect={selectNode} onPatch={patchNode} onBack={back} onAdd={addLayer} onDelete={deleteLayer} onMove={moveLayer}
-          hasClipboard={!!clipboard} onCopy={copyLayer} onPaste={pasteLayer} onDuplicate={duplicateLayer} onConvert={convertLayer} onSaveToCanvas={saveToCanvas} onOpenSource={openSource} /> : null}
+          hasClipboard={!!clipboard} onCopy={copyLayer} onPaste={pasteLayer} onDuplicate={duplicateLayer} onConvert={convertLayer} onSaveToCanvas={saveToCanvas} onOpenSource={openSource} onUnbind={unbindPrefab} /> : null}
         {editingId && page ? <LayerMenu page={page} composition={composition ?? undefined} selectedIds={selectedNodeIds} target={canvasMenu?.kind === "nodes" ? canvasMenu.target : null} backgroundParentId={canvasMenu?.backgroundParentId} menuLabel="画布节点右键菜单"
-          onClose={()=>setCanvasMenu(null)} onRestoreFocus={restoreCanvasFocus} hasClipboard={!!clipboard} onAdd={addCanvasLayer} onDelete={deleteLayer} onCopy={copyLayer} onPaste={pasteLayer} onRename={beginCanvasRename} onDuplicate={duplicateLayer} onConvert={convertLayer} onSaveToCanvas={saveToCanvas} onOpenSource={openSource}>
+          onClose={()=>setCanvasMenu(null)} onRestoreFocus={restoreCanvasFocus} hasClipboard={!!clipboard} onAdd={addCanvasLayer} onDelete={deleteLayer} onCopy={copyLayer} onPaste={pasteLayer} onRename={beginCanvasRename} onDuplicate={duplicateLayer} onConvert={convertLayer} onSaveToCanvas={saveToCanvas} onOpenSource={openSource} onUnbind={unbindPrefab}>
           <CanvasViewItems onFit={()=>{setCanvasMenu(null);fit([page],true);}} onBack={()=>{setCanvasMenu(null);if(scopeId){const current=scopePath.at(-1)!;navigateScope(current.parentId ?? null,current.id);}else back();}} backLabel={scopeId ? "返回上一级" : "返回总览"}/>
         </LayerMenu> : <CanvasOverviewMenu target={canvasMenu?.kind === "overview" ? canvasMenu.target : null} page={canvasDocument.pages.find(item=>item.id===canvasMenu?.pageId)} onClose={()=>setCanvasMenu(null)} onRestoreFocus={restoreCanvasFocus}
           onEnter={()=>{const target=canvasDocument.pages.find(item=>item.id===canvasMenu?.pageId);if(target)enter(target);}} onRename={()=>beginCanvasRename()} onDuplicate={duplicate} onDelete={remove} onAddPage={addPage} onFit={()=>fit(canvasDocument.pages,false)} />}

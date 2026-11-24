@@ -26,8 +26,7 @@
   background: var(--vscode-list-activeSelectionBackground, #094771);
   color: var(--vscode-list-activeSelectionForeground, #fff);
 }
-.sync-detail fieldset button, .sync-bar > div, .sync-detail select { border: 1px solid var(--border); border-radius: 3px; }
-.sync-detail select { max-width: 100%; padding: 3px 7px; background: var(--vscode-dropdown-background, var(--muted)); color: inherit; }
+.sync-detail fieldset button, .sync-bar > div { border: 1px solid var(--border); border-radius: 3px; }
 .sync-legend { display: flex; flex-wrap: wrap; gap: 8px; margin: 7px 0; }
 .page-sync-dialog [data-kind=add] { --tone: var(--vscode-gitDecoration-addedResourceForeground, #68b786); }
 .page-sync-dialog [data-kind=delete] { --tone: var(--vscode-gitDecoration-deletedResourceForeground, #e87775); }
@@ -89,6 +88,19 @@
 .prefab-change-choice label span { min-width: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
 .prefab-change-choice small { margin-inline-start: 5px; color: var(--vscode-textLink-foreground, var(--muted-foreground)); white-space: nowrap; }
 .prefab-change:disabled label { cursor: default; opacity: .6; }
+.sync-detail .sync-change-baseline { margin: 2px 0 6px; color: var(--muted-foreground); }
+.sync-detail .sync-change-baseline > summary { padding: 2px 0; }
+.sync-change-baseline > div { padding: 2px 0 4px 12px; color: var(--foreground); white-space: pre-wrap; }
+.psd-sync-layer-options { max-height: 180px; margin: 5px 0; overflow: auto; border: 1px solid var(--border); border-radius: 3px; }
+.psd-sync-layer-options ul { margin: 0; padding: 0; list-style: none; }
+.psd-sync-layer-options li > ul { padding-inline-start: 10px; }
+.psd-sync-layer-row { display: flex; align-items: center; gap: 2px; min-height: 24px; }
+.sync-detail .psd-sync-layer-row button { margin: 0; border: 0; }
+.sync-detail .psd-sync-layer-toggle { display: grid; place-items: center; flex: 0 0 20px; padding: 0; }
+.sync-detail .psd-sync-layer-name { display: flex; align-items: center; flex: 1; min-width: 0; gap: 5px; padding: 3px 5px; text-align: left; }
+.psd-sync-layer-name > svg { flex: none; }
+.psd-sync-layer-name > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.psd-sync-layer-row > span.psd-sync-layer-name, .psd-sync-layer-path { color: var(--muted-foreground); }
 .prefab-result table { width: 100%; table-layout: fixed; border-collapse: collapse; }
 .prefab-result th, .prefab-result td { padding: 3px; text-align: left; vertical-align: top; border-top: 1px solid var(--border); overflow-wrap: anywhere; white-space: pre-wrap; }
 .prefab-result th { font-weight: 500; }

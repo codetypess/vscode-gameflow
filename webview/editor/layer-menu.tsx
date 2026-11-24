@@ -14,8 +14,9 @@ import { useSliceResources } from "../runtime/resource-context";
 export interface LayerMenuTarget { x: number; y: number; id: string | null }
 const TYPES = COMPONENT_TOOLS;
 
-export function LayerMenu({ page, selectedIds, target, onClose, onAdd, onDelete, onRestoreFocus, hasClipboard, onCopy, onPaste, onRename, onDuplicate, onConvert, onSaveToCanvas, onOpenSource, composition, backgroundParentId, menuLabel = "图层右键菜单", children }: {
+export function LayerMenu({ page, selectedIds, target, onClose, onAdd, onDelete, onRestoreFocus, hasClipboard, onCopy, onPaste, onRename, onDuplicate, onConvert, onSaveToCanvas, onOpenSource, onUnbind, composition, backgroundParentId, menuLabel = "图层右键菜单", children }: {
   backgroundParentId?: string; menuLabel?: string; children?: ReactNode;
+  onUnbind?: (id: string, recursive: boolean) => void;
   composition?: CanvasComposition;
   page: GameFlowPage; target: LayerMenuTarget | null; onClose: () => void;
   selectedIds: string[];
@@ -68,6 +69,12 @@ export function LayerMenu({ page, selectedIds, target, onClose, onAdd, onDelete,
             {TYPES.map(({ type, icon: Icon }) => <DropdownMenu.Item key={type} disabled={!canConvertNodeType(page, node.id, type)} onSelect={action(() => onConvert(node.id, type))}><Icon size={14} /><span>{NODE_LABELS[type]} <small className="menu-class">({COMPONENTS[type].laya})</small></span>{node.type === type ? <Check size={14} /> : null}</DropdownMenu.Item>)}
           </DropdownMenu.SubContent></DropdownMenu.Portal>
         </DropdownMenu.Sub>
+        {onUnbind ? <DropdownMenu.Sub><DropdownMenu.SubTrigger><Package size={14} /><span>原型组件</span><ChevronRight size={14} /></DropdownMenu.SubTrigger>
+          <DropdownMenu.Portal><DropdownMenu.SubContent loop sideOffset={2} collisionPadding={6} className="layer-context-menu layer-context-submenu" aria-label="原型组件菜单" onPointerDown={event => event.stopPropagation()} onContextMenu={event => event.preventDefault()} onKeyDown={event => event.stopPropagation()}>
+            <DropdownMenu.Item disabled={multi || !meta?.reference || !!meta.inherited || inheritedFlag(page,node,"locked") || !!meta.added} onSelect={action(() => onUnbind(node.id, false))}>解除当前等级的原型组件绑定</DropdownMenu.Item>
+            <DropdownMenu.Item disabled={multi || !meta?.reference || !!meta.inherited || inheritedFlag(page,node,"locked") || !!meta.added} onSelect={action(() => onUnbind(node.id, true))}>解除全部（包含嵌套）原型组件绑定</DropdownMenu.Item>
+          </DropdownMenu.SubContent></DropdownMenu.Portal>
+        </DropdownMenu.Sub> : null}
         {meta?.inherited || meta?.reference || node.prefab ? <DropdownMenu.Item onSelect={action(() => onOpenSource(node.id))}><Package size={14} /><span>编辑源组件</span></DropdownMenu.Item> : <>
           <DropdownMenu.Item disabled={multi || !!meta?.inherited || !!canvasExtractionIssue(page, node.id, resources.sizes)} title={canvasExtractionIssue(page, node.id, resources.sizes) ?? "保存为组件并保留关联引用"} onSelect={action(() => onSaveToCanvas(node.id))}><Package size={14} /><span>存到画布</span></DropdownMenu.Item>
           {canvasExtractionIssue(page, node.id, resources.sizes) ? <div className="menu-hint">{canvasExtractionIssue(page, node.id, resources.sizes)}</div> : null}

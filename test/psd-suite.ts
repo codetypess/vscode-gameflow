@@ -6,7 +6,7 @@ import { parsePsdBinary, patchPsdMetadata } from "../shared/psd-binary";
 import { applySidecar, EMPTY_GRID, identityProblems, inheritLayerVisibility, makeSidecar, newLayerIdentity, selectedMergeTree, setGridEdge, validGrid, type PsdAsset, type PsdLayerMeta } from "../shared/psd-meta";
 import { isWebviewToHostMessage } from "../shared/protocol";
 import { fitPsdCamera, placePsdPanels, zoomPsdCamera } from "../webview/psd/canvas-layout";
-import { isCanvasDrag, makePixelMask, maskContains, pickPsdLayer, psdPoint } from "../webview/psd/layer-hit-test";
+import { isCanvasDrag, makePixelMask, maskContains, pickPsdLayer, psdHitLayer, psdPoint, psdScopePath } from "../webview/psd/layer-hit-test";
 import { droppedPsd, hasFileDrag } from "../webview/psd/file-drop-input";
 
 const sample = () => new Uint8Array(readFileSync(resolve("examples/psd-metadata/GameFlow-PSD-Metadata-Sample.psd")));
@@ -57,6 +57,21 @@ export const psdTests: { name: string; run: () => void | Promise<void> }[] = [
     assert.equal(await pickPsdLayer(source, { x: 5, y: 5 }, async () => false), 3);
     assert.equal(await pickPsdLayer({ ...source, layers: source.layers.slice(0, 2) }, { x: 5, y: 5 }, async () => true), null);
     assert.equal(await pickPsdLayer({ ...source, layers: [{ ...text, image: undefined }] }, { x: 5, y: 5 }, async () => true), null);
+  } },
+  { name: "PSD scoped picking follows prototype direct and layered selection rules", run() {
+    const original = asset(), base = original.layers.find(l => !l.group)!;
+    const outer = { ...base, key: 1, parentKey: null, name: "outer", group: true, hidden: false };
+    const inner = { ...outer, key: 2, parentKey: 1, name: "inner" };
+    const leaf = { ...base, key: 3, parentKey: 2, name: "leaf", group: false, hidden: false };
+    const other = { ...leaf, key: 4, parentKey: null, name: "other" };
+    const source = { ...original, layers: [outer, inner, leaf, other] };
+    assert.equal(psdHitLayer(source, null, leaf.key)?.key, outer.key);
+    assert.equal(psdHitLayer(source, outer.key, leaf.key)?.key, inner.key);
+    assert.equal(psdHitLayer(source, inner.key, leaf.key)?.key, leaf.key);
+    assert.equal(psdHitLayer(source, outer.key, other.key), null, "another branch behaves as scope background");
+    assert.equal(psdHitLayer(source, outer.key, leaf.key, true)?.key, leaf.key);
+    assert.deepEqual(psdScopePath(source, inner.key).map(layer => layer.key), [outer.key, inner.key]);
+    assert.deepEqual(psdScopePath(source, leaf.key), []);
   } },
   { name: "PSD click tolerance is screen-based and selection coordinates follow pan and zoom", run() {
     assert.equal(isCanvasDrag({ x: 10, y: 10 }, { x: 14, y: 10 }), false);

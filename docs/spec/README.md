@@ -34,6 +34,8 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 
 ## Active Work Items
 
+- [layer-prefab-unbinding.md](layer-prefab-unbinding.md) — Done：图层原型组件子菜单支持当前等级与递归解绑，390 项共享测试及生产打包通过。
+
 - [component-root-prefab-alias.md](component-root-prefab-alias.md) — Done：组件源、引用实例与 Laya Prefab 共用单一语义根；不再为选中 UIBox 额外输出包装层，非法根类型直接提示。386 项共享测试、类型检查、生产构建、示例 Prefab 解析及星海样例浏览器层级验证通过。
 
 - [psd-bottom-export-toolbar.md](psd-bottom-export-toolbar.md) — Done：PSD 切图画布底部提供“导出”和“在文件管理器中打开”，宿主只打开本机设置中的资源导出根目录；386 项共享测试、生产构建、宿主专项与 Edge 360px 回归通过。

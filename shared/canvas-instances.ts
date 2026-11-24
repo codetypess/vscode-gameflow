@@ -345,6 +345,30 @@ export function editCanvasPage(document: GameFlowDocument, pageId: string, sourc
 }
 function oldAddition(document: GameFlowDocument, ownerId: string, id: string) { return findOwnedCanvasNode(document, ownerId)?.instanceEdits?.additions.find(item => item.node.id === id); }
 
+/** Materialize one owned reference without persisting composed display identities. */
+export function unbindCanvasInstance(document: GameFlowDocument, pageId: string, sources: CanvasSources, id: string, recursive: boolean, makeId: () => string): GameFlowDocument {
+  const composition = composeCanvasPage(document, document.pages.find(page => page.id === pageId)!, sources);
+  const root = composition.page.nodes.find(node => node.id === id), meta = composition.info.get(id);
+  if (!root || !meta?.reference || meta.inherited || inheritedFlag(composition.page, root, "locked")) throw new Error("请选择未锁定的本地原型组件引用根。");
+  const subtree = descendants(composition.page, id);
+  if ([...composition.errors.keys()].some(key => subtree.has(key)) || composition.orphans.some(orphan => subtree.has(orphan.ownerId))) throw new Error("请先修复源组件或失效的实例编辑，再解除绑定。");
+  const info = new Map(composition.info);
+  for (const key of subtree) if (recursive || key === id) info.delete(key);
+  const snapshot = copyCanvasSelection(document, { ...composition, info }, [id]);
+  if (!snapshot) return document;
+  const mapping = new Map(ownedCanvasNodes(snapshot.nodes).map(node => [node.id, node.id === id ? id : makeId()]));
+  const nodes = snapshot.nodes.map(node => remapControlReferences(remapCanvasEdits({ ...node, id: mapping.get(node.id)!, parentId: node.id === id ? root.parentId : mapping.get(node.parentId!) }, mapping), mapping));
+  nodes[0].frame = structuredClone(root.frame);
+  const next = structuredClone(document), page = next.pages.find(page => page.id === pageId)!;
+  const replace = page.nodes.findIndex(node => node.id === id);
+  if (replace < 0) throw new Error("暂不支持解除附加实例的绑定。");
+  next.schemaVersion = GAMEFLOW_SCHEMA_VERSION;
+  page.nodes.splice(replace, 1, ...nodes);
+  const validation = validateGameFlowDocument(next);
+  if (!validation.ok) throw new Error(validation.errors.join("\n"));
+  return next;
+}
+
 /** Ordinary inherited selections become snapshots; reference boundaries retain linked definitions. */
 export function copyCanvasSelection(document: GameFlowDocument, composition: CanvasComposition, ids: string[], resourceSizes?: ResourceSizes): NodeClipboard | null {
   const clipboard = copySelection(composition.page, ids, resourceSizes);

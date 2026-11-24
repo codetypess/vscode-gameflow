@@ -170,7 +170,7 @@ test("component definitions promote their owned UIBox to the Prefab root",async(
   const pulledRoot=pullRoot.page.nodes.find(node=>node.id===root.id)!;
   assert.equal(pullRoot.page.frame.width,360);
   assert.equal(pulledRoot.frame.width,360);
-  assert.equal(pulledRoot.layout.gap,17);
+  assert.equal(pulledRoot.layout?.gap,17);
   assert.deepEqual(inspectPrefab(document,pullRoot.page,plan.batch.name,pullRoot.batch.prefab).comparison.changes,[]);
   const pushRoot=mergePrefab(rootReview,Object.fromEntries(rootReview.comparison.changes.map(change=>[change.key,"proto" as const])),plan.batch);
   assert.equal(pushRoot.batch.prefab.width,320);

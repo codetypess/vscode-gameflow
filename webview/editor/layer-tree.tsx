@@ -22,7 +22,8 @@ export function componentLayerRoot(page: GameFlowPage) {
 
 interface TreeDrag { id: string; pointerId: number; x: number; y: number; active: boolean; drop: LayerDrop | null }
 
-export function LayerTree({ page, scopeId, selectedId, selectedIds, reveal, onSelect, onPatch, onBack, onAdd, onDelete, onMove, panelRef, panelStyle, hasClipboard, onCopy, onPaste, onDuplicate, onConvert, onSaveToCanvas, onOpenSource, composition, onRepair, onCopyOrphan }: {
+export function LayerTree({ page, scopeId, selectedId, selectedIds, reveal, onSelect, onPatch, onBack, onAdd, onDelete, onMove, panelRef, panelStyle, hasClipboard, onCopy, onPaste, onDuplicate, onConvert, onSaveToCanvas, onOpenSource, onUnbind, composition, onRepair, onCopyOrphan }: {
+  onUnbind?: (id: string, recursive: boolean) => void;
   composition?: CanvasComposition; onRepair?: (orphan: CanvasOrphan, parentId?: string) => void; onCopyOrphan?: (orphan: CanvasOrphan) => void;
   page: GameFlowPage; selectedId: string | null; selectedIds: string[]; reveal: number; onSelect: (id: string | null, intent?: SelectionIntent) => void;
   scopeId: string | null;
@@ -218,7 +219,7 @@ export function LayerTree({ page, scopeId, selectedId, selectedIds, reveal, onSe
     </div></ScrollArea>
     <div className="layer-footer">{filtering ? "搜索中 · 清除搜索后可拖动排序" : "右键编辑节点 · 拖动调整层级"}</div>
     {composition?.orphans.length ? <div className="canvas-orphans"><strong>待修复的实例编辑</strong>{composition.orphans.map((orphan,index) => <div key={`${orphan.ownerId}-${index}`} title={orphan.message}><span>{orphan.name} · {orphan.message}</span>{orphan.additionId ? <><select aria-label={`重新挂接${orphan.name}`} value="" onChange={event => { if(event.target.value) onRepair?.(orphan,event.target.value); }}><option value="">重新挂接…</option>{page.nodes.filter(node => canHaveChildren(node) && !inheritedFlag(page,node,"locked") && composition.info.get(node.id)?.ownerId === orphan.ownerId && node.id !== orphan.additionId).map(node => <option key={node.id} value={node.id}>{node.name}</option>)}</select><Button size="sm" variant="ghost" onClick={() => onCopyOrphan?.(orphan)}>复制</Button></> : null}<Button size="sm" variant="ghost" onClick={() => onRepair?.(orphan)}>{orphan.additionId ? "删除附加内容" : "清除失效覆盖"}</Button></div>)}</div> : null}
-    <LayerMenu composition={composition} page={page} selectedIds={selectedIds} target={menu} onClose={() => setMenu(null)} onAdd={(type, parentId, afterId) => { expand(parentId); onAdd(type, parentId, afterId); }} onDelete={onDelete}
+    <LayerMenu onUnbind={onUnbind} composition={composition} page={page} selectedIds={selectedIds} target={menu} onClose={() => setMenu(null)} onAdd={(type, parentId, afterId) => { expand(parentId); onAdd(type, parentId, afterId); }} onDelete={onDelete}
       hasClipboard={hasClipboard} onCopy={onCopy} onPaste={(parentId, afterId) => { expand(parentId); onPaste(parentId, afterId); }} onRename={beginRename} onDuplicate={onDuplicate} onConvert={onConvert} onSaveToCanvas={onSaveToCanvas} onOpenSource={onOpenSource}
       onRestoreFocus={() => { if (renameInput.current) { renameInput.current.focus(); renameInput.current.select(); } else if (returnFocus.current?.isConnected) returnFocus.current.focus(); else panel.current?.focus(); }} />
   </aside>;

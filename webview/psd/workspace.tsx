@@ -104,6 +104,7 @@ function MergeSourceDrop({ side, disabled, onFile, onError, children }: {
 
 export function PsdWorkspace({ mode, active, binding, documentActions, settings, exportPending, onAsset, openBoundRef, onReveal }: { mode: "slice" | "merge"; active: boolean; binding?: PsdWorkspaceBinding; documentActions?: HTMLElement | null; settings: WorkbenchSettingsUI; exportPending?: boolean; onAsset?: (asset: PsdAsset) => void; openBoundRef?: Ref<OpenBoundSlice>; onReveal?: () => void }) {
   const [localLoaded, setLoaded] = useState<Loaded | null>(null), [selectedKey, setSelectedKey] = useState<number | null>(null);
+  const [scopeKey, setScopeKey] = useState<number | null>(null);
   const [directSelection, setDirectSelection] = useToolbarChoice("psdDirectSelection", [true, false]);
   const [showContainerOutlines, setShowContainerOutlines] = useToolbarChoice("psdContainerOutlines", [false, true]);
   const loaded = binding?.loaded ?? localLoaded;
@@ -121,9 +122,24 @@ export function PsdWorkspace({ mode, active, binding, documentActions, settings,
   const loading = useRef(false);
   const asset = loaded?.asset, selected = asset?.layers.find(l => l.key === selectedKey) ?? null;
   useEffect(() => { if (asset) onAsset?.(asset); }, [asset, onAsset]);
+  const selectCanvasLayer = (key: number | null) => {
+    setSelectedKey(key);
+    const layer = asset?.layers.find(item => item.key === key);
+    if (layer) setScopeKey(layer.parentKey);
+    setCanvasSelection(n => n + 1);
+  };
+  const selectTreeLayer = (key: number) => {
+    const layer = asset?.layers.find(item => item.key === key);
+    if (!layer) return;
+    setScopeKey(layer.parentKey); setSelectedKey(key); setCanvasSelection(n => n + 1);
+  };
+  const navigateScope = (key: number | null, selectedKey: number | null = null) => {
+    setScopeKey(key); setSelectedKey(selectedKey);
+    if (selectedKey !== null) setCanvasSelection(n => n + 1);
+  };
   const selectedRegion = selected ? sliceRegion(selected) : null;
   useEffect(() => {
-    setSelectedKey(null);
+    setSelectedKey(null); setScopeKey(null);
   }, [binding?.configPath, binding?.loaded.asset.sourceHash]);
   const backupBrowser = (next: PsdAsset) => { try { saveBrowserDraft(next); } catch { setMessage("草稿备份失败，浏览器存储可能已满，请保存配置文件。"); } };
   const change = (next: PsdAsset) => { if (!loaded || busy) return; setDirectoryIssues([]); if (binding) { binding.change(next); return; } backupBrowser(next); setPast(p => [...p.slice(-39), loaded.asset]); setFuture([]); setLoaded({ ...loaded, asset: next }); setDirty(true); };
@@ -139,7 +155,7 @@ export function PsdWorkspace({ mode, active, binding, documentActions, settings,
       try { draft = restoreBrowserDraft(source.asset); }
       catch (error) { restoreError = `草稿恢复失败，备份已保留：${String(error)}`; }
       const asset = draft ?? source.asset;
-      setDirectoryIssues([]); setLoaded({ ...source, asset }); setSelectedKey(null); setPast([]); setFuture([]); setDirty(!!draft);
+      setDirectoryIssues([]); setLoaded({ ...source, asset }); setSelectedKey(null); setScopeKey(null); setPast([]); setFuture([]); setDirty(!!draft);
       setMessage(restoreError || (draft ? "已恢复本地草稿，请保存配置文件。" : identityProblems(asset).length ? "存在重复 ID：选中副本后，点击“作为新节点”。" : ""));
       if (!(file instanceof File)) onReveal?.();
     }
@@ -212,13 +228,13 @@ export function PsdWorkspace({ mode, active, binding, documentActions, settings,
       </>, documentActions) : null}
       {binding?.notice ? <p className="psd-config-notice">{binding.notice}</p> : null}
       {binding?.error ? <div className="psd-config-notice psd-warning" role="alert">{binding.error}<Button size="sm" variant="ghost" onClick={binding.retry}>重新提交修改</Button></div> : null}
-      {asset ? <PsdSliceCanvas key={`${asset.sourceHash}:${asset.name}`} asset={asset} selected={selected} active={active} directSelection={directSelection} showContainerOutlines={showContainerOutlines} onSelect={key => { setSelectedKey(key); setCanvasSelection(n => n + 1); }}
+      {asset ? <PsdSliceCanvas key={`${asset.sourceHash}:${asset.name}`} asset={asset} selected={selected} active={active} directSelection={directSelection} showContainerOutlines={showContainerOutlines} scopeKey={scopeKey} onSelect={selectCanvasLayer} onNavigateScope={navigateScope}
         toolbar={<><Button size="icon" variant={directSelection ? "secondary" : "ghost"} className={cn("psd-toolbar-action", directSelection && "tool-active")} aria-label="直选模式" aria-pressed={directSelection} title="直选模式" onClick={() => setDirectSelection(!directSelection)}><MousePointerClick size={19} /></Button><Button size="icon" variant={showContainerOutlines ? "secondary" : "ghost"} className={cn("psd-toolbar-action", showContainerOutlines && "tool-active")} aria-label="虚线框" aria-pressed={showContainerOutlines} title="虚线框" onClick={() => setShowContainerOutlines(!showContainerOutlines)}><SquareDashed size={19} /></Button><Separator orientation="vertical" /><Button size="icon" variant="ghost" className="psd-toolbar-action" aria-label="导出" disabled={busy || !!binding?.pending || !!exportPending || !!exportIssues.length || !!atlasInputError || !asset.layers.some(l => l.config.enabled)} title="导出标记的切图" onClick={() => void exportResources()}><Download size={15} /></Button><Separator orientation="vertical" /><Button size="icon" variant="ghost" className="psd-toolbar-action" aria-label="在文件管理器中打开" disabled={busy || settings.busy || isBrowserPreview || !settings.settings.resourceDirectory} title={isBrowserPreview ? "仅 VS Code 支持在文件管理器中打开" : settings.settings.resourceDirectory ? `在文件管理器中打开 ${settings.settings.resourceDirectory}` : "请先设置资源导出根目录"} onClick={() => void revealResources()}><FolderOpen size={15} /></Button></>}
         tree={<><div className="floating-heading"><Layers3 size={14} /><strong>图层</strong><span>{asset.layers.length}</span></div>
-          <button type="button" className="psd-tree-label psd-document-row" aria-pressed={!selected} title={asset.name} onClick={() => setSelectedKey(null)}>
+          <button type="button" className="psd-tree-label psd-document-row" aria-pressed={!selected && scopeKey === null} title={asset.name} onClick={() => navigateScope(null)}>
             <FileImage size={13} /><span>{asset.name}</span>
           </button>
-          <div className="psd-hint">勾选需要切图的图层{allExportIssues.length ? <span className="psd-warning" role="status"> · {allExportIssues.length} 项导出冲突</span> : null}</div><Tree asset={asset} selected={selectedKey} reveal={canvasSelection} issues={allExportIssues} onSelect={setSelectedKey} checked={l => l.config.enabled} toggle={(layer, enabled) => { const keys = new Set(getChildren(asset, layer.key).filter(l => !l.group && l.image && !l.limitation && !duplicates.includes(l.metadata.layerId)).map(l => l.key)); change({ ...asset, layers: asset.layers.map(l => keys.has(l.key) ? { ...l, config: { ...l.config, enabled } } : l) }); }} /></>}
+          <div className="psd-hint">勾选需要切图的图层{allExportIssues.length ? <span className="psd-warning" role="status"> · {allExportIssues.length} 项导出冲突</span> : null}</div><Tree asset={asset} selected={selectedKey} reveal={canvasSelection} issues={allExportIssues} onSelect={selectTreeLayer} checked={l => l.config.enabled} toggle={(layer, enabled) => { const keys = new Set(getChildren(asset, layer.key).filter(l => !l.group && l.image && !l.limitation && !duplicates.includes(l.metadata.layerId)).map(l => l.key)); change({ ...asset, layers: asset.layers.map(l => keys.has(l.key) ? { ...l, config: { ...l.config, enabled } } : l) }); }} /></>}
         properties={<><div className="floating-heading"><Scissors size={14} /><strong>{selected ? "切图属性" : "文档配置"}</strong></div><ScrollArea className="psd-properties-scroll" label="切图属性内容"><div className="psd-properties-content">
           <section className="psd-property-section" aria-label="文档配置" hidden={!!selected}>
           <label className="psd-property"><span>图集名</span><AtlasNameInput key={asset.sourceHash + asset.documentId} name={asset.name} value={asset.atlasName} disabled={busy} onErrorChange={setAtlasInputError} onChange={atlasName => change({ ...asset, atlasName })} /></label>

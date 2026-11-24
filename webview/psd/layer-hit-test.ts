@@ -18,6 +18,32 @@ export function maskContains(mask: PixelMask, x: number, y: number): boolean {
   return !!(mask.bits[index >> 3] & (1 << (index & 7)));
 }
 
+/** Groups from the PSD root through the current editing scope. */
+export function psdScopePath(asset: PsdAsset, scopeKey: number | null): PsdLayer[] {
+  const path: PsdLayer[] = [], visited = new Set<number>();
+  let key = scopeKey;
+  while (key !== null) {
+    const layer = asset.layers.find(item => item.key === key);
+    if (!layer?.group || visited.has(key)) return [];
+    visited.add(key); path.unshift(layer); key = layer.parentKey;
+  }
+  return path;
+}
+
+/** Normally select the scope's direct child; direct mode keeps the actual visible hit. */
+export function psdHitLayer(asset: PsdAsset, scopeKey: number | null, hitKey?: number, direct = false): PsdLayer | null {
+  const visited = new Set<number>();
+  let layer = asset.layers.find(item => item.key === hitKey);
+  if (direct) return layer && !layer.hidden ? layer : null;
+  while (layer && !visited.has(layer.key)) {
+    if (layer.key === scopeKey) return null;
+    if (layer.parentKey === scopeKey) return layer;
+    visited.add(layer.key);
+    layer = asset.layers.find(item => item.key === layer!.parentKey);
+  }
+  return null;
+}
+
 export async function pickPsdLayer(asset: PsdAsset, point: Point, hasPixel: (layer: PsdLayer, x: number, y: number) => Promise<boolean>): Promise<number | null> {
   if (point.x < 0 || point.y < 0 || point.x >= asset.width || point.y >= asset.height) return null;
   for (const layer of asset.layers) {
