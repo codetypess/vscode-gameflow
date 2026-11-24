@@ -34,6 +34,8 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 
 ## Active Work Items
 
+- [未绑定资源页面的节点选择](unbound-resource-selection.md) — Done。未绑定、加载中或失败的资源状态保持不透明，页内编辑保留不可见命中层，支持直选单个控件并同步选框、图层树和属性面板。
+
 - [画布同步菜单](canvas-sync-menu.md) — 「更多」中的 PSD、预制体双向审阅和四个单向操作。
 
 - [list-cell-prefab.md](list-cell-prefab.md) — UIList 同文件与跨文件列表项模板、视口铺排及 Laya Prefab 同步。

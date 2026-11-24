@@ -321,7 +321,9 @@ label.dialog-body > input { margin-top: 0; }
 @media (max-width: 540px) { .direct-tools { display: none; }.topbar { gap: 6px; }.layer-panel { width: 150px; }.inspector { width: 210px; }.topbar > strong { display: none; } }
 
 /* Page art state */
-.page-art-state { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; background: color-mix(in srgb, var(--vscode-editor-background, #1e1e1e) 82%, transparent); color: var(--vscode-foreground, #ccc); z-index: 4; pointer-events: none; }
+.page-art-state { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; background: var(--vscode-editor-background, #1e1e1e); color: var(--vscode-foreground, #ccc); z-index: 4; pointer-events: none; }
+.page-art-blocked > .node-body { opacity: 0 !important; }
+.page-art-blocked > .container-outlines { visibility: hidden; }
 .page-art-state-card { pointer-events: none; }
 .page-art-state-card button { pointer-events: auto; }
 .page-art-state-card { width: 280px; flex: 0 0 280px; display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 20px; text-align: center; }

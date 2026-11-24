@@ -18,6 +18,18 @@ const sharedUrl = file => "/@fs/" + path.resolve(__dirname, "../shared", file).s
     await page.locator('canvas[data-resource-path^="builtin/"]').first().waitFor();
     await page.getByRole("button",{name:"预制体资源",exact:true}).click();
     await page.locator('[data-art-state="unbound"]').first().waitFor();
+    const unboundPage=page.locator(".page-group").nth(1);
+    await unboundPage.locator(".page-caption").dblclick();
+    await page.waitForSelector(".page-editing");
+    await page.getByRole("button",{name:"直选模式",exact:true}).click();
+    const unboundNode=page.locator(".page-editing .node-text").filter({hasText:"角色名称"});
+    assert.equal(await unboundNode.count(),1,"unbound page keeps invisible node hit targets");
+    await unboundNode.click();
+    assert.equal(await page.locator(".selection-label").innerText(),"角色名称","unbound page can select the actual nested node");
+    assert.equal(await page.getByText("尚未绑定美术 PSD",{exact:true}).count(),1,"unbound state remains visible over the hidden nodes");
+    await page.getByRole("button",{name:"直选模式",exact:true}).click();
+    await page.getByRole("button",{name:"总览",exact:true}).click();
+    await page.waitForSelector(".page-group");
     await page.getByRole("button",{name:"原型资源",exact:true}).click();
     await page.locator('canvas[data-resource-path^="builtin/"]').first().waitFor();
     // Exercise generation and parsing in the real browser Canvas/worker environment.

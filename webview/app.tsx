@@ -621,7 +621,7 @@ export function App() {
   if (renderPage && preview?.nodeId && preview.pageId === renderPage.id) renderPage = editNodeFrame(renderPage, preview.nodeId, preview.next, preview.kind === "resize" ? "resize" : "move", runtimeResources.sizes);
   if (renderPage) renderPage = applyColorPreview(renderPage, colorPreview);
   const renderedNode = renderPage?.nodes.find((node) => node.id === selectedNodeId);
-  const selectionBlocked = !!renderPage && pagePreviewBlocked(renderPage, pagePsds, resourceMode);
+  const selectionBlocked = !editingId && !!renderPage && pagePreviewBlocked(renderPage, pagePsds, resourceMode);
   const selectionLayout = renderPage ? pageLayout(renderPage) : null;
   const selectedGeometry = !selectionBlocked && selectedNodeIds.length === 1 && editingId && renderPage && renderedNode && !inheritedFlag(renderPage, renderedNode, "hidden") ? selectionLayout!.nodes.get(renderedNode.id)! : null;
   const selectionX = selectedGeometry ? Math.hypot(selectedGeometry.matrix[0], selectedGeometry.matrix[1]) : 1;
@@ -735,7 +735,7 @@ export function App() {
             const foregroundNodes = activeNodes ? nodes.filter(node => activeNodes.has(node.id)) : [];
             return <article key={item.id} className={cn("page-group", !editingId && selectedPageId === item.id && "page-selected", editingId && "page-editing")} data-page-id={item.id} style={{ left: editingId ? 0 : frame.x, top: editingId ? 0 : frame.y, width: frame.width, height: frame.height }}>
               <div className="page-caption"><LayoutPanelTop size={14} /><span>{item.name}</span><small>{Math.round(frame.width)} × {Math.round(frame.height)}</small></div>
-              <SliceResourcesProvider value={{...(runtimeResources.forPage?.(visualPage) ?? runtimeResources),forPage:runtimeResources.forPage}}><div className="page-surface" style={{ background: item.background ?? "#ffffff" }}>
+              <SliceResourcesProvider value={{...(runtimeResources.forPage?.(visualPage) ?? runtimeResources),forPage:runtimeResources.forPage}}><div className={cn("page-surface", artBlocked && "page-art-blocked")} style={{ background: item.background ?? "#ffffff" }}>
                 {backgroundNodes.map(node => <NodeView key={node.id} page={visualPage} node={node} referenceError={(projection ?? composition)?.errors.get(node.id)} geometry={geometry.nodes.get(node.id)} />)}
                 {showContainerOutlines ? <ContainerOutlines page={visualPage} nodes={backgroundNodes} geometry={geometry} /> : null}
                 {activeNodes ? <div className="canvas-scope-dimmer" aria-hidden="true" /> : null}
