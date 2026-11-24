@@ -6,7 +6,7 @@ const ag = require("ag-psd");
 const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwright");
 const sharedUrl = file => "/@fs/" + path.resolve(__dirname, "../shared", file).split(path.sep).join("/");
 (async()=>{
-  const browser=await chromium.launch({channel:"msedge",headless:true});
+  const browser=await chromium.launch({channel:process.env.GAMEFLOW_BROWSER_CHANNEL || "msedge",headless:true});
   const context=await browser.newContext({viewport:{width:1500,height:1000},acceptDownloads:true});
   const page=await context.newPage(),errors=[];
   page.on("pageerror",e=>errors.push(e.message));
@@ -81,7 +81,11 @@ const sharedUrl = file => "/@fs/" + path.resolve(__dirname, "../shared", file).s
     await exportDirectory.blur();
     await page.getByRole("button",{name:"完成",exact:true}).click();
     await page.locator(".page-caption").first().click();
-    await page.getByRole("button",{name:"导出",exact:true}).click();
+    const openPrefab=async()=>{
+      await page.getByRole("button",{name:"更多",exact:true}).click();
+      await page.getByRole("menuitem",{name:"预制体同步",exact:true}).click();
+    };
+    await openPrefab();
     await page.waitForFunction(()=>window.testRoots?.[1]?.entries.size>0);
     await page.getByRole("button",{name:"预制体资源",exact:true}).click();
     await page.locator('[data-art-state="unbound"]').first().waitFor();
@@ -166,7 +170,7 @@ const sharedUrl = file => "/@fs/" + path.resolve(__dirname, "../shared", file).s
       await page.getByRole("button",{name:"完成",exact:true}).click();
     };
     const exportFresh = async directory => {
-      await page.getByRole("button",{name:"同步",exact:true}).click();
+      await openPrefab();
       await page.getByRole("button",{name:new RegExp("^使用 "+directory+"/")}).click();
     };
     for (const mode of ["美术 PSD资源", "预制体资源"]) {

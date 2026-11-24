@@ -2,7 +2,7 @@ const assert = require("node:assert/strict");
 const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwright");
 
 (async () => {
-  const browser = await chromium.launch({ channel:"msedge", headless:true });
+  const browser = await chromium.launch({ channel:process.env.GAMEFLOW_BROWSER_CHANNEL || "msedge", headless:true });
   try {
     const page = await browser.newPage({viewport:{width:1280,height:880}});
     const errors = [];
@@ -40,8 +40,8 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
     const chooser=page.waitForEvent("filechooser");
     await menu("重新绑定 PSD");
     await (await chooser).setFiles({name:"login.psd",mimeType:"image/vnd.adobe.photoshop",buffer:Buffer.from(psd,"base64")});
-    await menu("同步文字与结构");
-    const dialog=page.getByRole("dialog",{name:"同步文字与结构"});
+    await menu("PSD 同步");
+    const dialog=page.getByRole("dialog",{name:"PSD 同步"});
     const tree=dialog.getByRole("navigation"), button=(name)=>dialog.getByRole("button",{name,exact:true});
     const box=()=>dialog.boundingBox();
     await tree.getByText("4 项差异",{exact:false}).waitFor();
@@ -85,7 +85,7 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
     const output=await download;
     if(process.env.GAMEFLOW_SYNC_TEST_OUTPUT) await output.saveAs(process.env.GAMEFLOW_SYNC_TEST_OUTPUT);
     await dialog.waitFor({state:"hidden"});
-    await menu("同步文字与结构");
+    await menu("PSD 同步");
     await dialog.getByText("文字与结构已一致").waitFor().catch(async e=>{throw new Error((await dialog.innerText())+" / "+e.message);});
     assert.deepEqual(await box(),resized);
     const names=await tree.innerText();

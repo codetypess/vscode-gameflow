@@ -58,11 +58,13 @@ async function checkRuntime(browser,root,prefab) {
       await button("完成").click();
     };
     await select();await directories();
-    const exportAction=button("导出"),moreAction=button("更多"),exportBounds=await exportAction.boundingBox(),moreBounds=await moreAction.boundingBox();
-    assert(exportBounds.x+exportBounds.width<=moreBounds.x,"Prefab action stays immediately left of More");
-    assert.equal((await exportAction.innerText()).trim(),"");assert.equal(await exportAction.locator("svg").count(),1);
+    const openPrefab=async()=>{
+      await button("更多").click();
+      await p.getByRole("menuitem",{name:"预制体同步",exact:true}).click();
+    };
+    assert.equal(await p.locator(".canvas-toolbar").getByRole("button",{name:/^(导出|同步)$/}).count(),0);
     assert.equal(await button("运行预览").count(),0);
-    await exportAction.click();
+    await openPrefab();
     await p.waitForFunction(()=>JSON.parse(localStorage.getItem("gameflow.prototype.v1")).pages[0].prefabSync);
     // Two independently saved inputs, including a foreign Laya ID and a private component.
     await p.evaluate(async()=>{
@@ -81,8 +83,8 @@ async function checkRuntime(browser,root,prefab) {
       raw._$child.push({_$type:"UIButton",_$id:"notice-laya",name:"公告",width:60,height:25});
       const writer=await file.createWritable();await writer.write(JSON.stringify(raw));await writer.close();
     });
-    await p.reload();await select();await directories();await button("同步").click();
-    const dialog=p.getByRole("dialog",{name:"同步预制体"});
+    await p.reload();await select();await directories();await openPrefab();
+    const dialog=p.getByRole("dialog",{name:"预制体同步"});
     await dialog.waitFor();
     assert.equal(await dialog.locator(".sync-boards figure").count(),2);
     const changedRow=dialog.locator(".layer-name").filter({hasText:"按钮文案"});
@@ -180,7 +182,7 @@ async function checkRuntime(browser,root,prefab) {
       await writer.write(JSON.stringify({uuid,importer:{filterMode:0,sizeGrid:[0,0,0,0,0]}}));
       await writer.close();
     },editedUuid);
-    await button("同步").click();await dialog.waitFor();
+    await openPrefab();await dialog.waitFor();
     assert.deepEqual(await dialog.boundingBox(),resizedSize,"prefab sync restores the last completed resize");
     const growBox = await dialog.boundingBox(), northwestEdge = dialog.locator('.sync-resize-edge[data-edge="nw"]');
     assert.equal(await northwestEdge.evaluate(element=>getComputedStyle(element).cursor),"nwse-resize");
@@ -208,7 +210,7 @@ async function checkRuntime(browser,root,prefab) {
     assert.match(repaired.meta.uuid,/^[a-f0-9-]{36}$/);
     assert.equal(repaired.prefab._$child.find(n=>n._$id==="help0001").normalSkin,"res://"+editedUuid);
     assert.deepEqual(repaired.image,{uuid:editedUuid,importer:{filterMode:0,textureType:2,sizeGrid:[14,14,14,14,0]}});
-    await button("同步").click();await dialog.waitFor();
+    await openPrefab();await dialog.waitFor();
     assert.deepEqual(await dialog.boundingBox(),enlargedSize,"prefab sync remembers the enlarged size after reopening");
     assert.match(await dialog.innerText(),/0 项差异/);
     assert(await dialog.getByRole("button",{name:"预演应用"}).isDisabled());

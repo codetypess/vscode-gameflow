@@ -72,12 +72,13 @@ const writing=new Set<BrowserDirectory>();
 export async function commitPrefab(batch:PrefabExportBatch,snapshot:BrowserSnapshot,guard:PrefabWriteGuard,document:GameFlowDocument,apply:()=>void) {
   if(isBrowserPreview) {
     const resources=browserDirectory("resources"),prefabs=browserDirectory("prefabs");
-    if(!resources || !prefabs || resources!==snapshot.resources || prefabs!==snapshot.directory) throw new Error("导出目录已变化，请重新比较。");
-    if(writing.has(prefabs) || writing.has(resources)) throw new Error("目录正在导出，请稍后重试。");
-    writing.add(prefabs);writing.add(resources);
-    try {return await exportPrefabToDirectories(browserResourceDirectory(resources),browserResourceDirectory(prefabs),batch,
+    if(!prefabs || !resources && guard.source!=="prefab" || resources!==snapshot.resources || prefabs!==snapshot.directory) throw new Error("导出目录已变化，请重新比较。");
+    const resourceRoot=resources??prefabs;
+    if(writing.has(prefabs) || writing.has(resourceRoot)) throw new Error("目录正在导出，请稍后重试。");
+    writing.add(prefabs);writing.add(resourceRoot);
+    try {return await exportPrefabToDirectories(browserResourceDirectory(resourceRoot),browserResourceDirectory(prefabs),batch,
       {decode:value=>Uint8Array.from(atob(value),c=>c.charCodeAt(0)),hash:browserHash},guard,async()=>apply());}
-    finally {writing.delete(prefabs);writing.delete(resources);}
+    finally {writing.delete(prefabs);writing.delete(resourceRoot);}
   }
   return (await request({type:"prefabCommit",requestId:crypto.randomUUID(),batch,guard,document,root:snapshot.root,baseVersion:snapshot.version},"prefabExportResult")).count??0;
 }

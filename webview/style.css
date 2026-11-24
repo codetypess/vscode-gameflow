@@ -275,6 +275,10 @@ label.dialog-body > input { margin-top: 0; }
 .layer-context-menu [role=menuitem] svg { flex-shrink: 0; }
 .layer-context-menu [data-disabled] { opacity: 0.4; }
 .layer-context-menu [role=menuitem]:not([data-disabled])[data-highlighted] { background: var(--vscode-menu-selectionBackground, #04395e); color: var(--vscode-menu-selectionForeground, #ffffff); }
+.sync-menu-row { display: grid; grid-template-columns: minmax(0, 1fr) 28px; }
+.sync-menu-pin { display: grid; place-items: center; border-radius: 2px; color: var(--muted-foreground); outline: none; cursor: pointer; }
+.sync-menu-pin[data-state=checked] { color: var(--vscode-textLink-foreground, #4daafc); }
+.sync-menu-pin[data-highlighted] { background: var(--vscode-menu-selectionBackground, #04395e); color: var(--vscode-menu-selectionForeground, #fff); }
 .layer-menu-separator { height: 1px; margin: 4px 0; background: var(--border); }
 .layer-context-menu kbd { font: 10px var(--vscode-font-family, "Segoe UI", sans-serif); opacity: 0.7; }
 .delete-menu-item { color: var(--destructive); }

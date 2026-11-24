@@ -65,7 +65,7 @@ export function currentSyncBase(docId:string, page:GameFlowPage, asset:PsdAsset)
   const base = page.psdSync;
   return base?.documentId === docId && base.pageId === page.id && base.psdId === asset.documentId ? base : undefined;
 }
-export function psdTree(docId:string, page:GameFlowPage, asset:PsdAsset, makeId:(layer:PsdLayer)=>string, pairs:ReadonlyMap<string,string> = new Map()): SyncNode[] {
+export function psdTree(docId:string, page:GameFlowPage, asset:PsdAsset, makeId:(layer:PsdLayer)=>string, pairs:ReadonlyMap<string,string> = new Map(), forPrefab=false): SyncNode[] {
   if (identityProblems(asset).length) throw new Error("PSD 图层身份重复，请先在切图编辑器中修复。");
   const base = currentSyncBase(docId,page,asset);
   const result:SyncNode[] = [], seen = new Set<string>();
@@ -78,16 +78,23 @@ export function psdTree(docId:string, page:GameFlowPage, asset:PsdAsset, makeId:
       if (prototypeLayerRef(ref) && ref.nodeId===page.id && layer.group) {walk(layer.key,"");continue;}
       const saved = base?.nodes.find(n=>n.layer===layer.metadata.layerId);
       const paired = pairs.get(layer.metadata.layerId);
-      const id = paired ?? saved?.id ?? (prototypeLayerRef(ref) ? ref.nodeId : undefined);
-      const proto = page.nodes.find(n=>n.id===id);
       const annotation = layer.name.match(/\s*\((UI\w+)\)$/);
       const tagged = COMPONENT_TYPES.find(type=>COMPONENTS[type].laya===annotation?.[1]);
-      const type = proto?.type ?? saved?.type ?? tagged ?? (layer.text && (id || parentType==="button") ? "text" : undefined);
-      if (!type || !(id || tagged || layer.text && parentType==="button")) continue;
+      const name = tagged ? layer.name.slice(0,annotation!.index).trim() : layer.name;
+      const slots = forPrefab && layer.group ? asset.layers.filter(l=>l.parentKey===layer.key).map(l=>psdSlotField(l.name)) : [];
+      const standalone = !forPrefab ? undefined : slots.includes("image") ? "image" : slots.some(Boolean) ? "button" :
+        layer.text ? "text" : layer.config.enabled ? "image" : undefined;
+      const candidates = forPrefab && (tagged || standalone) ? page.nodes.filter(n=>n.name===name && n.type===(tagged??standalone)) : [];
+      const id = paired ?? saved?.id ?? (prototypeLayerRef(ref) ? ref.nodeId : candidates.length===1 ? candidates[0].id : undefined);
+      const proto = page.nodes.find(n=>n.id===id);
+      const type = proto?.type ?? saved?.type ?? tagged ?? standalone ?? (layer.text && (id || parentType==="button") ? "text" : undefined);
+      if (!type || !(id || tagged || standalone || layer.text && parentType==="button")) {
+        if(forPrefab && layer.group) walk(layer.key,parent,parentType);
+        continue;
+      }
       const nodeId = id ?? makeId(layer);
       if (seen.has(nodeId)) throw new Error("多个 PSD 图层对应同一控件，请检查 " + layer.name);
       seen.add(nodeId);
-      const name = tagged ? layer.name.slice(0,annotation!.index).trim() : layer.name;
       result.push({ id:nodeId, name, type, parent, text:layer.textContent ?? "", layer:layer.metadata.layerId,
         variable:proto?.variableName, frame:{x:layer.left,y:layer.top,width:Math.max(1,layer.width),height:Math.max(1,layer.height)} });
       if (layer.group && COMPONENTS[type].children) walk(layer.key,nodeId,type);
@@ -104,13 +111,13 @@ export function syncSubtree(tree:SyncNode[], id:string): string[] {
   }
   return [...result];
 }
-export function compareTrees(proto:SyncNode[], psd:SyncNode[], base?:SyncBase, compareInitialOrder=false): Comparison {
+export function compareTrees(proto:SyncNode[], psd:SyncNode[], base?:SyncBase, compareInitialOrder=false, fixedDirection=false): Comparison {
   const changes:Change[] = [], bundled = new Set<string>();
   const maps = [proto,psd,base?.nodes ?? []].map(tree=>new Map(tree.map(n=>[n.id,n])));
   const [p,a,b] = maps;
   const all = new Set([...p.keys(),...a.keys(),...b.keys()]);
   const order = (tree:SyncNode[], n:SyncNode) => {
-    const members=base?maps:[p,a];
+    const members=base && !fixedDirection?maps:[p,a];
     const common = tree.filter(s=>s.parent===n.parent && members.every(m=>m.get(s.id)?.parent===n.parent));
     return common.slice(0,common.findIndex(s=>s.id===n.id)).map(s=>s.id).sort().join("|");
   };
@@ -132,7 +139,7 @@ export function compareTrees(proto:SyncNode[], psd:SyncNode[], base?:SyncBase, c
     for (const field of ["name","text","parent","order",...frameFields] as const) {
       if(left.root && ["parent","order",...frameFields].includes(field as never)) continue;
       if (field!=="order" && frameFields.some(f=>f===field) && (left[field]===undefined || right[field]===undefined || left.parent!==right.parent)) continue;
-      if (field==="order" && ((!old && (!compareInitialOrder || base)) || left.parent!==right.parent || old && old.parent!==left.parent)) continue;
+      if (field==="order" && (left.parent!==right.parent || !fixedDirection && ((!old && (!compareInitialOrder || base)) || old && old.parent!==left.parent))) continue;
       const l=field==="order"?order(proto,left):left[field], r=field==="order"?order(psd,right):right[field];
       if (l===r) continue;
       const o=old && (field==="order"?order(base!.nodes,old):old[field]);
@@ -157,7 +164,7 @@ function insertFrom(source:SyncNode[], target:SyncNode[], node:SyncNode) {
   const index=after ? target.findIndex(n=>n.id===after.id) : target.length;
   target.splice(index,0,{...node});
 }
-export function plannedTrees(c:Comparison, decisions:Record<string,Decision>) {
+export function plannedTrees(c:Comparison, decisions:Record<string,Decision>, fixedSource?:Side) {
   const clone=(n:SyncNode):SyncNode=>({...n,frame:{...n.frame},properties:n.properties?{...n.properties}:undefined,undecided:n.undecided?[...n.undecided]:undefined});
   const trees={proto:c.proto.map(clone),psd:c.psd.map(clone)};
   for (const change of c.changes) {
@@ -185,6 +192,11 @@ export function plannedTrees(c:Comparison, decisions:Record<string,Decision>) {
         } else if(change.field!=="property") Object.assign(target[index],{[change.field]:from[change.field]});
       }
     }
+  }
+  if (fixedSource) {
+    const target = trees[fixedSource==="proto"?"psd":"proto"];
+    const order = new Map(c[fixedSource].map((node,index)=>[node.id,index]));
+    target.sort((a,b)=>order.get(a.id)!-order.get(b.id)!);
   }
   // Independent additions may target the same gap. Once both sides' nodes exist,
   // use the agreed prototype order for the new PSD slots, retaining other art layers.

@@ -43,7 +43,7 @@ function baseSignature(base:PrefabBase | undefined) {
   });
 }
 
-export function inspectPrefab(document:GameFlowDocument,page:GameFlowPage,target:string,root:RecordNode,metadata?:PrefabMetadataReview) {
+export function inspectPrefab(document:GameFlowDocument,page:GameFlowPage,target:string,root:RecordNode,metadata?:PrefabMetadataReview, mode:PrefabSyncMode="review") {
   if (root._$id!==page.id || root._$type!==pageRootType(page)) throw new Error("目标文件的页面身份或根类型不匹配，请检查导出名称和目标文件。");
   const saved=page.prefabSync;
   const base=saved?.documentId===document.documentId && saved.pageId===page.id && saved.target===target ? {...saved,psdId:target} : undefined;
@@ -97,7 +97,11 @@ export function inspectPrefab(document:GameFlowDocument,page:GameFlowPage,target
     const variable=node.properties.variableName;
     node.variable=typeof variable==="string"&&variable?variable:undefined;
   }
-  const comparison=compareTrees(proto,tree,base,true);
+  const comparison=compareTrees(proto,tree,base,true,mode!=="review");
+  if(mode==="art") {
+    // Keep Laya-only settings when the source is a PSD layer tree.
+    comparison.changes=comparison.changes.filter(ch=>ch.field!=="property" || ch.property==="hidden" || ch.property==="page.width" || ch.property==="page.height");
+  }
   const engine=new Map<string,{name:string;value:unknown}[]>();
   const managed=new Set(originals.values());
   for(const [id,node] of [[page.id,root] as const,...originals]) {
@@ -148,9 +152,10 @@ export function prefabPreviewPage(review:PrefabReview,tree:SyncNode[],root:Recor
     })};
 }
 
-export function mergePrefab(review:PrefabReview,decisions:Record<string,Decision>,batch:PrefabExportBatch) {
+export type PrefabSyncMode = "review" | "push" | "pull" | "art";
+export function mergePrefab(review:PrefabReview,decisions:Record<string,Decision>,batch:PrefabExportBatch,mode:PrefabSyncMode="review") {
   const {comparison:c,page,originals,nativeIds}=review;
-  const trees=plannedTrees(c,decisions);
+  const trees=plannedTrees(c,decisions,mode==="review"?undefined:mode==="pull"?"psd":"proto");
   const rawIds=new Map(nativeIds);
   const exported=new Map<string,RecordNode>();
   walk(batch.prefab,node=>exported.set(String(node._$id),node));
@@ -193,6 +198,13 @@ export function mergePrefab(review:PrefabReview,decisions:Record<string,Decision
         if(typeof planned!=="string") continue;
         const path=imageByUrl.get(planned);
         const meta=path && review.metadata?.images[path];
+        if(mode==="push" || mode==="art") {
+          if(mode==="art" && !planned) continue;
+          const desired=meta ? "res://"+meta.uuid : planned;
+          if(planned && (meta && meta.changed || node[key]!==desired)) neededUrls.add(planned);
+          if(planned || node[key]!==undefined) node[key]=desired;
+          continue;
+        }
         if(!meta) continue;
         const url="res://"+meta.uuid;
         if(node[key]!==url && node[key]!==planned && node[key]!==path) continue;
@@ -240,7 +252,7 @@ export function mergePrefab(review:PrefabReview,decisions:Record<string,Decision
     return value;
   });
   for(const ref of refs) if(removed.has(ref)) throw new Error("删除将破坏现有预制体引用："+ref+"，请先移除引用或跳过删除。");
-  const proto=projectedPage(page,trees.proto,true,c.proto);
+  const proto=mode==="push" || mode==="art" ? page : projectedPage(page,trees.proto,true,c.proto);
   const oldIds=new Set(page.nodes.map(n=>n.id)), incoming=new Map([...nativeIds].map(([id,external])=>[external,id]));
   const available=new Set(proto.nodes.map(n=>n.id));
   const link=(ref:unknown)=>{

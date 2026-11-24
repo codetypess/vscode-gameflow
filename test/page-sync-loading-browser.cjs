@@ -10,7 +10,7 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
   const name = "Star-Sea-Login-750x1334.psd";
   const base64 = fs.readFileSync(path.join(example, name)).toString("base64");
   const url = process.env.GAMEFLOW_TEST_URL || "http://127.0.0.1:5197";
-  const browser = await chromium.launch({ channel: "msedge", headless: true });
+  const browser = await chromium.launch({ channel: process.env.GAMEFLOW_BROWSER_CHANNEL || "msedge", headless: true });
   try {
     const fixture = await browser.newPage();
     await fixture.goto(url);
@@ -49,8 +49,8 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
       });
       await page.locator(".page-caption").first().click();
       await page.getByRole("button", { name: "更多", exact: true }).click();
-      await page.getByRole("menuitem", { name: "同步文字与结构" }).click();
-      const dialog = page.getByRole("dialog", { name: "同步文字与结构" });
+      await page.getByRole("menuitem", { name: "PSD 同步" }).click();
+      const dialog = page.getByRole("dialog", { name: "PSD 同步" });
       const tree = dialog.getByRole("navigation");
       try {
         await tree.getByRole("button", { name: "背景 background", exact: true }).waitFor({ timeout: 5000 });

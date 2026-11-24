@@ -15,13 +15,13 @@ export { resourceUuid } from "./laya-meta";
 export interface PrefabImage { path: string; base64: string; description: SliceResourceDescription; expectedUuid?:string }
 export interface PrefabExportBatch { name: string; directory?: string; prefab: Record<string, unknown>; images: PrefabImage[] }
 export interface PrefabTarget {name:string;directory?:string}
-export interface ImageMetaTarget {path:string; nineGrid:NineGrid|null}
+export interface ImageMetaTarget {path:string; nineGrid:NineGrid|null; sha256?:string}
 export interface PrefabMetadataReview {
   prefabMetaChanged: boolean;
   images: Record<string, {uuid:string; changed:boolean}>;
 }
 export interface PrefabSnapshot {prefab:Record<string,unknown>|null;hash:string|null;root:string;version:number;skins?:Record<string,string>;metadata?:PrefabMetadataReview}
-export interface PrefabWriteGuard {hash:string|null; writePrefab:boolean; added:string[]}
+export interface PrefabWriteGuard {hash:string|null; writePrefab:boolean; added:string[]; source?:"prefab"|"psd"}
 export function validPrefabTarget(value:unknown):value is PrefabTarget {
   const t=value as PrefabTarget|undefined;
   return !!t && typeof t.name==="string" && /^[^\\/:*?"<>|\x00-\x1f]{1,128}\.lh$/.test(t.name) && !t.name.includes("..") && !/^(con|prn|aux|nul|com[1-9]|lpt[1-9])\./i.test(t.name) && !exportDirectoryError(t.directory);
@@ -57,7 +57,11 @@ export async function readPrefabSnapshot(directory:ResourceDirectory,target:Pref
       }
       const meta=mergeLayaMeta(image.path,await resources.read(image.path+".meta"),image.nineGrid);
       const entry=records.get(image.path);
-      const changed=!!meta.bytes || !files.has(image.path.slice(slash+1)) || !entry || !sameGrid(entry.nineGrid,image.nineGrid);
+      let changed=!!meta.bytes || !files.has(image.path.slice(slash+1)) || !entry || !sameGrid(entry.nineGrid,image.nineGrid);
+      if(image.sha256 && !changed) {
+        const pixels=await resources.read(image.path);
+        changed=!pixels || entry?.sha256!==image.sha256 || await hash(pixels)!==image.sha256;
+      }
       metadata.images[image.path]={uuid:meta.uuid,changed};
       const url="res://"+meta.uuid;
       if(needed.delete(url)) skins[url]=image.path;
@@ -224,6 +228,11 @@ export async function exportPrefabToDirectories(resources:ResourceDirectory, pre
     if((bytes ? await codec.hash(bytes) : null)!==targetHash) throw new Error("预制体目标已变化，请重新比较并合并。");
   };
   if(guard) await assertReviewed(original);
+  if(guard?.source==="prefab") {
+    if(!original || guard.writePrefab || batch.images.length) throw new Error("从预制体读取时来源必须存在且只读。");
+    await finish?.();
+    return 0;
+  }
   const incremental=!!guard?.hash;
   const ledgerBytes=!incremental || batch.images.length ? await resources.read(RESOURCE_MANIFEST) : null;
   if(ledgerBytes && ledgerBytes.length>8*1024*1024)throw new Error("资源来源清单超过 8 MB。");
@@ -248,8 +257,8 @@ export async function exportPrefabToDirectories(resources:ResourceDirectory, pre
     // A reviewed merge keeps engine-edited pixels. Changes to slice geometry can
     // regenerate compacted pixels when the previous export still owns the file.
     const gridChanged=previous && !sameGrid(previous.nineGrid,d.nineGrid);
-    const keepPixels=incremental && exists && !(gridChanged && previous.sha256===diskHash);
-    if(!previous || !incremental || gridChanged || !exists) {
+    const keepPixels=guard?.source!=="psd" && incremental && exists && !(gridChanged && previous.sha256===diskHash);
+    if(!previous || !incremental || gridChanged || !exists || guard?.source==="psd" && (previous.sha256!==sha256 || previous.source.sourceHash!==d.source.sourceHash)) {
       if(keepPixels) validatePng(exists,d.width,d.height);
       const record={...previous,...d,name:image.path.slice(image.path.lastIndexOf("/")+1,-4),file:image.path,sha256:keepPixels ? diskHash! : sha256};
       if(!d.logicalSize) delete record.logicalSize;

@@ -34,7 +34,9 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 
 ## Active Work Items
 
-- [canvas-prefab-action.md](canvas-prefab-action.md) — Done：移除独立运行预览，Prefab 同步/导出改为画布底部“更多”左侧的状态图标；376 项共享测试、生产构建及三组 Edge 回归通过。
+- [画布同步菜单](canvas-sync-menu.md) — 「更多」中的 PSD、预制体双向审阅和四个单向操作。
+
+- [canvas-prefab-action.md](canvas-prefab-action.md) — Done：移除独立运行预览，当时采用“更多”左侧的状态图标，现行入口见 [画布同步菜单](canvas-sync-menu.md)；376 项共享测试、生产构建及三组 Edge 回归通过。
 
 - [workbench-dialog-layout.md](workbench-dialog-layout.md) — 工作台弹窗统一采用页面属性的布局与主题。
 

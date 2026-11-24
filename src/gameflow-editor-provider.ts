@@ -209,7 +209,7 @@ export class GameFlowEditorProvider implements vscode.CustomEditorProvider<Workb
             const text=serializeGameFlowDocument(raw.document);
             const count=await exportPrefab(this.psd.settings,raw.batch,raw.guard,raw.root,async()=>{
               check();
-              await this.apply(doc,[{document:doc,version:raw.baseVersion,text}]);
+              if(raw.guard.source!=="psd") await this.apply(doc,[{document:doc,version:raw.baseVersion,text}]);
             });
             await panel.webview.postMessage({type:"prefabExportResult",requestId:raw.requestId,count} satisfies HostToWebviewMessage);
           } catch(error) {await panel.webview.postMessage({type:"prefabExportResult",requestId:raw.requestId,error:explain(error)} satisfies HostToWebviewMessage);}

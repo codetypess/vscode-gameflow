@@ -2,7 +2,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs"), path = require("node:path"), os = require("node:os");
 const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwright");
 (async () => {
-  const browser = await chromium.launch({ channel: "msedge", headless: true });
+  const browser = await chromium.launch({ channel: process.env.GAMEFLOW_BROWSER_CHANNEL || "msedge", headless: true });
   const context = await browser.newContext({ viewport: { width: 1400, height: 950 }, acceptDownloads: true });
   const page = await context.newPage(), errors = [], output = fs.mkdtempSync(path.join(os.tmpdir(), "gameflow-page-psd-"));
   page.on("pageerror", error => errors.push(error.message));
@@ -176,9 +176,9 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
       await openMore();
       const menuBounds = await moreMenu.boundingBox();
       assert.ok(menuBounds && menuBounds.x >= 0 && menuBounds.x + menuBounds.width <= width && menuBounds.y >= 0 && menuBounds.y + menuBounds.height <= 760, "More menu stays in the narrow viewport");
-      assert.equal(await moreMenu.getByRole("menuitem").count(), 4);
+      assert.equal(await moreMenu.getByRole("menuitem").count(), 6);
       assert.equal(await moreMenu.getByRole("menuitem").first().innerText(), "PSD 切图");
-      assert.equal(await moreMenu.getByRole("menuitem", {name:"同步文字与结构"}).isEnabled(), true);
+      assert.equal(await moreMenu.getByRole("menuitem", {name:"PSD 同步"}).isEnabled(), true);
       await page.screenshot({ path: path.join(output, "narrow-" + width + ".png") });
       await page.keyboard.press("Escape");
     }

@@ -5,7 +5,7 @@ import { canvasPropertyLabel } from "./editor/override-properties";
 import type { CanvasOverrideGroup, CanvasOverrideManager } from "./editor/override-panel";
 import { sliderOwner } from "../shared/ui-parts";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { ArrowLeft, Box, Check, ChevronDown, ChevronRight, Focus, FileImage, GitMerge, Layers3, LayoutDashboard, LayoutPanelTop, Link2, Minus, MoreHorizontal, MousePointerClick, Plus, Redo2, Save, Scissors, SquareDashed, Undo2 } from "lucide-react";
+import { ArrowLeft, Box, Check, ChevronDown, ChevronRight, Focus, FileImage, GitMerge, Layers3, LayoutDashboard, LayoutPanelTop, Link2, Minus, MousePointerClick, Plus, Redo2, Save, Scissors, SquareDashed, Undo2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import type { Frame, GameFlowNode, GameFlowPage, PageRootType } from "../shared/model";
 import { allocateElementId, reserveDocumentElementIds } from "../shared/element-id";
@@ -617,9 +617,13 @@ export function App() {
     onRevert:selections=>changeOverrideSelection(selections,false),onApply:selections=>changeOverrideSelection(selections,true)
   } : undefined;
 
-  const resourcePage = page ?? resourcePages.find(p => p.id === selectedPageId) ?? resourcePages[0];
   const pageActionBusy = openingSlice || pending || !!page && pagePsds.busy.has(page.id);
   const psdActionDisabled = !page || pageActionBusy || !!composition?.errors.size;
+  function openPsdSync(fromPrototype = false) {
+    if (!canvasDocument || !composition || psdActionDisabled) return;
+    if (composition.page.artPsd) setSyncSession({document:canvasDocument,page:composition.page,makeId:newIds(),fromPrototype});
+    else if (fromPrototype) void pagePsds.run(composition.page.id, "generate");
+  }
   const openPageSlice = async () => {
     if (!canonicalPage?.artPsd || pageActionBusy) return;
     if (!isBrowserPreview && !document.querySelector('meta[name="gameflow-page-psd-slice"][content="1"]')) {
@@ -735,22 +739,19 @@ export function App() {
             <div className="insert-grid" role="group" aria-label="添加控件">{TOOLS.map(({ type, icon: Icon }) => <button key={type} disabled={!editingId} onClick={() => chooseInsertTool(type)}><Icon size={16} /><span>{NODE_LABELS[type]} <small className="menu-class">({COMPONENTS[type].laya})</small></span></button>)}</div>
           </PopoverContent></Popover>
           <div className="direct-tools">{TOOLS.filter((item) => item.key).map(({ type, icon: Icon, key }) => <IconTool key={type} label={`${NODE_LABELS[type]} (${key})`} disabled={!editingId} active={tool === type} onClick={() => chooseInsertTool(type)}><Icon size={19} /></IconTool>)}</div>
-          <Separator orientation="vertical" />{canvasDocument && resourcePage ? <CanvasExportActions document={canvasDocument} page={resourcePage} sourcePage={compositions.get(resourcePage.id)!.page}
+          <Separator orientation="vertical" /><CanvasExportActions document={canvasDocument} page={page} sourcePage={composition?.page}
             prepare={(expected,source,updated)=>{
               const current=read(), canonical=current?.pages.find(p=>p.id===source.id);
               if(!current || JSON.stringify(current)!==JSON.stringify(expected) || !canonical || JSON.stringify(composeCanvasPage(current,canonical,sources).page)!==JSON.stringify(source)) throw new Error("原型已变化，请重新比较。");
               const next=editCanvasPage(current,source.id,sources,()=>updated), valid=validateGameFlowDocument(next);
               if(!valid.ok) throw new Error(valid.errors.join("；"));
               return next;
-            }} applyBrowser={(expected,next)=>{if(JSON.stringify(read())!==JSON.stringify(expected)) throw new Error("原型已变化，请重新比较。");edit(()=>next);}} resources={runtimeResources} settings={settings} disabled={!canonicalPage || pending || !!composition?.errors.size || !!mappingErrors[resourcePage.id]} onNotice={setNotice} /> : null}<DropdownMenu.Root modal={false}>
-            <Tooltip><TooltipTrigger asChild><DropdownMenu.Trigger asChild><Button size="icon" variant="ghost" className="toolbar-button" aria-label="更多"><MoreHorizontal size={19} /></Button></DropdownMenu.Trigger></TooltipTrigger><TooltipContent side="top">更多</TooltipContent></Tooltip>
-            <DropdownMenu.Portal><DropdownMenu.Content loop side="top" align="end" sideOffset={8} collisionPadding={12} className="layer-context-menu" onPointerDown={event => event.stopPropagation()} onKeyDown={event => event.stopPropagation()}>
+            }} applyBrowser={(expected,next)=>{if(JSON.stringify(read())!==JSON.stringify(expected)) throw new Error("原型已变化，请重新比较。");if(next!==expected) edit(()=>next);}}
+            resources={runtimeResources} settings={settings} disabled={psdActionDisabled} mappingError={!!page && !!mappingErrors[page.id]} onNotice={setNotice} onPsdSync={()=>openPsdSync()} onPushPsd={()=>openPsdSync(true)}>
               <DropdownMenu.Item disabled={!canonicalPage?.artPsd || pageActionBusy} onSelect={() => void openPageSlice()}><Scissors size={15} /><span>PSD 切图</span></DropdownMenu.Item>
               <DropdownMenu.Item disabled={psdActionDisabled} onSelect={() => { if (page && !psdActionDisabled) void pagePsds.run(page.id, "generate"); }}><FileImage size={15} /><span>生成 PSD</span></DropdownMenu.Item>
               <DropdownMenu.Item disabled={psdActionDisabled} onSelect={() => { if (page && !psdActionDisabled) void pagePsds.run(page.id, "choose"); }}><Link2 size={15} /><span>{page?.artPsd ? "重新绑定 PSD" : "绑定 PSD"}</span></DropdownMenu.Item>
-              <DropdownMenu.Item disabled={psdActionDisabled || !canonicalPage?.artPsd} onSelect={()=>{if(canvasDocument && composition && canonicalPage?.artPsd)setSyncSession({document:canvasDocument,page:composition.page,makeId:newIds()});}}><GitMerge size={15}/><span>同步文字与结构</span></DropdownMenu.Item>
-            </DropdownMenu.Content></DropdownMenu.Portal>
-          </DropdownMenu.Root>
+          </CanvasExportActions>
         </div>
       </>}
       {notice || (canvasDocument && error) ? <div className="editor-notice" role="status">{notice || error}</div> : null}

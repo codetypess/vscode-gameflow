@@ -88,10 +88,10 @@ export function isWebviewToHostMessage(
   if (value.type==="prefabInspect" || value.type==="prefabCommit") {
     if(typeof value.requestId!=="string" || !value.requestId || value.requestId.length>80) return false;
     if(value.type==="prefabInspect") return validPrefabTarget(value.target) && (value.images===undefined ||
-      Array.isArray(value.images) && value.images.length<=512 && value.images.every(image=>isRecord(image) && isSliceResourcePath(image.path) && (image.nineGrid===null || validGrid(image.nineGrid,4096,4096))));
+      Array.isArray(value.images) && value.images.length<=512 && value.images.every(image=>isRecord(image) && isSliceResourcePath(image.path) && (image.nineGrid===null || validGrid(image.nineGrid,4096,4096)) && (image.sha256===undefined || typeof image.sha256==="string" && /^[a-f0-9]{64}$/.test(image.sha256))));
     const g=value.guard;
     return typeof value.root==="string" && Number.isInteger(value.baseVersion) && isRecord(g) && (g.hash===null || typeof g.hash==="string" && /^[a-f0-9]{64}$/.test(g.hash)) &&
-      typeof g.writePrefab==="boolean" && Array.isArray(g.added) && g.added.every(id=>typeof id==="string") && isPrefabExportBatch(value.batch) && validateGameFlowDocument(value.document).ok;
+      (g.source===undefined || g.source==="psd" || g.source==="prefab") && typeof g.writePrefab==="boolean" && Array.isArray(g.added) && g.added.every(id=>typeof id==="string") && isPrefabExportBatch(value.batch) && validateGameFlowDocument(value.document).ok;
   }
   if (value.type === "ready") {
     return true;
