@@ -707,6 +707,9 @@ export function App() {
   } : undefined;
 
   const pageActionBusy = importingPsd || openingSlice || pending || pagePsds.busy.size > 0;
+  const importPsdItem = <DropdownMenu.Item disabled={pageActionBusy} onSelect={() => psdImportInput.current?.click()}>
+    <FileInput size={15} /><span>{importingPsd ? "正在导入 PSD…" : "从 PSD 导入原型…"}</span>
+  </DropdownMenu.Item>;
   const psdActionDisabled = !page || pageActionBusy || !!composition?.errors.size;
   function openPsdSync(source?: SyncSession["source"]) {
     if (!canvasDocument || !composition || psdActionDisabled) return;
@@ -818,7 +821,7 @@ export function App() {
           onClose={()=>setCanvasMenu(null)} onRestoreFocus={restoreCanvasFocus} hasClipboard={!!clipboard} onAdd={addCanvasLayer} onDelete={deleteLayer} onCopy={copyLayer} onPaste={pasteLayer} onRename={beginCanvasRename} onDuplicate={duplicateLayer} onConvert={convertLayer} onSaveToCanvas={saveToCanvas} onOpenSource={openSource} onUnbind={unbindPrefab}>
           <CanvasViewItems onFit={()=>{setCanvasMenu(null);fit([page],true);}} onBack={()=>{setCanvasMenu(null);if(scopeId){const current=scopePath.at(-1)!;navigateScope(current.parentId ?? null,current.id);}else back();}} backLabel={scopeId ? "返回上一级" : "返回总览"}/>
         </LayerMenu> : <CanvasOverviewMenu target={canvasMenu?.kind === "overview" ? canvasMenu.target : null} page={canvasDocument.pages.find(item=>item.id===canvasMenu?.pageId)} onClose={()=>setCanvasMenu(null)} onRestoreFocus={restoreCanvasFocus}
-          onEnter={()=>{const target=canvasDocument.pages.find(item=>item.id===canvasMenu?.pageId);if(target)enter(target);}} onRename={()=>beginCanvasRename()} onDuplicate={duplicate} onDelete={remove} onAddPage={addPage} onFit={()=>fit(canvasDocument.pages,false)} />}
+          onEnter={()=>{const target=canvasDocument.pages.find(item=>item.id===canvasMenu?.pageId);if(target)enter(target);}} onRename={()=>beginCanvasRename()} onDuplicate={duplicate} onDelete={remove} onAddPage={addPage} importPsdItem={importPsdItem} onFit={()=>fit(canvasDocument.pages,false)} />}
         {page && inspectorOpen ? <Inspector makeId={newIds()} variablePage={{...page,nodes:page.nodes.filter(node=>composition?.info.get(node.id)?.scope===selectedMeta?.scope)}} referenceMeta={selectedMeta} referenceName={referenceName} overrideManager={overrideManager} overrideActions={overrideActions} onOpenSource={() => { if (selectedNode) openSource(selectedNode.id); }} referenceError={selectedMeta?.ownerId ? composition?.errors.get(selectedMeta.ownerId) : undefined} onColorPreview={setColorPreview} selectedNodes={selectionBlocked ? [] : page.nodes.filter(node => selectedNodeIds.includes(node.id))} onCreateParts={() => { if (editingId && selectedNodeId) { const makeId = newIds(); updatePage(editingId, item => createControlParts(item, selectedNodeId, makeId)); } }} panelRef={panels.rightRef} panelStyle={panels.rightStyle} page={page} node={selectionBlocked ? null : selectedNode} editingPage={!!editingId} onNode={patchNode} onPage={(transform) => updatePage(page.id, transform)} onClose={() => setInspectorOpen(false)} onEnter={() => enter(page)} onImport={requestImport} /> : null}
         {canvasDocument.pages.length === 0 ? <div className="empty-canvas"><LayoutPanelTop size={32} /><strong>从第一个页面开始</strong><p>用底部 + 添加游戏界面</p><Button onClick={() => addPage()}><Plus size={15} />添加页面</Button></div> : null}
         <div className="canvas-toolbar floating-panel" onPointerDown={(event) => event.stopPropagation()}>
@@ -842,7 +845,7 @@ export function App() {
               return next;
             }} applyBrowser={(expected,next)=>{if(JSON.stringify(read())!==JSON.stringify(expected)) throw new Error("原型已变化，请重新比较。");if(next!==expected) edit(()=>next);}}
             resources={runtimeResources} settings={settings} disabled={psdActionDisabled} mappingError={!!page && !!mappingErrors[page.id]} onNotice={setNotice} onPsdSync={()=>openPsdSync()} onPushPsd={()=>openPsdSync("proto")} onPullPsd={()=>openPsdSync("psd")}>
-              <DropdownMenu.Item disabled={pageActionBusy} onSelect={() => psdImportInput.current?.click()}><FileInput size={15} /><span>{importingPsd ? "正在导入 PSD…" : "从 PSD 导入原型…"}</span></DropdownMenu.Item>
+              {importPsdItem}
               <DropdownMenu.Item disabled={!canonicalPage?.artPsd || pageActionBusy} onSelect={() => void openPageSlice()}><Scissors size={15} /><span>PSD 切图</span></DropdownMenu.Item>
               <DropdownMenu.Item disabled={psdActionDisabled} onSelect={() => { if (page && !psdActionDisabled) void pagePsds.run(page.id, "generate"); }}><FileImage size={15} /><span>生成 PSD</span></DropdownMenu.Item>
               <DropdownMenu.Item disabled={psdActionDisabled} onSelect={() => { if (page && !psdActionDisabled) void pagePsds.run(page.id, "choose"); }}><Link2 size={15} /><span>{page?.artPsd ? "重新绑定 PSD" : "绑定 PSD"}</span></DropdownMenu.Item>

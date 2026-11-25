@@ -1,4 +1,5 @@
 import * as Menu from "@radix-ui/react-dropdown-menu";
+import type { ReactNode } from "react";
 import { ArrowLeft, ChevronRight, CopyPlus, Focus, LayoutDashboard, LayoutPanelTop, Pencil, Plus, Trash2 } from "lucide-react";
 import type { GameFlowPage, PageRootType } from "../../shared/model";
 import { PAGE_ROOTS, PAGE_ROOT_TYPES } from "../../shared/ui-components";
@@ -10,8 +11,9 @@ export function CanvasViewItems({ onFit, onBack, backLabel = "返回总览" }: {
   </>;
 }
 
-export function CanvasOverviewMenu({ target, page, onClose, onRestoreFocus, onEnter, onRename, onDuplicate, onDelete, onAddPage, onFit }: {
+export function CanvasOverviewMenu({ target, page, importPsdItem, onClose, onRestoreFocus, onEnter, onRename, onDuplicate, onDelete, onAddPage, onFit }: {
   target: { x: number; y: number } | null; page?: GameFlowPage;
+  importPsdItem: ReactNode;
   onClose: () => void; onRestoreFocus: () => void; onEnter: () => void; onRename: () => void;
   onDuplicate: () => void; onDelete: () => void; onAddPage: (type: PageRootType) => void; onFit: () => void;
 }) {
@@ -35,6 +37,7 @@ export function CanvasOverviewMenu({ target, page, onClose, onRestoreFocus, onEn
           {PAGE_ROOT_TYPES.map(type=>{const Icon=type === "UIBox" ? LayoutDashboard : LayoutPanelTop;return <Menu.Item key={type} onSelect={action(()=>onAddPage(type))}><Icon size={14}/><span>{PAGE_ROOTS[type].label} <small className="menu-class">({type})</small></span></Menu.Item>;})}
         </Menu.SubContent></Menu.Portal>
       </Menu.Sub>
+      {!page && importPsdItem}
       <CanvasViewItems onFit={action(onFit)} />
     </Menu.Content></Menu.Portal>
   </Menu.Root>;

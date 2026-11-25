@@ -33,10 +33,15 @@ async function run() {
     await page.goto(process.env.GAMEFLOW_TEST_URL || "http://127.0.0.1:5191");
     const inspector = page.getByRole("status").filter({ hasText: /导入 PSD 失败|已导入/ });
     const more = page.locator(".canvas-toolbar").getByRole("button", { name: "更多", exact: true });
-    const importItem = page.getByRole("menuitem", { name: "从 PSD 导入原型…" });
+    const overviewMenu = page.getByRole("menu", { name: "画板右键菜单", exact: true });
+    const importName = { name: "从 PSD 导入原型…", exact: true };
+    const openBlankMenu = () => page.locator(".canvas-viewport").click({ button: "right", position: { x: 35, y: 150 } });
     const snapshot = () => page.evaluate(() => JSON.parse(localStorage.getItem("gameflow.prototype.v1")));
-    const importFile = async files => {
-      await more.click();
+    const importFile = async (files, fromContextMenu = false) => {
+      if (fromContextMenu) await openBlankMenu();
+      else await more.click();
+      const importItem = (fromContextMenu ? overviewMenu : page.getByRole("menu", { name: "更多", exact: true }))
+        .getByRole("menuitem", importName);
       assert.equal(await importItem.isEnabled(), true);
       const chosen = page.waitForEvent("filechooser");
       await importItem.click();
@@ -45,14 +50,19 @@ async function run() {
     await more.waitFor();
     assert.equal(await page.locator(".page-selected").count(), 0);
     const initial = await snapshot();
-    await importFile([]);
+    await page.locator('[data-page-id="existing"] .page-caption').click({ button: "right" });
+    await overviewMenu.getByRole("menuitem", { name: "进入画板编辑" }).waitFor();
+    assert.equal(await overviewMenu.getByRole("menuitem", importName).count(), 0);
+    await page.keyboard.press("Escape");
+    await overviewMenu.waitFor({ state: "hidden" });
+    await importFile([], true);
     assert.deepEqual(await snapshot(), initial);
     await importFile({ name: "bad.psd", mimeType: "application/octet-stream", buffer: Buffer.from("bad file") });
     await inspector.filter({ hasText: "导入 PSD 失败" }).waitFor();
     assert.deepEqual(await snapshot(), initial);
 
     await page.getByRole("button", { name: "美术 PSD资源", exact: true }).click();
-    await importFile({ name: "购买.PSD", mimeType: "application/octet-stream", buffer: layeredPsd });
+    await importFile({ name: "购买.PSD", mimeType: "application/octet-stream", buffer: layeredPsd }, true);
     await inspector.filter({ hasText: "已导入 5 个图层" }).waitFor();
     await page.getByRole("button", { name: "总览", exact: true }).waitFor();
     assert.equal(await page.getByRole("button", { name: "原型资源", exact: true }).getAttribute("aria-pressed"), "true");
