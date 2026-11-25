@@ -1,7 +1,6 @@
 import { useId } from "react";
 import type { GameFlowNode, GameFlowPage } from "../../shared/model";
 import { inheritedFlag } from "../../shared/editor-ops";
-import { canHaveChildren } from "../../shared/ui-components";
 import type { LayoutResult } from "../../shared/ui-layout";
 import type { Point } from "../../shared/ui-transform";
 
@@ -13,7 +12,7 @@ export function ContainerOutlines({ page, nodes, geometry }: { page: GameFlowPag
   return <svg className="container-outlines" aria-hidden="true" focusable="false">
     {nodes.map((node, index) => {
       const resolved = geometry.nodes.get(node.id);
-      if ((!canHaveChildren(node) && node.type !== "list") || inheritedFlag(page, node, "hidden") || !resolved?.inverse) return null;
+      if (inheritedFlag(page, node, "hidden") || !resolved?.inverse) return null;
       const clipId = `${id}-${index}`;
       return <g key={node.id}>
         {resolved.clipPolygon ? <defs><clipPath id={clipId}><polygon points={points(resolved.clipPolygon)} /></clipPath></defs> : null}

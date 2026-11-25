@@ -131,7 +131,13 @@ export function PsdSliceCanvas({ asset, selected, onSelect, onNavigateScope, act
       <div className="psd-page-caption"><span>{asset.name}</span><small>{asset.width} × {asset.height}</small></div>
       <div className="psd-preview-world checkerboard" style={{ width: asset.width, height: asset.height, transform: `scale(${camera.zoom})` }}>
         <img className="psd-composite" src={asset.preview} alt={`${asset.name} 整图预览`} draggable={false} />
-        {showContainerOutlines ? <svg className="psd-container-outlines" width={asset.width} height={asset.height} viewBox={`0 0 ${asset.width} ${asset.height}`} aria-hidden="true" focusable="false">{asset.layers.filter(layer => layer.group && !layer.hidden && layer.width > 0 && layer.height > 0).map(layer => <rect key={layer.key} x={layer.left} y={layer.top} width={layer.width} height={layer.height} fill="none" stroke="currentColor" strokeWidth={1 / camera.zoom} strokeDasharray={`${4 / camera.zoom} ${3 / camera.zoom}`} />)}</svg> : null}
+        {showContainerOutlines ? <svg className="psd-container-outlines" width={asset.width} height={asset.height}
+          viewBox={`0 0 ${asset.width} ${asset.height}`} aria-hidden="true" focusable="false">
+          {asset.layers.filter(layer => !layer.hidden && layer.width > 0 && layer.height > 0).map(layer =>
+            <rect key={layer.key} x={layer.left} y={layer.top} width={layer.width} height={layer.height}
+              fill="none" stroke="currentColor" strokeWidth={1 / camera.zoom} strokeDasharray={`${4 / camera.zoom} ${3 / camera.zoom}`} />
+          )}
+        </svg> : null}
         {selected && selected.width > 0 && selected.height > 0 ? <div className="psd-selected-outline" style={{ left: selected.left, top: selected.top, width: selected.width, height: selected.height, borderWidth: 1 / camera.zoom }} /> : null}
       </div>
     </div>
