@@ -4,6 +4,8 @@ import { resolveCanvasSource } from "./canvas-references";
 import { cellKey, resolveCellPage, resolvePrefabPage } from "./list-cell";
 import { referencedCellUuids, planPrefabExport, prefabFileName, resourceUrl, type CellPrefabFile, type ExportImageResolver, type PrefabSnapshot, type PrefabTarget } from "./prefab-export";
 import { inspectPrefab, prefabPreviewPage, prefabTarget } from "./prefab-sync";
+import { prefabExportNameIssue } from "./prefab-export-name";
+import type { PrefabPlan } from "./prefab-export";
 
 type Snapshot = Pick<PrefabSnapshot, "prefab" | "hash" | "uuid" | "skins" | "metadata">;
 type Inspect = (target: PrefabTarget) => Promise<Snapshot>;
@@ -17,7 +19,7 @@ function targetOf(document: GameFlowDocument, page: GameFlowPage): PrefabTarget 
 
 /** Plan missing UIBox files alongside the page. Existing templates are read for preview and identity. */
 export async function planListPrefabExport(document: GameFlowDocument, page: GameFlowPage, sources: CanvasSources,
-  resolve: (page: GameFlowPage) => ExportImageResolver, inspect: Inspect, target: PrefabTarget) {
+  resolve: (page: GameFlowPage) => ExportImageResolver, inspect: Inspect, target: PrefabTarget, mode: "export" | "pull" = "export") {
   const refs = new Map<string,CanvasReference>(), uuids = new Map<string,string>();
   const files: CellPrefabFile[] = [], previews = new Map<string,GameFlowPage>();
   const creating = new Set<string>(), owners = new Map([[prefabTarget(target).toLowerCase(), page.id]]);
@@ -77,6 +79,12 @@ export async function planListPrefabExport(document: GameFlowDocument, page: Gam
     rememberPreview(source.document,source.page,ref,file,{...disk,prefab:cell.prefab,skins});
     creating.delete(key);
   }
+  if (mode === "pull") {
+    const plan: PrefabPlan = {batch:{...target, prefab:{}, images:[]}, missing:[]};
+    return {plan,refs,previews,locateDiskBindings};
+  }
+  const issue = prefabExportNameIssue(document, page, sources);
+  if (issue) throw new Error(issue);
   for (const node of page.nodes) {
     if (node.cellPrefab && "source" in node.cellPrefab) await dependency(node.cellPrefab,true);
     if (node.prefab) await dependency(node.prefab,false);

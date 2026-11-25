@@ -73,7 +73,7 @@ async function run() {
     }
     lines.push("PASS 默认图片九宫格 "+width+"×"+height);
   }
-  const page:GameFlowPage={id:"default-page",name:"默认图片",kind:"screen",frame:{x:0,y:0,width:800,height:1500},nodes:[
+  const page:GameFlowPage={id:"default-page",name:"默认图片",exportName:"默认图片",kind:"screen",frame:{x:0,y:0,width:800,height:1500},nodes:[
     {id:"portrait",type:"image",name:"竖图",frame:{x:0,y:0,width:750,height:1334},image:{builtin:"image/default"}},
     {id:"wide",type:"image",name:"横图",frame:{x:0,y:1350,width:600,height:100},image:{builtin:"image/default"},widget:{imageFit:"contain"}},
     {id:"duplicate",type:"image",name:"复用横图",frame:{x:0,y:1450,width:600,height:100},image:{builtin:"image/default"},hidden:true},

@@ -9,6 +9,7 @@ import { mergeLayaMeta, resourceUuid } from "./laya-meta";
 import type { NineGrid } from "./psd-meta";
 import { sameGrid } from "./psd-builtin";
 import { isLegacyDefault } from "./builtin-image";
+import { prefabExportNameIssue } from "./prefab-export-name";
 export { resourceUuid } from "./laya-meta";
 
 export interface PrefabImage { path: string; base64: string; description: SliceResourceDescription; expectedUuid?:string }
@@ -114,6 +115,8 @@ export function prefabFileName(page: Pick<GameFlowPage, "name" | "exportName">):
 
 export async function planPrefabExport(document: GameFlowDocument, page: GameFlowPage, resolve: ExportImageResolver,
   cellUuid?: (node: GameFlowNode) => string, prefabUuid?: (node: GameFlowNode) => string | undefined): Promise<PrefabPlan> {
+  const issue = prefabExportNameIssue(document, page);
+  if (issue) throw new Error(issue);
   const images = new Map<string,PrefabImage>(), refs = new Map<string,string>(), missing: MissingImage[] = [];
   for (const node of page.nodes) for (const [field,slot] of nodeSlots(node)) {
     if (!slot) continue;
@@ -195,9 +198,9 @@ export async function planPrefabExport(document: GameFlowDocument, page: GameFlo
     const promoted=nodeRecord(componentRoot);
     const {_$child,...fields}=promoted;
     delete fields._$id;delete fields._$type;delete fields.name;delete fields.scriptPath;delete fields.x;delete fields.y;delete fields._$var;
-    prefab={...fields,"_$ver":1,"_$id":page.id,"_$type":root,name:page.exportName ?? page.name,scriptPath:scriptPath(root),width:componentRoot.frame.width,height:componentRoot.frame.height,...(_$child ? {"_$child":_$child} : {})};
+    prefab={...fields,"_$ver":1,"_$id":page.id,"_$type":root,name:page.exportName,scriptPath:scriptPath(root),width:componentRoot.frame.width,height:componentRoot.frame.height,...(_$child ? {"_$child":_$child} : {})};
   } else {
-    prefab={"_$ver":1,"_$id":page.id,"_$type":root,name:page.exportName ?? page.name,scriptPath:scriptPath(root),width:page.frame.width,height:page.frame.height,...page.layout,"_$child":page.nodes.filter(node=>!node.parentId).map(nodeRecord)};
+    prefab={"_$ver":1,"_$id":page.id,"_$type":root,name:page.exportName,scriptPath:scriptPath(root),width:page.frame.width,height:page.frame.height,...page.layout,"_$child":page.nodes.filter(node=>!node.parentId).map(nodeRecord)};
   }
   return {batch:{name:prefabFileName(page),directory:document.exportDirectory,prefab,images:[...images.values()].filter(image=>!failed.has(image.path))},missing};
 }

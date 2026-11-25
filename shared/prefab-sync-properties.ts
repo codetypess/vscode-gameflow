@@ -161,7 +161,7 @@ export function recordNodeProperties(type:NodeType,source:RecordNode,resolveRef:
 
 export function applyPageProperty(page:GameFlowPage,path:string,value:SyncPropertyValue):GameFlowPage {
   if(path==="page.width" || path==="page.height") return {...page,frame:{...page.frame,[path.slice(5)]:Number(value)}};
-  if(path==="page.exportName") return {...page,exportName:String(value)===page.name?undefined:String(value)};
+  if(path==="page.exportName") return {...page,exportName:String(value).trim() || undefined};
   if(path.startsWith("layout.")) return {...page,layout:{...page.layout,[path.slice(7)]:value}};
   return page;
 }

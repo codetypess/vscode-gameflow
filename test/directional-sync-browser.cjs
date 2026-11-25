@@ -10,7 +10,7 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
     page.on("pageerror",error=>errors.push(error.message));
     await page.addInitScript(()=>{
       const frame={x:0,y:0,width:240,height:120};
-      const screen={id:"page0001",name:"登录",kind:"screen",frame,nodes:[
+      const screen={id:"page0001",name:"登录",exportName:"登录",kind:"screen",frame,nodes:[
         {id:"text0001",name:"标题",type:"text",text:"原型初值",frame:{x:12,y:8,width:140,height:32}},
         {id:"icon0001",name:"图标",type:"image",image:{builtin:"image/default"},frame:{x:16,y:44,width:64,height:64}}
       ]};

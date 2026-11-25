@@ -93,6 +93,9 @@ const sharedUrl = file => "/@fs/" + path.resolve(__dirname, "../shared", file).s
     await exportDirectory.blur();
     await page.getByRole("button",{name:"完成",exact:true}).click();
     await page.locator(".page-caption").first().click();
+    const prefabName = page.getByRole("textbox",{name:"导出名称",exact:true});
+    await prefabName.fill("Inventory");
+    await prefabName.press("Enter");
     const openPrefab=async()=>{
       await page.getByRole("button",{name:"更多",exact:true}).click();
       await page.getByRole("menuitem",{name:"预制体同步",exact:true}).click();

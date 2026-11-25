@@ -14,11 +14,11 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
     const errors = [];
     page.on("pageerror",error=>errors.push(error.message));
     const box = (id,name,height,text) => ({
-      id,name,kind:"screen",rootType:"UIBox",frame:{x:400,y:0,width:80,height},
+      id,name,exportName:name,kind:"screen",rootType:"UIBox",frame:{x:400,y:0,width:80,height},
       nodes:[{id:"label001",type:"text",name:"标签",text,frame:{x:0,y:0,width:80,height}}]
     });
     const doc = {schemaVersion:5,elementIdScheme:"nanoid-8",documentId:"list-demo",title:"列表",requirements:[],interactions:[],pages:[
-      {id:"page0001",name:"背包",kind:"screen",frame:{x:0,y:0,width:320,height:240},nodes:[
+      {id:"page0001",name:"背包",exportName:"背包",kind:"screen",frame:{x:0,y:0,width:320,height:240},nodes:[
         {id:"list0001",name:"物品列表",type:"list",layout:{scrollType:2,wrapCount:1},frame:{x:20,y:20,width:160,height:91}}]},
       box("item0001","本地模板",30,"本地物品")
     ]};

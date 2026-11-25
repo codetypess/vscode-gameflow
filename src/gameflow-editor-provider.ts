@@ -12,6 +12,7 @@ import { readWorkbenchSlices } from "./slice-resource-controller";
 
 import { PagePsdController, rebasePagePsds } from "./page-psd-controller";
 import { exportPrefab, inspectPrefabFile } from "./prefab-export-controller";
+import { prefabExportNameIssue } from "../shared/prefab-export-name";
 
 export const GAMEFLOW_EDITOR_VIEW_TYPE = "gameflow.canvasEditor";
 const explain = (error: unknown) => error instanceof Error ? error.message : String(error);
@@ -168,6 +169,13 @@ export class GameFlowEditorProvider implements vscode.CustomEditorProvider<Workb
     doc.panels.add(panel);
     const settings = this.psd.settings.attach(panel, doc.uri);
     const references = new CanvasReferenceController(doc, panel.webview, this.access(doc));
+    const checkPrefabExportNames = (pageId: unknown, fromPsd = false) => {
+      const current = parseGameFlowDocument(doc.getText());
+      const page = current.pages.find(item => item.id === pageId);
+      if (!page) throw new Error("找不到要导出预制体的原型。");
+      const issue = prefabExportNameIssue(current, page, fromPsd ? undefined : references.loadedSources);
+      if (issue) throw new Error(issue);
+    };
     const snapshot = async (kind: "init" | "documentChanged" = "documentChanged") => {
       try {
         const document = parseGameFlowDocument(doc.getText());
@@ -211,6 +219,7 @@ export class GameFlowEditorProvider implements vscode.CustomEditorProvider<Workb
           try {
             const check=()=>{if(doc.disposed || doc.version!==raw.baseVersion || raw.document.documentId!==parseGameFlowDocument(doc.getText()).documentId) throw new Error("原型已变化，请重新比较。");};
             check();
+            if (raw.guard.source !== "prefab") checkPrefabExportNames(raw.batch.prefab._$id, raw.guard.source === "psd");
             const text=serializeGameFlowDocument(raw.document);
             const count=await exportPrefab(this.psd.settings,raw.batch,raw.guard,raw.root,async()=>{
               check();
@@ -219,7 +228,10 @@ export class GameFlowEditorProvider implements vscode.CustomEditorProvider<Workb
             await panel.webview.postMessage({type:"prefabExportResult",requestId:raw.requestId,count} satisfies HostToWebviewMessage);
           } catch(error) {await panel.webview.postMessage({type:"prefabExportResult",requestId:raw.requestId,error:explain(error)} satisfies HostToWebviewMessage);}
         } else if (raw.type === "prefabExport") {
-          try { await panel.webview.postMessage({ type: "prefabExportResult", requestId: raw.requestId, count: await exportPrefab(this.psd.settings, raw.batch) } satisfies HostToWebviewMessage); }
+          try {
+            checkPrefabExportNames(raw.batch.prefab._$id);
+            await panel.webview.postMessage({ type: "prefabExportResult", requestId: raw.requestId, count: await exportPrefab(this.psd.settings, raw.batch) } satisfies HostToWebviewMessage);
+          }
           catch (error) { await panel.webview.postMessage({ type: "prefabExportResult", requestId: raw.requestId, error: explain(error) } satisfies HostToWebviewMessage); }
         } else if (raw.type === "sliceResources") {
           await panel.webview.postMessage({ type: "sliceResourcesResult", requestId: raw.requestId, resources: await readWorkbenchSlices(this.psd.settings, raw.paths) } satisfies HostToWebviewMessage);

@@ -6,6 +6,7 @@ import {ArrowRight, ChevronRight, GitMerge, MoreHorizontal, Pin, RefreshCw} from
 import type {GameFlowDocument,GameFlowPage} from "../../shared/model";
 import type {CanvasSources} from "../../shared/canvas-references";
 import {planListPrefabExport} from "../../shared/list-prefab-export";
+import {prefabExportNameIssue} from "../../shared/prefab-export-name";
 import {composeCanvasPage} from "../../shared/canvas-instances";
 import {nodeSlots,prefabFileName,type PrefabExportBatch,type PrefabPlan,type PrefabTarget} from "../../shared/prefab-export";
 import {initialPrefabBase,inspectPrefab,prefabTarget,type PrefabReview,type PrefabSyncMode} from "../../shared/prefab-sync";
@@ -88,9 +89,9 @@ export function CanvasExportActions({document,sources,page,sourcePage,resources,
     try {
       const art=mode==="art"?await readPsdPrefabSource(document,sourcePage):undefined;
       const canonical=document.pages.find(item=>item.id===sourcePage.id) ?? sourcePage;
-      const exportPage=art?.page ?? (mode==="pull"?{...sourcePage,nodes:[]}:mode==="push"?prototypeExportPage(canonical):canonical);
+      const exportPage=art?.page ?? (mode==="push"?prototypeExportPage(canonical):canonical);
       const cellPlan=await planListPrefabExport(document,exportPage,sources,
-        item=>art && item===art.page?art.resolve:exportImageResolver(resources.forPage?.(item)??resources),file=>inspectPrefabTarget(file,[]),chosen);
+        item=>art && item===art.page?art.resolve:exportImageResolver(resources.forPage?.(item)??resources),file=>inspectPrefabTarget(file,[]),chosen,mode==="pull"?"pull":"export");
       const {plan}=cellPlan;
       const images=await Promise.all(plan.batch.images.map(async({path,description,base64})=>({
         path,nineGrid:description.nineGrid,sha256:art?await browserHash(Uint8Array.from(atob(base64),c=>c.charCodeAt(0))):undefined
@@ -114,6 +115,11 @@ export function CanvasExportActions({document,sources,page,sourcePage,resources,
   }
   function exportPrefab(mode:PrefabSyncMode) {
     if(!page || !sourcePage || disabled || busy) return;
+    if (mode !== "pull") {
+      const canonical = document.pages.find(item => item.id === sourcePage.id) ?? sourcePage;
+      const issue = prefabExportNameIssue(document, canonical, mode === "art" ? undefined : sources);
+      if (issue) { onNotice(issue); return; }
+    }
     if(!settings.settings.prefabDirectory || mode!=="pull" && !settings.settings.resourceDirectory){
       settings.show();onNotice(mode==="pull"?"请选择预制体根目录。":"请选择资源和预制体导出根目录。");return;
     }

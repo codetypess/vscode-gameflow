@@ -18,6 +18,7 @@ export class CanvasReferenceController implements vscode.Disposable {
   private epoch = 0;
   private disposed = false;
   private sources: CanvasSources = {};
+  get loadedSources(): CanvasSources { return this.sources; }
   private extra = new Set<string>();
   private watchers = new Map<string, vscode.Disposable>();
   private picked: string | undefined;

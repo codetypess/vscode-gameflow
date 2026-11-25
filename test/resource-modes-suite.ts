@@ -19,7 +19,7 @@ const tests:{name:string;run:()=>void|Promise<void>}[]=[];
 const test=(name:string,run:()=>void|Promise<void>)=>tests.push({name,run});
 export const resourceModesTests=tests;
 let sequence=0;const id=()=>"slot"+(++sequence);
-const page=(nodes:GameFlowPage["nodes"]):GameFlowPage=>({id:"page",name:"登录",kind:"screen",frame:{x:0,y:0,width:400,height:600},nodes});
+const page=(nodes:GameFlowPage["nodes"]):GameFlowPage=>({id:"page",name:"登录",exportName:"登录",kind:"screen",frame:{x:0,y:0,width:400,height:600},nodes});
 const doc=(p:GameFlowPage)=>({...createDefaultGameFlowDocument("images-test"),pages:[p],interactions:[]});
 const hash=async(bytes:Uint8Array)=>createHash("sha256").update(bytes).digest("hex");
 const codec={decode:(value:string)=>Buffer.from(value,"base64"),hash};
@@ -30,6 +30,71 @@ import { readPrefabSnapshot } from "../shared/prefab-export";
 import { listCellPositions, resolveCellPage } from "../shared/list-cell";
 import { planListPrefabExport } from "../shared/list-prefab-export";
 import { loadCanvasSources } from "../shared/canvas-references";
+
+test("prefab export rejects absent and blank export names before resolving images", async () => {
+  const button = makeNode("button", "button", 0, 0);
+  button.normalSkin = {art:{path:"unclassified/login.png"}};
+  for (const exportName of [undefined, "", " \t "]) {
+    const screen = {...page([button]), exportName};
+    await assert.rejects(planPrefabExport(doc(screen), screen, () => assert.fail("resolved images")), /原型「登录」未设置导出名称/);
+  }
+});
+
+test("prefab export reports every unnamed prototype in the reference graph before reading targets", async () => {
+  const list = makeNode("list", "list", 0, 0);
+  const instance = makeNode("container", "instance", 0, 0);
+  const screen:GameFlowPage = {...page([list, instance]), exportName:undefined};
+  const document = doc(screen);
+  const nested = makeNode("container", "nested", 0, 0);
+  const item:GameFlowPage = {...page([nested]), id:"item", name:"服务器列表项", exportName:undefined, rootType:"UIBox"};
+  const badge:GameFlowPage = {...page([]), id:"badge", name:"状态图标", exportName:"  ", rootType:"UIBox"};
+  const source = "ui/items.gameflow.json";
+  const external = {...doc(item), documentId:"external", pages:[item,badge]};
+  const sources = {[source]:{source, document:external}};
+  const ref = {source, documentId:external.documentId, pageId:item.id};
+  list.cellPrefab = ref;
+  instance.prefab = ref;
+  nested.prefab = {source:"", documentId:external.documentId, pageId:badge.id};
+  item.prefabSync = initialPrefabBase(external, item, "OldItem.lh");
+  document.pages.push({...page([]), id:"unrelated", name:"其他页面", exportName:undefined});
+  const target = {name:"Login.lh"};
+  await assert.rejects(planListPrefabExport(document, screen, sources, () => missing, () => assert.fail("read a target"), target), error => {
+    const message = String(error);
+    assert.match(message, /未设置导出名称/);
+    for (const name of [screen.name, item.name, badge.name]) assert.equal(message.split(name).length, 2);
+    assert.ok(message.includes(source));
+    assert.doesNotMatch(message, /其他页面/);
+    return true;
+  });
+  screen.exportName = target.name.slice(0,-3);
+  item.exportName = "ServerItem";
+  badge.exportName = "Badge";
+  const files = memoryDirectory();
+  const {plan} = await planListPrefabExport(document, screen, sources, () => missing, file => readPrefabSnapshot(files.io,file,hash), target);
+  assert.equal(plan.batch.name, target.name);
+  assert.deepEqual(plan.batch.cells?.map(cell => cell.name), ["OldItem.lh", "Badge.lh"]);
+});
+
+test("clearing an export name blocks a linked target while still allowing a read-only pull", async () => {
+  const screen = page([]);
+  screen.exportName = "Login";
+  const document = doc(screen);
+  const {batch} = await planPrefabExport(document, screen, missing);
+  screen.prefabSync = initialPrefabBase(document, screen, batch.name);
+  delete screen.exportName;
+  const noRead = () => assert.fail("unexpected template read");
+  await assert.rejects(planListPrefabExport(document, screen, {}, () => missing, noRead, batch), /原型「登录」未设置导出名称/);
+  const {plan} = await planListPrefabExport(document, screen, {}, () => missing, noRead, {name:batch.name}, "pull");
+  assert.deepEqual(plan.batch.images, []);
+  assert.equal(plan.batch.cells, undefined);
+  const review = inspectPrefab(document, screen, batch.name, batch.prefab, undefined, undefined, "pull");
+  const decisions = Object.fromEntries(review.comparison.changes.map(change => [change.key, "psd" as const]));
+  assert.equal(mergePrefab(review, decisions, plan.batch, "pull").page.exportName, "Login");
+  screen.exportName = "Login";
+  const renamed = inspectPrefab(document, screen, batch.name, {...batch.prefab,name:screen.name}, undefined, undefined, "pull");
+  const rename = renamed.comparison.changes.find(change => change.property === "page.exportName")!;
+  assert.equal(mergePrefab(renamed, {[rename.key]:"psd"}, plan.batch, "pull").page.exportName, screen.name);
+});
 
 test("UIList repeats UIBox boards from either GameFlow with Laya viewport, spacing and orientation",async()=>{
   const [list,...children]=makeComponent("list","celllist",0,0,id);
@@ -57,7 +122,7 @@ test("UIList repeats UIBox boards from either GameFlow with Laya viewport, spaci
 
 test("CellPrefab export creates a separate external UIBox, respects disk UUID and reviews template changes independently",async()=>{
   const list=makeNode("list","celllist",0,0),current=page([list]),document=doc(current);
-  const item:GameFlowPage={...page([makeNode("text","itemtext",0,0)]),rootType:"UIBox",id:"cellpage",name:"背包格"};
+  const item:GameFlowPage={...page([makeNode("text","itemtext",0,0)]),rootType:"UIBox",id:"cellpage",name:"背包格",exportName:"背包格"};
   const external={...doc(item),documentId:"external",exportDirectory:"ui/items"};
   const ref={source:"items.gameflow.json",pageId:item.id,documentId:external.documentId};
   list.cellPrefab=ref;
@@ -530,7 +595,7 @@ test("export batch rejects cyclic data and corrupt pixels before any writes",asy
   const d=doc(page([makeNode("button","button",0,0)])),plan=await planPrefabExport(d,d.pages[0],missing),resources=memoryDirectory(),prefabs=memoryDirectory();
   const circular:Record<string,unknown>={};circular.self=circular;assert.equal(isPrefabExportBatch({...plan.batch,prefab:circular}),false);
   plan.batch.images[0].base64=Buffer.alloc(40).toString("base64");await assert.rejects(exportPrefabToDirectories(resources.io,prefabs.io,plan.batch,codec),/PNG/);assert.equal(resources.files.size,0);assert.equal(prefabs.files.size,0);
-  assert.equal(prefabFileName({...d.pages[0],name:"CON"}),"_CON.lh");assert.equal(prefabFileName({...d.pages[0],name:"..."}),"page.lh");
+  assert.equal(prefabFileName({...d.pages[0],exportName:"CON"}),"_CON.lh");assert.equal(prefabFileName({...d.pages[0],exportName:"..."}),"page.lh");
 });
 
 test("art-only optional button states retain prototype normal without pulling in art pixels",()=>{

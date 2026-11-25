@@ -54,7 +54,7 @@ export async function settingsChecks(api: { psd: PsdEditorProvider }, root: stri
     const prototype = createDefaultGameFlowDocument("native-prefab");
     const button = makeNode("button", "button", 20, 20);
     const label = { ...makeNode("text", "caption", 0, 0), parentId: button.id, text: "登录" };
-    prototype.pages = [{ id: "login", name: "原型导出", kind: "screen", frame: { x: 0, y: 0, width: 320, height: 240 }, nodes: [button, label] }];
+    prototype.pages = [{ id: "login", name: "原型导出", exportName: "原型导出", kind: "screen", frame: { x: 0, y: 0, width: 320, height: 240 }, nodes: [button, label] }];
     prototype.interactions = [];
     const plan = await planPrefabExport(prototype, prototype.pages[0], async () => ({ status: "error", error: "unexpected art binding" }));
     assert.deepEqual(plan.missing, []);
