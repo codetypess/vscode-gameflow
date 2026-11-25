@@ -215,8 +215,8 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
       await openMore();
       const menuBounds = await moreMenu.boundingBox();
       assert.ok(menuBounds && menuBounds.x >= 0 && menuBounds.x + menuBounds.width <= width && menuBounds.y >= 0 && menuBounds.y + menuBounds.height <= 760, "More menu stays in the narrow viewport");
-      assert.equal(await moreMenu.getByRole("menuitem").count(), 6);
-      assert.equal(await moreMenu.getByRole("menuitem").first().innerText(), "PSD 切图");
+      assert.equal(await moreMenu.getByRole("menuitem").count(), 7);
+      assert.deepEqual((await moreMenu.getByRole("menuitem").allTextContents()).slice(0, 2), ["从 PSD 导入原型…", "PSD 切图"]);
       assert.equal(await moreMenu.getByRole("menuitem", {name:"PSD 同步"}).isEnabled(), true);
       await page.screenshot({ path: path.join(output, "narrow-" + width + ".png") });
       await page.keyboard.press("Escape");

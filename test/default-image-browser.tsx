@@ -8,7 +8,7 @@ import { SlotImage } from "../webview/runtime/slot-image";
 import { generatePrototypePsd } from "../webview/runtime/prototype-psd";
 import { openPsd } from "../webview/psd/io";
 import { loadSliceImage, renderSliceExportBatch } from "../webview/psd/slice-render";
-import { sameGrid } from "../shared/psd-builtin";
+import { builtinSlice, sameGrid, verifyBuiltinOrigin } from "../shared/psd-builtin";
 import { paintSlice } from "../webview/runtime/paint-slice";
 import { builtinImage, builtinPath } from "../shared/image-slots";
 import { createDefaultGameFlowDocument, type GameFlowPage } from "../shared/model";
@@ -54,12 +54,12 @@ async function run() {
     return canvas;
   };
   const glyph=await decode(new URL("../scripts/art/default-landscape.png",import.meta.url).href);
-  for(const [width,height] of [[750,1334],[600,100],[64,64],[240,64],[120,480],[38,34],[16,12],[8,100],[100,8]]) {
+  for(const [width,height] of [[750,1334],[600,100],[64,64],[240,64],[120,480],[40,36],[38,34],[16,12],[8,100],[100,8]]) {
     const canvas=await render(width,height),reference=document.createElement("canvas");
     paintSlice(reference,await loadSliceImage(builtin.dataUri),builtin,width,height);
     equal(pixels(canvas),pixels(reference),"默认图片使用普通九宫格渲染 "+width+"×"+height);
     expected.set(width+"x"+height,pixels(canvas));
-    if(width>=38 && height>=34){
+    if(width>=40 && height>=36){
       const context=reference.getContext("2d")!;
       context.resetTransform();
       context.fillStyle="#e3e7ec";context.fillRect(0,0,width,height);
@@ -90,6 +90,14 @@ async function run() {
     equal(pixels(await decode(layer.image!)),expected.get(key),"PSD 图层与原型一致 "+id);
   }
   const composite=await decode(opened.asset.preview);
+  const portrait = opened.asset.layers.find(layer => layer.name === "竖图")!;
+  const oldOrigin = { ...portrait.metadata.builtinOrigin as object, catalog: "c2aba2a565d8cbd0e0442efbb994e956e81ec2cea179d34fac82ca42ff32c06d" };
+  const portraitPixels = (await decode(portrait.image!)).getContext("2d")!.getImageData(0,0,portrait.width,portrait.height);
+  const old = { ...portrait, metadata: { ...portrait.metadata, builtinOrigin: oldOrigin },
+    verifiedBuiltin: await verifyBuiltinOrigin(oldOrigin, portraitPixels),
+    config: { ...portrait.config, nineGrid: { top: 34, right: 0, bottom: 0, left: 38, repeat: false } } };
+  equal(builtinSlice(old)?.id, "image/default", "上一版左上图标仍复用共享图片");
+  equal(builtinSlice({ ...old, config: { ...old.config, nineGrid: builtin.nineGrid } }), undefined, "美术改过的旧切线独立导出");
   equal(composite.getContext("2d")!.getImageData(0,0,750,1334).data,expected.get("750x1334"),"PSD 合成与原型一致");
   lines.push("PASS 真实 PSD 图层、合成图与原型像素一致");
   const plan=await planPrefabExport(doc,page,exportImageResolver(empty));

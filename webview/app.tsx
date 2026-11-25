@@ -1,11 +1,11 @@
 import { DialogHeading } from "./components/dialog-heading";
-import { validateGameFlowDocument, type GameFlowDocument } from "../shared/model";
+import { GAMEFLOW_SCHEMA_VERSION, validateGameFlowDocument, type GameFlowDocument } from "../shared/model";
 import type { OverrideActions } from "./editor/override-properties";
 import { canvasPropertyLabel } from "./editor/override-properties";
 import type { CanvasOverrideGroup, CanvasOverrideManager } from "./editor/override-panel";
 import { sliderOwner } from "../shared/ui-parts";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { ArrowLeft, Box, Check, ChevronDown, ChevronRight, Focus, FileImage, GitMerge, Layers3, LayoutDashboard, LayoutPanelTop, Link2, Minus, MousePointerClick, Plus, Redo2, Save, Scissors, SquareDashed, Undo2 } from "lucide-react";
+import { ArrowLeft, Box, Check, ChevronDown, ChevronRight, Focus, FileImage, FileInput, GitMerge, Layers3, LayoutDashboard, LayoutPanelTop, Link2, Minus, MousePointerClick, Plus, Redo2, Save, Scissors, SquareDashed, Undo2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import type { Frame, GameFlowNode, GameFlowPage, PageRootType } from "../shared/model";
 import { allocateElementId, reserveDocumentElementIds } from "../shared/element-id";
@@ -25,6 +25,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "./components/ui/popover
 import { Separator } from "./components/ui/separator";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./components/ui/tooltip";
 import { ListCells } from "./editor/list-cell-context";
+import { psdComponentInstances } from "../shared/page-sync";
 import { cellKey, listScrollType, resolveCellPage, type CellReference } from "../shared/list-cell";
 import { CanvasExportActions } from "./editor/canvas-export-actions";
 import { Inspector } from "./editor/inspector";
@@ -41,6 +42,7 @@ import { isBrowserPreview, postHostMessage } from "./vscode-api";
 import { cn } from "./lib/utils";
 import { PsdWorkspace, type OpenBoundSlice, type WorkspaceMode } from "./psd/workspace";
 import { usePsdEditor } from "./psd/use-psd-editor";
+import { importPsdPrototype } from "./psd/io";
 import { useWorkbenchSettings, WorkbenchSettingsButton, WorkbenchSettingsPanel } from "./workbench-settings";
 import { PROTOTYPE_PANELS, useFollowingPanels } from "./editor/use-following-panels";
 import { canvasPanelMetrics } from "./lib/canvas-panels";
@@ -58,6 +60,7 @@ import { bindPrototypePsd } from "../shared/psd-prototype";
 import { pagePsdKey } from "../shared/page-psd";
 import { requestPsd, sourceBytes, usePagePsds } from "./runtime/page-psd";
 import { PageSyncDialog, type SyncSession } from "./editor/page-sync-dialog";
+import { componentPsdTargets } from "./runtime/component-psd";
 import { PageArtState, pagePreviewBlocked } from "./editor/page-art-state";
 
 type Tool = "select" | "hand";
@@ -89,6 +92,8 @@ export function App() {
   const { document: canvasDocument, resourceName, dirty, pending, error, edit, read, history, save, applyCanvas } = useDocument();
   const viewport = useRef<HTMLDivElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+  const psdImportInput = useRef<HTMLInputElement>(null);
+  const [importingPsd, setImportingPsd] = useState(false);
   const importTarget = useRef<{ pageId: string; nodeId: string } | null>(null);
   const initialized = useRef(false);
   const allocatedIds = useRef(new Set<string>());
@@ -126,7 +131,7 @@ export function App() {
   }), []);
   const compositions = useMemo(() => new Map(canvasDocument?.pages.map(p => [p.id, composeCanvasPage(canvasDocument, p, sources)])), [canvasDocument, sources]);
   const updatePage = (id: string, transform: (page: GameFlowPage) => GameFlowPage) => edit(document => { try { return editCanvasPage(document, id, sources, transform); } catch (error) { setNotice(error instanceof Error ? error.message : String(error)); return document; } });
-  const loadedPsds = usePagePsds(canvasDocument, read, updatePage, observePsd, setNotice, (document, page) => composeCanvasPage(document, page, sources).page);
+  const loadedPsds = usePagePsds(canvasDocument, read, edit, observePsd, setNotice, (document, page) => composeCanvasPage(document, page, sources), sources);
   const listCells = useMemo(() => {
     const pages = new Map<string,GameFlowPage>();
     return {
@@ -186,8 +191,7 @@ export function App() {
   const pageLayout = (page: GameFlowPage) => resolvePageLayout(page, (runtimeResources.forPage?.(page) ?? runtimeResources).sizes);
   const selectedResources = page ? runtimeResources.forPage?.(page) ?? runtimeResources : runtimeResources;
   const patchNode = (id: string, patch: Partial<GameFlowNode>) => { if (page) updatePage(page.id, (item) => ({ ...item, nodes: item.nodes.map((node) => node.id === id ? { ...node, ...patch } : node) })); };
-  const newIds = () => {
-    const current = read();
+  const newIds = (current = read()) => {
     if (current) reserveDocumentElementIds(current, allocatedIds.current);
     return () => allocateElementId(allocatedIds.current);
   };
@@ -634,6 +638,50 @@ export function App() {
   };
   const switchMode = (next: WorkspaceMode) => { setCanvasMenu(null); setRenameTarget(null); gesture.current = null; setPreview(null); setSpaceHand(false); setInsertOpen(false); setMode(next); };
 
+  const importPrototype = async (file?: File) => {
+    const documentId = read()?.documentId;
+    if (!file || !documentId || importingPsd) return;
+    setImportingPsd(true);
+    setNotice("");
+    const failed = (error: unknown) => setNotice("导入 PSD 失败。" + (error instanceof Error ? error.message : String(error)));
+    try {
+      const { width, height, layers, omitted, approximate } = await importPsdPrototype(file);
+      if (!read()) throw new Error("当前画布不可用，请重新导入。");
+      edit(current => {
+        try {
+          if (current.documentId !== documentId) throw new Error("画布已切换，请重新导入。");
+          const makeId = newIds(current);
+          const id = makeId();
+          const ids = layers.map(() => makeId());
+          const nodes = layers.map(({ node, parent }, index) => {
+            if (parent === null) return { ...node, id: ids[index] };
+            const { x, y } = layers[parent].node.frame;
+            return { ...node, id: ids[index], parentId: ids[parent], frame: { ...node.frame, x: node.frame.x - x, y: node.frame.y - y } };
+          });
+          const x = current.pages.reduce((right, { frame }) => Math.max(right, frame.x + frame.width + 80), 0);
+          const imported: GameFlowPage = { id, name: file.name.slice(0, -4).trim() || "PSD 原型", kind: "screen", rootType: "UIStack",
+            frame: { x: Math.ceil(x), y: 0, width, height }, nodes };
+          const candidate = { ...current, schemaVersion: GAMEFLOW_SCHEMA_VERSION, pages: [...current.pages, imported] };
+          const valid = validateGameFlowDocument(candidate);
+          if (!valid.ok) throw new Error(valid.errors.join("；"));
+          switchMode("prototype");
+          switchResourceMode("prototype");
+          enter(imported);
+          setNotice([`已导入 ${nodes.length} 个图层`, omitted ? `跳过 ${omitted} 个无可用像素的图层` : "",
+            approximate ? "部分图层使用近似显示" : ""].filter(Boolean).join("，") + "。");
+          return candidate;
+        } catch (error) {
+          failed(error);
+          return current;
+        }
+      });
+    } catch (error) {
+      failed(error);
+    } finally {
+      setImportingPsd(false);
+    }
+  };
+
   const referenceOwner=canvasDocument && selectedMeta?.ownerId ? findOwnedCanvasNode(canvasDocument,selectedMeta.ownerId) : undefined;
   const sourceTarget=canvasDocument && referenceOwner?.prefab ? findCanvasTarget(canvasDocument,sources,referenceOwner.prefab) : undefined;
   const referenceName=(selectedMeta?.source ? sources[selectedMeta.source]?.document : canvasDocument)?.pages.find(item=>item.id===selectedMeta?.sourcePageId)?.name ?? sourceTarget?.page?.name;
@@ -658,11 +706,12 @@ export function App() {
     onRevert:selections=>changeOverrideSelection(selections,false),onApply:selections=>changeOverrideSelection(selections,true)
   } : undefined;
 
-  const pageActionBusy = openingSlice || pending || !!page && pagePsds.busy.has(page.id);
+  const pageActionBusy = importingPsd || openingSlice || pending || pagePsds.busy.size > 0;
   const psdActionDisabled = !page || pageActionBusy || !!composition?.errors.size;
   function openPsdSync(source?: SyncSession["source"]) {
     if (!canvasDocument || !composition || psdActionDisabled) return;
-    if (composition.page.artPsd) setSyncSession({document:canvasDocument,page:composition.page,makeId:newIds(),source});
+    if (composition.page.artPsd) setSyncSession({document:canvasDocument,page:composition.page,components:psdComponentInstances(composition),
+      componentTargets:componentPsdTargets(canvasDocument,sources,composition),sources,makeId:newIds(),source});
     else if (source === "proto") void pagePsds.run(composition.page.id, "generate");
   }
   const openPageSlice = async () => {
@@ -793,6 +842,7 @@ export function App() {
               return next;
             }} applyBrowser={(expected,next)=>{if(JSON.stringify(read())!==JSON.stringify(expected)) throw new Error("原型已变化，请重新比较。");if(next!==expected) edit(()=>next);}}
             resources={runtimeResources} settings={settings} disabled={psdActionDisabled} mappingError={!!page && !!mappingErrors[page.id]} onNotice={setNotice} onPsdSync={()=>openPsdSync()} onPushPsd={()=>openPsdSync("proto")} onPullPsd={()=>openPsdSync("psd")}>
+              <DropdownMenu.Item disabled={pageActionBusy} onSelect={() => psdImportInput.current?.click()}><FileInput size={15} /><span>{importingPsd ? "正在导入 PSD…" : "从 PSD 导入原型…"}</span></DropdownMenu.Item>
               <DropdownMenu.Item disabled={!canonicalPage?.artPsd || pageActionBusy} onSelect={() => void openPageSlice()}><Scissors size={15} /><span>PSD 切图</span></DropdownMenu.Item>
               <DropdownMenu.Item disabled={psdActionDisabled} onSelect={() => { if (page && !psdActionDisabled) void pagePsds.run(page.id, "generate"); }}><FileImage size={15} /><span>生成 PSD</span></DropdownMenu.Item>
               <DropdownMenu.Item disabled={psdActionDisabled} onSelect={() => { if (page && !psdActionDisabled) void pagePsds.run(page.id, "choose"); }}><Link2 size={15} /><span>{page?.artPsd ? "重新绑定 PSD" : "绑定 PSD"}</span></DropdownMenu.Item>
@@ -801,6 +851,7 @@ export function App() {
       </>}
       {notice || (canvasDocument && error) ? <div className="editor-notice" role="status">{notice || error}</div> : null}
       <input ref={fileInput} className="hidden" type="file" accept="image/png,image/jpeg,image/webp,image/gif" aria-label="导入控件图片" onChange={(event) => { void importImage(event.target.files?.[0]); event.target.value = ""; }} />
+      <input ref={psdImportInput} className="hidden" type="file" accept=".psd" aria-label="从 PSD 导入原型" onChange={(event) => { void importPrototype(event.target.files?.[0]); event.target.value = ""; }} />
       {renameTarget ? <RenameDialog key={`${renameTarget.pageId}/${renameTarget.nodeId ?? ""}`} name={renameTarget.name} kind={renameTarget.nodeId ? "节点" : "画板"} onRename={renameCanvasTarget} onClose={()=>{setRenameTarget(null);viewport.current?.focus({preventScroll:true});}} /> : null}
       {applyReview ? <div className="canvas-apply-backdrop" onPointerDown={event=>event.stopPropagation()}><section role="dialog" aria-modal="true" aria-label="应用属性到源组件" className="canvas-apply-dialog floating-panel workbench-dialog">
         <DialogHeading heading="应用属性到源组件" onClose={()=>setApplyReview(null)} />

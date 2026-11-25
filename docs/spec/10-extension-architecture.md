@@ -11,6 +11,8 @@ Status: Baseline for the initial extension scaffold
 4. Build adapters stay at the boundary: esbuild for the extension host and Vite for the browser Webview.
 5. The Webview uses local shadcn/ui component source and design tokens mapped to VS Code theme variables; runtime UI assets must not depend on a CDN. Shared entry styles explicitly reset root margin and padding to zero, overriding VS Code's injected body padding so the workspace fills the Webview in both extension and browser environments.
 
+The host applies a per-Webview script nonce to the packaged module entry and exposes the same nonce through Vite's `csp-nonce` metadata. Vite uses it for the `modulepreload` links it creates when a lazy feature loads, including PSD sync previews.
+
 The repository workspace disables the JavaScript debugger's experimental network view. This avoids the Node inspector network-tracking assertion during F5 startup on VS Code 1.147.0. See the [debug-host regression](f5-extension-host-startup.md).
 
 ## Document Rules
@@ -53,7 +55,7 @@ The repository workspace disables the JavaScript debugger's experimental network
 - The slice canvas owns its view-only camera. Its top-left zoom toolbar reuses prototype canvas positioning and size classes; the percentage retains the PSD 100% action. Fitting and side-panel placement reserve the same transient 48px top inset as prototype mode. Side panels use screen-space bounds derived from the PSD camera and measured viewport/panel sizes; they are not part of the scaled artwork. Hidden zero-size observations are ignored, and panel actions do not start canvas gestures. Camera changes never dirty PSD metadata or enter configuration undo history.
 - Canvas picking maps screen coordinates through the camera and respects the decoded top-to-bottom layer order. Text-layer classification and lazily cached one-bit PNG alpha masks are transient view data, excluded from sidecars and PSD patches. A request counter prevents deferred pixel decoding from replacing a newer selection or gesture. The inspector shows document settings for the PSD selection and slice properties for a layer selection. The document can be selected from the filename above the layer list or from empty canvas space.
 - `shared/psd-meta.ts` owns slice settings, identity checks, sidecar import/export and manual merge selection trees. Raw source hashes permit restoring identities only for the exact same imported bytes; changed files match scoped metadata IDs.
-- Newly assigned/repaired GameFlow PSD layer identities use the same eight-character Nano ID allocator. Existing embedded PSD identities and native numeric IDs are not subject to prototype document migration.
+- Newly generated, synchronized, imported and repaired GameFlow PSD layers use the same eight-character Nano ID allocator. Sync reserves every ID already present in the target PSD. A regenerated layer can retain the loaded PSD's identity when its metadata resolves to the same prototype document, page, node and slot. Explicit sample migrations can replace legacy embedded IDs together with their references.
 - `shared/psd-binary.ts` bounds PSD v1 parsing and patches only layer `shmd/gflw` metadata. It preserves other tagged data, channels, image resources and composite bytes without reconstructing artwork through a general PSD writer.
 - PSD decoding uses pinned `ag-psd` in a bounded, transient Worker, with OffscreenCanvas image encoding and a 30-second timeout. The bundle is inline and the Webview CSP allows `worker-src blob:`; UI assets stay local.
 - The legacy `psdOutput` request remains a bounded explicit-output boundary. Dedicated PSD editors save their host-owned state directly; explicit PSD copies and native save-as patch only metadata and write a corresponding sidecar. Explicit copy leaves the original configuration dirty. Webview messages cannot choose arbitrary output paths.
@@ -105,6 +107,8 @@ GameFlow 打开或恢复时初始显示原型。psdEditorInit 只恢复数据，
 
 ## 页面 PSD 文件关联（2026-11-19）
 
+PSD 导入原型使用 Webview 本地文件选择和现有 PSD Worker 解码预算。转换结果经常规文档编辑事务新增页面，内嵌图片使用现有 imageData 字段。源文件选择与页面 PSD 关联相互独立。详见 [从 PSD 导入原型](psd-prototype-import.md)。
+
 页面后台读取只持有操作期间的 PSD 会话：完成或失败后释放无修改、未被切图面板使用且不是 currentPsd 的模型及全局注册。页面关联与返回的预览快照独立保留，随后进入切图重新读取磁盘。重新生成区分缓存与编辑占用：允许本工作台干净会话刷新，保护未保存配置、脏文本及其他编辑会话。见 [PSD 读取占用回归](psd-read-ownership-regression.md)。
 
 扩展宿主在 Webview HTML 中声明 `gameflow-page-psd-slice` 能力。画布打开已绑定页面的切图时，使用 `pagePsd` 的 `slice` 动作。旧宿主缺少此能力时，界面立即提示重载。宿主从当前页面读取绑定，核对相对路径与 PSD 身份，随后复用工作台已有的打开流程。编辑器通过 `psdEditorReveal` 聚焦，并在更换文件时通过 `psdEditorInit` 接收内容。
@@ -114,6 +118,22 @@ GameFlow 页面通过可选 artPsd 保存 PSD 相对文件路径及稳定文档�
 PagePsdController 复用工作台管理的 PsdDocument，后台加载不改变 currentPsd 或发送活动编辑器初始化。已有草稿与 sidecar 仍由原 PSD 模型负责；新建无内嵌身份 PSD 需要保存 sidecar 以持久化分配的身份，已有内嵌身份的纯预览不产生 dirty。PSD 配置编辑、撤销重做通过 pagePsdChanged 失效相应页面缓存。保存重开按页面明确绑定装载；另存为重算路径。每页资源上下文仅接收该页面加载成功的文件资产，内存条目按资产实例隔离，避免同名切图和复制 PSD 的同身份互相污染。详见 [page-psd-binding.md](page-psd-binding.md)。PSD 切图与页面资源使用 `{图集}_{变量}` 命名。变量来自图层的切图配置或其公开图层名。按钮状态子层的变量由父组变量加状态后缀生成。`SliceConfig.variableName` 保存手填变量；显式清空恢复图层名默认值，旧 exportName 仅作兼容读取。普通和共享切图均带图集段，不自动添加类型前缀。导出名称在属性面板只读显示，派生的状态变量也只读，并沿用尺寸来源的灰色展示样式。详见 [page-psd-layer-conventions.md](page-psd-layer-conventions.md)。
 
 页面可持久化 psdSync 共同基线，按原型文档、页面及 PSD 身份隔离。页面同步从已绑定文件取当前版本，审阅与副本输出分别走 pagePsd 的 review 和 syncCopy 请求。原生宿主在 Webview HTML 中声明支持的页面同步协议。新版界面遇到旧宿主时只展示已加载页面的只读预览，并提示重载窗口。副本通过重读校验后随页面编辑更新绑定与基线。[文字与结构同步](page-psd-sync.md)
+
+PSD 同步保存对话框允许确认覆盖当前绑定的 PSD。宿主复核源稿和切图配置，将内容与已有同名配置一并更新，然后使 Webview 的页面资源缓存失效。另存使用无覆盖写入，目标冲突时可以在本轮另选文件。
+
+页面 PSD 导出把已解析的画布组件实例写为嵌入式智能对象。实例保留外层身份，内容一致的同源实例共用内嵌文档。PSD 同步按实例比较外层结构，既有普通组可审阅转换，转换时使用原组内容。更新相邻图层时保留现有嵌入文件。详见 [PSD 组件智能对象](psd-component-smart-objects.md)。
+
+PSD Worker 为嵌入式智能对象读取只读的内部图层树。美术工作区从外层智能对象展开该树，切图选择、配置和导出使用实际的外层 PSD 图层。
+
+页面 PSD 按原型的列表排布，把可见项分别置入为共享同一内嵌模板的智能对象。列表边缘裁剪保留模板的完整可编辑内容。生成项默认关闭切图，页面同步通过外层列表关联原型。[列表项智能对象](psd-list-cell-smart-objects.md)
+
+向 PSD 同步时，可预览并补齐早期生成文件中的空列表组，也可更新仍保有旧来源像素和切线的内置默认图片。这两类更新沿用已有图层身份。
+
+页面生成从画布引用解析组件 PSD，按组件所属画布生成缺失的文件并建立绑定。智能对象随外层图层元数据保存组件身份与内容指纹。页面同步复核绑定源文件和内嵌内容，应用时沿用置入变换。详见 [组件源 PSD](psd-component-sources.md)。
+
+组件智能对象的内嵌 PSD 和新生成的源 PSD 默认使用被引用原型页的名称。外层图层名称由实例指定。
+
+页面同步使用同一内部图层树找出组件新增的图层。选中补入后，写入器合并生成的图层与现有内嵌 PSD，保留外层图层身份和置入变换，并复核写出的内嵌层级。
 
 ## 页面预制体同步
 

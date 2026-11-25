@@ -1,8 +1,9 @@
 import PsdWorker from "./psd-worker?worker&inline";
 import { type PsdAsset, type PsdLayerMeta } from "../../shared/psd-meta";
 import { isBrowserPreview, postHostMessage } from "../vscode-api";
+import type { PsdPrototype } from "./prototype-import";
 
-export function psdTask<T>(type: "read" | "patch", bytes: ArrayBuffer, name: string, updates?: [number, PsdLayerMeta][]): Promise<T> {
+export function psdTask<T>(type: "read" | "patch" | "importPrototype", bytes: ArrayBuffer, name: string, updates?: [number, PsdLayerMeta][]): Promise<T> {
   return new Promise((resolve, reject) => {
     const worker = new PsdWorker();
     const timer = window.setTimeout(() => { worker.terminate(); reject(new Error("PSD 处理超时，请使用较小的文件。")); }, 30000);
@@ -11,6 +12,11 @@ export function psdTask<T>(type: "read" | "patch", bytes: ArrayBuffer, name: str
     worker.onmessage = ({ data }) => { finish(); if (data.error) reject(new Error(data.error)); else resolve(data.result as T); };
     const copy = bytes.slice(0); worker.postMessage({ id: 1, type, bytes: copy, name, updates }, [copy]);
   });
+}
+export async function importPsdPrototype(file: File): Promise<PsdPrototype> {
+  if (!/\.psd$/i.test(file.name)) throw new Error("请选择 .psd 文件。");
+  if (file.size > 32 * 1024 * 1024) throw new Error("当前支持不超过 32 MB 的 PSD。");
+  return psdTask<PsdPrototype>("importPrototype", await file.arrayBuffer(), file.name);
 }
 export async function openPsd(file: File): Promise<{ asset: PsdAsset; bytes: ArrayBuffer }> {
   if (file.size > 32 * 1024 * 1024) throw new Error("当前支持不超过 32 MB 的 PSD。");

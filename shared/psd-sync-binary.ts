@@ -19,7 +19,7 @@ function channels(bytes:Uint8Array, doc:ParsedPsd) {
 }
 /** Copy original records and compressed channels verbatim for untouched art.
  * Keep the original document resources, excluding thumbnails of the previous composition. */
-export function preservePsdArt(source:Uint8Array, written:Uint8Array, unchanged:ReadonlySet<number>) {
+export function preservePsdArt(source:Uint8Array, written:Uint8Array, unchanged:ReadonlySet<number>, writeEmbeddedFiles = false) {
   const old=parsePsdBinary(source), fresh=parsePsdBinary(written);
   const oldChannels=channels(source,old), newChannels=channels(written,fresh);
   const byNative=new Map(old.layers.filter(r=>r.nativeId!==null).map(r=>[r.nativeId!,r]));
@@ -31,7 +31,8 @@ export function preservePsdArt(source:Uint8Array, written:Uint8Array, unchanged:
   }
   let info=join([written.subarray(fresh.infoStart,fresh.infoStart+2),...records,...pixels]);
   if(info.length%2) info=join([info,new Uint8Array(1)]);
-  const mask=join([size(info.length),info,source.subarray(old.infoEnd,old.maskEnd)]);
+  const globalInfo = writeEmbeddedFiles ? written.subarray(fresh.infoEnd, fresh.maskEnd) : source.subarray(old.infoEnd, old.maskEnd);
+  const mask=join([size(info.length),info,globalInfo]);
   const view=new DataView(source.buffer,source.byteOffset,source.byteLength);
   const resourceAt=30+view.getUint32(26);
   const resources:Uint8Array[]=[];
@@ -45,4 +46,22 @@ export function preservePsdArt(source:Uint8Array, written:Uint8Array, unchanged:
   const resource=join(resources), header=source.slice(0,resourceAt);
   header.set(written.subarray(12,14),12);
   return join([header,size(resource.length),resource,size(mask.length),mask,written.subarray(fresh.maskEnd)]);
+}
+
+/** The writer can reproduce embedded-file blocks. Other global additions require their original semantics. */
+export function hasOnlyEmbeddedFileBlocks(bytes: Uint8Array, doc: ParsedPsd) {
+  const { infoEnd, maskEnd } = doc;
+  if (!bytes.subarray(infoEnd, maskEnd).some(byte => byte !== 0)) return true;
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  if (infoEnd + 4 > maskEnd || view.getUint32(infoEnd) !== 0) return false;
+  let position = infoEnd + 4;
+  while (position + 12 <= maskEnd) {
+    const signature = String.fromCharCode(...bytes.subarray(position, position + 4));
+    const key = String.fromCharCode(...bytes.subarray(position + 4, position + 8));
+    if (signature !== "8BIM" || !["lnk2", "lnkD", "lnk3"].includes(key)) return false;
+    const length = view.getUint32(position + 8);
+    position += 12 + length + length % 2;
+    if (position > maskEnd) return false;
+  }
+  return !bytes.subarray(position, maskEnd).some(byte => byte !== 0);
 }

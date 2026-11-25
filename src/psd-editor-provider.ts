@@ -10,6 +10,7 @@ import { PsdDocumentModel, bytesHash } from "./psd-document-model";
 import { PsdExportController } from "./psd-export-controller";
 import { configureGameFlowWebview } from "./webview-html";
 import { WorkbenchSettingsController } from "./workbench-settings-controller";
+import { atomicWrite } from "./psd-file-io";
 
 export const PSD_EDITOR_VIEW_TYPE = "gameflow.psdEditor";
 const message = (error: unknown) => error instanceof Error ? error.message : String(error);
@@ -22,11 +23,6 @@ async function readOptional(uri: vscode.Uri, limit: number): Promise<Uint8Array 
     if (stat.type !== vscode.FileType.File || stat.size > limit) throw new Error(`${nameOf(uri)} 不是支持的文件或超过大小限制。`);
     return await vscode.workspace.fs.readFile(uri);
   } catch (e) { if (e instanceof vscode.FileSystemError && e.code === "FileNotFound") return null; throw e; }
-}
-async function atomicWrite(uri: vscode.Uri, bytes: Uint8Array) {
-  const temp = vscode.Uri.joinPath(uri, "..", `.${nameOf(uri)}.${crypto.randomUUID()}.tmp`);
-  try { await vscode.workspace.fs.writeFile(temp, bytes); await vscode.workspace.fs.rename(temp, uri, { overwrite: true }); }
-  finally { try { await vscode.workspace.fs.delete(temp); } catch { /* Renamed or already removed. */ } }
 }
 async function removeIfPresent(uri: vscode.Uri) { try { await vscode.workspace.fs.delete(uri); } catch (e) { if (!(e instanceof vscode.FileSystemError && e.code === "FileNotFound")) throw e; } }
 interface Backup {

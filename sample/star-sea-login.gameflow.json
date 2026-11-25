@@ -117,7 +117,7 @@
           "image": {
             "builtin": "image/default",
             "art": {
-              "path": "builtin/image/default_750x1334.png",
+              "path": "builtin/image/default.png",
               "source": {
                 "documentId": "0ba9bc45-76bc-5eda-a37f-0da4a2653cc6",
                 "layerId": "rzzs5kot"
@@ -769,6 +769,36 @@
             },
             "variable": "footer",
             "layer": "9373p48r"
+          },
+          {
+            "id": "85559x9k",
+            "name": "列表",
+            "type": "list",
+            "parent": "",
+            "text": "",
+            "frame": {
+              "x": 148,
+              "y": 576,
+              "width": 460,
+              "height": 282
+            },
+            "variable": "loginList",
+            "layer": "2xvqxj22"
+          },
+          {
+            "id": "t46xrozm",
+            "name": "服务器列表项",
+            "type": "container",
+            "parent": "",
+            "text": "",
+            "frame": {
+              "x": 148,
+              "y": 197,
+              "width": 378,
+              "height": 40
+            },
+            "variable": "serverList",
+            "layer": "t6od46b5"
           }
         ]
       },
@@ -1652,10 +1682,10 @@
             "gapX": 8,
             "gapY": 8,
             "wrapCount": 2,
-            "paddingLeft": 12,
-            "paddingRight": 12,
-            "paddingTop": 12,
-            "paddingBottom": 12,
+            "paddingLeft": 0,
+            "paddingRight": 0,
+            "paddingTop": 0,
+            "paddingBottom": 0,
             "clipContent": false,
             "widthMode": "explicit",
             "heightMode": "explicit",
@@ -1665,6 +1695,41 @@
             "top": null,
             "bottom": null,
             "centerY": null
+          }
+        },
+        {
+          "id": "ia5bsi5b",
+          "type": "image",
+          "name": "图片",
+          "frame": {
+            "x": 131,
+            "y": -13,
+            "width": 140,
+            "height": 90
+          },
+          "style": {
+            "fill": "transparent",
+            "color": "#263244",
+            "borderColor": "#cbd5e1",
+            "borderWidth": 0,
+            "radius": 0,
+            "fontSize": 14,
+            "fontWeight": 400,
+            "italic": false,
+            "underline": false,
+            "strikethrough": false,
+            "textAlign": "center",
+            "opacity": 1
+          },
+          "image": {
+            "builtin": "image/default"
+          },
+          "parentId": "rp12tniu",
+          "layout": {
+            "left": 0,
+            "top": 0,
+            "bottom": 0,
+            "right": 0
           }
         },
         {
@@ -1707,7 +1772,201 @@
           "parentId": "rp12tniu"
         }
       ],
-      "exportName": "LoginServerListItem"
+      "exportName": "LoginServerListItem",
+      "artPsd": {
+        "documentId": "cf7dc25c-7664-5a53-ade9-e655b6ba9c17",
+        "source": "服务器列表项.psd"
+      },
+      "prefabSync": {
+        "version": 1,
+        "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
+        "pageId": "qs1b6zrv",
+        "target": "login/LoginServerListItem.lh",
+        "nodes": [
+          {
+            "id": "qs1b6zrv",
+            "name": "服务器列表项",
+            "type": "container",
+            "parent": "",
+            "text": "",
+            "frame": {
+              "x": 830,
+              "y": 0,
+              "width": 378,
+              "height": 40
+            },
+            "root": true,
+            "layer": "qs1b6zrv",
+            "properties": {
+              "page.width": 378,
+              "page.height": 40,
+              "page.exportName": "LoginServerListItem",
+              "layout.layoutUnit": "absolute",
+              "layout.left": null,
+              "layout.right": null,
+              "layout.centerX": null,
+              "layout.top": null,
+              "layout.bottom": null,
+              "layout.centerY": null
+            }
+          },
+          {
+            "id": "rp12tniu",
+            "name": "容器",
+            "type": "container",
+            "parent": "",
+            "text": "",
+            "frame": {
+              "x": 0,
+              "y": 0,
+              "width": 378,
+              "height": 40
+            },
+            "properties": {
+              "variableName": "",
+              "hidden": false,
+              "transform.anchorX": 0,
+              "transform.anchorY": 0,
+              "transform.scaleX": 1,
+              "transform.scaleY": 1,
+              "transform.skewX": 0,
+              "transform.skewY": 0,
+              "transform.rotation": 0,
+              "style.opacity": 1,
+              "layout.left": null,
+              "layout.right": null,
+              "layout.centerX": null,
+              "layout.top": null,
+              "layout.bottom": null,
+              "layout.centerY": null,
+              "layout.layoutUnit": "absolute",
+              "layout.widthMode": "explicit",
+              "layout.heightMode": "explicit",
+              "layout.crossAxisMode": "aligned",
+              "layout.positionOffsetX": 0,
+              "layout.positionOffsetY": 0,
+              "layout.paddingLeft": 0,
+              "layout.paddingRight": 0,
+              "layout.paddingTop": 0,
+              "layout.paddingBottom": 0,
+              "layout.gap": 8,
+              "layout.gapX": 8,
+              "layout.gapY": 8,
+              "layout.align": "left",
+              "layout.valign": "top",
+              "layout.direction": "horizontal",
+              "layout.wrapCount": 2,
+              "layout.clipContent": false,
+              "layout.scrollX": 0,
+              "layout.scrollY": 0
+            },
+            "x": 0,
+            "y": 0,
+            "width": 378,
+            "height": 40,
+            "layer": "qs1b6zrv"
+          },
+          {
+            "id": "ia5bsi5b",
+            "name": "图片",
+            "type": "image",
+            "parent": "rp12tniu",
+            "text": "",
+            "frame": {
+              "x": 0,
+              "y": 0,
+              "width": 378,
+              "height": 40
+            },
+            "properties": {
+              "variableName": "",
+              "hidden": false,
+              "transform.anchorX": 0,
+              "transform.anchorY": 0,
+              "transform.scaleX": 1,
+              "transform.scaleY": 1,
+              "transform.skewX": 0,
+              "transform.skewY": 0,
+              "transform.rotation": 0,
+              "style.opacity": 1,
+              "layout.left": 0,
+              "layout.right": 0,
+              "layout.centerX": null,
+              "layout.top": 0,
+              "layout.bottom": 0,
+              "layout.centerY": null,
+              "layout.layoutUnit": "absolute",
+              "layout.widthMode": "explicit",
+              "layout.heightMode": "explicit",
+              "layout.crossAxisMode": "aligned",
+              "layout.positionOffsetX": 0,
+              "layout.positionOffsetY": 0,
+              "widget.imageFit": "fill"
+            },
+            "layer": "ia5bsi5b"
+          },
+          {
+            "id": "d9jimlmp",
+            "name": "服务器名称",
+            "type": "text",
+            "parent": "rp12tniu",
+            "text": "星港一区   ·   连接正常",
+            "frame": {
+              "x": 0,
+              "y": 0,
+              "width": 378,
+              "height": 40
+            },
+            "variable": "serverLabel2",
+            "properties": {
+              "variableName": "serverLabel2",
+              "hidden": false,
+              "transform.anchorX": 0,
+              "transform.anchorY": 0,
+              "transform.scaleX": 1,
+              "transform.scaleY": 1,
+              "transform.skewX": 0,
+              "transform.skewY": 0,
+              "transform.rotation": 0,
+              "style.opacity": 1,
+              "style.fontSize": 21,
+              "style.color": "#b2c2d0",
+              "style.italic": false,
+              "style.underline": false,
+              "style.strikethrough": false,
+              "style.textAlign": "center",
+              "style.fontWeight": 400,
+              "layout.left": null,
+              "layout.right": null,
+              "layout.centerX": null,
+              "layout.top": null,
+              "layout.bottom": null,
+              "layout.centerY": null,
+              "layout.layoutUnit": "absolute",
+              "layout.widthMode": "explicit",
+              "layout.heightMode": "explicit",
+              "layout.crossAxisMode": "aligned",
+              "layout.positionOffsetX": 0,
+              "layout.positionOffsetY": 0,
+              "widget.wordWrap": false,
+              "widget.overflow": "hidden",
+              "widget.valign": "middle",
+              "widget.leading": 0,
+              "widget.letterSpacing": 0,
+              "widget.html": false,
+              "widget.ubb": false,
+              "widget.templateVars": null,
+              "widget.scrollX": 0,
+              "widget.scrollY": 0
+            },
+            "x": 0,
+            "y": 0,
+            "width": 378,
+            "height": 40,
+            "layer": "d9jimlmp"
+          }
+        ]
+      }
     }
   ],
   "interactions": [],

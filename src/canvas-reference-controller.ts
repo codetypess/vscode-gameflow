@@ -93,6 +93,17 @@ export class CanvasReferenceController implements vscode.Disposable {
     try { await vscode.commands.executeCommand("vscode.openWith", this.uri(source), "gameflow.canvasEditor"); }
     catch (error) { this.post({ type: "canvasSources", sources: this.sources, error: String(error) }); }
   }
+  componentPsdAccess() {
+    const access = this.access;
+    if (!access) return;
+    return {
+      ...access,
+      openSource: (source: string) => {
+        if (!Object.hasOwn(this.sources, source)) throw new Error("组件画布未载入，请刷新画布引用。");
+        return access.open(this.uri(source));
+      },
+    };
+  }
   async apply(request: CanvasApplyRequest, expectedSources: Record<string,string>, baseVersion: number): Promise<void> {
     if (baseVersion !== this.document.version) throw new Error("实例文档已变化，请刷新后重新应用。");
     const current = parseGameFlowDocument(this.document.getText());

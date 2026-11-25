@@ -91,7 +91,7 @@ export function Inspector({ makeId, page, variablePage = page, node, selectedNod
           <TextControls style={appearance} valign={node.widget?.valign ?? (node.type === "text" ? "top" : "middle")} disabled={locked} onStyle={setStyle} onVertical={valign => onNode(node.id, { widget: { ...node.widget, valign } })} />
           <LabelProperties node={node} locked={locked} onNode={onNode} />
         </> : null}
-        {node.type === "image" ? <ImageSlotField node={node} field="image" label="图片" disabled={locked} onChange={image => onNode(node.id, { image })} /> : null}
+        {node.type === "image" ? <ImageSlotField node={node} field="image" label="图片" disabled={locked} onChange={image => onNode(node.id, { image, imageData: undefined })} /> : null}
         {node.type === "button" ? <><ImageSlotField node={node} field="normalSkin" label="普通图片" disabled={locked} onChange={normalSkin => onNode(node.id, { normalSkin })} /><ImageSlotField node={node} field="selectedSkin" label="选中图片" disabled={locked} onChange={selectedSkin => onNode(node.id, { selectedSkin })} /><ImageSlotField node={node} field="disabledSkin" label="禁用图片" disabled={locked} onChange={disabledSkin => onNode(node.id, { disabledSkin })} />{!node.normalSkin ? <p className="property-hint">普通图片为空，按钮保留点击区域。</p> : null}</> : null}
         {!node.prefab && COMPONENTS[node.type].children && node.type !== "button" && flowType(node) === "free" ? <><div className="property-section-title">外观</div><Button variant="outline" size="sm" disabled={locked} onClick={() => onPage(item => {
           const reserved = new Set(item.nodes.map(child => child.id)); return addBackgroundImage(item, node.id, makeId ?? (() => allocateElementId(reserved)));

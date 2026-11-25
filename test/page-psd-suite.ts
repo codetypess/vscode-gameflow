@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import type * as vscode from "vscode";
 import { createDefaultGameFlowDocument, isPagePsdBinding, isPagePsdSource, parseGameFlowDocument, serializeGameFlowDocument, validateGameFlowDocument, type GameFlowPage } from "../shared/model";
 import { bindPagePsd, pagePsdKey } from "../shared/page-psd";
@@ -10,8 +11,10 @@ import { prototypeTree, psdTree, compareTrees, coordinatedBase, plannedTrees } f
 import { PagePsdController, rebasePagePsds } from "../src/page-psd-controller";
 import type { PsdEditorProvider } from "../src/psd-editor-provider";
 import type { WorkbenchDocument } from "../src/workbench-document";
-import { referenceHost, Uri, workspace, TestTextDocument } from "./vscode-reference-host";
+import { FileSystemError, referenceHost, Uri, workspace, TestTextDocument } from "./vscode-reference-host";
 import { bytesHash } from "../src/psd-document-model";
+import { parsePsdBinary, patchPsdMetadata } from "../shared/psd-binary";
+import { sidecarName } from "../shared/psd-meta";
 const tests: { name: string; run: () => void | Promise<void> }[] = [];
 const test = (name: string, run: () => void | Promise<void>) => tests.push({ name, run });
 export const pagePsdTests = tests;
@@ -184,6 +187,44 @@ test("host page PSD choice and generation cancellation leave the working copy un
   for (const action of ["choose", "generate"] as const) assert.equal((await f.controller.handle(f.doc, { type: "pagePsd", requestId: action, pageId: "page", action, name: "a.psd", base64: "YWJj" })).cancelled, true);
   assert.equal(f.opens, 0); assert.equal(f.doc.getText(), before); assert.equal(referenceHost.files.size, 0);
 });
+test("component PSD companion generation protects existing files and waits for the parent save", async () => {
+  const f = hostFixture();
+  const sample = parseGameFlowDocument(readFileSync("sample/star-sea-login.gameflow.json", "utf8"));
+  const art = sample.pages[0].artPsd!;
+  const bytes = readFileSync("sample/" + art.source);
+  const component: GameFlowPage = { ...f.page, id: "component", name: "列表项", nodes: [] };
+  f.document.pages.push(component);
+  f.setDocument(f.document);
+  const request = { type: "pagePsd" as const, requestId: "generate", pageId: f.page.id,
+    action: "generate" as const, name: "login.psd", base64: bytes.toString("base64"),
+    componentOutputs: [{ canvas: "", pageId: component.id, documentId: f.document.documentId,
+      name: "list.psd", base64: bytes.toString("base64") }] };
+  assert.equal(isWebviewToHostMessage(request), true);
+  assert.equal(isWebviewToHostMessage({ ...request, componentOutputs: [{ ...request.componentOutputs[0], name: "../list.psd" }] }), false);
+  assert.equal((await f.controller.handle(f.doc, request)).cancelled, true);
+  assert.equal(referenceHost.files.size, 0);
+  referenceHost.picked = new Uri("/workspace/art/login.psd");
+  referenceHost.files.set("/workspace/layouts/list.psd", Buffer.from("existing companion name"));
+  const generated = await f.controller.handle(f.doc, request);
+  assert.equal(generated.error, undefined);
+  assert.deepEqual(generated.componentBindings?.map(item => item.binding), [{ source: "list-2.psd", documentId: art.documentId }]);
+  assert.equal(referenceHost.files.get("/workspace/layouts/list.psd")?.toString(), "existing companion name");
+  assert.deepEqual(referenceHost.files.get("/workspace/layouts/list-2.psd"), bytes);
+  assert.deepEqual(referenceHost.files.get("/workspace/art/login.psd"), bytes);
+
+  component.artPsd = generated.componentBindings![0].binding;
+  f.setDocument(f.document);
+  const target = { canvas: "", pageId: component.id, documentId: f.document.documentId };
+  const reviewed = await f.controller.handle(f.doc, { type: "pagePsd", requestId: "source", action: "review",
+    pageId: component.id, component: target, expected: component.artPsd });
+  assert.equal(reviewed.base64, bytes.toString("base64"));
+  assert.equal(reviewed.draft?.documentId, art.documentId);
+  const stale = await f.controller.handle(f.doc, { ...request, componentOutputs: [], componentChecks: [
+    { ...target, binding: component.artPsd, hash: "0".repeat(64) },
+  ] });
+  assert.match(stale.error!, /组件 PSD 已变化/);
+  assert.deepEqual(referenceHost.files.get("/workspace/art/login.psd"), bytes);
+});
 test("host page PSD loading uses the saved relative source and preserves the active editor", async () => {
   const f = hostFixture(); f.page.artPsd = { source: "../art/login.psd", documentId: "art" }; f.setDocument(f.document);
   const active = f.doc.currentPsd;
@@ -214,7 +255,98 @@ test("host choice and generation return the selected file for the captured page"
     const result = await f.controller.handle(f.doc, { type: "pagePsd", requestId: action, pageId: "page", action, name: "chosen.psd", base64: "YWJj" });
     assert.equal(result.error, undefined); assert.equal(result.source, "../art/chosen.psd"); assert.equal(result.draft?.documentId, "art");
     assert.equal(f.opens, 1); assert.equal(parseGameFlowDocument(f.doc.getText()).pages[0].artPsd, undefined);
-    assert.equal(referenceHost.files.get("/workspace/art/chosen.psd"), action === "generate" ? "abc" : undefined);
+    assert.equal(referenceHost.files.get("/workspace/art/chosen.psd")?.toString(), action === "generate" ? "abc" : undefined);
+  }
+});
+
+test("PSD sync copy recovers from other occupied save paths and keeps cancellation read-only", async () => {
+  const sample = parseGameFlowDocument(readFileSync("sample/star-sea-login.gameflow.json", "utf8"));
+  const binding = sample.pages[0].artPsd!;
+  const bytes = readFileSync("sample/" + binding.source);
+  for (const retry of [true, false]) {
+    const f = hostFixture();
+    const original = new Uri("/workspace/layouts/" + binding.source);
+    const occupied = new Uri("/workspace/layouts/occupied.psd");
+    const copy = new Uri("/workspace/layouts/sync-copy.psd");
+    f.page.artPsd = binding;
+    f.asset.documentId = binding.documentId;
+    f.setDocument(f.document);
+    const before = f.doc.getText();
+    referenceHost.files.set(original.path, "original");
+    referenceHost.files.set(occupied.path, "existing");
+    referenceHost.readOverride = async uri => {
+      if (uri.path === original.path) return bytes;
+      throw new FileSystemError("FileNotFound", uri.path);
+    };
+    const request = { type: "pagePsd" as const, requestId: "review", pageId: f.page.id, expected: binding };
+    const reviewed = await f.controller.handle(f.doc, { ...request, action: "review" });
+    assert.ok(reviewed.draft, reviewed.error);
+    referenceHost.saveSelections = retry ? [occupied, occupied, copy] : [occupied];
+    referenceHost.warningResponse = retry ? "另选文件" : undefined;
+    const result = await f.controller.handle(f.doc, { ...request, action: "syncCopy", name: "sync-copy.psd",
+      sourceHash: reviewed.draft.sourceHash, reviewStamp: bytesHash(Buffer.from(JSON.stringify(reviewed.draft))),
+      base64: bytes.toString("base64") });
+    assert.equal(result.error, undefined);
+    assert.equal(result.cancelled, retry ? undefined : true);
+    assert.equal(result.source, retry ? "sync-copy.psd" : undefined);
+    assert.equal(referenceHost.warnings.length, retry ? 2 : 1);
+    assert.match(referenceHost.warnings[0], /已存在/);
+    assert.equal(referenceHost.files.get(original.path), "original");
+    assert.equal(referenceHost.files.get(occupied.path), "existing");
+    assert.equal(referenceHost.files.has(copy.path), retry);
+    assert.equal([...referenceHost.files.keys()].some(path => path.endsWith(".sync-tmp")), false);
+    assert.equal(f.doc.getText(), before);
+  }
+});
+
+test("PSD sync can overwrite the bound source and keeps PSD and sidecar consistent on failure", async () => {
+  const sample = parseGameFlowDocument(readFileSync("sample/star-sea-login.gameflow.json", "utf8"));
+  const binding = sample.pages[0].artPsd!;
+  const bytes = readFileSync("sample/" + binding.source);
+  const configName = sidecarName(binding.source);
+  const config = readFileSync("sample/" + configName);
+  const layer = parsePsdBinary(bytes).layers.find(item => item.metadata)!;
+  const output = Buffer.from(patchPsdMetadata(bytes, new Map([[layer.key, { ...(layer.metadata as object), syncProbe: true }]])));
+  assert.notEqual(bytesHash(bytes), bytesHash(output));
+
+  for (const outcome of ["overwrite", "cancel", "dirty", "stale", "configFailure"] as const) {
+    const f = hostFixture(new Uri("/d:/Project/Canvas/main.gameflow.json"));
+    const original = new Uri("/d:/Project/Canvas/" + binding.source);
+    const sidecar = new Uri("/d:/Project/Canvas/" + configName);
+    f.page.artPsd = binding;
+    f.setDocument(f.document);
+    referenceHost.files.set(original.path, bytes);
+    referenceHost.files.set(sidecar.path, config);
+    const request = { type: "pagePsd" as const, requestId: "overwrite", pageId: f.page.id, expected: binding };
+    const reviewed = await f.controller.handle(f.doc, { ...request, action: "review" });
+    assert.ok(reviewed.draft, reviewed.error);
+    referenceHost.picked = outcome === "cancel" ? undefined : new Uri("/D:/project/canvas/" + binding.source);
+    if (outcome === "dirty") {
+      const text = new TestTextDocument(sidecar, config.toString());
+      text.isDirty = true;
+      workspace.textDocuments.push(text);
+    }
+    if (outcome === "stale") referenceHost.files.set(original.path, output);
+    if (outcome === "configFailure") referenceHost.beforeRename = target => {
+      if (target.path === sidecar.path) throw new FileSystemError("NoPermissions", "配置写入失败");
+    };
+    const result = await f.controller.handle(f.doc, { ...request, action: "syncCopy", name: "sync-copy.psd",
+      sourceHash: reviewed.draft.sourceHash, reviewStamp: bytesHash(Buffer.from(JSON.stringify(reviewed.draft))),
+      base64: output.toString("base64") });
+    if (outcome === "overwrite") {
+      assert.equal(result.error, undefined);
+      assert.equal(result.source, binding.source);
+      assert.equal(result.draft?.sourceHash, bytesHash(output));
+      assert.equal(JSON.parse(String(referenceHost.files.get(sidecar.path))).source.sha256, bytesHash(output));
+      assert.deepEqual(referenceHost.files.get(original.path), output);
+    } else {
+      if (outcome === "cancel") assert.equal(result.cancelled, true);
+      else assert.match(result.error!, /未保存修改|已变化|配置写入失败/);
+      assert.deepEqual(referenceHost.files.get(original.path), outcome === "stale" ? output : bytes);
+      assert.deepEqual(referenceHost.files.get(sidecar.path), config);
+    }
+    assert.equal(referenceHost.files.size, 2);
+    assert.equal(f.opens, 0);
   }
 });
 
@@ -264,7 +396,7 @@ test("Windows page PSD choice and generation ignore drive and common directory c
     const result = await f.controller.handle(f.doc, { type: "pagePsd", requestId: action, pageId: "page", action, name: "登录.PSD", base64: "YWJj" });
     assert.equal(result.error, undefined); assert.equal(result.source, "../Art/登录.PSD");
     assert.equal(f.opens, 1); assert.equal(parseGameFlowDocument(f.doc.getText()).pages[0].artPsd, undefined);
-    assert.equal(referenceHost.files.get(referenceHost.picked.path), action === "generate" ? "abc" : undefined);
+    assert.equal(referenceHost.files.get(referenceHost.picked.path)?.toString(), action === "generate" ? "abc" : undefined);
   }
 });
 test("Windows page PSD rejects a genuinely different drive before loading or generating", async () => {

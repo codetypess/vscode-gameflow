@@ -1,4 +1,5 @@
-import { absoluteFrame, inheritedFlag, makeNode, orderedNodes, removeNode, reparentNode } from "./editor-ops";
+import { absoluteFrame, descendants, inheritedFlag, makeNode, orderedNodes, removeNode, reparentNode } from "./editor-ops";
+import type { CanvasComposition } from "./canvas-instances";
 import type { Frame, GameFlowPage, NodeType } from "./model";
 import { resolvePageLayout } from "./ui-layout";
 import { COMPONENTS, COMPONENT_TYPES } from "./ui-components";
@@ -18,7 +19,8 @@ export type Side = "proto" | "psd";
 export type Decision = Side | "skip";
 export const frameFields = ["x","y","width","height"] as const;
 export type Field = "exist" | "text" | "name" | "parent" | "order" | "property" | keyof Frame;
-export interface Change { key: string; id: string; field: Field; property?: string; kind: "add" | "delete" | "edit"; suggested?: Decision; replacement?: Side; representation?: "prefab-reference" | "component-root"; members: string[] }
+export type PsdVisualUpdate = "psd-list-cells" | "psd-default-image";
+export interface Change { key: string; id: string; field: Field; property?: string; kind: "add" | "delete" | "edit"; suggested?: Decision; replacement?: Side; representation?: "prefab-reference" | "component-root" | "psd-smart-object" | "psd-component-layers" | "psd-component-source" | PsdVisualUpdate; members: string[]; addedLayers?: string[]; componentSource?: { name: string; conflict: boolean; firstLink: boolean } }
 export interface Comparison { proto: SyncNode[]; psd: SyncNode[]; base?: SyncBase; changes: Change[] }
 export const fieldNames: Record<Field,string> = { exist:"控件结构", name:"节点名称", text:"文字内容", parent:"父节点", order:"同级顺序", property:"属性", x:"横坐标", y:"纵坐标", width:"宽度", height:"高度" };
 
@@ -56,23 +58,46 @@ export function validSyncBase(value: unknown): value is SyncBase {
     (n.undecided === undefined || Array.isArray(n.undecided) && n.undecided.every(f=>typeof f==="string" && (["text","name","parent","order",...frameFields].includes(f as never) || /^property:[A-Za-z][A-Za-z0-9]*(?:\.[A-Za-z][A-Za-z0-9]*)*$/.test(f)))) &&
     n.frame && [n.frame.x,n.frame.y,n.frame.width,n.frame.height].every(Number.isFinite));
 }
-export function prototypeTree(page: GameFlowPage): SyncNode[] {
+export interface PsdComponentInstance { key: string; sourceName: string }
+export function psdComponentInstances(composition: CanvasComposition): Map<string, PsdComponentInstance> {
+  const components = new Map<string, PsdComponentInstance>();
+  const inside = new Set<string>();
+  for (const node of orderedNodes(composition.page)) {
+    if (node.parentId && inside.has(node.parentId)) {
+      inside.add(node.id);
+      continue;
+    }
+    const item = composition.info.get(node.id);
+    if (item?.reference && item.sourcePageName !== undefined && !composition.errors.has(node.id)) {
+      inside.add(node.id);
+      components.set(node.id, { key: JSON.stringify([item.source, item.reference.documentId, item.reference.pageId]),
+        sourceName: item.sourcePageName });
+    }
+  }
+  return components;
+}
+export function prototypeTree(page: GameFlowPage, components?: ReadonlyMap<string, PsdComponentInstance>): SyncNode[] {
   const geometry=resolvePageLayout(page);
-  return orderedNodes(page).map(n => ({ id:n.id, name:n.name, type:n.type, parent:n.parentId ?? "", text:n.text ?? "",
+  const inside = new Set<string>();
+  return orderedNodes(page).filter(node => {
+    const nested = node.parentId !== undefined && inside.has(node.parentId);
+    if (nested || components?.has(node.id)) inside.add(node.id);
+    return !nested;
+  }).map(n => ({ id:n.id, name:n.name, type:n.type, parent:n.parentId ?? "", text:n.text ?? "",
     frame:geometry.nodes.get(n.id)?.absolute??n.frame, variable:n.variableName }));
 }
 export function currentSyncBase(docId:string, page:GameFlowPage, asset:PsdAsset) {
   const base = page.psdSync;
   return base?.documentId === docId && base.pageId === page.id && base.psdId === asset.documentId ? base : undefined;
 }
-export function psdTree(docId:string, page:GameFlowPage, asset:PsdAsset, makeId:(layer:PsdLayer)=>string, pairs:ReadonlyMap<string,string> = new Map(), forPrefab=false): SyncNode[] {
+export function psdTree(docId:string, page:GameFlowPage, asset:PsdAsset, makeId:(layer:PsdLayer)=>string, pairs:ReadonlyMap<string,string> = new Map(), forPrefab=false, components?: ReadonlyMap<string, PsdComponentInstance>): SyncNode[] {
   if (identityProblems(asset).length) throw new Error("PSD 图层身份重复，请先在切图编辑器中修复。");
   const base = currentSyncBase(docId,page,asset);
   const result:SyncNode[] = [], seen = new Set<string>();
   function walk(parentKey:number|null, parent:string, parentType?:NodeType) {
     // PSD records arrive front-to-back. Prototype siblings are painted back-to-front.
     for (const layer of asset.layers.filter(l=>l.parentKey===parentKey).reverse()) {
-      if (psdSlotField(layer.name)) continue;
+      if (layer.metadata.listCellIndex !== undefined || psdSlotField(layer.name)) continue;
       const ref = layer.metadata.prototype;
       if (prototypeLayerRef(ref) && (ref.documentId!==docId || ref.pageId!==page.id || ref.slot && ref.slot!=="image")) continue;
       if (prototypeLayerRef(ref) && ref.nodeId===page.id && layer.group) {walk(layer.key,"");continue;}
@@ -97,7 +122,7 @@ export function psdTree(docId:string, page:GameFlowPage, asset:PsdAsset, makeId:
       seen.add(nodeId);
       result.push({ id:nodeId, name, type, parent, text:layer.textContent ?? "", layer:layer.metadata.layerId,
         variable:proto?.variableName, frame:{x:layer.left,y:layer.top,width:Math.max(1,layer.width),height:Math.max(1,layer.height)} });
-      if (layer.group && COMPONENTS[type].children) walk(layer.key,nodeId,type);
+      if (layer.group && COMPONENTS[type].children && !components?.has(nodeId)) walk(layer.key,nodeId,type);
     }
   }
   walk(null,"");
@@ -169,7 +194,8 @@ export function plannedTrees(c:Comparison, decisions:Record<string,Decision>, fi
   const trees={proto:c.proto.map(clone),psd:c.psd.map(clone)};
   for (const change of c.changes) {
     const side=decisions[change.key];
-    if (!side || side==="skip" || change.replacement && side!==change.replacement) continue;
+    if (!side || side==="skip" || change.replacement && side!==change.replacement ||
+      change.representation?.startsWith("psd-")) continue;
     const source=c[side], target=trees[side==="proto"?"psd":"proto"];
     for (const id of change.members) {
       const from=source.find(n=>n.id===id), index=target.findIndex(n=>n.id===id);
@@ -218,10 +244,16 @@ export function plannedTrees(c:Comparison, decisions:Record<string,Decision>, fi
   }
   return trees;
 }
-export function applyPrototypeTree(page:GameFlowPage, tree:SyncNode[]):GameFlowPage {
+export function applyPrototypeTree(page:GameFlowPage, tree:SyncNode[], components?: ReadonlyMap<string, PsdComponentInstance>):GameFlowPage {
   tree=tree.filter(n=>!n.root);
   let next=page;
   const ids=new Set(tree.map(n=>n.id));
+  const componentContents = new Map<string, string[]>();
+  for (const node of tree) if (components?.has(node.id)) {
+    const children = [...descendants(page, node.id)].filter(id => id !== node.id && !ids.has(id));
+    componentContents.set(node.id, children);
+    for (const id of children) ids.add(id);
+  }
   const done=new Set<string>();
   function write(n:SyncNode) {
     if (done.has(n.id)) return;
@@ -248,7 +280,7 @@ export function applyPrototypeTree(page:GameFlowPage, tree:SyncNode[]):GameFlowP
     next=removeNode(next,n.id);
   }
   const byId=new Map(next.nodes.map(n=>[n.id,n]));
-  return {...next,nodes:tree.map(n=>byId.get(n.id)!)};
+  return {...next,nodes:tree.flatMap(n=>[n.id, ...componentContents.get(n.id) ?? []].map(id=>byId.get(id)!))};
 }
 export function coordinatedBase(docId:string,pageId:string,psdId:string,c:Comparison,trees:{proto:SyncNode[];psd:SyncNode[]}):SyncBase {
   const nodes:SyncNode[]=[];

@@ -1,7 +1,7 @@
 # Default Image Nine-Grid Resource
 
-Status: Done
-Date: 2026-11-24
+Status: Verified
+Date: 2026-11-25
 Scope: The built-in `image/default` resource used by prototype, PSD and Prefab flows
 
 ## 1. Context
@@ -35,7 +35,7 @@ The built-in default image currently has a special renderer that separates its b
 - Prototype nodes and PSD generation call the ordinary `paintSlice` renderer.
 - Prefab planning adds built-in PNG data directly to the image batch. The resolver remains for artist resources only.
 - Built-in PSD recognition and export use the catalog dimensions and PNG for `image/default`, even when a generated prototype layer was rasterized at page geometry.
-- The 38×34 top-left patch contains the entire landscape. Its edges align with x=38 and y=34 in the source PNG. All stretchable pixels are the solid gray background.
+- The 40×36 top-left patch includes two background pixels beyond the glyph on its right and bottom. Linear filtering at each internal UV boundary samples texels on both sides. With the previous 38×34 patch, Laya stretched a blend of the last dark glyph texel and the background across the start of the adjacent patch.
 - Small PSD raster layers keep valid local guides with at least one center pixel. Their exported PNG uses the catalog guides.
 - A legacy PSD layer can reuse the shared PNG when its original catalog fingerprint, pixel hash, region and guides match. Existing Prefabs can switch a size-specific skin to the shared UUID after its importer, ledger and PNG agree. Old exported files remain available to other Prefabs.
 
@@ -60,10 +60,11 @@ Compare the whole rendered bitmap with the original landscape glyph at its top-l
 
 - No generated or planned path contains a `default_<width>x<height>.png` suffix.
 - A page with multiple default images of different sizes exports one `builtin/image/default.png` resource.
-- The default resource has `{ top: 34, right: 0, bottom: 0, left: 38, repeat: false }` in the catalog, manifest and importer metadata.
+- The default resource has `{ top: 36, right: 0, bottom: 0, left: 40, repeat: false }` in the catalog, manifest and importer metadata.
+- A real Laya WebGL draw of the exported PNG at 750×1334 shows a solid background immediately outside the native icon. Verify with `node test/default-image-laya.cjs`.
 - Prototype, PSD and Prefab rendering use the ordinary nine-grid renderer and do not invoke the former separated background/icon renderer.
 - Existing artist-bound image behavior remains unchanged.
 
 ## 10. Risks and Rollback
 
-For controls narrower than 38 pixels or shorter than 34 pixels, the ordinary engine nine-grid compresses the corner along the constrained axis. Earlier generated PSDs carry their original catalog fingerprint and guides.
+For controls narrower than 40 pixels or shorter than 36 pixels, the ordinary engine nine-grid compresses the corner along the constrained axis. Earlier generated PSDs carry their original catalog fingerprint and guides.

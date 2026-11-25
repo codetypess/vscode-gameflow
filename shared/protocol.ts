@@ -2,7 +2,7 @@ import {
   type GameFlowDocument,
   validateGameFlowDocument
 } from "./model";
-import type { PagePsdRequest, PagePsdResult } from "./page-psd-protocol";
+import { validComponentPsdFields, validPsdBase64, validPsdFilename, type PagePsdRequest, type PagePsdResult } from "./page-psd-protocol";
 import { isPagePsdBinding } from "./model";
 import { isCanvasReferenceSource } from "./model";
 import type { CanvasSources } from "./canvas-references";
@@ -80,7 +80,7 @@ export function isWebviewToHostMessage(
   if (!isRecord(value) || typeof value.type !== "string") {
     return false;
   }
-  if (value.type === "pagePsd") return typeof value.requestId === "string" && value.requestId.length > 0 && value.requestId.length <= 80 && typeof value.pageId === "string" && value.pageId.length > 0 && value.pageId.length <= 128 && (value.expected === undefined || isPagePsdBinding(value.expected)) && (value.action === "choose" || (value.action === "load" || value.action === "slice" || value.action === "review") && isPagePsdBinding(value.expected) || (value.action === "generate" || value.action === "syncCopy" && isPagePsdBinding(value.expected) && typeof value.reviewStamp === "string" && /^[a-f0-9]{64}$/.test(value.reviewStamp) && typeof value.sourceHash === "string" && /^[a-f0-9]{64}$/.test(value.sourceHash)) && typeof value.name === "string" && /^[^\\/:*?"<>|\x00-\x1f]{1,156}\.psd$/i.test(value.name) && !value.name.includes("..") && !/^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(value.name) && typeof value.base64 === "string" && value.base64.length > 0 && value.base64.length <= 44_739_244 && value.base64.length % 4 === 0 && /^[A-Za-z0-9+/]*={0,2}$/.test(value.base64));
+  if (value.type === "pagePsd") return typeof value.requestId === "string" && value.requestId.length > 0 && value.requestId.length <= 80 && typeof value.pageId === "string" && value.pageId.length > 0 && value.pageId.length <= 128 && (value.expected === undefined || isPagePsdBinding(value.expected)) && (value.action === "choose" || (value.action === "load" || value.action === "slice" || value.action === "review") && isPagePsdBinding(value.expected) || (value.action === "generate" || value.action === "syncCopy" && isPagePsdBinding(value.expected) && typeof value.reviewStamp === "string" && /^[a-f0-9]{64}$/.test(value.reviewStamp) && typeof value.sourceHash === "string" && /^[a-f0-9]{64}$/.test(value.sourceHash)) && validPsdFilename(value.name) && validPsdBase64(value.base64)) && validComponentPsdFields(value);
   if (value.type === "workbenchSettings") return isWorkbenchSettingsRequest(value);
   if (value.type === "sliceResources") return typeof value.requestId === "string" && value.requestId.length > 0 && value.requestId.length <= 80 &&
     Array.isArray(value.paths) && value.paths.length <= 128 && value.paths.every(isSliceResourcePath) && new Set(value.paths).size === value.paths.length;

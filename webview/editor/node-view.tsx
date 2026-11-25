@@ -1,5 +1,5 @@
 import { useContext, type CSSProperties } from "react";
-import { cellKey, listCellPositions, listScrollType } from "../../shared/list-cell";
+import { cellKey, listCellOffset, listCellPositions, listScrollType } from "../../shared/list-cell";
 import { orderedNodes } from "../../shared/editor-ops";
 import { ListCells } from "./list-cell-context";
 import { nodeImageSlot, progressRatio } from "../../shared/image-slots";
@@ -59,7 +59,7 @@ export function NodeView({ page, node, geometry, hitId, referenceError, cellTrai
       ? <SlotImage slot={nodeImageSlot(node, resources.mode)} width={bounds.width} height={bounds.height} label={node.name} fit={widget.imageFit ?? "fill"} progress={progress} />
       : resource ? resource.status === "ready" ? <ResourceCanvas resource={resource} width={bounds.width} height={bounds.height} fit={widget.imageFit ?? "fill"} label={node.name} progress={progress} />
         : <span className="slice-resource-placeholder" role="status" data-resource-status={resource.status}>{resource.status === "error" ? "切图异常\n" + resource.error : "装载中…"}</span>
-      : resources.mode !== "prototype" && node.imageData ? <img src={node.imageData} alt={node.name} draggable={false} style={{ objectFit: widget.imageFit ?? "fill" }} />
+      : node.imageData && (!node.sliceResource || resources.mode !== "prototype") ? <img src={node.imageData} alt={node.name} draggable={false} style={{ objectFit: widget.imageFit ?? "fill" }} />
       : <SlotImage slot={{ builtin: "image/default" }} width={bounds.width} height={bounds.height} label={node.name} progress={progress} />
       : node.type === "input" ? <span className="widget-input" style={{ opacity: node.text ? 1 : 0.55 }}>{node.text ? widget.password ? "•".repeat(Math.min(node.text.length, widget.maxChars || Infinity)) : node.text.slice(0, widget.maxChars || undefined) : widget.placeholder ?? "请输入内容"}</span>
       : node.type === "text" ? <LabelView node={displayNode} width={bounds.width} height={bounds.height} />
@@ -75,7 +75,7 @@ function ListCellPreview({ list, bounds, trail, budget }: { list: GameFlowNode; 
     if (trail.includes(key)) throw new Error("列表项模板循环引用。");
     const page = cells.resolve(ref);
     const positions = listCellPositions(list, bounds, page);
-    const { left, top, width, height, rows, columns, dx, dy, horizontal } = positions;
+    const { left, top, width, height, rows, columns } = positions;
     const count = rows * columns;
     if (!count || !page.nodes.length) return null;
     const itemBudget = Math.floor(budget / (count * page.nodes.length));
@@ -85,9 +85,8 @@ function ListCellPreview({ list, bounds, trail, budget }: { list: GameFlowNode; 
     const nextTrail = [...trail, key];
     return <SliceResourcesProvider value={{...scoped,mode:resources.mode,forPage:resources.forPage, ...(resources.mode === "prefab" ? {resolve:resources.resolve} : {})}}><div aria-hidden="true" style={{position:"absolute", left, top, width, height, pointerEvents:"none", overflow:listScrollType(list) === 0 ? "visible" : "hidden"}}>
       {Array.from({length:count}, (_, index) => {
-        const x = horizontal ? Math.floor(index / rows) : index % columns;
-        const y = horizontal ? index % rows : Math.floor(index / columns);
-        return <div key={index} data-cell-index={index} style={{position:"absolute", left:x*dx, top:y*dy, width:page.frame.width, height:page.frame.height}}>
+        const { x, y } = listCellOffset(positions, index);
+        return <div key={index} data-cell-index={index} style={{position:"absolute", left:x, top:y, width:page.frame.width, height:page.frame.height}}>
           {nodes.map(node => <NodeView key={node.id} page={page} node={node} hitId={list.id} geometry={geometry.nodes.get(node.id)} cellTrail={nextTrail} previewBudget={itemBudget}/>)}
         </div>;
       })}

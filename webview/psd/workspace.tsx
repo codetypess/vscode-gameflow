@@ -2,8 +2,8 @@ import { DialogHeading } from "../components/dialog-heading";
 import { useEffect, useImperativeHandle, useRef, useState, type ReactNode, type Ref } from "react";
 import { createPortal } from "react-dom";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { AlertTriangle, Check, ChevronDown, ChevronRight, Crop, Download, Ellipsis, FileImage, FolderOpen, Grid3X3, ImageIcon, Layers3, MousePointerClick, Redo2, Save, Scissors, Share2, SquareDashed, Undo2, X } from "lucide-react";
-import { identityProblems, makeSidecar, newLayerIdentity, selectedMergeTree, sidecarName, sliceRegion, validConfig, type PsdAsset, type PsdLayer, type PsdLayerMeta, type SliceConfig } from "../../shared/psd-meta";
+import { AlertTriangle, Box, Check, ChevronDown, ChevronRight, Crop, Download, Ellipsis, FileImage, FolderOpen, Grid3X3, ImageIcon, Layers3, MousePointerClick, Redo2, Save, Scissors, Share2, SquareDashed, Type, Undo2, X } from "lucide-react";
+import { identityProblems, makeSidecar, newLayerIdentity, selectedMergeTree, sidecarName, sliceRegion, validConfig, type PsdAsset, type PsdEmbeddedLayer, type PsdLayer, type PsdLayerMeta, type SliceConfig } from "../../shared/psd-meta";
 import { WorkbenchSettingsButton, type WorkbenchSettingsUI } from "../workbench-settings";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -38,6 +38,22 @@ export interface PsdWorkspaceBinding {
 const getChildren = (asset: PsdAsset, key: number) => { const keys = new Set([key]); let previous = 0; while (previous !== keys.size) { previous = keys.size; asset.layers.forEach(l => { if (l.parentKey !== null && keys.has(l.parentKey)) keys.add(l.key); }); } return asset.layers.filter(l => keys.has(l.key)); };
 const layerIdentity = (layer: PsdLayer) => layer.metadata.documentId + ":" + layer.metadata.layerId;
 
+const embeddedIcons = { group: Layers3, image: ImageIcon, text: Type, smartObject: Box };
+
+function EmbeddedLayerRow({ layer, depth }: { layer: PsdEmbeddedLayer; depth: number }) {
+  const [collapsed, setCollapsed] = useState(false);
+  const expandable = layer.children.length > 0;
+  const Icon = embeddedIcons[layer.kind];
+  return <div role="none">
+    <div className="psd-tree-row psd-tree-embedded" role="treeitem" aria-expanded={expandable ? !collapsed : undefined} style={{ paddingLeft: 6 + depth * 10 }}>
+      {expandable ? <button className="psd-tree-expander" aria-label={(collapsed ? "展开" : "折叠") + layer.name}
+        onClick={() => setCollapsed(value => !value)}>{collapsed ? <ChevronRight size={13} /> : <ChevronDown size={13} />}</button> : <span className="psd-tree-spacer" />}
+      <div className="psd-tree-label" title={layer.name}><Icon size={13} aria-hidden="true" /><span>{layer.name}</span></div>
+    </div>
+    {expandable && !collapsed && <div role="group">{layer.children.map(child => <EmbeddedLayerRow key={child.key} layer={child} depth={depth + 1} />)}</div>}
+  </div>;
+}
+
 function Tree({ asset, selected, onSelect, checked, toggle, reveal = 0, issues = [] }: { asset: PsdAsset; selected: number | null; onSelect: (key: number) => void; checked?: (layer: PsdLayer) => boolean; toggle?: (layer: PsdLayer, value: boolean) => void; reveal?: number; issues?: ExportIssue[] }) {
   const [collapsed, setCollapsed] = useState(new Set<number>());
   const container = useRef<HTMLDivElement>(null);
@@ -65,11 +81,16 @@ function Tree({ asset, selected, onSelect, checked, toggle, reveal = 0, issues =
     const branchKeys = new Set(l.group ? getChildren(asset, l.key).map(child => child.key) : [l.key]);
     const conflicts = issues.filter(issue => issue.keys.some(key => branchKeys.has(key)));
     const conflictText = conflicts.map(issue => issue.message).join("\n");
-    return <div role="none" key={l.key}><div data-layer-key={l.key} className={cn("psd-tree-row", selected === l.key && "is-selected")} role="treeitem" aria-selected={selected === l.key} aria-expanded={l.group ? !collapsed.has(l.key) : undefined} style={{ paddingLeft: 6 + depth * 10 }}>
-      {l.group ? <button className="psd-tree-expander" aria-label={`${collapsed.has(l.key) ? "展开" : "折叠"}${l.name}`} onClick={() => setCollapsed(old => { const next = new Set(old); if (next.has(l.key)) next.delete(l.key); else next.add(l.key); return next; })}>{collapsed.has(l.key) ? <ChevronRight size={13} /> : <ChevronDown size={13} />}</button> : <span className="psd-tree-spacer" />}
+    const contents = l.smartObject?.contents ?? [];
+    const expandable = l.group || contents.length > 0;
+    const Icon = l.smartObject ? Box : l.group ? Layers3 : l.text ? Type : ImageIcon;
+    const expanded = expandable && !collapsed.has(l.key);
+    return <div role="none" key={l.key}><div data-layer-key={l.key} className={cn("psd-tree-row", selected === l.key && "is-selected")} role="treeitem" aria-selected={selected === l.key} aria-expanded={expandable ? expanded : undefined} style={{ paddingLeft: 6 + depth * 10 }}>
+      {expandable ? <button className="psd-tree-expander" aria-label={(expanded ? "折叠" : "展开") + l.name} onClick={() => setCollapsed(old => { const next = new Set(old); if (next.has(l.key)) next.delete(l.key); else next.add(l.key); return next; })}>{expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}</button> : <span className="psd-tree-spacer" />}
       {toggle && checked ? <input type="checkbox" aria-label={`选择${l.name}（${l.nativeId ?? l.key}）`} checked={children.length > 0 && count === children.length} ref={el => { if (el) el.indeterminate = mixed; }} disabled={!children.length || warning || (!l.group && (!!l.limitation || !l.image))} onChange={e => toggle(l, e.target.checked)} /> : null}
-      <button className="psd-tree-label" onClick={() => onSelect(l.key)} title={`${l.name} · ${l.metadata.layerId}${warning ? " · ID 重复" : ""}${conflictText ? `\n${conflictText}` : ""}`}>{l.group ? <Layers3 size={13} /> : <ImageIcon size={13} />}<span>{l.name}</span>{!l.group && l.config.enabled && l.config.shared ? <span className="psd-shared-marker" role="img" aria-label={`${l.name}：共享导出`} title="共享导出"><Share2 size={12} aria-hidden="true" /></span> : null}{conflicts.length ? <span className="psd-conflict-marker" role="img" aria-label={`${l.name}：导出冲突`} title={conflictText}><AlertTriangle size={13} aria-hidden="true" /></span> : warning ? <AlertTriangle size={12} className="psd-warning" /> : l.config.nineGrid ? <Grid3X3 size={12} /> : null}</button>
-    </div>{l.group && !collapsed.has(l.key) ? <div role="group">{render(l.key, depth + 1)}</div> : null}</div>;
+      <button className="psd-tree-label" onClick={() => onSelect(l.key)} title={`${l.name} · ${l.metadata.layerId}${warning ? " · ID 重复" : ""}${conflictText ? `\n${conflictText}` : ""}`}><Icon size={13} aria-hidden="true" /><span>{l.name}</span>{!l.group && l.config.enabled && l.config.shared ? <span className="psd-shared-marker" role="img" aria-label={`${l.name}：共享导出`} title="共享导出"><Share2 size={12} aria-hidden="true" /></span> : null}{conflicts.length ? <span className="psd-conflict-marker" role="img" aria-label={`${l.name}：导出冲突`} title={conflictText}><AlertTriangle size={13} aria-hidden="true" /></span> : warning ? <AlertTriangle size={12} className="psd-warning" /> : l.config.nineGrid ? <Grid3X3 size={12} /> : null}</button>
+    </div>{expanded && (l.group ? <div role="group">{render(l.key, depth + 1)}</div>
+      : <div role="group" aria-label="智能对象内容（只读）">{contents.map(child => <EmbeddedLayerRow key={child.key} layer={child} depth={depth + 1} />)}</div>)}</div>;
   });
   return <ScrollArea className="psd-layer-scroll" label={`${asset.name} 图层内容`} viewportRef={container}><div className="psd-layer-tree" role="tree" aria-label={`${asset.name} 图层树`}>{render(null, 0)}</div></ScrollArea>;
 }
@@ -241,7 +262,7 @@ export function PsdWorkspace({ mode, active, binding, documentActions, settings,
           <label className="psd-check"><input type="checkbox" aria-label="使用独立目录" checked={asset.independentDirectory === true} disabled={busy} onChange={e => { const next = { ...asset }; if (e.target.checked) next.independentDirectory = true; else delete next.independentDirectory; change(next); }} />使用独立目录</label>
           {!targetDirectoryError && !atlasInputError ? <p className="psd-hint">普通资源导出到 {targetDirectory}/</p> : null}
           {targetDirectoryError || atlasInputError ? <p className="psd-warning" role="alert">{atlasInputError ?? targetDirectoryError}</p> : null}
-          </section>{selected ? <><section className="psd-property-section" aria-label="图层信息"><div className="psd-section-heading"><strong>{selected.name}</strong><small>{selected.group ? "分组" : `${selected.width} × ${selected.height}`}</small></div><label className="psd-property"><span>图层 ID</span><code>{selected.metadata.layerId}</code></label><label className="psd-property"><span>原生 ID</span><code>{selected.nativeId ?? "无"}</code></label>
+          </section>{selected ? <><section className="psd-property-section" aria-label="图层信息"><div className="psd-section-heading"><strong>{selected.name}</strong><small>{selected.group ? "分组" : `${selected.smartObject ? "智能对象 · " : ""}${selected.width} × ${selected.height}`}</small></div><label className="psd-property"><span>图层 ID</span><code>{selected.metadata.layerId}</code></label><label className="psd-property"><span>原生 ID</span><code>{selected.nativeId ?? "无"}</code></label>
           {duplicates.includes(selected.metadata.layerId) ? <div className="psd-warning-box"><AlertTriangle size={14} /><span>此 ID 有多个图层使用。选中副本后分配新身份。</span><Button size="sm" variant="secondary" onClick={() => change(newLayerIdentity(asset, selected.key))}>作为新节点</Button></div> : null}
           {selected.image ? <div className="psd-layer-image checkerboard"><SliceImage layer={selected} /></div> : <p className="psd-hint">选择包含图片的子图层设置切图区域和九宫格。</p>}
           </section><Separator /><section className="psd-property-section" aria-label="导出设置"><div className="property-section-title">导出设置</div>

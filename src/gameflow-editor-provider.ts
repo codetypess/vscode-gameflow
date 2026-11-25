@@ -189,7 +189,12 @@ export class GameFlowEditorProvider implements vscode.CustomEditorProvider<Workb
           }
           for (const psd of doc.psds.values()) if (psd !== doc.currentPsd) this.psd.announce(psd);
         } else if (raw.type === "pagePsd") {
-          await panel.webview.postMessage(await this.pagePsds.handle(doc, raw));
+          const result = await this.pagePsds.handle(doc, raw, references.componentPsdAccess());
+          if (raw.action === "syncCopy" && result.draft && result.source === raw.expected?.source) {
+            for (const owner of this.documents.values()) for (const view of owner.panels)
+              void view.webview.postMessage({ type: "pagePsdChanged", documentId: result.draft.documentId } satisfies HostToWebviewMessage);
+          }
+          await panel.webview.postMessage(result);
         } else if (raw.type === "psdOutput") {
           try {
             const uri = await vscode.window.showSaveDialog({ defaultUri: vscode.Uri.joinPath(doc.uri, "..", raw.name), filters: raw.kind === "psd" ? { Photoshop: ["psd"] } : { JSON: ["json"] } });

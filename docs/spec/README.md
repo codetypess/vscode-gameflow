@@ -34,6 +34,8 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 
 ## Active Work Items
 
+- [psd-prototype-import.md](psd-prototype-import.md) — 从已有 PSD 建立可编辑的原型画板。
+
 - [internal-extension-update-prompts.md](internal-extension-update-prompts.md) — Done：新版先提示，确认后下载安装；更新器 0.1.2 已发布，17 项分发测试、打包及域名下载验签通过，旧自动安装设置迁移为确认模式。
 
 - [psd-read-ownership-regression.md](psd-read-ownership-regression.md) — 页面后台读取后释放干净会话，避免同名重新生成误报占用。

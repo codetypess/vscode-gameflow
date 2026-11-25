@@ -32,7 +32,7 @@ im=Image.new('RGBA',(64,64),'#e3e7ec')
 with Image.open(ROOT/'scripts'/'art'/'default-landscape.png') as glyph:
  inset=6
  im.paste(glyph,(inset,inset))
- frame_grid=dict(top=glyph.height+inset,right=0,bottom=0,left=glyph.width+inset,repeat=False)
+ frame_grid=dict(top=glyph.height+inset+2,right=0,bottom=0,left=glyph.width+inset+2,repeat=False)
 save('image/default','默认图片','色块',im,frame_grid,scale=1)
 for radio in [True,False]:
  prefix='radio' if radio else 'checkbox'

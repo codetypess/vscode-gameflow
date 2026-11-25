@@ -8,7 +8,8 @@ const previousDefaultGrids = new Map<string, NineGrid | null>([
   ["a6f05a18559c38595b2b3a84e60d4183bbd65a14a55b80c23f61abd85a83f31f", { top: 18, right: 18, bottom: 18, left: 18, repeat: false }],
   ["413e696ebaacc4d4f0ba04f7ca9952e06dc55609e96b39d036190d9e51c52f1f", { top: 2, right: 2, bottom: 2, left: 2, repeat: false }],
   ["92ee686ed8b984fbced21a079d5dbff9c4650ce870f01b4602371b73ed534b92", { top: 32, right: 28, bottom: 28, left: 30, repeat: false }],
-  ["91fb827d08ae53c8f25a004e531346e3ffdfe9ae0e0bf08c511b8398c8dd0449", { top: 34, right: 38, bottom: 0, left: 0, repeat: false }]
+  ["91fb827d08ae53c8f25a004e531346e3ffdfe9ae0e0bf08c511b8398c8dd0449", { top: 34, right: 38, bottom: 0, left: 0, repeat: false }],
+  ["c2aba2a565d8cbd0e0442efbb994e956e81ec2cea179d34fac82ca42ff32c06d", { top: 34, right: 0, bottom: 0, left: 38, repeat: false }]
 ]);
 
 export function validBuiltinSlice(value: unknown): value is BuiltinSlice {
@@ -24,7 +25,8 @@ const catalogHashes = new Map<string, Promise<string>>();
 function catalogHash(image: BuiltinImage) {
   let hash = catalogHashes.get(image.id);
   if (!hash) {
-    hash = digest(new TextEncoder().encode(image.dataUri));
+    const identity = image.id === "image/default" ? JSON.stringify([image.dataUri, image.nineGrid]) : image.dataUri;
+    hash = digest(new TextEncoder().encode(identity));
     catalogHashes.set(image.id, hash);
   }
   return hash;
@@ -72,4 +74,9 @@ export function builtinSliceDescription(ref: BuiltinSlice) {
   const image = builtinImage(ref.id)!;
   return { path: builtinPath(ref.id), width: image.width, height: image.height, nineGrid: image.nineGrid,
     source: BUILTIN_SOURCE, layerId: ref.id, layerName: image.name, shared: true };
+}
+
+export function isPreviousDefaultSlice(layer: PsdLayer) {
+  const origin = layer.metadata.builtinOrigin as { catalog?: string } | undefined;
+  return !!origin?.catalog && previousDefaultGrids.has(origin.catalog) && builtinSlice(layer)?.id === "image/default";
 }

@@ -35,3 +35,9 @@ export function listCellPositions(list: GameFlowNode, bounds: Frame, template: G
 export function listScrollType(list: GameFlowNode) {
   return list.layout?.scrollType ?? (list.layout?.direction === "vertical" ? 1 : 2);
 }
+
+export function listCellOffset(grid: ReturnType<typeof listCellPositions>, index: number) {
+  const column = grid.horizontal ? Math.floor(index / grid.rows) : index % grid.columns;
+  const row = grid.horizontal ? index % grid.rows : Math.floor(index / grid.columns);
+  return { x: column * grid.dx, y: row * grid.dy };
+}

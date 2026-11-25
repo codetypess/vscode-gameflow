@@ -45,7 +45,14 @@ export function configureGameFlowWebview(
     .replace(/<title>.*?<\/title>/, `<title>${escapeHtml(title)}</title>`)
     .replace(
       "<head>",
-      `<head>\n    <meta name="gameflow-editor" content="${editor}">\n    <meta name="gameflow-page-psd-slice" content="1">\n    <meta name="gameflow-page-psd-sync" content="1">\n    <meta name="gameflow-prefab-sync" content="1">\n    <meta http-equiv="Content-Security-Policy" content="${csp}">`
+      `<head>
+    <meta name="gameflow-editor" content="${editor}">
+    <meta name="gameflow-page-psd-slice" content="1">
+    <meta name="gameflow-page-psd-sync" content="1">
+    <meta name="gameflow-component-psd" content="1">
+    <meta name="gameflow-prefab-sync" content="1">
+    <meta http-equiv="Content-Security-Policy" content="${csp}">
+    <meta property="csp-nonce" nonce="${nonce}">`
     );
 
   webview.html = html;

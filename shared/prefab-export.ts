@@ -105,7 +105,7 @@ export type ExportImageResolver = (ref: SliceResourceRef) => Promise<{ status: "
 export const resourceUrl = (path: string) => "res://" + resourceUuid(path);
 const scriptPath = (type: string) => "../src/game/app/core/ui/" + "ui-" + type.slice(2).replace(/([a-z0-9])([A-Z])/g, "$1-$2").toLowerCase() + ".ts";
 export const nodeSlots = (node: GameFlowNode): [ImageSlotField, ImageSlot | null | undefined][] => node.type === "button" ? [["normalSkin",node.normalSkin],["selectedSkin",node.selectedSkin],["disabledSkin",node.disabledSkin]] : node.type === "image" ? [["image",node.image === undefined && node.sliceResource ? { art: node.sliceResource } : node.image]] : [];
-export function prefabFileName(page: GameFlowPage): string {
+export function prefabFileName(page: Pick<GameFlowPage, "name" | "exportName">): string {
   let name=(page.exportName ?? page.name).replace(/[\\/:*?"<>|\x00-\x1f]/g,"_").replace(/[ .]+$/g, "").slice(0,120);
   if(!name)name="page";
   if(/^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(name))name="_"+name;

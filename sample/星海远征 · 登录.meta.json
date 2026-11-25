@@ -5,11 +5,269 @@
   "atlasName": "login",
   "source": {
     "name": "星海远征 · 登录.psd",
-    "sha256": "162a5fdae208f1697034827b6e3a1efa081700e15f2929b338c6e395377d6c84",
+    "sha256": "18113be58bb99565bbc94254e97b442f8274d6443fa0db879eb6e7d4562b2350",
     "width": 750,
     "height": 1334
   },
   "layers": [
+    {
+      "id": "t6od46b5",
+      "sourceKey": 29,
+      "nativeId": 16,
+      "name": "服务器列表项",
+      "config": {
+        "enabled": false,
+        "name": "服务器列表项",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "0ba9bc45-76bc-5eda-a37f-0da4a2653cc6",
+        "layerId": "t6od46b5",
+        "prototype": {
+          "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
+          "pageId": "umlxcxo4",
+          "nodeId": "t46xrozm"
+        },
+        "slicing": {
+          "enabled": false,
+          "name": "服务器列表项",
+          "nineGrid": null
+        },
+        "atlasName": "login",
+        "componentSmartObject": true
+      }
+    },
+    {
+      "id": "2xvqxj22",
+      "sourceKey": 28,
+      "nativeId": 18,
+      "name": "列表",
+      "config": {
+        "enabled": false,
+        "name": "列表",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "0ba9bc45-76bc-5eda-a37f-0da4a2653cc6",
+        "layerId": "2xvqxj22",
+        "prototype": {
+          "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
+          "pageId": "umlxcxo4",
+          "nodeId": "85559x9k"
+        },
+        "slicing": {
+          "enabled": false,
+          "name": "列表",
+          "nineGrid": null
+        },
+        "atlasName": "login",
+        "listCellsGenerated": true
+      }
+    },
+    {
+      "id": "3qskdidm",
+      "sourceKey": 27,
+      "nativeId": 21,
+      "name": "服务器列表项 8",
+      "config": {
+        "enabled": false,
+        "name": "服务器列表项 8",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "0ba9bc45-76bc-5eda-a37f-0da4a2653cc6",
+        "layerId": "3qskdidm",
+        "listNodeId": "85559x9k",
+        "listCellIndex": 7,
+        "slicing": {
+          "enabled": false,
+          "name": "服务器列表项 8",
+          "nineGrid": null
+        },
+        "atlasName": "login"
+      }
+    },
+    {
+      "id": "wn14c6i0",
+      "sourceKey": 26,
+      "nativeId": 22,
+      "name": "服务器列表项 7",
+      "config": {
+        "enabled": false,
+        "name": "服务器列表项 7",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "0ba9bc45-76bc-5eda-a37f-0da4a2653cc6",
+        "layerId": "wn14c6i0",
+        "listNodeId": "85559x9k",
+        "listCellIndex": 6,
+        "slicing": {
+          "enabled": false,
+          "name": "服务器列表项 7",
+          "nineGrid": null
+        },
+        "atlasName": "login"
+      }
+    },
+    {
+      "id": "jrpy9vu5",
+      "sourceKey": 25,
+      "nativeId": 23,
+      "name": "服务器列表项 6",
+      "config": {
+        "enabled": false,
+        "name": "服务器列表项 6",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "0ba9bc45-76bc-5eda-a37f-0da4a2653cc6",
+        "layerId": "jrpy9vu5",
+        "listNodeId": "85559x9k",
+        "listCellIndex": 5,
+        "slicing": {
+          "enabled": false,
+          "name": "服务器列表项 6",
+          "nineGrid": null
+        },
+        "atlasName": "login"
+      }
+    },
+    {
+      "id": "6dtk8qr1",
+      "sourceKey": 24,
+      "nativeId": 24,
+      "name": "服务器列表项 5",
+      "config": {
+        "enabled": false,
+        "name": "服务器列表项 5",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "0ba9bc45-76bc-5eda-a37f-0da4a2653cc6",
+        "layerId": "6dtk8qr1",
+        "listNodeId": "85559x9k",
+        "listCellIndex": 4,
+        "slicing": {
+          "enabled": false,
+          "name": "服务器列表项 5",
+          "nineGrid": null
+        },
+        "atlasName": "login"
+      }
+    },
+    {
+      "id": "rb5tgxai",
+      "sourceKey": 23,
+      "nativeId": 25,
+      "name": "服务器列表项 4",
+      "config": {
+        "enabled": false,
+        "name": "服务器列表项 4",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "0ba9bc45-76bc-5eda-a37f-0da4a2653cc6",
+        "layerId": "rb5tgxai",
+        "listNodeId": "85559x9k",
+        "listCellIndex": 3,
+        "slicing": {
+          "enabled": false,
+          "name": "服务器列表项 4",
+          "nineGrid": null
+        },
+        "atlasName": "login"
+      }
+    },
+    {
+      "id": "5so0tqnx",
+      "sourceKey": 22,
+      "nativeId": 26,
+      "name": "服务器列表项 3",
+      "config": {
+        "enabled": false,
+        "name": "服务器列表项 3",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "0ba9bc45-76bc-5eda-a37f-0da4a2653cc6",
+        "layerId": "5so0tqnx",
+        "listNodeId": "85559x9k",
+        "listCellIndex": 2,
+        "slicing": {
+          "enabled": false,
+          "name": "服务器列表项 3",
+          "nineGrid": null
+        },
+        "atlasName": "login"
+      }
+    },
+    {
+      "id": "f9cf7upv",
+      "sourceKey": 21,
+      "nativeId": 27,
+      "name": "服务器列表项 2",
+      "config": {
+        "enabled": false,
+        "name": "服务器列表项 2",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "0ba9bc45-76bc-5eda-a37f-0da4a2653cc6",
+        "layerId": "f9cf7upv",
+        "listNodeId": "85559x9k",
+        "listCellIndex": 1,
+        "slicing": {
+          "enabled": false,
+          "name": "服务器列表项 2",
+          "nineGrid": null
+        },
+        "atlasName": "login"
+      }
+    },
+    {
+      "id": "hcgh33sd",
+      "sourceKey": 20,
+      "nativeId": 28,
+      "name": "服务器列表项 1",
+      "config": {
+        "enabled": false,
+        "name": "服务器列表项 1",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "0ba9bc45-76bc-5eda-a37f-0da4a2653cc6",
+        "layerId": "hcgh33sd",
+        "listNodeId": "85559x9k",
+        "listCellIndex": 0,
+        "slicing": {
+          "enabled": false,
+          "name": "服务器列表项 1",
+          "nineGrid": null
+        },
+        "atlasName": "login"
+      }
+    },
     {
       "id": "9373p48r",
       "sourceKey": 18,
@@ -438,7 +696,13 @@
       "config": {
         "enabled": true,
         "name": "星点与轨道",
-        "nineGrid": null
+        "nineGrid": {
+          "left": 40,
+          "top": 36,
+          "right": 0,
+          "bottom": 0,
+          "repeat": false
+        }
       },
       "metadata": {
         "namespace": "com.codetypes.gameflow",
@@ -454,14 +718,20 @@
         "slicing": {
           "enabled": true,
           "name": "星点与轨道",
-          "nineGrid": null
+          "nineGrid": {
+            "left": 40,
+            "top": 36,
+            "right": 0,
+            "bottom": 0,
+            "repeat": false
+          }
         },
         "builtinOrigin": {
           "id": "image/default",
           "width": 750,
           "height": 1334,
-          "catalog": "3dccf74ca613bd63269ffb5762dda833b4314c84a0f9a91e5946c16f24fb1e07",
-          "pixels": "6540b94bb88bd83bff0740ecf0ce0296fb43499e595897a74133cc2a18ba9b50"
+          "catalog": "36661851d5a51a45d4c6891a084aa5dd4367986f9dc43002967bb8bbf26662cb",
+          "pixels": "dc1e138ed54684faf67ab4caa29a47933ef8d4925a8e1c0ab2dc698195aa1ca6"
         },
         "atlasName": "login"
       }

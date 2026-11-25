@@ -7,7 +7,23 @@ export type SliceRegion = { x: number; y: number; width: number; height: number 
 export type SliceConfig = { enabled: boolean; name: string; variableName?: string; /** Legacy variable override. */ exportName?: string; shared?: boolean; region?: SliceRegion; nineGrid: NineGrid | null };
 export type PsdLayerMeta = Record<string, unknown> & { namespace: "com.codetypes.gameflow"; version: 1; documentId: string; layerId: string; atlasName?: string; independentDirectory?: boolean; slicing?: SliceConfig };
 export type BuiltinSlice = { id: string; width: number; height: number };
-export type PsdLayer = { key: number; nativeId: number | null; parentKey: number | null; name: string; group: boolean; left: number; top: number; width: number; height: number; hidden: boolean; identityOrigin: "embedded" | "new"; metadata: PsdLayerMeta; config: SliceConfig; image?: string; text?: boolean; textContent?: string; limitation?: string; verifiedBuiltin?: BuiltinSlice };
+export type PsdEmbeddedLayer = { key: number; name: string; kind: "group" | "image" | "text" | "smartObject"; children: PsdEmbeddedLayer[] };
+export interface PsdComponentSource {
+  documentId: string;
+  pageId: string;
+  psdId: string;
+  sourceHash: string;
+  embeddedHash: string;
+}
+export function psdComponentSource(value: unknown): PsdComponentSource | undefined {
+  if (!record(value)) return;
+  const { documentId, pageId, psdId, sourceHash, embeddedHash } = value;
+  if (typeof documentId === "string" && typeof pageId === "string" && typeof psdId === "string" &&
+      typeof sourceHash === "string" && typeof embeddedHash === "string" &&
+      /^[a-f0-9]{64}$/.test(sourceHash) && /^[a-f0-9]{64}$/.test(embeddedHash))
+    return { documentId, pageId, psdId, sourceHash, embeddedHash };
+}
+export type PsdLayer = { key: number; nativeId: number | null; parentKey: number | null; name: string; group: boolean; left: number; top: number; width: number; height: number; hidden: boolean; identityOrigin: "embedded" | "new"; metadata: PsdLayerMeta; config: SliceConfig; image?: string; text?: boolean; textContent?: string; limitation?: string; verifiedBuiltin?: BuiltinSlice; smartObject?: { contents?: PsdEmbeddedLayer[]; hash?: string } };
 export type PsdAsset = { name: string; atlasName?: string; independentDirectory?: boolean; sourceHash: string; documentId: string; hasEmbeddedIdentity: boolean; width: number; height: number; layers: PsdLayer[]; preview: string };
 export type PsdSidecar = { schema: "gameflow.psd-meta"; version: 1; documentId: string; atlasName?: string; independentDirectory?: boolean; source: { name: string; sha256: string; width: number; height: number }; layers: { id: string; sourceKey: number; nativeId: number | null; name: string; config: SliceConfig; metadata: PsdLayerMeta }[] };
 export const EMPTY_GRID: NineGrid = { top: 0, right: 0, bottom: 0, left: 0, repeat: false };

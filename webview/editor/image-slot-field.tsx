@@ -14,6 +14,9 @@ export function ImageSlotField({ node, field, label, disabled, onChange }: { nod
   const override = useOverrideAttributes(label, [field]);
   const { mode } = useSliceResources();
   const slot = node[field] ?? (field === "image" && node.image === undefined && node.sliceResource ? { art: node.sliceResource } : null), image = slot?.builtin ? builtinImage(slot.builtin) : undefined;
+  const embedded = field === "image" && node.image === undefined && !node.sliceResource ? node.imageData : undefined;
+  const preview = image?.dataUri ?? embedded;
+  const displayName = image?.name ?? (embedded ? "内嵌图片" : "无 (Image)");
   const [open, setOpen] = useState(false);
   if (mode === "art" || mode === "prefab") {
     const path = slot?.art?.path;
@@ -23,11 +26,11 @@ export function ImageSlotField({ node, field, label, disabled, onChange }: { nod
     </section>;
   }
   return <section {...override} className="image-slot-field" data-image-slot={field}>
-    <div className="property-field image-slot-row"><span>{label}</span><div className="image-slot-control" data-disabled={disabled || undefined} data-filled={!!slot?.builtin || undefined}>
-      <button className="image-slot-value" type="button" disabled={disabled} aria-label={"选择" + label} title={image?.name ?? "无 (Image)"} onClick={() => setOpen(true)}>
-        {image ? <img src={image.dataUri} alt="" /> : null}<span>{image?.name ?? "无 (Image)"}</span><SquareMousePointer className="image-slot-browse" size={14} aria-hidden="true" />
+    <div className="property-field image-slot-row"><span>{label}</span><div className="image-slot-control" data-disabled={disabled || undefined} data-filled={!!preview || undefined}>
+      <button className="image-slot-value" type="button" disabled={disabled} aria-label={"选择" + label} title={displayName} onClick={() => setOpen(true)}>
+        {preview ? <img src={preview} alt="" /> : null}<span>{displayName}</span><SquareMousePointer className="image-slot-browse" size={14} aria-hidden="true" />
       </button>
-      <button className="image-slot-clear" type="button" disabled={disabled || !slot?.builtin} aria-label={"清空" + label} title={"清空" + label} onClick={() => onChange(slot?.art ? { art: slot.art } : null)}><X size={12} /></button>
+      <button className="image-slot-clear" type="button" disabled={disabled || !slot?.builtin && !embedded} aria-label={"清空" + label} title={"清空" + label} onClick={() => onChange(slot?.art ? { art: slot.art } : null)}><X size={12} /></button>
     </div></div>
     {open && !disabled ? <ImagePicker initial={image?.category} onClose={() => setOpen(false)} onSelect={builtin => { onChange({ ...slot, builtin }); setOpen(false); }} /> : null}
   </section>;

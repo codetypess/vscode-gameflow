@@ -22,6 +22,7 @@ export interface CanvasNodeInfo {
   reference?: CanvasReference;
   source: string;
   sourcePageId?: string;
+  sourcePageName?: string;
   base: GameFlowNode;
   overrides: string[];
   stored?: GameFlowNode;
@@ -63,7 +64,8 @@ export function composeCanvasPage(document: GameFlowDocument, page: GameFlowPage
     const sourceDocument = target.key ? sources[target.key]?.document : document;
     const token = `${target.key}\0${instance.prefab!.pageId}`;
     const problem = target.error ?? (stack.includes(token) ? "检测到循环画布引用。" : depth >= 24 ? "组件嵌套超过 24 层限制。" : budget <= 0 ? "组件展开超过 5000 个节点限制。" : undefined);
-    const rootMeta: CanvasNodeInfo = { ownerId: instance.id, target: ROOT_TARGET, inherited: false, reference: instance.prefab, source: target.key, sourcePageId: target.page?.id, base: instance, stored: instance, overrides: [] };
+    const rootMeta: CanvasNodeInfo = { ownerId: instance.id, target: ROOT_TARGET, inherited: false, reference: instance.prefab,
+      source: target.key, sourcePageId: target.page?.id, sourcePageName: target.page?.name, base: instance, stored: instance, overrides: [] };
     if (problem || !target.page || !sourceDocument) {
       errors.set(instance.id, problem ?? "源画布不可用。");
       if (editable) for (const patch of instance.instanceEdits?.overrides ?? []) orphans.push({ ownerId:instance.id,name:patch.target.path.at(-1)?.nodeId ?? instance.name,message:"源不可用，属性覆盖已保留。",target:patch.target });

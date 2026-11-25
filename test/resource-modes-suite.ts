@@ -382,7 +382,7 @@ test("default placeholder uses one shared nine-grid resource and preserves confi
   const p=page([large,wide,{...wide,id:"repeat"},art]),d=doc(p);
   const plan=await planPrefabExport(d,p,missing);
   assert.equal(plan.batch.images.length,1);assert.equal(plan.missing.length,1);assert.equal(plan.missing[0].path,"unclassified/art.png");
-  const image=plan.batch.images[0];assert.equal(image.path,"builtin/image/default.png");assert.deepEqual(image.description.nineGrid,{top:34,right:0,bottom:0,left:38,repeat:false});
+  const image=plan.batch.images[0];assert.equal(image.path,"builtin/image/default.png");assert.deepEqual(image.description.nineGrid,{top:36,right:0,bottom:0,left:40,repeat:false});
   const nodes=plan.batch.prefab._$child as Record<string,unknown>[];
   assert.equal(nodes[0].skin,resourceUrl(image.path));assert.equal(nodes[1].skin,nodes[2].skin);assert.equal(nodes[3].skin,"unclassified/art.png");
   assert.deepEqual(imageSlotRequest(large.image,"prefab"),{kind:"resource",ref:{path:image.path}});
@@ -390,7 +390,7 @@ test("default placeholder uses one shared nine-grid resource and preserves confi
   const resources=memoryDirectory(),prefabs=memoryDirectory();
   await exportPrefabToDirectories(resources.io,prefabs.io,plan.batch,codec);
   const meta=JSON.parse(new TextDecoder().decode(resources.files.get(image.path+".meta")));
-  assert.deepEqual(meta.importer.sizeGrid,[34,0,0,38,0]);
+  assert.deepEqual(meta.importer.sizeGrid,[36,0,0,40,0]);
 });
 test("prefab review migrates a verified size-specific default and keeps custom engine skins",async()=>{
   const p=page([makeNode("image","legacy",0,0),makeNode("image","custom",0,0)]);

@@ -16,6 +16,10 @@ export function changeValue(tree: SyncNode[], change: Change, pageName?: string)
   const node = tree.find(item => item.id === change.id);
   if (!node) return "不存在";
   if (change.replacement) {
+    if (change.representation === "psd-list-cells") return node.layer ? "空列表组" : "引用的列表项模板";
+    if (change.representation === "psd-default-image") return node.layer ? "旧版默认图片" : "左上角山景图标";
+    if (change.representation === "psd-smart-object") return node.layer ? "普通图层组" : "组件实例";
+    if (change.representation === "psd-component-layers") return node.layer ? "缺少这些图层" : change.addedLayers!.join("、");
     if (change.representation === "component-root") return change.members.filter(id => tree.some(item => item.id === id)).length < change.members.length ? "单一组件根" : "额外 UIBox 包装层";
     const count = change.members.filter(id => tree.some(item => item.id === id)).length;
     return count < change.members.length ? "Prefab 引用" : "展开节点（" + count + " 个）";
@@ -44,7 +48,15 @@ export function changeValue(tree: SyncNode[], change: Change, pageName?: string)
 export function describeDecision(comparison: Comparison, change: Change, decision?: Decision, targetLabel = "预制体", pageName?: string) {
   if (!decision) return "待决定";
   if (decision === "skip") return "本轮跳过";
-  if (change.replacement) return decision === change.replacement ? change.representation === "component-root" ? "移除预制体的额外 UIBox 包装层" : "把预制体替换为 Prefab 引用" : "本轮跳过";
+  if (change.componentSource) return decision === "proto" ? "更新智能对象" : "保留当前内嵌内容";
+  if (change.replacement) {
+    if (decision !== change.replacement) return "本轮跳过";
+    if (change.representation === "psd-list-cells") return "按引用原型补齐列表项";
+    if (change.representation === "psd-default-image") return "更新默认图片";
+    if (change.representation === "psd-smart-object") return "转换为智能对象";
+    if (change.representation === "psd-component-layers") return "补入智能对象";
+    return change.representation === "component-root" ? "移除预制体的额外 UIBox 包装层" : "把预制体替换为 Prefab 引用";
+  }
   const target = decision === "proto" ? targetLabel : "原型";
   const source = comparison[decision];
   if (change.field === "exist") {
@@ -72,14 +84,16 @@ export function SyncChange({ comparison, change, title, decision, disabled, onCh
   const baselineHelp = showBoth ? "此项最近一次同步一致时的值。" : "此属性最近一次同步一致时的值，保存在当前画布页面的 prefabSync 记录中。";
   const groupName = useId();
   const old = comparison.base?.nodes.find(node => node.id === change.id);
-  const recorded = hasSyncedValue(old, change.field, change.property);
+  const recorded = !change.componentSource && !change.representation?.startsWith("psd-") && hasSyncedValue(old, change.field, change.property);
   const previous = recorded ? changeValue(comparison.base!.nodes, change, pageName) : "未记录";
   const changedSide = change.suggested === "skip" ? undefined : change.suggested;
   const structure = change.field === "exist";
   const valueFrom = (side: Side) => changeValue(comparison[side], change, pageName);
   const decisions: Decision[] = change.replacement ? [change.replacement, "skip"] : ["proto", "psd", "skip"];
   let status = recorded ? "双方已改" : "来源待定";
-  if (change.replacement) status = "生成方式已变更";
+  if (change.componentSource) status = change.componentSource.firstLink ? "首次关联" : change.componentSource.conflict ? "源和内嵌内容均有修改" : "组件源已更新";
+  else if (change.representation === "psd-component-layers") status = "原型新增图层";
+  else if (change.replacement) status = "生成方式已变更";
   else if (structure) {
     const onPrototype = comparison.proto.some(node => node.id === change.id);
     const present = sides[onPrototype ? "proto" : "psd"];
@@ -90,7 +104,10 @@ export function SyncChange({ comparison, change, title, decision, disabled, onCh
   }
   return <fieldset className="prefab-change" disabled={disabled}>
     <legend><span>{title}</span><span className="prefab-change-source">{status}</span></legend>
-    <dl className="prefab-change-values">
+    {change.componentSource ? <dl className="prefab-change-values">
+      <dt>组件源 PSD</dt><dd>{change.componentSource.name}</dd>
+      <dt>页面 PSD</dt><dd>{change.componentSource.conflict ? "当前内嵌内容与来源不同" : "内嵌智能对象"}</dd>
+    </dl> : <dl className="prefab-change-values">
       {changedSide && !structure && !showBoth ? <>
         <dt>{sides[changedSide]}</dt>
         <dd><span className="prefab-previous" title={baselineHelp}><span className="sr-only">上次同步值 </span>{previous}</span>
@@ -100,8 +117,8 @@ export function SyncChange({ comparison, change, title, decision, disabled, onCh
         <dt>原型</dt><dd>{valueFrom("proto")}</dd>
         <dt>{targetLabel}</dt><dd>{valueFrom("psd")}</dd>
       </>}
-    </dl>
-    {showBoth && <details className="sync-change-baseline">
+    </dl>}
+    {showBoth && !change.componentSource && <details className="sync-change-baseline">
       <summary title={baselineHelp}>上次同步值</summary>
       <div>{previous}</div>
     </details>}
