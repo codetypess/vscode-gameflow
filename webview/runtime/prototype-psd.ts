@@ -20,7 +20,7 @@ import { mapPoint } from "../../shared/ui-transform";
 import { cellKey, resolveCellPage } from "../../shared/list-cell";
 import type { CanvasSources } from "../../shared/canvas-references";
 import { placeListCells, type PsdCellTemplate } from "./psd-list-cells";
-import { componentPsdFileName } from "../../shared/page-psd";
+import { pagePsdFileName } from "../../shared/page-psd";
 import type { PsdComponentInstance } from "../../shared/page-sync";
 
 interface PrototypePsdOptions {
@@ -28,13 +28,28 @@ interface PrototypePsdOptions {
   previous?: readonly PsdLayerMeta[];
   sources?: CanvasSources;
   referenceDocument?: GameFlowDocument;
+  preserveComponentRoot?: boolean;
+}
+
+function componentLayers(page: GameFlowPage, children: Layer[], metadata: Map<number, PsdLayerMeta>, trackRoot = false) {
+  return children.flatMap(layer => {
+    const ref = metadata.get(layer.id!)?.prototype;
+    if (!prototypeLayerRef(ref) || ref.nodeId !== page.componentRootId || !layer.children?.length) return [layer];
+    // Positions and the composite were already computed with the root container.
+    return layer.children.map(child => {
+      const childMetadata = metadata.get(child.id!);
+      if (trackRoot && childMetadata) childMetadata.componentRootId = ref.nodeId;
+      return layer.hidden ? { ...child, hidden: true } : child;
+    });
+  });
 }
 
 export async function generatePrototypePsd(document: GameFlowDocument, page: GameFlowPage,
   components: ReadonlyMap<string,PsdComponentInstance> = new Map(), options: PrototypePsdOptions = {},
   componentPsds?: ReadonlyMap<string, ComponentPsd>): Promise<Uint8Array> {
   const { composite, children, linkedFiles, metadata } = await renderPrototypePsd(document, page, components, options, componentPsds);
-  const bytes = writePsdUint8Array({ width: composite.width, height: composite.height, canvas: composite, children, linkedFiles },
+  const layers = options.preserveComponentRoot ? children : componentLayers(page, children, metadata, true);
+  const bytes = writePsdUint8Array({ width: composite.width, height: composite.height, canvas: composite, children: layers, linkedFiles },
     { generateThumbnail: false, invalidateTextLayers: false });
   const raw = parsePsdBinary(bytes);
   return patchPsdMetadata(bytes, new Map(raw.layers.filter(layer => layer.nativeId !== null && metadata.has(layer.nativeId)).map(layer => [layer.key, metadata.get(layer.nativeId!)!])));
@@ -90,9 +105,10 @@ async function renderPrototypePsd(document: GameFlowDocument, page: GameFlowPage
       if (!target.page.nodes.length) return;
       const nested = await renderPrototypePsd(target.document, target.page, new Map(), references, undefined, templates, [...trail, key]);
       const bitmap = nested.composite;
+      const layers = componentLayers(target.page, nested.children, nested.metadata);
       const data = writePsdUint8Array({ width: bitmap.width, height: bitmap.height, canvas: bitmap,
-        children: nested.children, linkedFiles: nested.linkedFiles }, { generateThumbnail: false, invalidateTextLayers: false });
-      const file: LinkedFile = { id: crypto.randomUUID(), name: componentPsdFileName(target.page.name), type: "8BPS", data };
+        children: layers, linkedFiles: nested.linkedFiles }, { generateThumbnail: false, invalidateTextLayers: false });
+      const file: LinkedFile = { id: crypto.randomUUID(), name: pagePsdFileName(target.page.name), type: "8BPS", data };
       template = { page: target.page, bitmap, file };
       templates.set(key, template);
     }
@@ -149,7 +165,7 @@ async function renderPrototypePsd(document: GameFlowDocument, page: GameFlowPage
         : child);
       const nested = await renderPrototypePsd(document, { ...page, frame, layout: undefined, nodes }, new Map(), references, undefined, templates, trail);
       const group = { name: node.name, children: nested.children[0]?.children ?? nested.children, hidden: controlHidden(page, node) };
-      const { layer, file } = await embedPsdGroup(group, component.key, componentPsdFileName(component.sourceName), frame,
+      const { layer, file } = await embedPsdGroup(group, component.key, pagePsdFileName(component.sourceName), frame,
         { matrix: geometry.matrix, composite: nested.composite, linkedFiles: nested.linkedFiles });
       if (!linkedFiles.has(file.id)) linkedFiles.set(file.id, file);
       if (!layer.hidden) compositeContext.drawImage(layer.canvas!, layer.left!, layer.top!);

@@ -29,7 +29,10 @@ async function main() {
       const { applySidecar } = await import("/@fs/" + root + "/shared/psd-meta.ts");
       const { parsePsdBinary, patchPsdMetadata } = await import("/@fs/" + root + "/shared/psd-binary.ts");
       const composition = composeCanvasPage(doc, doc.pages[0], {}), components = psdComponentInstances(composition);
-      const sources = await prepareComponentPsdGeneration(doc, {}, composition);
+      const generationDoc = structuredClone(doc);
+      const cellReference = doc.pages[0].nodes.find(node => node.cellPrefab).cellPrefab;
+      delete generationDoc.pages.find(page => page.id === cellReference.pageId).artPsd;
+      const sources = await prepareComponentPsdGeneration(generationDoc, {}, composition);
       const bytes = await generatePrototypePsd(doc, composition.page, components, {}, sources.psds);
       const asset = await psdTask("read", bytes.slice().buffer, "login.psd");
       const list = doc.pages[0].nodes.find(node => node.cellPrefab);
@@ -58,6 +61,11 @@ async function main() {
       if (boundRows.length !== rows.length || boundRows.some((row,i) => row.smartObject?.hash !== boundRows[0].smartObject?.hash ||
           !row.smartObject?.contents || row.left !== rows[i].left || row.top !== rows[i].top || row.height !== rows[i].height))
         throw Error("页面绑定的 PSD 缺少可见的列表项智能对象");
+      const boundComponent = bound.layers.find(layer => layer.metadata.componentSource);
+      for (const layer of [...boundRows, boundComponent]) {
+        const names = layer?.smartObject?.contents?.map(child => child.name).sort();
+        if (JSON.stringify(names) !== JSON.stringify(["图片", "服务器名称"])) throw Error("样例智能对象多了一层组件根容器");
+      }
       const readPixels = async uri => {
         const image = new Image(); image.src = uri; await image.decode();
         const copy = document.createElement("canvas"); copy.width = image.width; copy.height = image.height;
@@ -121,8 +129,8 @@ async function main() {
     const cellFile = psd.linkedFiles.find(file => file.id === rows[0].placedLayer.id);
     assert.equal(cellFile.name, "服务器列表项.psd");
     const cell = read(cellFile.data);
-    assert.ok(cell.children[0].children.some(layer => layer.text?.text === "星港一区   ·   连接正常"));
-    assert.ok(cell.children[0].children.some(layer => layer.name === "图片" && !layer.text));
+    assert.deepEqual(cell.children.map(layer => layer.name), ["图片", "服务器名称"]);
+    assert.equal(cell.children[1].text?.text, "星港一区   ·   连接正常");
     const nested = read(Buffer.from(result.nested, "base64"));
     assert.deepEqual(nested.children[0].children.map(layer => [layer.left, layer.top, layer.right, layer.bottom]),
       [[5,7,30,15], [5,17,30,25], [31,7,42,15], [31,17,42,25]]);

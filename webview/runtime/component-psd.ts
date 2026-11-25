@@ -4,7 +4,7 @@ import { type GameFlowDocument, type GameFlowPage } from "../../shared/model";
 import { type ComponentPage, type ComponentPsdCheck, type ComponentPsdOutput } from "../../shared/page-psd-protocol";
 import { psdComponentInstances } from "../../shared/page-sync";
 import { resourceUuid } from "../../shared/prefab-export";
-import { componentPsdFileName } from "../../shared/page-psd";
+import { pagePsdFileName } from "../../shared/page-psd";
 import { encodePsd, requestPsd, sourceBytes } from "./page-psd";
 import type { ComponentPsd } from "./psd-smart-object";
 
@@ -32,7 +32,7 @@ export async function readComponentPsd(target: ComponentPsdTarget) {
   if (!loaded || loaded.asset.documentId !== binding.documentId) throw new Error("组件 PSD 关联已变化");
   const { sourceHash } = loaded.asset;
   const check: ComponentPsdCheck = { ...reference(target), binding, hash: sourceHash };
-  const source: ComponentPsd = { name: loaded.asset.name, embeddedName: componentPsdFileName(target.page.name), bytes: sourceBytes(loaded.asset),
+  const source: ComponentPsd = { name: loaded.asset.name, embeddedName: pagePsdFileName(target.page.name), bytes: sourceBytes(loaded.asset),
     origin: { documentId: target.documentId, pageId: target.pageId, psdId: binding.documentId, sourceHash, embeddedHash: sourceHash } };
   return { source, check };
 }
@@ -75,7 +75,7 @@ export async function prepareComponentPsdGeneration(document: GameFlowDocument, 
         } else {
           const projected = composeCanvasPage(document, target.page, sources, target.canvas);
           const nested = await collect(projected, new Set([...ancestors, key]));
-          const name = componentPsdFileName(target.page.name);
+          const name = pagePsdFileName(target.page.name);
           const bytes = await generatePrototypePsd(target.document, projected.page, psdComponentInstances(projected), { referenceDocument: document, sources }, nested);
           const sourceHash = await psdContentHash(bytes);
           const psdId = resourceUuid(target.documentId + ":" + target.pageId + ":psd");

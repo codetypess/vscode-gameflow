@@ -5,7 +5,7 @@
   "atlasName": "login",
   "source": {
     "name": "星海远征 · 登录.psd",
-    "sha256": "18113be58bb99565bbc94254e97b442f8274d6443fa0db879eb6e7d4562b2350",
+    "sha256": "7e8203c7bbb8d6ebbf75f099cf456164c9b53947fae7df2a68fbab53fe951894",
     "width": 750,
     "height": 1334
   },
@@ -13,7 +13,7 @@
     {
       "id": "t6od46b5",
       "sourceKey": 29,
-      "nativeId": 16,
+      "nativeId": 25,
       "name": "服务器列表项",
       "config": {
         "enabled": false,
@@ -30,19 +30,26 @@
           "pageId": "umlxcxo4",
           "nodeId": "t46xrozm"
         },
+        "componentSmartObject": true,
+        "componentSource": {
+          "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
+          "pageId": "qs1b6zrv",
+          "psdId": "cf7dc25c-7664-5a53-ade9-e655b6ba9c17",
+          "sourceHash": "d463bc03b3ed59122ea9fd39457a576c7609dd58bc550bd3bd9de5058564f638",
+          "embeddedHash": "d463bc03b3ed59122ea9fd39457a576c7609dd58bc550bd3bd9de5058564f638"
+        },
         "slicing": {
           "enabled": false,
           "name": "服务器列表项",
           "nineGrid": null
         },
-        "atlasName": "login",
-        "componentSmartObject": true
+        "atlasName": "login"
       }
     },
     {
       "id": "2xvqxj22",
       "sourceKey": 28,
-      "nativeId": 18,
+      "nativeId": 24,
       "name": "列表",
       "config": {
         "enabled": false,
@@ -59,19 +66,19 @@
           "pageId": "umlxcxo4",
           "nodeId": "85559x9k"
         },
+        "listCellsGenerated": true,
         "slicing": {
           "enabled": false,
           "name": "列表",
           "nineGrid": null
         },
-        "atlasName": "login",
-        "listCellsGenerated": true
+        "atlasName": "login"
       }
     },
     {
       "id": "3qskdidm",
       "sourceKey": 27,
-      "nativeId": 21,
+      "nativeId": 23,
       "name": "服务器列表项 8",
       "config": {
         "enabled": false,
@@ -121,7 +128,7 @@
     {
       "id": "jrpy9vu5",
       "sourceKey": 25,
-      "nativeId": 23,
+      "nativeId": 21,
       "name": "服务器列表项 6",
       "config": {
         "enabled": false,
@@ -146,7 +153,7 @@
     {
       "id": "6dtk8qr1",
       "sourceKey": 24,
-      "nativeId": 24,
+      "nativeId": 20,
       "name": "服务器列表项 5",
       "config": {
         "enabled": false,
@@ -171,7 +178,7 @@
     {
       "id": "rb5tgxai",
       "sourceKey": 23,
-      "nativeId": 25,
+      "nativeId": 19,
       "name": "服务器列表项 4",
       "config": {
         "enabled": false,
@@ -196,7 +203,7 @@
     {
       "id": "5so0tqnx",
       "sourceKey": 22,
-      "nativeId": 26,
+      "nativeId": 18,
       "name": "服务器列表项 3",
       "config": {
         "enabled": false,
@@ -221,7 +228,7 @@
     {
       "id": "f9cf7upv",
       "sourceKey": 21,
-      "nativeId": 27,
+      "nativeId": 17,
       "name": "服务器列表项 2",
       "config": {
         "enabled": false,
@@ -246,7 +253,7 @@
     {
       "id": "hcgh33sd",
       "sourceKey": 20,
-      "nativeId": 28,
+      "nativeId": 16,
       "name": "服务器列表项 1",
       "config": {
         "enabled": false,

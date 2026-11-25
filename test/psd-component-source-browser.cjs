@@ -31,7 +31,10 @@ async function main() {
     const document = JSON.parse(readFileSync(resolve(root, "sample/star-sea-login.gameflow.json"), "utf8"));
     delete document.pages[0].artPsd;
     delete document.pages[0].psdSync;
+    delete document.pages[1].artPsd;
+    delete document.pages[1].psdSync;
     document.pages[0].nodes.find(node => node.variableName === "serverList").name = instanceName;
+    document.pages[0].exportName = "LayaLogin";
     document.pages[1].exportName = "laya-server-list";
     await page.addInitScript(({ document, storageKey }) => {
       if (!localStorage.getItem(storageKey)) localStorage.setItem(storageKey, JSON.stringify(document));
@@ -52,11 +55,47 @@ async function main() {
     const bindings = await page.evaluate(key => JSON.parse(localStorage.getItem(key)).pages.map(page => page.artPsd), storageKey);
     assert.equal(generated.length, 2);
     page.off("download", collect);
+    const pageFilename = document.pages[0].name + ".psd";
+    assert.equal(generated[0].suggestedFilename(), pageFilename);
+    assert.equal(bindings[0].source, pageFilename);
     const [parent, component] = await Promise.all(bindings.slice(0, 2).map(({ source }) => bytesOf(generated.find(download => download.suggestedFilename() === source))));
     const initial = objectIn(parent);
     assert.equal(bindings[1].source, componentName);
     assert.equal(initial.name, componentName);
     assert.deepEqual(initial.bytes, component);
+    assert.deepEqual(readPsd(component, options).children.map(layer => layer.name), ["图片", "服务器名称"]);
+    await captions.nth(1).click();
+    await menu("PSD 同步");
+    const dialog = page.getByRole("dialog", { name: "PSD 同步" });
+    await dialog.getByText("文字与结构已一致").waitFor();
+    await dialog.getByRole("button", { name: "关闭同步窗" }).click();
+    const standaloneSync = await page.evaluate(async ({ document, root, base64 }) => {
+      const { prototypeTree, psdTree, applyPrototypeTree } = await import("/@fs/" + root + "/shared/page-sync.ts");
+      const { psdTask } = await import("/psd/io.ts");
+      const { writeSyncCopy } = await import("/runtime/sync-psd-copy.ts");
+      const { generatePrototypePsd } = await import("/runtime/prototype-psd.ts");
+      const source = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+      const asset = await psdTask("read", source.slice().buffer, "component.psd");
+      const template = document.pages[1];
+      const unexpected = () => { throw Error("unexpected PSD node"); };
+      const before = psdTree(document.documentId, template, asset, unexpected);
+      const desired = prototypeTree(template).map(node => node.type === "text" ? { ...node, text: "独立同步文字" } : node);
+      const updated = applyPrototypeTree(template, desired);
+      const result = await writeSyncCopy(document, updated, asset, source, before, desired);
+      const after = psdTree(document.documentId, updated, await psdTask("read", result.slice().buffer, "component.psd"), unexpected);
+      const text = after.find(node => node.type === "text");
+      if (text?.parent !== template.componentRootId || text.text !== "独立同步文字") throw Error("component sync lost the logical root");
+      const legacy = await generatePrototypePsd(document, template, undefined, { preserveComponentRoot: true });
+      const legacyAsset = await psdTask("read", legacy.slice().buffer, "component.psd");
+      const legacyOutput = await writeSyncCopy(document, updated, legacyAsset, legacy,
+        psdTree(document.documentId, template, legacyAsset, unexpected), desired);
+      const encode = bytes => btoa(Array.from(bytes, byte => String.fromCharCode(byte)).join(""));
+      return { flat: encode(result), legacy: encode(legacyOutput) };
+    }, { document, root, base64: component.toString("base64") });
+    assert.deepEqual(readPsd(Buffer.from(standaloneSync.flat, "base64"), options).children.map(layer => layer.name), ["图片", "服务器名称"]);
+    const legacyRoot = readPsd(Buffer.from(standaloneSync.legacy, "base64"), options).children[0];
+    assert.equal(legacyRoot.name, "容器");
+    assert.equal(legacyRoot.children[1].text?.text, "独立同步文字");
 
     const variants = await page.evaluate(async document => {
       const { generatePrototypePsd } = await import("/runtime/prototype-psd.ts");
@@ -74,7 +113,6 @@ async function main() {
       await menu("重新绑定 PSD");
       await (await chooser).setFiles({ name, mimeType, buffer: bytes });
     };
-    const dialog = page.getByRole("dialog", { name: "PSD 同步" });
     const open = async () => { await captions.first().click(); await menu("PSD 同步"); };
     const apply = async () => {
       const original = await dialog.getByRole("img", { name: "美术 PSD 合成图" }).getAttribute("src");

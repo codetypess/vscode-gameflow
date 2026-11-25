@@ -4,7 +4,8 @@ import { hasOnlyEmbeddedFileBlocks, preservePsdArt } from "../../shared/psd-sync
 import { sliceLayerMetadata, type PsdAsset, type PsdEmbeddedLayer, type PsdLayerMeta } from "../../shared/psd-meta";
 import type { GameFlowDocument, GameFlowPage } from "../../shared/model";
 import type { PsdComponentInstance, PsdVisualUpdate, SyncNode } from "../../shared/page-sync";
-import { componentPsdFileName } from "../../shared/page-psd";
+import { implicitPsdComponentRoot } from "../../shared/page-sync";
+import { pagePsdFileName } from "../../shared/page-psd";
 import { prototypeLayerRef } from "../../shared/psd-prototype";
 import { generatePrototypePsd } from "./prototype-psd";
 import { embeddedPsdFiles, embedPsdGroup, placeComponentPsd, type ComponentPsd } from "./psd-smart-object";
@@ -127,7 +128,16 @@ export async function writeSyncCopy(doc:GameFlowDocument, proto:GameFlowPage, as
   if(!hasOnlyEmbeddedFileBlocks(source,original)) throw new Error("当前 PSD 含其他全局图层数据，暂只支持采用到原型。");
   const existing = new Set(before.map(node => node.id));
   const addedComponentPsds = new Map(Array.from(componentPsds ?? []).filter(([id]) => !existing.has(id)));
-  const template=await generatePrototypePsd(doc,proto,components,{ reserved: asset.layers.map(layer=>layer.metadata.layerId), sources }, addedComponentPsds);
+  const implicitRoot = implicitPsdComponentRoot(doc.documentId, proto, asset);
+  const directChildren = implicitRoot ? after.filter(node => node.parent === implicitRoot.id) : [];
+  const directChildIds = new Set(directChildren.map(node => node.id));
+  const writtenNodes = implicitRoot && directChildren.length ? after.flatMap(node => {
+    if (node.id === implicitRoot.id) return directChildren.map(child => ({ ...child, parent: "" }));
+    return directChildIds.has(node.id) ? [] : [node];
+  }) : after;
+  const template=await generatePrototypePsd(doc,proto,components,{
+    reserved: asset.layers.map(layer=>layer.metadata.layerId), sources, preserveComponentRoot: !implicitRoot,
+  }, addedComponentPsds);
   const art=readForSync(source), generated=readForSync(template);
   const artFiles = embeddedPsdFiles(art.linkedFiles);
   if (artFiles.size !== (art.linkedFiles?.length ?? 0)) throw new Error("当前 PSD 含无法保真的智能对象链接。");
@@ -183,8 +193,8 @@ export async function writeSyncCopy(doc:GameFlowDocument, proto:GameFlowPage, as
       }
     }
   }
-  for(const node of after) {
-    const old=oldById.get(node.id);
+  for(const node of writtenNodes) {
+    const old=node.id === implicitRoot?.id ? undefined : oldById.get(node.id);
     if(!old) {
       const layer=templates.get(node.id);
       if(!layer) throw new Error("找不到新增控件的 PSD 占位："+node.name);
@@ -201,8 +211,16 @@ export async function writeSyncCopy(doc:GameFlowDocument, proto:GameFlowPage, as
       if(old.name!==node.name) layer.name=node.name+(layer.name?.match(/\s*\(UI\w+\)$/)?.[0]??"");
     }
   }
+  if (implicitRoot && directChildren.length) for (const node of writtenNodes) {
+    const layer = logical.get(node.id)!;
+    const meta = metadata.get(layer)!;
+    if (directChildIds.has(node.id)) {
+      meta.componentRootId = implicitRoot.id;
+      meta.prototype ??= { documentId: doc.documentId, pageId: proto.id, nodeId: node.id };
+    } else delete meta.componentRootId;
+  }
   function arrange(parent:string, existing:Layer[]):Layer[] {
-    const children=after.filter(n=>n.parent===parent).map(n=>logical.get(n.id)!);
+    const children=writtenNodes.filter(n=>n.parent===parent).map(n=>logical.get(n.id)!);
     // Maintain decorative layers in their authored position relative to surviving controls.
     const survivors=existing.filter(l=>!owner.has(l) || children.includes(l));
     const slots=survivors.filter(l=>owner.has(l));
@@ -281,7 +299,7 @@ export async function writeSyncCopy(doc:GameFlowDocument, proto:GameFlowPage, as
             throw new Error("组件图层组含无法保真的附加信息：" + member.name);
         }
         const frame = after.find(node => node.id === id)!.frame;
-        const { layer, file } = await embedPsdGroup(group, component.key, componentPsdFileName(component.sourceName), frame);
+        const { layer, file } = await embedPsdGroup(group, component.key, pagePsdFileName(component.sourceName), frame);
         metadata.set(layer, { ...metadata.get(group)!, componentSmartObject: true });
         if (group.id !== undefined) untouched.delete(group.id);
         layers[index] = layer;

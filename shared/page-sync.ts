@@ -90,10 +90,26 @@ export function currentSyncBase(docId:string, page:GameFlowPage, asset:PsdAsset)
   const base = page.psdSync;
   return base?.documentId === docId && base.pageId === page.id && base.psdId === asset.documentId ? base : undefined;
 }
+export function implicitPsdComponentRoot(docId: string, page: GameFlowPage, asset: PsdAsset) {
+  const root = page.nodes.find(node => node.id === page.componentRootId && node.type === "container" && !node.parentId);
+  if (!root) return;
+  const top = asset.layers.filter(layer => layer.parentKey === null && prototypeLayerRef(layer.metadata.prototype) &&
+    layer.metadata.prototype.documentId === docId && layer.metadata.prototype.pageId === page.id);
+  if (top.some(layer => prototypeLayerRef(layer.metadata.prototype) && layer.metadata.prototype.nodeId === root.id)) return;
+  if (top.some(layer => layer.metadata.componentRootId === root.id) ||
+      currentSyncBase(docId, page, asset)?.nodes.some(node => node.id === root.id && !node.layer)) return root;
+}
 export function psdTree(docId:string, page:GameFlowPage, asset:PsdAsset, makeId:(layer:PsdLayer)=>string, pairs:ReadonlyMap<string,string> = new Map(), forPrefab=false, components?: ReadonlyMap<string, PsdComponentInstance>): SyncNode[] {
   if (identityProblems(asset).length) throw new Error("PSD 图层身份重复，请先在切图编辑器中修复。");
   const base = currentSyncBase(docId,page,asset);
   const result:SyncNode[] = [], seen = new Set<string>();
+  const implicitRoot = implicitPsdComponentRoot(docId, page, asset);
+  const rootNode: SyncNode | undefined = implicitRoot && { id: implicitRoot.id, name: implicitRoot.name, type: "container",
+    parent: "", text: "", frame: implicitRoot.frame, variable: implicitRoot.variableName };
+  const rootChildren = implicitRoot && new Set(descendants(page, implicitRoot.id));
+  const previousChildren = implicitRoot && new Set(syncSubtree(base?.nodes ?? [], implicitRoot.id));
+  let rootInserted = false;
+  if (rootNode) seen.add(rootNode.id);
   function walk(parentKey:number|null, parent:string, parentType?:NodeType) {
     // PSD records arrive front-to-back. Prototype siblings are painted back-to-front.
     for (const layer of asset.layers.filter(l=>l.parentKey===parentKey).reverse()) {
@@ -120,12 +136,17 @@ export function psdTree(docId:string, page:GameFlowPage, asset:PsdAsset, makeId:
       const nodeId = id ?? makeId(layer);
       if (seen.has(nodeId)) throw new Error("多个 PSD 图层对应同一控件，请检查 " + layer.name);
       seen.add(nodeId);
-      result.push({ id:nodeId, name, type, parent, text:layer.textContent ?? "", layer:layer.metadata.layerId,
+      const belongsToRoot = rootNode && parentKey === null && (layer.metadata.componentRootId === rootNode.id ||
+        (proto ? rootChildren?.has(proto.id) : saved ? previousChildren?.has(saved.id) : true));
+      if (belongsToRoot && !rootInserted) { result.push(rootNode); rootInserted = true; }
+      const effectiveParent = belongsToRoot ? rootNode.id : parent;
+      result.push({ id:nodeId, name, type, parent:effectiveParent, text:layer.textContent ?? "", layer:layer.metadata.layerId,
         variable:proto?.variableName, frame:{x:layer.left,y:layer.top,width:Math.max(1,layer.width),height:Math.max(1,layer.height)} });
       if (layer.group && COMPONENTS[type].children && !components?.has(nodeId)) walk(layer.key,nodeId,type);
     }
   }
   walk(null,"");
+  if (rootNode && !rootInserted) result.unshift(rootNode);
   return result;
 }
 export function syncSubtree(tree:SyncNode[], id:string): string[] {

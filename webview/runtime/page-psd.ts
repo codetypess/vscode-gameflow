@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { GameFlowDocument, GameFlowPage } from "../../shared/model";
-import { bindPagePsd, componentPsdFileName, pagePsdKey } from "../../shared/page-psd";
+import { bindPagePsd, pagePsdFileName, pagePsdKey } from "../../shared/page-psd";
 import type { PsdAsset } from "../../shared/psd-meta";
 import { applyPsdDraft } from "../../shared/psd-draft";
 import { validComponentPsdFields, validPsdBase64, type ComponentPsdBinding, type PagePsdRequest, type PagePsdResult } from "../../shared/page-psd-protocol";
-import { prefabFileName } from "../../shared/prefab-export";
 import { openPsd, psdTask, saveOutput } from "../psd/io";
 import { isBrowserPreview, postHostMessage } from "../vscode-api";
 import { compareTrees, coordinatedBase, prototypeTree, psdComponentInstances, psdTree } from "../../shared/page-sync";
@@ -146,7 +145,7 @@ export function usePagePsds(document: GameFlowDocument | null, read: () => GameF
       const bytes = action === "generate" ? await (await import("./prototype-psd")).generatePrototypePsd(current, composition.page, components,{ previous, sources: latest.current.sources }, generated?.psds) : undefined;
       if (action === "generate" && JSON.stringify(latest.current.read()) !== JSON.stringify(current))
         throw new Error("画布已变化，请重新生成 PSD。");
-      const name = page.componentRootId ? componentPsdFileName(page.name) : prefabFileName(page).replace(/\.\.+/g, "_").replace(/\.lh$/, ".psd");
+      const name = pagePsdFileName(page.name);
       const result = await requestPsd({ pageId, action, expected: page.artPsd, name,
         ...(generated && { componentOutputs: generated.outputs, componentChecks: generated.checks }) }, bytes);
       if (!result || !alive.current || actions.current.get(pageId) !== token) return;

@@ -25,6 +25,9 @@ async function main() {
       const { psdTask } = await import("/psd/io.ts");
       const base = document.pages[0];
       const instance = base.nodes.find(node => node.variableName === "serverList");
+      const template = document.pages.find(page => page.id === instance.prefab.pageId);
+      delete template.artPsd;
+      delete template.psdSync;
       const duplicate = (id, name, y) => ({ ...instance, id, name, variableName: id, frame: { ...instance.frame, y } });
       const many = { ...base, nodes: [...base.nodes, { ...duplicate("samecopy", "Same", 250), transform: { rotation: 12 } }, duplicate("otherone", "Variant", 310)] };
       const composition = composeCanvasPage(document, many, {});
