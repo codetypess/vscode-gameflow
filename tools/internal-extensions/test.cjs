@@ -118,7 +118,7 @@ test("updater validates signed packages, installs once, isolates profiles and bl
     const storage = path.join(directory, name);
     const vscode = {
       ExtensionMode: { Production: 1, Development: 2 }, version: "1.146.0", env: { remoteName },
-      window: { createOutputChannel: () => ({ appendLine() {}, dispose() {} }), showInformationMessage: async () => undefined, showErrorMessage: async () => undefined },
+      window: { createOutputChannel: () => ({ appendLine() {}, dispose() {} }), showInformationMessage: async (_message, ...actions) => actions.includes("安装更新") ? "安装更新" : undefined, showErrorMessage: async () => undefined },
       workspace: { getConfiguration: () => ({ inspect: () => ({ globalValue: source, workspaceValue: "http://attacker/" }), get: () => true }) },
       extensions: { getExtension: (id) => installed.get(id) },
       Uri: { file: (value) => ({ fsPath: value }) },
@@ -146,6 +146,109 @@ test("updater validates signed packages, installs once, isolates profiles and bl
   bytes = bytes.replace("Probe", "Tampered");
   assert.equal((await first.api.check({ silent: true })).errors.length, 1);
   assert.equal(installs, 1);
+});
+
+test("updater requires confirmation before downloading business or self updates, including legacy auto settings", async (t) => {
+  const directory = temporary(t);
+  const pair = crypto.generateKeyPairSync("ed25519");
+  const data = catalogFor("codetypes.probe", ["1.1.0"]);
+  Object.assign(data.extensions, catalogFor("codetypes.internal-updater", ["0.1.2"]).extensions);
+  const packages = new Map();
+  for (const [id, entry] of Object.entries(data.extensions)) {
+    const release = entry.releases[0];
+    const file = await fixture(directory, id.split(".")[1], release.version);
+    const metadata = await lib.readVsix(file);
+    Object.assign(release, { size: metadata.size, sha256: metadata.sha256 });
+    entry.displayName = id === "codetypes.probe" ? "业务插件" : "内部更新器";
+    packages.set("/" + release.path, fs.readFileSync(file));
+  }
+  const signed = lib.signCatalog(data, pair.privateKey);
+  let catalogRequests = 0;
+  let packageRequests = 0;
+  const server = http.createServer((request, response) => {
+    if (request.url === "/catalog.json") { catalogRequests++; response.end(signed); }
+    else if (packages.has(request.url)) { packageRequests++; response.end(packages.get(request.url)); }
+    else { response.writeHead(404); response.end(); }
+  });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  t.after(() => { server.closeAllConnections(); server.close(); });
+  const source = `http://127.0.0.1:${server.address().port}/`;
+  const updaterPath = path.resolve(__dirname, "../../internal-updater/extension.cjs");
+  const installed = new Map([
+    ["codetypes.probe", { extensionPath: "/installed/probe", extensionUri: { scheme: "file" }, packageJSON: { version: "1.0.0" } }],
+    ["codetypes.internal-updater", { extensionPath: "/installed/internal-updater", extensionUri: { scheme: "file" }, packageJSON: { version: "0.1.1" } }]
+  ]);
+  const scenarios = [
+    { name: "fresh-global-auto-on", autoUpdate: true },
+    { name: "fresh-global-auto-off", autoUpdate: false },
+    { name: "legacy-auto", mode: "auto", autoUpdate: true },
+    { name: "legacy-independent-auto", mode: "auto", independentAutoUpdate: true, autoUpdate: false },
+    { name: "prompt", mode: "prompt", autoUpdate: true },
+    { name: "paused", mode: "off", independentAutoUpdate: true, autoUpdate: true }
+  ];
+  for (const scenario of scenarios) await t.test(scenario.name, async (subtest) => {
+    const storage = path.join(directory, scenario.name);
+    const stateFile = path.join(storage, "state.json");
+    fs.mkdirSync(storage);
+    if (scenario.mode) fs.writeFileSync(stateFile, JSON.stringify({ managed: { "codetypes.internal-updater": {}, "codetypes.probe": { pin: "1.1.0" } }, pending: {}, mode: scenario.mode, independentAutoUpdate: scenario.independentAutoUpdate, revision: 0 }));
+    const subscriptions = [];
+    const prompts = [];
+    const installs = [];
+    const errors = [];
+    let response;
+    const vscode = {
+      ExtensionMode: { Production: 1 }, version: "1.146.0", env: {},
+      window: {
+        createOutputChannel: () => ({ appendLine() {}, dispose() {} }),
+        showInformationMessage: async (message, ...actions) => { if (!actions.includes("安装更新")) return; prompts.push({ message, actions }); return response; },
+        showErrorMessage: async (message) => { errors.push(message); }
+      },
+      workspace: { getConfiguration: () => ({ inspect: () => ({ globalValue: source }), get: () => scenario.autoUpdate }) },
+      extensions: { getExtension: (id) => installed.get(id) },
+      Uri: { file: (value) => ({ fsPath: value }) },
+      commands: { registerCommand: () => ({ dispose() {} }), executeCommand: async (command, uri) => { assert.equal(command, "workbench.extensions.installExtension"); const metadata = await lib.readVsix(uri.fsPath); installs.push(`${metadata.id}@${metadata.manifest.version}`); } }
+    };
+    const module = { exports: {} };
+    vm.runInNewContext(fs.readFileSync(updaterPath, "utf8"), { module, exports: module.exports, require: (id) => id === "vscode" ? vscode : createRequire(updaterPath)(id), __UPDATER_TRUST__: { serverUrl: source, publicKey: pair.publicKey.export({ type: "spki", format: "pem" }) }, Buffer, URL, setTimeout, setInterval, clearTimeout, clearInterval, process, console });
+    const api = module.exports.activate({ globalStorageUri: { fsPath: storage }, extensionPath: "/installed/internal-updater", extensionMode: 1, subscriptions });
+    subtest.after(() => { for (const subscription of subscriptions) subscription.dispose(); });
+    if (!scenario.mode) await api.enroll("codetypes.probe");
+    const beforePackages = packageRequests;
+    const beforeCatalogs = catalogRequests;
+    let result = await api.check({ silent: true });
+    assert.equal(result.errors.length, 0);
+    if (scenario.mode === "off") {
+      assert.equal(catalogRequests, beforeCatalogs, "paused background checks must not request the catalog");
+      assert.equal(prompts.length, 0);
+      result = await api.check();
+    }
+    assert.equal(result.updated.length, 0, "dismissing the prompt must leave installed versions unchanged");
+    assert.equal(prompts.length, 1);
+    assert.ok(prompts[0].actions.includes("稍后"));
+    assert.match(prompts[0].message, /业务插件.*1\.0\.0.*1\.1\.0/);
+    assert.match(prompts[0].message, /内部更新器.*0\.1\.1.*0\.1\.2/);
+    assert.equal(packageRequests, beforePackages, "no VSIX may be downloaded before confirmation");
+    assert.equal(installs.length, 0);
+    const state = JSON.parse(fs.readFileSync(stateFile, "utf8"));
+    assert.equal(state.mode, scenario.mode === "off" ? "off" : "prompt");
+    assert.equal(Object.hasOwn(state, "independentAutoUpdate"), false);
+    if (scenario.mode) assert.equal(state.managed["codetypes.probe"].pin, "1.1.0");
+    response = "稍后";
+    await api.check();
+    assert.equal(packageRequests, beforePackages);
+    assert.equal(installs.length, 0);
+    response = "安装更新";
+    const accepted = await api.check();
+    assert.equal(accepted.errors.length, 0);
+    assert.equal(accepted.updated.length, 2);
+    assert.deepEqual(installs, ["codetypes.probe@1.1.0", "codetypes.internal-updater@0.1.2"]);
+    assert.equal(packageRequests, beforePackages + 2);
+    const promptCount = prompts.length;
+    await api.check();
+    assert.equal(prompts.length, promptCount, "pending versions must not prompt again");
+    assert.equal(installs.length, 2);
+    assert.deepEqual(errors, []);
+  });
 });
 
 module.exports = { fixture };

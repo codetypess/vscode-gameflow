@@ -11,11 +11,12 @@ if (candidates.length !== 1) throw new Error("Expected exactly one installed VS 
 const cli = candidates[0];
 const settings = path.join(smoke, "user/User/settings.json");
 const extensions = path.join(smoke, "extensions");
+const updaterVersion = require("../../internal-updater/package.json").version;
 function run(binary, args, env) { const result = cp.spawnSync(binary, args, { stdio: "inherit", windowsHide: true, env: env || process.env }); if (result.error) throw result.error; if (result.status) throw new Error(`${binary} exited ${result.status}`); }
 function prepare() {
   fs.mkdirSync(path.dirname(settings), { recursive: true });
   fs.mkdirSync(extensions, { recursive: true });
-  fs.writeFileSync(settings, JSON.stringify({ "internalUpdater.serverUrl": "http://127.0.0.1:18082/", "extensions.autoUpdate": true, "extensions.autoCheckUpdates": false, "update.mode": "none", "telemetry.telemetryLevel": "off", "workbench.startupEditor": "none", "security.workspace.trust.enabled": false }));
+  fs.writeFileSync(settings, JSON.stringify({ "internalUpdater.serverUrl": require("./trust.json").serverUrl, "extensions.autoUpdate": false, "extensions.autoCheckUpdates": false, "update.mode": "none", "telemetry.telemetryLevel": "off", "workbench.startupEditor": "none", "security.workspace.trust.enabled": false }));
   for (const version of ["0.1.0", "0.1.1"]) {
     const folder = path.join(smoke, `probe-${version}`); fs.mkdirSync(folder, { recursive: true });
     fs.writeFileSync(path.join(folder, "package.json"), JSON.stringify({ name: "update-probe", displayName: "Internal Update Probe (deployment test)", description: "Hidden deployment verification fixture", publisher: "codetypes", version, license: "MIT", engines: { vscode: "^1.105.0" }, contributes: { configuration: { title: "Internal Update Probe", properties: { "internalUpdateProbe.fixtureVersion": { type: "string", default: version } } } } }));
@@ -37,12 +38,13 @@ exports.run = async function () {
   try {
     const extension = vscode.extensions.getExtension('codetypes.internal-updater');
     assert.ok(extension, 'updater must be installed normally');
+    assert.equal(extension.packageJSON.version, '${updaterVersion}');
     const api = await extension.activate();
     await api.enroll('codetypes.update-probe');
+    // Accept the native "安装更新" prompt manually in the isolated test window.
     const first = await api.check({ silent: true });
     assert.deepEqual(first.errors, []);
     assert.ok(first.updated.includes('codetypes.update-probe@0.1.1'), JSON.stringify(first));
-    assert.ok(first.updated.includes('codetypes.internal-updater@0.1.1'), JSON.stringify(first));
     const second = await api.check({ silent: true });
     assert.deepEqual(second.errors, []);
     assert.equal(second.updated.length, 0);
@@ -55,7 +57,7 @@ exports.run = async function () {
   console.log(smoke);
 }
 function install() {
-  for (const file of [path.join(root, "dist/packages/codetypes.internal-updater-0.1.0.vsix"), path.join(smoke, "probe-0.1.0.vsix")]) run(code, [cli, "--user-data-dir", path.join(smoke, "user"), "--extensions-dir", extensions, "--install-extension", file, "--force"], { ...process.env, ELECTRON_RUN_AS_NODE: "1" });
+  for (const file of [path.join(root, `dist/packages/codetypes.internal-updater-${updaterVersion}.vsix`), path.join(smoke, "probe-0.1.0.vsix")]) run(code, [cli, "--user-data-dir", path.join(smoke, "user"), "--extensions-dir", extensions, "--install-extension", file, "--force"], { ...process.env, ELECTRON_RUN_AS_NODE: "1" });
 }
 if (process.argv[2] === "prepare") prepare();
 else if (process.argv[2] === "install") install();

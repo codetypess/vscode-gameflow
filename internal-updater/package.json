@@ -1,9 +1,9 @@
 {
   "name": "internal-updater",
   "displayName": "Bit 内部插件更新器",
-  "description": "管理、安装和更新 Bit 内部 VS Code 插件。",
+  "description": "管理 Bit 内部 VS Code 插件，自动检查新版，确认后安装更新。",
   "publisher": "codetypes",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "license": "MIT",
   "engines": {
     "vscode": "^1.105.0"

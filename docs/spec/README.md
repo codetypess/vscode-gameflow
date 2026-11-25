@@ -34,6 +34,8 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 
 ## Active Work Items
 
+- [internal-extension-update-prompts.md](internal-extension-update-prompts.md) — Done：新版先提示，确认后下载安装；更新器 0.1.2 已发布，17 项分发测试、打包及域名下载验签通过，旧自动安装设置迁移为确认模式。
+
 - [psd-read-ownership-regression.md](psd-read-ownership-regression.md) — 页面后台读取后释放干净会话，避免同名重新生成误报占用。
 
 - [existing-psd-layer-id-migration.md](existing-psd-layer-id-migration.md) — Done：迁移样例中 15 个旧 UUID 图层身份，同步 PSD、配置与画布引用；像素保真检查、重复执行预检、391 项共享测试及类型检查通过。
@@ -76,7 +78,7 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 
 - [page-psd-binding.md](page-psd-binding.md) — Done：页面独立保存 PSD 文件关联；美术模式未绑定入口、生成即绑定、后台装载、多页文件资源隔离和保存重开完成。358 项共享测试、46 项原生宿主检查、新增页面浏览器/7 项像素及既有 14 组浏览器回归、生产构建通过。
 
-- [internal-extension-updates.md](internal-extension-updates.md) — Verifying：vsix.bitserver.wang 的分发容器、签名目录、发布工具和更新器已部署；333 项原测试、10 项分发测试及 Windows 真机插件/更新器自身升级通过；等待主机 Nginx 的 sudo reload 完成域名入口验收。
+- [internal-extension-updates.md](internal-extension-updates.md) — Verifying：分发服务与域名入口可用，签名目录及 Windows 真机升级已有验证；现行 0.1.2 提示确认流程见 internal-extension-update-prompts，macOS/多窗口/备份恢复等人工演练待验收。
 
 - [prototype-art-prefab-resource-modes.md](prototype-art-prefab-resource-modes.md) — Verifying：三种资源模式、69 张内置 PNG、UIButton 三态、控件图片部件、横向/圆形进度、PSD 生成/稳定关联和 Prefab 输出已实现，示例已直接更新；350 项共享测试、14 组浏览器、41 项 PSD/资源宿主、6 项实例宿主检查及生产构建通过。真实 Laya 工程和 Photoshop 往返待验收，复杂 PSD 变换与 imageFit 的目标映射边界已记录。
 

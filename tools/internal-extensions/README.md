@@ -4,9 +4,11 @@
 
 ## Install
 
-从站点下载统一更新器，使用 VS Code 扩展面板菜单中的“从 VSIX 安装”。随后运行“Bit 内部插件: 浏览与安装插件”。已有 GameFlow 可选择“加入自动更新”；新插件选择“安装并托管”。仅更新明确托管的插件，更新器本身默认托管。
+从站点下载统一更新器，使用 VS Code 扩展面板菜单中的“从 VSIX 安装”。随后运行“Bit 内部插件: 浏览与安装插件”。已有 GameFlow 可选择“加入更新检查”；新插件选择“安装并托管”。仅检查明确托管的插件，更新器本身默认托管。
 
-首版仅支持本地桌面窗口和 universal、独立的插件。不自动安装远端窗口中的插件或依赖包，不主动重载窗口。请保存文档后使用 VS Code 的生效提示。可以在“管理插件”中暂停、仅提示或独立启用自动更新，在插件列表中固定版本或回退。
+启动约 30 秒后、之后每六小时自动检查新版；发现更新时列出插件和版本，用户点击“安装更新”后才下载并安装，选择“稍后”或关闭提示均不安装。更新器自身遵循相同规则，旧自动安装设置也会迁移为确认后安装。已经暂停的检查保持暂停，手动“立即检查更新”仍可使用。
+
+首版仅支持本地桌面窗口和 universal、独立的插件。不安装远端窗口中的插件或依赖包，不主动重载窗口。请保存文档后使用 VS Code 的生效提示。可以在“管理插件”中暂停自动检查，在插件列表中固定版本或回退。
 
 ## Publish GameFlow
 
@@ -38,7 +40,7 @@ ID、版本、引擎范围、摘要与尺寸从 VSIX 自动提取。工具通过
 ```powershell
 npm run test:distribution
 npm run package:updater
-npm run publish:internal -- --file dist/packages/codetypes.internal-updater-0.1.1.vsix
+npm run publish:internal -- --file dist/packages/codetypes.internal-updater-0.1.2.vsix
 ```
 
 正式发布新版本前修改 `internal-updater/package.json` 的版本号。构建使用 `tools/internal-extensions/trust.json` 中的已固定公钥，不能通过 HTTP 下载一个新公钥并自动信任。该文件只含公钥，不含私钥。
@@ -86,6 +88,6 @@ sudo /opt/homebrew/bin/nginx -c /opt/homebrew/etc/nginx/nginx.conf -g 'pid /var/
 
 - `npm test`：GameFlow 原有测试。
 - `npm run test:distribution`：签名、路径、平台与包身份、版本兼容、并发发布、重复安装、Profile/远端边界与发行包白名单。
-- `tools/internal-extensions/smoke.cjs prepare|install`：在 dist/distribution-smoke 建立隔离的真实 VS Code 验证环境。prepare 生成 0.1.0/0.1.1 探针，install 仅修改该隔离 Profile。端到端结果记录在 result.json。
+- `tools/internal-extensions/smoke.cjs prepare|install`：在 dist/distribution-smoke 建立隔离的真实 VS Code 验证环境。prepare 生成 0.1.0/0.1.1 探针和测试 runner，install 安装当前打包的更新器与旧版探针，仅修改该隔离 Profile。运行 runner 时需在隔离窗口人工点击“安装更新”，再验证探针升级及 pending 防重复；端到端结果记录在 result.json。更新器自身的确认行为由分发测试覆盖。
 
 部署实际状态、测试版本和待办项见 `docs/spec/internal-extension-updates.md`。
