@@ -6,6 +6,7 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
 
 const pixels = { width: 30, height: 20, data: new Uint8ClampedArray(30 * 20 * 4).fill(255) };
 const pixelLayer = (name, left, top) => ({ name, left, top, imageData: pixels });
+const points = value => ({ value, units: "Points" });
 const layeredPsd = writePsdBuffer({ width: 320, height: 240, children: [
   pixelLayer("背景", 0, 0),
   { name: "容器", hidden: true, children: [
@@ -14,6 +15,12 @@ const layeredPsd = writePsdBuffer({ width: 320, height: 240, children: [
       text: { text: "确认\n购买", style: { fontSize: 18, fillColor: { r: 18, g: 52, b: 86 } } } },
   ] },
   pixelLayer("前景", 90, 100),
+  { name: "点文本", left: 33, top: 99, imageData: { width: 95, height: 24, data: new Uint8ClampedArray(95 * 24 * 4).fill(255) },
+    text: { text: "测试标题", shapeType: "point", transform: [1, 0, 0, 1, 80, 120],
+    bounds: { left: points(-48), top: points(-21.12), right: points(48), bottom: points(2.88) },
+    style: { fontSize: 24 }, paragraphStyle: { justification: "center" } } },
+  { ...pixelLayer("段落文本", 24, 152), text: { text: "段落自动换行", shapeType: "box", transform: [1.5, 0, 0, 1.5, 20, 150],
+    boxBounds: [0, 0, 40, 40], style: { fontSize: 12 } } },
 ] });
 
 async function run() {
@@ -63,7 +70,7 @@ async function run() {
 
     await page.getByRole("button", { name: "美术 PSD资源", exact: true }).click();
     await importFile({ name: "购买.PSD", mimeType: "application/octet-stream", buffer: layeredPsd }, true);
-    await inspector.filter({ hasText: "已导入 5 个图层" }).waitFor();
+    await inspector.filter({ hasText: "已导入 7 个图层" }).waitFor();
     await page.getByRole("button", { name: "总览", exact: true }).waitFor();
     assert.equal(await page.getByRole("button", { name: "原型资源", exact: true }).getAttribute("aria-pressed"), "true");
     const imported = (await snapshot()).pages.at(-1);
@@ -71,8 +78,9 @@ async function run() {
     assert.deepEqual(imported.frame, { x: 300, y: 0, width: 320, height: 240 });
     assert.deepEqual(imported.nodes.map(node => [node.name, node.type]), [
       ["背景", "image"], ["容器", "container"], ["图标", "image"], ["文字", "text"], ["前景", "image"],
+      ["点文本", "text"], ["段落文本", "text"],
     ]);
-    const [, group, icon, label, foreground] = imported.nodes;
+    const [, group, icon, label, foreground, point, paragraph] = imported.nodes;
     assert.deepEqual(group.frame, { x: 20, y: 30, width: 70, height: 35 });
     assert.equal(group.hidden, true);
     assert.equal(icon.hidden, undefined);
@@ -80,6 +88,27 @@ async function run() {
     assert.equal(label.parentId, group.id);
     assert.deepEqual(label.frame, { x: 40, y: 15, width: 30, height: 20 });
     assert.equal(label.text, "确认\n购买");
+    const textLines = node => page.locator(`[data-node-id="${node.id}"] .label-content > span`);
+    assert.deepEqual(await textLines(point).allTextContents(), ["测试标题"]);
+    assert.deepEqual(await textLines(paragraph).allTextContents(), ["段落自", "动换行"]);
+    assert.equal(label.widget.wordWrap, false);
+    assert.equal(point.frame.x, 32);
+    assert.equal(point.frame.width, 96);
+    assert.ok(Math.abs(point.frame.y - 98.88) < .01);
+    assert.equal(point.widget.valign, "middle");
+    const baseline = await textLines(point).evaluate(line => {
+      const node = line.closest("[data-node-id]");
+      const marker = document.createElement("span");
+      marker.style.display = "inline-block";
+      line.append(marker);
+      const bounds = node.getBoundingClientRect();
+      const zoom = bounds.width / parseFloat(node.style.width);
+      const offset = (marker.getBoundingClientRect().top - bounds.top) / zoom;
+      marker.remove();
+      return offset;
+    });
+    assert.ok(Math.abs(point.frame.y + baseline - 120) < 3, "point text baseline follows the PSD");
+    assert.deepEqual(paragraph.frame, { x: 20, y: 150, width: 60, height: 60 });
     assert.equal(label.style.fontSize, 18);
     assert.equal(label.style.color, "#123456");
     const image = page.locator(`[data-node-id="${foreground.id}"] img`);

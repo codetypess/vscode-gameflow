@@ -62,9 +62,13 @@ async function checkRuntime(browser,root,prefab) {
       await button("更多").click();
       await p.getByRole("menuitem",{name:"预制体同步",exact:true}).click();
     };
+    const openPrefabFromBoard=async()=>{
+      await p.locator(".page-caption").first().click({button:"right"});
+      await p.getByRole("menu",{name:"画板右键菜单",exact:true}).getByRole("menuitem",{name:"预制体同步",exact:true}).click();
+    };
     assert.equal(await p.locator(".canvas-toolbar").getByRole("button",{name:/^(导出|同步)$/}).count(),0);
     assert.equal(await button("运行预览").count(),0);
-    await openPrefab();
+    await openPrefabFromBoard();
     await p.getByRole("status").filter({hasText:"原型「登录」未设置导出名称"}).waitFor();
     const entries = await p.evaluate(async () => {
       const root = await navigator.storage.getDirectory();
@@ -74,7 +78,7 @@ async function checkRuntime(browser,root,prefab) {
     const exportName = p.getByRole("textbox",{name:"导出名称",exact:true});
     await exportName.fill("登录");
     await exportName.press("Enter");
-    await openPrefab();
+    await openPrefabFromBoard();
     await p.waitForFunction(()=>JSON.parse(localStorage.getItem("gameflow.prototype.v1")).pages[0].prefabSync);
     // Two independently saved inputs, including a foreign Laya ID and a private component.
     await p.evaluate(async()=>{

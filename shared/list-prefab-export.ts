@@ -5,6 +5,7 @@ import { cellKey, resolveCellPage, resolvePrefabPage } from "./list-cell";
 import { referencedCellUuids, planPrefabExport, prefabFileName, resourceUrl, type CellPrefabFile, type ExportImageResolver, type PrefabSnapshot, type PrefabTarget } from "./prefab-export";
 import { inspectPrefab, prefabPreviewPage, prefabTarget } from "./prefab-sync";
 import { prefabExportNameIssue } from "./prefab-export-name";
+import { prefabExportPage } from "./prefab-node-export";
 import type { PrefabPlan } from "./prefab-export";
 
 type Snapshot = Pick<PrefabSnapshot, "prefab" | "hash" | "uuid" | "skins" | "metadata">;
@@ -66,7 +67,7 @@ export async function planListPrefabExport(document: GameFlowDocument, page: Gam
       return;
     }
     creating.add(key);
-    for (const node of canonical.nodes) {
+    for (const node of prefabExportPage(canonical).nodes) {
       if (node.cellPrefab && "source" in node.cellPrefab) await dependency(node.cellPrefab,true,source.source);
       if (node.prefab) await dependency(node.prefab,false,source.source);
     }
@@ -85,7 +86,7 @@ export async function planListPrefabExport(document: GameFlowDocument, page: Gam
   }
   const issue = prefabExportNameIssue(document, page, sources);
   if (issue) throw new Error(issue);
-  for (const node of page.nodes) {
+  for (const node of prefabExportPage(page).nodes) {
     if (node.cellPrefab && "source" in node.cellPrefab) await dependency(node.cellPrefab,true);
     if (node.prefab) await dependency(node.prefab,false);
   }

@@ -7,6 +7,7 @@ import { DialogHeading } from "../components/dialog-heading";
 import {useEffect,useMemo,useRef,useState} from "react";
 import type {Decision} from "../../shared/page-sync";
 import {mergePrefab,prefabPreviewPage,type PrefabReview,type PrefabSyncMode} from "../../shared/prefab-sync";
+import { prefabExportPage } from "../../shared/prefab-node-export";
 import {resourceUrl,type PrefabPlan} from "../../shared/prefab-export";
 import {SyncPreview} from "./page-sync-dialog";
 import {changeTitle, changeValue, describeDecision, PrefabSyncChange} from "./prefab-sync-change";
@@ -81,7 +82,7 @@ export function PrefabSyncDialog({review,cells,plan,mode,asset,skins,resourceRoo
   const node=union.get(id),selected=c.changes.filter(ch=>ch.members.includes(id));
   const native=review.originals.get(id)??(id===review.page.id?review.root:undefined);
   const rawChildren=Array.isArray(native?._$child)?native._$child:[];
-  const extraChildren=rawChildren.filter(n=>![...review.originals.values()].includes(n));
+  const extraChildren=rawChildren.filter(n=>!review.excludedRecords.has(n) && ![...review.originals.values()].includes(n));
   const nativeProps=native ? Object.fromEntries(Object.entries(native).filter(([k])=>k!=="_$child")) : undefined;
   const unknownSkins=["skin","normalSkin","selectedSkin","disabledSkin"].map(k=>native?.[k]).filter((s):s is string=>
     typeof s==="string" && !!s && !skins?.[s] && !isSliceResourcePath(s));
@@ -89,6 +90,7 @@ export function PrefabSyncDialog({review,cells,plan,mode,asset,skins,resourceRoo
   const skipped=c.changes.length-pending-applied.length;
   const cellChanges = m?.batch.cells?.filter(cell=>cell.prefab || cell.metaChanged).map(cell=>[cell.directory,cell.name].filter(Boolean).join("/")) ?? [];
   const hasAssets=mode!=="pull" && (review.metadata?.prefabMetaChanged || !!m?.batch.images.length || !!cellChanges.length);
+  const omittedTargets = mode === "pull" ? 0 : review.excludedRecords.size;
   const toggle=(key:string)=>setExpanded(prev=>{const next=new Set(prev);if(next.has(key))next.delete(key);else next.add(key);return next;});
   async function run(action:()=>Promise<void>) {
     setBusy(true);setError("");
@@ -101,7 +103,7 @@ export function PrefabSyncDialog({review,cells,plan,mode,asset,skins,resourceRoo
     <div className="sync-layout"><SyncTree page={review.page} nodes={[...union.values()].filter(node=>!hiddenReplacementMembers.has(node.id))} changes={c.changes}
       selected={id} selectedComponent={extra} components={review.engine} expanded={expanded} onToggle={toggle} onSelect={selectNode} />
       <section className="sync-main"><div className="sync-bar"><strong>{node?.name??review.page.name}</strong><div><button aria-pressed={!result} onClick={()=>{setResult(false);setDetails(false);}}>当前</button><button aria-pressed={result} onClick={()=>setResult(true)}>同步后</button></div></div>
-        <div className="sync-boards"><figure><figcaption>{asset?"美术 PSD":"原型 · 内置资源"}</figcaption><SyncPreview asset={asset} page={result && m?m.page:review.page} canvasSize={review.page.frame} selected={extra===null?id:""} nodes={trees.proto} changes={c.changes} old={c.base?.nodes??[]} onSelect={selectNode}/></figure>
+        <div className="sync-boards"><figure><figcaption>{asset?"美术 PSD":"原型 · 内置资源"}</figcaption><SyncPreview asset={asset} page={result && m?prefabExportPage(m.page):review.exportPage} canvasSize={review.page.frame} selected={extra===null?id:""} nodes={trees.proto} changes={c.changes} old={c.base?.nodes??[]} onSelect={selectNode}/></figure>
           <figure><figcaption>预制体 · 静态 UI</figcaption><ListCells.Provider value={{resolve(ref) {
             const key = cellKey(ref);
             const uuid = "uuid" in ref ? ref.uuid : [...review.cellReferences].find(([,binding])=>cellKey(binding)===key)?.[0];
@@ -114,7 +116,8 @@ export function PrefabSyncDialog({review,cells,plan,mode,asset,skins,resourceRoo
         {unknownSkins.length>0 && <p>未定位到预览贴图　{[...new Set(unknownSkins)].join("、")}</p>}
         {extra!==null && <fieldset><legend>仅预制体 · {review.engine.get(id)?.[extra]?.name}</legend><pre>{JSON.stringify(review.engine.get(id)?.[extra]?.value,null,2)}</pre></fieldset>}
         {!c.base && !fixedSide && <p>首次对照。请确认单侧控件的对应关系和处理方向。</p>}
-        {!c.changes.length && <p>可同步的控件与属性已一致。</p>}
+        {!c.changes.length && !omittedTargets && <p>可同步的控件与属性已一致。</p>}
+        {!!omittedTargets && <p>确认应用时将从预制体移除 {omittedTargets} 个取消导出的控件分支。</p>}
         {hasAssets && <p>待同步资源文件　{[...(review.metadata?.prefabMetaChanged?[review.target+".meta"]:[]),...cellChanges,...m?.batch.images.map(i=>i.path)??[]].join("、")}</p>}
         {extra===null && selected.map(ch=>fixedSide ? <fieldset key={ch.key}><legend>{changeTitle(ch)}</legend>
           <dl className="sync-values"><dt>{asset?"PSD":"原型"}</dt><dd>{changeValue(c.proto,ch)}</dd><dt>预制体</dt><dd>{changeValue(c.psd,ch)}</dd></dl>
@@ -131,7 +134,7 @@ export function PrefabSyncDialog({review,cells,plan,mode,asset,skins,resourceRoo
           {m.batch.images.map(i=><p key={i.path}>资源　{i.path}</p>)}{!asset && <p>原型编辑与同步记录将进入工作台的保存和撤销历史。</p>}</fieldset>}
         {(error || merged.issue) && <p role="alert">{error || merged.issue} <button disabled={busy} onClick={()=>void run(reload)}>重新比较</button></p>}</aside></div>
     <footer><span>待决定 {pending} 项　·　已选 {applied.length} 项{skipped>0 && "　·　跳过 "+skipped+" 项"}</span>{details && <button disabled={busy} onClick={()=>setDetails(false)}>返回调整</button>}
-      <Button size="sm" disabled={busy || !!pending || !m || !applied.length && !m.changed && !(mode!=="art" && m.baseChanged) && !hasAssets} onClick={()=>{if(details && m)void run(()=>commit(m));else{setDetails(true);setResult(true);}}}>{busy?"正在处理…":details?"确认应用":mode!=="art" && !c.base && !applied.length?"建立基线":"预演应用"}</Button></footer>
+      <Button size="sm" disabled={busy || !!pending || !m || !applied.length && !m.changed && !(mode!=="art" && m.baseChanged) && !hasAssets} onClick={()=>{if(details && m)void run(()=>commit(m));else{setDetails(true);setResult(true);}}}>{busy?"正在处理…":details?"确认应用":mode!=="art" && !c.base && !applied.length && !omittedTargets?"建立基线":"预演应用"}</Button></footer>
     {syncDialogResizeEdges.map(edge=><span key={edge} className="sync-resize-edge" data-edge={edge} aria-hidden="true" {...resizeEdgeProps(edge)}/>)}
   </dialog>;
 }

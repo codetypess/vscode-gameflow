@@ -9,6 +9,7 @@ import { applyNodeProperty, applyNodeRecordProperty, applyPageProperty, applyRoo
 import { variableNameError } from "./node-variable";
 import { isSliceResourcePath } from "./slice-resources";
 import { builtinPath } from "./builtin-image";
+import { excludedPrefabNodeIds, prefabExportPage } from "./prefab-node-export";
 
 type RecordNode = Record<string,unknown>;
 export type PrefabBase = NonNullable<GameFlowPage["prefabSync"]>;
@@ -41,7 +42,7 @@ function prototypeNodes(page:GameFlowPage) {
 }
 export const prefabChangeName = (change:{field:string;property?:string}) => change.field==="property" ? prefabPropertyNames[change.property??""]??change.property??"属性" : undefined;
 export function initialPrefabBase(document:GameFlowDocument,page:GameFlowPage,target:string):PrefabBase {
-  return {version:1,documentId:document.documentId,pageId:page.id,target,nodes:prototypeNodes(page).map(n=>({...n,layer:n.id}))};
+  return {version:1,documentId:document.documentId,pageId:page.id,target,nodes:prototypeNodes(prefabExportPage(page)).map(n=>({...n,layer:n.id}))};
 }
 
 function baseSignature(base:PrefabBase | undefined) {
@@ -57,11 +58,15 @@ export function inspectPrefab(document:GameFlowDocument,page:GameFlowPage,target
   const legacyComponentRecord=componentRoot ? children(root).find(child=>child._$id===componentRoot.id) : undefined;
   const flattenedComponentRoot=!!componentRoot && !legacyComponentRecord;
   const saved=page.prefabSync;
-  const base=saved?.documentId===document.documentId && saved.pageId===page.id && saved.target===target ? {...saved,psdId:target} : undefined;
-  const proto=prototypeNodes(page), originals=new Map<string,RecordNode>(), allIds=new Set<string>();
-  const known=new Map(base?.nodes.map(n=>[n.layer??n.id,n]));
+  const excluded = excludedPrefabNodeIds(page);
+  const exportPage = prefabExportPage(page, excluded);
+  const savedBase=saved?.documentId===document.documentId && saved.pageId===page.id && saved.target===target ? {...saved,psdId:target} : undefined;
+  const known=new Map(savedBase?.nodes.map(n=>[n.layer??n.id,n]));
+  const excludedRecords = new Set<RecordNode>();
+  const excludedNativeIds = new Set<string>();
+  const proto=prototypeNodes(exportPage), originals=new Map<string,RecordNode>(), allIds=new Set<string>();
   const protoIds=new Map(proto.map(n=>[n.id,n]));
-  const reserved=new Set([...protoIds.keys(),...(base?.nodes.map(n=>n.id)??[])]);
+  const reserved=new Set([...protoIds.keys(),...(savedBase?.nodes.map(n=>n.id)??[])]);
   reserveDocumentElementIds(document,reserved);
   walk(root,node=>{
     if (typeof node._$id!=="string") return;
@@ -73,6 +78,11 @@ export function inspectPrefab(document:GameFlowDocument,page:GameFlowPage,target
     for (const child of children(parentRecord)) {
       const external=child._$id;
       const previous=typeof external==="string"?known.get(external):undefined;
+      if (typeof external === "string" && excluded.has(previous?.id ?? external)) {
+        excludedRecords.add(child);
+        walk(child, item => { if (typeof item._$id === "string") excludedNativeIds.add(item._$id); });
+        continue;
+      }
       const existing=protoIds.get(previous?.id??String(external));
       const reference=typeof child._$prefab === "string";
       const type=reference ? existing?.type ?? previous?.type : child._$prefab || child._$override ? undefined : COMPONENT_TYPES.find(t=>COMPONENTS[t].laya===child._$type);
@@ -112,7 +122,10 @@ export function inspectPrefab(document:GameFlowDocument,page:GameFlowPage,target
   const logicalIds=new Map([...nativeIds].map(([id,external])=>[external,id]));
   const resolveRef=(value:unknown)=>record(value)&&typeof value._$ref==="string"?logicalIds.get(value._$ref)??null:null;
   for(const node of tree) if(!node.root) {
-    node.properties=recordNodeProperties(node.type,originals.get(node.id)!,resolveRef);
+    const original = originals.get(node.id)!;
+    const visible = excludedNativeIds.size ? { ...original } : original;
+    if (excludedNativeIds.size) clearExcludedPartRefs(visible, excludedNativeIds);
+    node.properties=recordNodeProperties(node.type,visible,resolveRef);
     if(flattenedComponentRoot && node.id===componentRoot?.id) node.properties.variableName=componentRoot.variableName??"";
     const cell = node.properties.cellPrefab;
     if (cell && typeof cell === "object" && "uuid" in cell && typeof cell.uuid === "string") {
@@ -122,10 +135,11 @@ export function inspectPrefab(document:GameFlowDocument,page:GameFlowPage,target
     const variable=node.properties.variableName;
     node.variable=typeof variable==="string"&&variable?variable:undefined;
   }
+  const base = savedBase && { ...savedBase, nodes: savedBase.nodes.filter(node => !excluded.has(node.id) && !excludedNativeIds.has(node.layer ?? node.id)) };
   const comparison=compareTrees(proto,tree,base,true,mode!=="review");
   const referenceKey=(ref:CanvasReference)=>JSON.stringify([resolveCanvasSource("",ref.source),ref.documentId,ref.pageId]);
   const plannedReferences=new Set([...cellReferences.values()].map(referenceKey));
-  for(const node of page.nodes) {
+  for(const node of exportPage.nodes) {
     if(!node.prefab || !plannedReferences.has(referenceKey(node.prefab))) continue;
     const original=originals.get(node.id);
     if(!original || typeof original._$prefab==="string") continue;
@@ -143,17 +157,18 @@ export function inspectPrefab(document:GameFlowDocument,page:GameFlowPage,target
     comparison.changes=comparison.changes.filter(ch=>ch.field!=="property" || ch.property==="hidden" || ch.property==="page.width" || ch.property==="page.height");
   }
   const engine=new Map<string,{name:string;value:unknown}[]>();
-  const managed=new Set(originals.values());
+  const managed=new Set([...originals.values(), ...excludedRecords]);
   for(const [id,node] of [[page.id,root] as const,...originals]) {
     const extras=children(node).filter(n=>!managed.has(n)).map(value=>({name:String(value.name??value._$type??"子节点"),value}));
     if(Array.isArray(node._$comp)) for(const component of node._$comp) extras.push({name:String(component?._$type??"组件"),value:component});
     if(extras.length) engine.set(id,extras);
   }
-  return {root,comparison,originals,nativeIds,allIds,target,page,document,engine,metadata,cellReferences,componentRoot:componentRoot ? {id:componentRoot.id,flattened:flattenedComponentRoot} : undefined};
+  const excludedBaseNodes = savedBase?.nodes.filter(node => excluded.has(node.id)) ?? [];
+  return {root,comparison,originals,nativeIds,allIds,target,page,exportPage,excluded,excludedRecords,excludedNativeIds,excludedBaseNodes,document,engine,metadata,cellReferences,componentRoot:componentRoot ? {id:componentRoot.id,flattened:flattenedComponentRoot} : undefined};
 }
 export type PrefabReview = ReturnType<typeof inspectPrefab>;
 
-function projectedPage(page:GameFlowPage,tree:SyncNode[],applyLocks:boolean,beforeTree?:SyncNode[]):GameFlowPage {
+function projectedPage(page:GameFlowPage,tree:SyncNode[],applyLocks:boolean,beforeTree?:SyncNode[],excluded?:ReadonlySet<string>):GameFlowPage {
   const prior=new Map(page.nodes.map(n=>[n.id,n]));
   let next=applyPrototypeTree(page,tree);
   const byId=new Map(tree.map(n=>[n.id,n]));
@@ -162,6 +177,7 @@ function projectedPage(page:GameFlowPage,tree:SyncNode[],applyLocks:boolean,befo
   if(root?.properties) for(const [path,value] of Object.entries(root.properties)) if(!oldRoot || !sameSyncProperty(oldRoot.properties?.[path],value)) next=applyPageProperty(next,path,value);
   return {...next,nodes:next.nodes.map(node=>{
     const n=byId.get(node.id)!,original=prior.get(node.id);
+    if (original && excluded?.has(node.id)) return original;
     const frame={...node.frame};
     for(const f of frameFields) if(n[f]!==undefined) frame[f]=n[f]!;
     if(applyLocks && original && inheritedFlag(page,original,"locked") && frameFields.some(f=>frame[f]!==original.frame[f])) throw new Error("控件已锁定："+original.name);
@@ -193,6 +209,45 @@ export function prefabPreviewPage(review:PrefabReview,tree:SyncNode[],root:Recor
 }
 
 export type PrefabSyncMode = "review" | "push" | "pull" | "art";
+
+function preserveExcludedNodes(page: GameFlowPage, excluded: ReadonlySet<string>, tree: SyncNode[]) {
+  if (!excluded.size) return tree;
+  const childrenByParent = new Map<string, SyncNode[]>();
+  const retained = new Map(tree.map(node => [node.id, node]));
+  for (const node of tree) {
+    if (node.root) continue;
+    const siblings = childrenByParent.get(node.parent) ?? [];
+    siblings.push(node);
+    childrenByParent.set(node.parent, siblings);
+  }
+  const nextSibling = new Map<string, string>();
+  for (const node of prototypeNodes(page).reverse()) {
+    if (node.root) continue;
+    if (excluded.has(node.id)) {
+      if (node.parent && !retained.has(node.parent) && !excluded.has(node.parent)) {
+        throw new Error("此控件下有保留在原型中的节点，不能从原型删除其父级：" + node.name);
+      }
+      const siblings = childrenByParent.get(node.parent) ?? [];
+      const index = siblings.findIndex(item => item.id === nextSibling.get(node.parent));
+      siblings.splice(index < 0 ? siblings.length : index, 0, node);
+      childrenByParent.set(node.parent, siblings);
+    } else if (retained.get(node.id)?.parent !== node.parent) continue;
+    nextSibling.set(node.parent, node.id);
+  }
+  const visit = (parent: string): SyncNode[] => (childrenByParent.get(parent) ?? []).flatMap(node => [node, ...visit(node.id)]);
+  return [...tree.filter(node => node.root), ...visit("")];
+}
+
+function clearExcludedPartRefs(node: RecordNode, excluded: ReadonlySet<string>) {
+  const excludedRef = (value: unknown) => record(value) && typeof value._$ref === "string" && excluded.has(value._$ref);
+  if (["UISlider", "UIProgressBar", "UICheckBox", "UIRadio"].includes(String(node._$type)) && excludedRef(node.skin)) delete node.skin;
+  if (node._$type === "UIComboBox" && excludedRef(node.textLabel)) delete node.textLabel;
+  if (node._$type === "UIRadioGroup" && Array.isArray(node.options) && node.options.some(excludedRef)) {
+    if (typeof node.selectedIndex === "number" && excludedRef(node.options[node.selectedIndex])) node.selectedIndex = -1;
+    node.options = node.options.map(option => excludedRef(option) ? null : option);
+  }
+}
+
 export function mergePrefab(review:PrefabReview,decisions:Record<string,Decision>,batch:PrefabExportBatch,mode:PrefabSyncMode="review") {
   const {comparison:c,page,originals,nativeIds}=review;
   const trees=plannedTrees(c,decisions,mode==="review"?undefined:mode==="pull"?"psd":"proto");
@@ -271,6 +326,7 @@ export function mergePrefab(review:PrefabReview,decisions:Record<string,Decision
       const {_$child,...fields}=generated;
       node=remapNew(fields) as RecordNode;
     }
+    if (mode !== "pull" && review.excludedNativeIds.size) clearExcludedPartRefs(node, review.excludedNativeIds);
     return rebuildChildren(node,n.id,source);
   }
   function rebuildChildren(node:RecordNode,parent:string,source?:RecordNode):RecordNode {
@@ -281,6 +337,7 @@ export function mergePrefab(review:PrefabReview,decisions:Record<string,Decision
     // Existing slots anchor engine-only objects. Fill each surviving UI slot in the
     // selected order, placing incoming controls before their next surviving sibling.
     for(const child of prior) {
+      if (mode !== "pull" && review.excludedRecords.has(child)) continue;
       const id=logicalId.get(child);
       if(!id) {output.push(child);continue;}
       if(!staying.has(id)) continue;
@@ -300,7 +357,8 @@ export function mergePrefab(review:PrefabReview,decisions:Record<string,Decision
     const logical=trees.psd.find(node=>node.id===review.componentRoot!.id);
     if(!logical) throw new Error("组件根节点不能从预制体中删除。");
     const built=build(logical), generated=batch.prefab;
-    const outerExtras=review.componentRoot.flattened ? [] : children(review.root).filter(child=>child!==originals.get(review.componentRoot!.id));
+    const outerExtras=review.componentRoot.flattened ? [] : children(review.root).filter(child=>child!==originals.get(review.componentRoot!.id) &&
+      (mode === "pull" || !review.excludedRecords.has(child)));
     const builtChildren=children(built);
     prefab={...Object.fromEntries(Object.entries(review.root).filter(([key])=>!referenceManagedFields.has(key))),...built,
       "_$ver":generated._$ver??review.root._$ver,"_$id":page.id,"_$type":pageRootType(page),name:review.root.name,scriptPath:generated.scriptPath??review.root.scriptPath};
@@ -324,11 +382,13 @@ export function mergePrefab(review:PrefabReview,decisions:Record<string,Decision
     return value;
   });
   for(const ref of refs) if(removed.has(ref)) throw new Error("删除将破坏现有预制体引用："+ref+"，请先移除引用或跳过删除。");
-  const proto=mode==="push" || mode==="art" ? page : projectedPage(page,trees.proto,true,c.proto);
+  const preservedTree=preserveExcludedNodes(page,review.excluded,trees.proto);
+  const proto=mode==="push" || mode==="art" ? page : projectedPage(page,preservedTree,true,c.proto,review.excluded);
   const oldIds=new Set(page.nodes.map(n=>n.id)), incoming=new Map([...nativeIds].map(([id,external])=>[external,id]));
   const available=new Set(proto.nodes.map(n=>n.id));
   const link=(ref:unknown)=>{
     if(!record(ref) || typeof ref._$ref!=="string")return null;
+    if (review.excludedNativeIds.has(ref._$ref)) return null;
     const id=incoming.get(ref._$ref);
     if(!id || !available.has(id)) throw new Error("请同时同步控件引用的节点："+ref._$ref);
     return id;
@@ -345,8 +405,9 @@ export function mergePrefab(review:PrefabReview,decisions:Record<string,Decision
       n.widget={...n.widget,optionNodeIds:source.options.map(link)};
   }
   // Capture the resolved geometry and traversal order of the page that will be saved.
-  const base=coordinatedBase(review.document.documentId,page.id,review.target,c,{proto:prototypeNodes(proto),psd:trees.psd});
-  const nodes=base.nodes.map(n=>({...n,layer:rawIds.get(n.id)??n.layer??n.id}));
+  const base=coordinatedBase(review.document.documentId,page.id,review.target,c,{proto:prototypeNodes(prefabExportPage(proto)),psd:trees.psd});
+  const nodes: SyncNode[]=base.nodes.map(n=>({...n,layer:rawIds.get(n.id)??n.layer??n.id}));
+  if (mode === "pull") nodes.push(...review.excludedBaseNodes);
   const prefabSync:PrefabBase={version:1,documentId:base.documentId,pageId:page.id,target:review.target,nodes};
   const activeCells = referencedCellUuids(prefab);
   const byUuid = new Map(batch.cells?.map(cell=>[cell.uuid,cell]));

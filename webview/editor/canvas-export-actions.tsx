@@ -19,14 +19,16 @@ import {Button} from "../components/ui/button";
 import {Tooltip,TooltipContent,TooltipTrigger} from "../components/ui/tooltip";
 
 interface ExportProps {
-  sources:CanvasSources;document:GameFlowDocument;page:GameFlowPage|null;sourcePage?:GameFlowPage;resources:Resources;settings:WorkbenchSettingsUI;disabled:boolean;mappingError:boolean;
+  sources:CanvasSources;document:GameFlowDocument;page:GameFlowPage|null;sourcePage?:GameFlowPage;resources:Resources;settings:WorkbenchSettingsUI;disabled:boolean;psdDisabled:boolean;mappingError:boolean;
   prepare:(expected:GameFlowDocument,source:GameFlowPage,next:GameFlowPage)=>GameFlowDocument;
   applyBrowser:(expected:GameFlowDocument,next:GameFlowDocument)=>void;
   onNotice:(message:string)=>void;
   onPsdSync:()=>void;
   onPushPsd:()=>void;
   onPullPsd:()=>void;
-  children:ReactNode;
+  importPsdItem: ReactNode;
+  psdItems: ReactNode;
+  renderPageMenu: (pageActions: ReactNode) => ReactNode;
 }
 type Snapshot=Awaited<ReturnType<typeof inspectPrefabTarget>>;
 type ArtSource=Awaited<ReturnType<typeof readPsdPrefabSource>>;
@@ -65,7 +67,7 @@ function useSyncPin(action:"psd"|"prefab") {
   }
   return {pinned,setPin};
 }
-export function CanvasExportActions({document,sources,page,sourcePage,resources,settings,onNotice,disabled,mappingError,prepare,applyBrowser,onPsdSync,onPushPsd,onPullPsd,children}:ExportProps){
+export function CanvasExportActions({document,sources,page,sourcePage,resources,settings,onNotice,disabled,psdDisabled,mappingError,prepare,applyBrowser,onPsdSync,onPushPsd,onPullPsd,importPsdItem,psdItems,renderPageMenu}:ExportProps){
   const [busy,setBusy]=useState(false),[session,setSession]=useState<ReviewSession|null>(null);
   const [missing,setMissing]=useState<{plan:PrefabPlan;finish:()=>Promise<void>}|null>(null);
   const [targetChoice,setTargetChoice]=useState<PrefabSyncMode|null>(null);
@@ -138,11 +140,15 @@ export function CanvasExportActions({document,sources,page,sourcePage,resources,
     if(missing.length)setMissing({plan:{...session.plan,missing},finish:commit});else await commit();
   }
   const unavailable=disabled || busy;
+  const psdUnavailable=psdDisabled || busy;
   const psdPin=useSyncPin("psd"), prefabPin=useSyncPin("prefab");
   const syncActions=[
-    {label:"PSD 同步",Icon:GitMerge,disabled:unavailable || !sourcePage?.artPsd,run:onPsdSync,...psdPin},
+    {label:"PSD 同步",Icon:GitMerge,disabled:psdUnavailable || !sourcePage?.artPsd,run:onPsdSync,...psdPin},
     {label:prefabSyncLabels.review,Icon:RefreshCw,disabled:unavailable || mappingError,run:()=>exportPrefab("review"),...prefabPin}
   ];
+  const syncItem = ({label,Icon,disabled,run}: (typeof syncActions)[number]) =>
+    <DropdownMenu.Item key={label} disabled={disabled} onSelect={run}><Icon size={15}/><span>{label}</span></DropdownMenu.Item>;
+  const pageActions = <>{psdItems}{syncActions.map(syncItem)}</>;
   return <>
     {syncActions.filter(action=>action.pinned).map(({label,Icon,disabled,run})=>
       <Tooltip key={label}><TooltipTrigger asChild>
@@ -152,28 +158,30 @@ export function CanvasExportActions({document,sources,page,sourcePage,resources,
     <DropdownMenu.Root modal={false}>
       <Tooltip><TooltipTrigger asChild><DropdownMenu.Trigger asChild disabled={busy}><Button size="icon" variant="ghost" className="toolbar-button" aria-label="更多"><MoreHorizontal size={19}/></Button></DropdownMenu.Trigger></TooltipTrigger><TooltipContent side="top">更多</TooltipContent></Tooltip>
       <DropdownMenu.Portal><DropdownMenu.Content loop side="top" align="end" sideOffset={8} collisionPadding={12} className="layer-context-menu" onPointerDown={event=>event.stopPropagation()} onKeyDown={event=>event.stopPropagation()}>
-        {children}
-        {syncActions.map(({label,Icon,disabled,run,pinned,setPin})=>
-          <div className="sync-menu-row" key={label}>
-            <DropdownMenu.Item disabled={disabled} onSelect={run}><Icon size={15}/><span>{label}</span></DropdownMenu.Item>
-            <DropdownMenu.CheckboxItem className="sync-menu-pin" checked={pinned} aria-label={"固定"+label}
-              title={(pinned?"取消固定":"固定到工具栏")+" · "+label} onCheckedChange={setPin} onSelect={event=>event.preventDefault()}>
-              <Pin size={14} aria-hidden="true" fill={pinned?"currentColor":"none"}/>
+        {importPsdItem}
+        {psdItems}
+        {syncActions.map(action=>
+          <div className="sync-menu-row" key={action.label}>
+            {syncItem(action)}
+            <DropdownMenu.CheckboxItem className="sync-menu-pin" checked={action.pinned} aria-label={"固定"+action.label}
+              title={(action.pinned?"取消固定":"固定到工具栏")+" · "+action.label} onCheckedChange={action.setPin} onSelect={event=>event.preventDefault()}>
+              <Pin size={14} aria-hidden="true" fill={action.pinned?"currentColor":"none"}/>
             </DropdownMenu.CheckboxItem>
           </div>
         )}
         <DropdownMenu.Sub>
-          <DropdownMenu.SubTrigger disabled={unavailable}><ArrowRight size={15}/><span>单向同步</span><ChevronRight size={14}/></DropdownMenu.SubTrigger>
+          <DropdownMenu.SubTrigger disabled={unavailable && psdUnavailable}><ArrowRight size={15}/><span>单向同步</span><ChevronRight size={14}/></DropdownMenu.SubTrigger>
           <DropdownMenu.Portal><DropdownMenu.SubContent loop sideOffset={3} collisionPadding={8} className="layer-context-menu" onPointerDown={event=>event.stopPropagation()}>
-            <DropdownMenu.Item onSelect={()=>exportPrefab("push")}>{prefabSyncLabels.push}</DropdownMenu.Item>
-            <DropdownMenu.Item onSelect={()=>exportPrefab("pull")}>{prefabSyncLabels.pull}</DropdownMenu.Item>
-            <DropdownMenu.Item onSelect={onPushPsd}>原型 → PSD</DropdownMenu.Item>
-            <DropdownMenu.Item disabled={!sourcePage?.artPsd} onSelect={onPullPsd}>PSD → 原型</DropdownMenu.Item>
+            <DropdownMenu.Item disabled={unavailable} onSelect={()=>exportPrefab("push")}>{prefabSyncLabels.push}</DropdownMenu.Item>
+            <DropdownMenu.Item disabled={unavailable} onSelect={()=>exportPrefab("pull")}>{prefabSyncLabels.pull}</DropdownMenu.Item>
+            <DropdownMenu.Item disabled={psdUnavailable} onSelect={onPushPsd}>原型 → PSD</DropdownMenu.Item>
+            <DropdownMenu.Item disabled={psdUnavailable || !sourcePage?.artPsd} onSelect={onPullPsd}>PSD → 原型</DropdownMenu.Item>
           </DropdownMenu.SubContent></DropdownMenu.Portal>
         </DropdownMenu.Sub>
       </DropdownMenu.Content></DropdownMenu.Portal>
     </DropdownMenu.Root>
     {createPortal(<>
+    {renderPageMenu(pageActions)}
     {session && <PrefabSyncDialog mode={session.mode} asset={session.art?.asset} cells={session.cells} review={session.comparison} plan={session.plan} skins={session.snapshot.skins} resourceRoot={settings.settings.resourceDirectory} close={()=>setSession(null)} commit={applyMerge} reload={async()=>{setSession(null);await load(session.plan.batch,session.mode,true);}}/>}
     {recreate && <MissingTarget path={recreate.path} source={recreate.source} cancel={()=>setRecreate(null)} generate={()=>{setRecreate(null);setBusy(true);void recreate.run().catch(e=>onNotice(String(e))).finally(()=>setBusy(false));}}/>}
     {missing && <MissingResourcesDialog plan={missing.plan} onCancel={()=>setMissing(null)} onContinue={()=>{const action=missing.finish;setMissing(null);setBusy(true);void action().catch(e=>onNotice(String(e))).finally(()=>setBusy(false));}}/>}

@@ -72,6 +72,7 @@ export interface GameFlowNode {
   sliceResource?: SliceResourceRef;
   hidden?: boolean;
   locked?: boolean;
+  exportEnabled?: boolean;
   layout?: NodeLayout;
   widget?: WidgetProps;
   transform?: NodeTransform;
@@ -255,7 +256,7 @@ function validateNode(
         }
         const key = targetKey(patch.target);
         if (targets.has(key)) { errors.push(`${at} duplicates an override target`); optionalValid = false; } targets.add(key);
-        if (!patch.target.path.length && [...Object.keys(patch.set), ...patch.unset].some(field => ["name", "variableName", "hidden", "style.opacity"].includes(field) || field.startsWith("frame.") || field.startsWith("transform.") || field.startsWith("layout.") && CANVAS_INSTANCE_LAYOUT_KEYS.includes(field.slice(7)))) {
+        if (!patch.target.path.length && [...Object.keys(patch.set), ...patch.unset].some(field => ["name", "variableName", "hidden", "exportEnabled", "style.opacity"].includes(field) || field.startsWith("frame.") || field.startsWith("transform.") || field.startsWith("layout.") && CANVAS_INSTANCE_LAYOUT_KEYS.includes(field.slice(7)))) {
           errors.push(`${at} contains an independently owned root property`); optionalValid = false;
         }
         // Validate values independently of external source availability. Full target compatibility is composed later.
@@ -329,7 +330,7 @@ function validateNode(
     errors.push(`${path}.text must be a string when provided`);
     optionalValid = false;
   }
-  for (const key of ["hidden", "locked"] as const) {
+  for (const key of ["hidden", "locked", "exportEnabled"] as const) {
     if (value[key] !== undefined && typeof value[key] !== "boolean") {
       errors.push(`${path}.${key} must be a boolean`);
       optionalValid = false;

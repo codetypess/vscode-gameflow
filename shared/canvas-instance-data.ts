@@ -25,7 +25,7 @@ export interface CanvasInstanceEdits { overrides: CanvasOverride[]; additions: C
 export const ROOT_TARGET: CanvasTarget = { path: [] };
 export const targetKey = (target: CanvasTarget) => JSON.stringify(target.path.map(part => [part.documentId, part.pageId, part.kind, part.nodeId]));
 export const sameTarget = (a: CanvasTarget, b: CanvasTarget) => targetKey(a) === targetKey(b);
-const SCALARS = new Set(["cellPrefab", "name", "variableName", "text", "imageData", "sliceResource", "image", "normalSkin", "selectedSkin", "disabledSkin", "hidden"]);
+const SCALARS = new Set(["cellPrefab", "name", "variableName", "text", "imageData", "sliceResource", "image", "normalSkin", "selectedSkin", "disabledSkin", "hidden", "exportEnabled"]);
 const PROPERTY_GROUPS: Record<string, readonly string[]> = {
   frame: ["x", "y", "width", "height"],
   style: ["fill", "color", "borderColor", "borderWidth", "radius", "fontSize", "fontWeight", "italic", "underline", "strikethrough", "textAlign", "opacity"],

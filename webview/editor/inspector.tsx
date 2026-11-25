@@ -70,7 +70,16 @@ export function Inspector({ makeId, page, variablePage = page, node, selectedNod
         if (!name.trim()) return;
         if (node) onNode(node.id, { name: name.trim() }); else onPage((item) => ({ ...item, name: name.trim() }));
       }} />
-      {node ? <VariableField page={variablePage} node={node} disabled={locked} onCommit={(variableName) => onNode(node.id, { variableName })} /> :
+      {node ? <>
+        <VariableField page={variablePage} node={node} disabled={locked} onCommit={(variableName) => onNode(node.id, { variableName })} />
+        <label className="property-toggle" title={node.id === page.componentRootId ? "组件根始终导出" :
+          referenceMeta?.inherited ? "在源组件中设置导出" : "导出此控件及其子节点到预制体"}>
+          <span>导出节点</span>
+          <input type="checkbox" checked={node.exportEnabled !== false || node.id === page.componentRootId}
+            disabled={locked || referenceMeta?.inherited || node.id === page.componentRootId}
+            onChange={event => onNode(node.id, { exportEnabled: event.target.checked ? undefined : false })} />
+        </label>
+      </> :
         <Field label="导出名称" value={page.exportName ?? ""} onCommit={value => onPage(item => ({ ...item, exportName: value.trim() || undefined }))} />}
       <div className="property-section-title">基础属性</div>
       <NumericPropertyRow label="位置" integer disabled={locked} fields={(["x", "y"] as const).map(key => ({ axis: key.toUpperCase(), ariaLabel: key.toUpperCase(), value: !node && editingPage ? 0 : frame[key], readOnly: !node && editingPage, disabled: !!node && (!!sliderOwner(page, node) || managedAxis(parent, key) || (flowType(parent) !== "free" && node.layout?.crossAxisMode !== "explicit" && !constraintsFor(key).some(k => node.layout?.[k] != null))), onCommit: value => setFrame(key, String(value)) }))} />

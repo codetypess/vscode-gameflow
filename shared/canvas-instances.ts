@@ -40,7 +40,7 @@ const clean = (node: GameFlowNode) => { const next = structuredClone(node); dele
 const virtual = (root: string, address: CanvasTarget) => `${root}/@${encodeURIComponent(targetKey(address))}`;
 const prepend = (part: CanvasAddressPart, target: CanvasTarget): CanvasTarget => ({ path: [part, ...target.path] });
 const partFor = (document: GameFlowDocument, page: GameFlowPage, nodeId: string, kind: CanvasAddressPart["kind"] = "node"): CanvasAddressPart => ({ documentId: document.documentId, pageId: page.id, nodeId, kind });
-const nativeRoot = (path: string) => ["name", "variableName", "hidden"].includes(path) || path.startsWith("frame.") || path.startsWith("transform.") || path === "style.opacity" || path.startsWith("layout.") && CANVAS_INSTANCE_LAYOUT_KEYS.includes(path.slice(7));
+const nativeRoot = (path: string) => ["name", "variableName", "hidden", "exportEnabled"].includes(path) || path.startsWith("frame.") || path.startsWith("transform.") || path === "style.opacity" || path.startsWith("layout.") && CANVAS_INSTANCE_LAYOUT_KEYS.includes(path.slice(7));
 export function findOwnedCanvasNode(document: GameFlowDocument, id: string): GameFlowNode | undefined {
   return document.pages.flatMap(page => ownedCanvasNodes(page.nodes)).find(node => node.id === id);
 }

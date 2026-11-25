@@ -10,6 +10,7 @@ import type { NineGrid } from "./psd-meta";
 import { sameGrid } from "./psd-builtin";
 import { isLegacyDefault } from "./builtin-image";
 import { prefabExportNameIssue } from "./prefab-export-name";
+import { prefabExportPage } from "./prefab-node-export";
 export { resourceUuid } from "./laya-meta";
 
 export interface PrefabImage { path: string; base64: string; description: SliceResourceDescription; expectedUuid?:string }
@@ -117,6 +118,7 @@ export async function planPrefabExport(document: GameFlowDocument, page: GameFlo
   cellUuid?: (node: GameFlowNode) => string, prefabUuid?: (node: GameFlowNode) => string | undefined): Promise<PrefabPlan> {
   const issue = prefabExportNameIssue(document, page);
   if (issue) throw new Error(issue);
+  page = prefabExportPage(page);
   const images = new Map<string,PrefabImage>(), refs = new Map<string,string>(), missing: MissingImage[] = [];
   for (const node of page.nodes) for (const [field,slot] of nodeSlots(node)) {
     if (!slot) continue;

@@ -28,6 +28,25 @@ function textStyle(text: LayerTextData): NodeStyle {
   };
 }
 
+function textLayoutFrame(text: LayerTextData, paragraph: boolean): Frame | undefined {
+  if (!text.transform) return;
+  const [scaleX, skewY, skewX, scaleY, x, y] = text.transform;
+  if (skewX || skewY || scaleX <= 0 || scaleY <= 0) return;
+
+  let box = text.boxBounds;
+  if (!paragraph) {
+    const bounds = text.bounds;
+    if (!bounds) return;
+    const edges = [bounds.left, bounds.top, bounds.right, bounds.bottom];
+    if (!edges.every(edge => edge.units === "Points" || edge.units === "Pixels")) return;
+    box = edges.map(edge => edge.value);
+  }
+  if (!box || ![...box, scaleX, scaleY, x, y].every(Number.isFinite)) return;
+  const [left, top, right, bottom] = box;
+  if (!(right > left && bottom > top)) return;
+  return { x: x + left * scaleX, y: y + top * scaleY, width: (right - left) * scaleX, height: (bottom - top) * scaleY };
+}
+
 async function encodeImage(pixels: PixelData): Promise<{ imageData: string; approximate: boolean }> {
   const source = new OffscreenCanvas(pixels.width, pixels.height);
   const rgba = new Uint8ClampedArray(pixels.data);
@@ -77,17 +96,20 @@ export async function readPrototypeLayers(psd: Psd): Promise<PsdPrototype> {
       const text = layer.text.text.replace(/\r\n?/g, "\n");
       const appearance = textStyle(layer.text);
       const size = appearance.fontSize ?? 16;
-      const box = layer.text.boxBounds;
-      if (!frame.width || !frame.height) {
+      const paragraph = layer.text.shapeType ? layer.text.shapeType === "box" : !!layer.text.boxBounds;
+      const layoutFrame = textLayoutFrame(layer.text, paragraph);
+      if (layoutFrame) Object.assign(frame, layoutFrame);
+      else if (!frame.width || !frame.height) {
+        const box = paragraph ? layer.text.boxBounds : undefined;
         frame.x = layer.text.transform?.[4] ?? frame.x;
-        frame.y = (layer.text.transform?.[5] ?? frame.y) - (box ? 0 : size);
+        frame.y = (layer.text.transform?.[5] ?? frame.y) - (paragraph ? 0 : size);
         frame.width ||= box ? box[2] - box[0] : Math.max(...text.split("\n").map(line => line.length)) * size;
         frame.height ||= box ? box[3] - box[1] : text.split("\n").length * size * 1.35;
       }
       approximate ||= (layer.text.styleRuns?.length ?? 0) > 1 || (layer.text.paragraphStyleRuns?.length ?? 0) > 1 ||
         !!layer.text.warp?.style && layer.text.warp.style !== "none";
       layers.push({ node: { ...base, type: "text", text, style: { ...style, ...appearance },
-        widget: box ? { wordWrap: true } : { overflow: "visible" } }, parent });
+        widget: paragraph ? { wordWrap: true } : { wordWrap: false, overflow: "visible", ...(layoutFrame && { valign: "middle" }) } }, parent });
     } else if (layer.imageData?.width && layer.imageData.height && !layer.adjustment) {
       const image = await encodeImage(layer.imageData);
       approximate ||= image.approximate;

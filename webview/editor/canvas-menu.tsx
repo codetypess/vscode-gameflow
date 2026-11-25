@@ -11,9 +11,9 @@ export function CanvasViewItems({ onFit, onBack, backLabel = "返回总览" }: {
   </>;
 }
 
-export function CanvasOverviewMenu({ target, page, importPsdItem, onClose, onRestoreFocus, onEnter, onRename, onDuplicate, onDelete, onAddPage, onFit }: {
+export function CanvasOverviewMenu({ target, page, importPsdItem, pageActions, onClose, onRestoreFocus, onEnter, onRename, onDuplicate, onDelete, onAddPage, onFit }: {
   target: { x: number; y: number } | null; page?: GameFlowPage;
-  importPsdItem: ReactNode;
+  importPsdItem: ReactNode; pageActions: ReactNode;
   onClose: () => void; onRestoreFocus: () => void; onEnter: () => void; onRename: () => void;
   onDuplicate: () => void; onDelete: () => void; onAddPage: (type: PageRootType) => void; onFit: () => void;
 }) {
@@ -27,6 +27,9 @@ export function CanvasOverviewMenu({ target, page, importPsdItem, onClose, onRes
       {page ? <>
         <Menu.Item onSelect={action(onEnter)}><LayoutPanelTop size={14}/><span>进入画板编辑</span></Menu.Item>
         <Menu.Item onSelect={action(onRename)}><Pencil size={14}/><span>重命名画板</span></Menu.Item>
+        <Menu.Separator className="layer-menu-separator" />
+        {pageActions}
+        <Menu.Separator className="layer-menu-separator" />
         <Menu.Item onSelect={action(onDuplicate)}><CopyPlus size={14}/><span>生成画板副本</span></Menu.Item>
         <Menu.Item className="delete-menu-item" onSelect={action(onDelete)}><Trash2 size={14}/><span>删除画板</span></Menu.Item>
         <Menu.Separator className="layer-menu-separator" />

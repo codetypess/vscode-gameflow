@@ -17,6 +17,9 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
     const more = page.locator(".canvas-toolbar").getByRole("button", { name: "更多", exact: true });
     const moreMenu = page.getByRole("menu", { name: "更多", exact: true });
     const openMore = async () => { await more.click(); await moreMenu.waitFor(); };
+    const boardMenu = page.getByRole("menu", { name: "画板右键菜单", exact: true });
+    const openBoardMenu = id => page.locator(`[data-page-id="${id}"] .page-caption`).click({ button: "right" });
+    const boardAction = name => boardMenu.getByRole("menuitem", { name, exact: true });
     const sliceItem = moreMenu.getByRole("menuitem", { name: "PSD 切图", exact: true });
     const checkMore = async enabled => {
       await openMore();
@@ -54,11 +57,22 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
     assert.equal(await page.locator(".container-outlines").count(), 0);
     assert.equal(await page.evaluate(() => localStorage.getItem("gameflow.prototype.v1")), beforeViewing);
     await checkMore(false);
+    await openBoardMenu("pagea001");
+    assert.deepEqual((await boardMenu.getByRole("menuitem").allTextContents()).slice(1, 7),
+      ["重命名画板", "PSD 切图", "生成 PSD", "绑定 PSD", "PSD 同步", "预制体同步"]);
+    assert(await boardAction("PSD 切图").isDisabled());
+    assert(await boardAction("PSD 同步").isDisabled());
+    assert(await boardAction("生成 PSD").isEnabled());
+    assert(await boardAction("绑定 PSD").isEnabled());
+    assert(await boardAction("预制体同步").isEnabled());
+    await page.keyboard.press("Escape");
+    await boardMenu.waitFor({ state: "hidden" });
     await page.locator('[data-page-id="pagea001"] .page-caption').click();
     await checkMore(true);
     assert.equal(await page.locator('[data-page-id="pagea001"]').getAttribute("class"), "page-group page-selected");
     await page.locator(".canvas-viewport").click({ position: { x: 35, y: 150 } });
     await checkMore(false);
+    const overviewCamera = await page.locator(".canvas-world").getAttribute("style");
     await page.locator('[data-page-id="pageb001"] .page-caption').dblclick();
     await page.locator('.canvas-viewport[aria-label="页面编辑画布"]').waitFor();
     await page.locator(".canvas-viewport").click({ position: { x: 35, y: 150 } });
@@ -78,7 +92,30 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
     await selectedRow.click();
     await page.getByRole("button", { name: "原型资源", exact: true }).click();
     assert.equal(await selectedRow.getAttribute("aria-selected"), "true", "refreshing the active mode preserves selection");
+    const switchPage = page.getByRole("button", { name: /^切换原型图：/ });
+    const pageMenu = page.locator(".page-switch-menu");
+    await switchPage.click();
+    assert.deepEqual(await pageMenu.getByRole("menuitem").allTextContents(), ["绿色页", "红色页"]);
+    assert.equal(await pageMenu.locator('[aria-current="page"]').textContent(), "红色页");
+    await pageMenu.getByRole("menuitem", { name: "红色页" }).click();
+    assert.equal(await selectedRow.getAttribute("aria-selected"), "true");
+    await switchPage.press("ArrowDown");
+    await page.keyboard.press("Escape");
+    await pageMenu.waitFor({ state: "hidden" });
+    assert.equal(await selectedRow.getAttribute("aria-selected"), "true");
+    await switchPage.press("ArrowDown");
+    await pageMenu.getByRole("menuitem", { name: "绿色页" }).press("Enter");
+    await page.locator('.page-editing[data-page-id="pagea001"]').waitFor();
+    assert.equal(await switchPage.textContent(), "绿色页");
+    assert.equal(await page.locator('[data-layer-id="nodea001"]').getAttribute("aria-selected"), "false");
+    await page.getByRole("combobox", { name: "页面类型" }).waitFor();
+    await page.setViewportSize({ width: 360, height: 800 });
+    await switchPage.click();
+    await pageMenu.getByRole("menuitem", { name: "红色页" }).click();
+    await page.locator('.page-editing[data-page-id="pageb001"]').waitFor();
+    await page.setViewportSize({ width: 1400, height: 950 });
     await page.getByRole("button", { name: "总览", exact: true }).click();
+    assert.equal(await page.locator(".canvas-world").getAttribute("style"), overviewCamera);
     assert.equal(await page.evaluate(() => localStorage.getItem("gameflow.prototype.v1")), beforeViewing, "viewing selection and menu must not edit the document");
     assert.equal(await page.locator(".topbar").getByRole("button", { name: /^(生成 PSD|绑定 PSD|重新绑定 PSD)$/ }).count(), 0);
     await page.getByRole("button", { name: "美术 PSD资源", exact: true }).click();
@@ -181,8 +218,9 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
     await openSlice();
     await page.locator(".editor-notice").filter({ hasText: "重新选择本地 PSD" }).waitFor();
     await expectMode("原型");
-    // Rebinding from the page error restores only that page.
-    const choose = page.waitForEvent("filechooser"); await page.locator('[data-page-id="pagea001"]').getByRole("button", { name: "重新绑定 PSD", exact: true }).click();
+    // Right-clicking A targets A even though B is currently selected.
+    await openBoardMenu("pagea001");
+    const choose = page.waitForEvent("filechooser"); await boardAction("重新绑定 PSD").click();
     await (await choose).setFiles(path.join(output, "pagea001.psd"));
     await page.locator('[data-page-id="pagea001"] canvas[data-resource-path="unclassified/login_qran_normal.png"]').waitFor();
     assert.equal(await page.locator('[data-art-state="error"]').count(), 1);
@@ -190,8 +228,8 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
     assert.equal(await page.locator(".page-art-state").count(), 0); await page.locator('canvas[data-resource-path="builtin/button/red.png"]').waitFor();
     // Generation saves and binds the targeted page, independent of selection.
     await page.getByRole("button", { name: "美术 PSD资源", exact: true }).click();
-    const download = page.waitForEvent("download"); await page.locator('[data-page-id="pageb001"] .page-caption').click();
-    await openMore(); await moreMenu.getByRole("menuitem", { name: "生成 PSD", exact: true }).click(); await download;
+    const download = page.waitForEvent("download"); await openBoardMenu("pageb001");
+    await boardAction("生成 PSD").click(); await download;
     await page.waitForFunction(() => JSON.parse(localStorage.getItem("gameflow.prototype.v1")).pages[1].artPsd.source !== "pageb001.psd");
     await page.locator('[data-page-id="pageb001"] canvas[data-resource-path="builtin/button/red.png"]').waitFor();
     await openMore();
@@ -221,7 +259,14 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
       await page.screenshot({ path: path.join(output, "narrow-" + width + ".png") });
       await page.keyboard.press("Escape");
     }
-    await openSlice();
+    await page.setViewportSize({ width: 1400, height: 950 });
+    await openBoardMenu("pageb001");
+    await boardAction("PSD 同步").click();
+    const sync = page.getByRole("dialog", { name: "PSD 同步", exact: true });
+    assert.match(await sync.getByText(/红色页 \/ /).innerText(), /红色页/);
+    await sync.getByRole("button", { name: "关闭同步窗", exact: true }).click();
+    await openBoardMenu("pageb001");
+    await boardAction("PSD 切图").click();
     await page.getByRole("tree", { name: "红色页.psd 图层树", exact: true }).waitFor();
     await page.goto((process.env.GAMEFLOW_TEST_URL || "http://127.0.0.1:5191") + "/@fs/" + path.join(__dirname, "runtime-preview-browser.html").replaceAll("\\", "/"));
     await page.getByRole("button", { name: "执行像素验收", exact: true }).click();

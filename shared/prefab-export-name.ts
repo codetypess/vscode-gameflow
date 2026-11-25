@@ -1,5 +1,6 @@
 import { findCanvasTarget, type CanvasSources } from "./canvas-references";
 import type { GameFlowDocument, GameFlowPage } from "./model";
+import { prefabExportPage } from "./prefab-node-export";
 
 /** Supplying the source registry also checks the prototype's referenced boards. */
 export function prefabExportNameIssue(document: GameFlowDocument, page: GameFlowPage, sources?: CanvasSources): string | undefined {
@@ -15,7 +16,7 @@ export function prefabExportNameIssue(document: GameFlowDocument, page: GameFlow
       missing.push(`「${board.name}」${location ? `（${location}）` : ""}`);
     }
     if (!sources) return;
-    for (const node of board.nodes) {
+    for (const node of prefabExportPage(board).nodes) {
       for (const ref of [node.prefab, node.cellPrefab]) {
         if (!ref || !("source" in ref)) continue;
         const target = findCanvasTarget(document, sources, ref, source);

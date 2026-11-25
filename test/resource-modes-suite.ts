@@ -31,6 +31,55 @@ import { listCellPositions, resolveCellPage } from "../shared/list-cell";
 import { planListPrefabExport } from "../shared/list-prefab-export";
 import { loadCanvasSources } from "../shared/canvas-references";
 
+test("disabled export skips a whole subtree, resources and template resolution", async () => {
+  const group = { ...makeNode("container", "group", 0, 0), exportEnabled: false };
+  const picture = { ...makeNode("image", "picture", 0, 0), parentId: group.id, image: { art: { path: "unclassified/omitted.png" } } };
+  const list = { ...makeNode("list", "list", 0, 0), parentId: group.id,
+    cellPrefab: { source: "unavailable.gameflow.json", documentId: "unavailable", pageId: "item" } };
+  const label = makeNode("text", "label", 0, 0);
+  const screen = page([group, picture, list, label]);
+  const document = doc(screen);
+  const { plan } = await planListPrefabExport(document, screen, {}, () => async () => assert.fail("resolve excluded image"),
+    async () => assert.fail("inspect excluded template"), { name: prefabFileName(screen) });
+  assert.deepEqual((plan.batch.prefab._$child as Record<string, unknown>[]).map(node => node._$id), [label.id]);
+  assert.deepEqual(plan.batch.images, []);
+  assert.deepEqual(plan.missing, []);
+  const saved = parseGameFlowDocument(serializeGameFlowDocument(document));
+  assert.equal(saved.pages[0].nodes[0].exportEnabled, false);
+  assert.equal(saved.pages[0].nodes.at(-1)?.exportEnabled, undefined);
+});
+
+test("prefab sync omits excluded controls from previews and removes old disk copies without changing prototype controls", async () => {
+  const parent = makeNode("checkbox", "check", 0, 0);
+  const skin = { ...makeNode("image", "skin", 0, 0), parentId: parent.id };
+  parent.widget = { ...parent.widget, skinNodeId: skin.id };
+  const group = makeNode("container", "group", 0, 0);
+  const caption = { ...makeNode("text", "caption", 0, 0), parentId: group.id };
+  const screen = page([parent, skin, group, caption]);
+  const document = doc(screen);
+  const before = (await planPrefabExport(document, screen, missing)).batch;
+  screen.prefabSync = initialPrefabBase(document, screen, before.name);
+  screen.nodes = screen.nodes.map(node => node.id === skin.id || node.id === group.id ? { ...node, exportEnabled: false } : node);
+  const plan = (await planPrefabExport(document, screen, missing)).batch;
+  const review = inspectPrefab(document, screen, before.name, before.prefab);
+  assert.deepEqual(review.comparison.changes, []);
+  for (const nodes of [review.exportPage.nodes, review.comparison.proto, review.comparison.psd, review.comparison.base!.nodes]) {
+    assert(!nodes.some(node => [skin.id, group.id, caption.id].includes(node.id)));
+  }
+  assert.equal(review.excludedRecords.size, 2);
+  const merged = mergePrefab(review, {}, plan);
+  assert(merged.changed);
+  assert.deepEqual(merged.page.nodes, screen.nodes);
+  const children = merged.batch.prefab._$child as Record<string, unknown>[];
+  assert.deepEqual(children.map(node => node._$id), [parent.id]);
+  assert.equal(children[0].skin, undefined);
+  const pull = mergePrefab(inspectPrefab(document, screen, before.name, before.prefab, undefined, undefined, "pull"), {}, plan, "pull");
+  assert.deepEqual(pull.page.nodes, screen.nodes);
+  assert.deepEqual(pull.batch.prefab, before.prefab);
+  const restored = { ...merged.page, nodes: merged.page.nodes.map(node => node.id === group.id ? { ...node, exportEnabled: undefined } : node) };
+  assert(inspectPrefab(document, restored, before.name, merged.batch.prefab).comparison.changes.some(change => change.id === group.id && change.kind === "add"));
+});
+
 test("prefab export rejects absent and blank export names before resolving images", async () => {
   const button = makeNode("button", "button", 0, 0);
   button.normalSkin = {art:{path:"unclassified/login.png"}};

@@ -33,6 +33,7 @@ import { CanvasReferencePicker } from "./editor/canvas-reference-picker";
 import { LayerTree, NodeIcon } from "./editor/layer-tree";
 import { LayerMenu, type LayerMenuTarget } from "./editor/layer-menu";
 import { CanvasOverviewMenu, CanvasViewItems } from "./editor/canvas-menu";
+import { excludedPrefabNodeIds } from "../shared/prefab-node-export";
 import { RenameDialog } from "./editor/rename-dialog";
 import { NodeView, orderedNodes } from "./editor/node-view";
 import { ContainerOutlines } from "./editor/container-outlines";
@@ -711,6 +712,9 @@ export function App() {
     <FileInput size={15} /><span>{importingPsd ? "正在导入 PSD…" : "从 PSD 导入原型…"}</span>
   </DropdownMenu.Item>;
   const psdActionDisabled = !page || pageActionBusy || !!composition?.errors.size;
+  const excludedPrefabNodes = composition?.errors.size ? excludedPrefabNodeIds(composition.page) : new Set<string>();
+  const prefabActionDisabled = !page || pageActionBusy ||
+    [...composition?.errors.keys() ?? []].some(id => !excludedPrefabNodes.has(id));
   function openPsdSync(source?: SyncSession["source"]) {
     if (!canvasDocument || !composition || psdActionDisabled) return;
     if (composition.page.artPsd) setSyncSession({document:canvasDocument,page:composition.page,components:psdComponentInstances(composition),
@@ -754,8 +758,26 @@ export function App() {
         <IconTool label="保存 (Ctrl+S)" disabled={pending || !canvasDocument} onClick={save}><Save size={15} /></IconTool>
       </> : null}{mode !== "slice" ? <WorkbenchSettingsButton settings={settings} /> : null}</div>
       <Separator orientation="vertical" className="topbar-separator" />
-      {mode === "prototype" && editingId && page ? <><Button size="sm" variant="ghost" onClick={back}><ArrowLeft size={14} />总览</Button><span className="breadcrumb">/</span></> : null}
-      <span className="document-title">{mode === "prototype" ? editingId ? page?.name : canvasDocument?.title ?? "正在打开画布" : "美术工作区"}</span>
+      {mode === "prototype" && editingId && page && canvasDocument ? <>
+        <Button size="sm" variant="ghost" onClick={back}><ArrowLeft size={14} />总览</Button>
+        <span className="breadcrumb">/</span>
+        <DropdownMenu.Root modal={false}>
+          <DropdownMenu.Trigger asChild>
+            <Button size="sm" variant="ghost" className="page-switch-trigger" title={page.name} aria-label={`切换原型图：${page.name}`}
+              onKeyDown={event => { if (event.key === "ArrowDown") event.stopPropagation(); }}>
+              <span>{page.name}</span><ChevronDown size={13} aria-hidden="true" />
+            </Button>
+          </DropdownMenu.Trigger>
+          <DropdownMenu.Portal>
+            <DropdownMenu.Content loop side="bottom" align="start" sideOffset={5} collisionPadding={6} className="layer-context-menu page-switch-menu" aria-label="切换原型图">
+              {canvasDocument.pages.map(target => <DropdownMenu.Item key={target.id} aria-current={target.id === editingId ? "page" : undefined}
+                onSelect={() => { if (target.id !== editingId) enter(target); }}>
+                <span>{target.name}</span>{target.id === editingId && <Check size={14} aria-hidden="true" />}
+              </DropdownMenu.Item>)}
+            </DropdownMenu.Content>
+          </DropdownMenu.Portal>
+        </DropdownMenu.Root>
+      </> : <span className="document-title">{mode === "prototype" ? canvasDocument?.title ?? "正在打开画布" : "美术工作区"}</span>}
     </header>
     <WorkbenchSettingsPanel settings={settings} file={canvasDocument ? { directory: canvasDocument.exportDirectory, name: resourceName || canvasDocument.title, change: exportDirectory => edit(document => ({ ...document, exportDirectory })) } : undefined} />
     <div ref={viewport} tabIndex={-1} hidden={mode !== "prototype"} className={cn("canvas-viewport", (tool === "hand" || spaceHand) && "hand-tool", preview?.kind === "pan" && "is-panning", (preview?.kind === "node" || preview?.kind === "page") && "is-moving")} aria-label={editingId ? "页面编辑画布" : "页面总览画布"}
@@ -817,11 +839,10 @@ export function App() {
         {selectedGeometry?.inverse && selectionAnchor ? <span className="selection-anchor" aria-hidden="true" style={{ left: visibleCamera.x+selectionAnchor.x*visibleCamera.zoom, top: visibleCamera.y+selectionAnchor.y*visibleCamera.zoom }} /> : null}
         {editingId && page ? <LayerTree composition={composition ?? undefined} onRepair={repairOrphan} onCopyOrphan={copyOrphan} key={page.id} panelRef={panels.leftRef} panelStyle={panels.leftStyle} page={page} scopeId={scopeId} selectedIds={selectedNodeIds} selectedId={selectedNode?.id ?? null} reveal={canvasSelection} onSelect={selectNode} onPatch={patchNode} onBack={back} onAdd={addLayer} onDelete={deleteLayer} onMove={moveLayer}
           hasClipboard={!!clipboard} onCopy={copyLayer} onPaste={pasteLayer} onDuplicate={duplicateLayer} onConvert={convertLayer} onSaveToCanvas={saveToCanvas} onOpenSource={openSource} onUnbind={unbindPrefab} /> : null}
-        {editingId && page ? <LayerMenu page={page} composition={composition ?? undefined} selectedIds={selectedNodeIds} target={canvasMenu?.kind === "nodes" ? canvasMenu.target : null} backgroundParentId={canvasMenu?.backgroundParentId} menuLabel="画布节点右键菜单"
+        {editingId && page && <LayerMenu page={page} composition={composition ?? undefined} selectedIds={selectedNodeIds} target={canvasMenu?.kind === "nodes" ? canvasMenu.target : null} backgroundParentId={canvasMenu?.backgroundParentId} menuLabel="画布节点右键菜单"
           onClose={()=>setCanvasMenu(null)} onRestoreFocus={restoreCanvasFocus} hasClipboard={!!clipboard} onAdd={addCanvasLayer} onDelete={deleteLayer} onCopy={copyLayer} onPaste={pasteLayer} onRename={beginCanvasRename} onDuplicate={duplicateLayer} onConvert={convertLayer} onSaveToCanvas={saveToCanvas} onOpenSource={openSource} onUnbind={unbindPrefab}>
           <CanvasViewItems onFit={()=>{setCanvasMenu(null);fit([page],true);}} onBack={()=>{setCanvasMenu(null);if(scopeId){const current=scopePath.at(-1)!;navigateScope(current.parentId ?? null,current.id);}else back();}} backLabel={scopeId ? "返回上一级" : "返回总览"}/>
-        </LayerMenu> : <CanvasOverviewMenu target={canvasMenu?.kind === "overview" ? canvasMenu.target : null} page={canvasDocument.pages.find(item=>item.id===canvasMenu?.pageId)} onClose={()=>setCanvasMenu(null)} onRestoreFocus={restoreCanvasFocus}
-          onEnter={()=>{const target=canvasDocument.pages.find(item=>item.id===canvasMenu?.pageId);if(target)enter(target);}} onRename={()=>beginCanvasRename()} onDuplicate={duplicate} onDelete={remove} onAddPage={addPage} importPsdItem={importPsdItem} onFit={()=>fit(canvasDocument.pages,false)} />}
+        </LayerMenu>}
         {page && inspectorOpen ? <Inspector makeId={newIds()} variablePage={{...page,nodes:page.nodes.filter(node=>composition?.info.get(node.id)?.scope===selectedMeta?.scope)}} referenceMeta={selectedMeta} referenceName={referenceName} overrideManager={overrideManager} overrideActions={overrideActions} onOpenSource={() => { if (selectedNode) openSource(selectedNode.id); }} referenceError={selectedMeta?.ownerId ? composition?.errors.get(selectedMeta.ownerId) : undefined} onColorPreview={setColorPreview} selectedNodes={selectionBlocked ? [] : page.nodes.filter(node => selectedNodeIds.includes(node.id))} onCreateParts={() => { if (editingId && selectedNodeId) { const makeId = newIds(); updatePage(editingId, item => createControlParts(item, selectedNodeId, makeId)); } }} panelRef={panels.rightRef} panelStyle={panels.rightStyle} page={page} node={selectionBlocked ? null : selectedNode} editingPage={!!editingId} onNode={patchNode} onPage={(transform) => updatePage(page.id, transform)} onClose={() => setInspectorOpen(false)} onEnter={() => enter(page)} onImport={requestImport} /> : null}
         {canvasDocument.pages.length === 0 ? <div className="empty-canvas"><LayoutPanelTop size={32} /><strong>从第一个页面开始</strong><p>用底部 + 添加游戏界面</p><Button onClick={() => addPage()}><Plus size={15} />添加页面</Button></div> : null}
         <div className="canvas-toolbar floating-panel" onPointerDown={(event) => event.stopPropagation()}>
@@ -844,12 +865,24 @@ export function App() {
               if(!valid.ok) throw new Error(valid.errors.join("；"));
               return next;
             }} applyBrowser={(expected,next)=>{if(JSON.stringify(read())!==JSON.stringify(expected)) throw new Error("原型已变化，请重新比较。");if(next!==expected) edit(()=>next);}}
-            resources={runtimeResources} settings={settings} disabled={psdActionDisabled} mappingError={!!page && !!mappingErrors[page.id]} onNotice={setNotice} onPsdSync={()=>openPsdSync()} onPushPsd={()=>openPsdSync("proto")} onPullPsd={()=>openPsdSync("psd")}>
-              {importPsdItem}
+            resources={runtimeResources} settings={settings} disabled={prefabActionDisabled} psdDisabled={psdActionDisabled} mappingError={!!page && !!mappingErrors[page.id]} onNotice={setNotice} onPsdSync={()=>openPsdSync()} onPushPsd={()=>openPsdSync("proto")} onPullPsd={()=>openPsdSync("psd")}
+            importPsdItem={importPsdItem}
+            psdItems={<>
               <DropdownMenu.Item disabled={!canonicalPage?.artPsd || pageActionBusy} onSelect={() => void openPageSlice()}><Scissors size={15} /><span>PSD 切图</span></DropdownMenu.Item>
               <DropdownMenu.Item disabled={psdActionDisabled} onSelect={() => { if (page && !psdActionDisabled) void pagePsds.run(page.id, "generate"); }}><FileImage size={15} /><span>生成 PSD</span></DropdownMenu.Item>
               <DropdownMenu.Item disabled={psdActionDisabled} onSelect={() => { if (page && !psdActionDisabled) void pagePsds.run(page.id, "choose"); }}><Link2 size={15} /><span>{page?.artPsd ? "重新绑定 PSD" : "绑定 PSD"}</span></DropdownMenu.Item>
-          </CanvasExportActions>
+            </>}
+            renderPageMenu={pageActions => !editingId && <CanvasOverviewMenu
+              target={canvasMenu?.kind === "overview" ? canvasMenu.target : null}
+              page={canvasDocument.pages.find(item => item.id === canvasMenu?.pageId)}
+              onClose={() => setCanvasMenu(null)} onRestoreFocus={restoreCanvasFocus}
+              onEnter={() => {
+                const target = canvasDocument.pages.find(item => item.id === canvasMenu?.pageId);
+                if (target) enter(target);
+              }}
+              onRename={() => beginCanvasRename()} onDuplicate={duplicate} onDelete={remove} onAddPage={addPage}
+              importPsdItem={importPsdItem} pageActions={pageActions} onFit={() => fit(canvasDocument.pages, false)}
+            />} />
         </div>
       </>}
       {notice || (canvasDocument && error) ? <div className="editor-notice" role="status">{notice || error}</div> : null}
