@@ -9,7 +9,7 @@ import { psdSlotField } from "./psd-slot-markers";
 
 export interface SyncNode {
   id: string; name: string; type: NodeType; parent: string; text: string; frame: Frame;
-  variable?: string; layer?: string; root?: boolean; properties?: SyncProperties; undecided?: string[];
+  variable?: string; layer?: string; psdTextSource?: string; root?: boolean; properties?: SyncProperties; undecided?: string[];
   x?: number; y?: number; width?: number; height?: number;
 }
 export type SyncPropertyValue = string | number | boolean | null | SyncPropertyValue[] | { [key: string]: SyncPropertyValue };
@@ -53,6 +53,7 @@ export function validSyncBase(value: unknown): value is SyncBase {
   return b.nodes.every(n => n && typeof n.id === "string" && !!n.id && !ids.has(n.id) && ids.add(n.id) &&
     COMPONENT_TYPES.includes(n.type) && [n.name,n.parent,n.text].every(v => typeof v === "string") &&
     (n.layer === undefined || typeof n.layer === "string") && (n.variable === undefined || typeof n.variable === "string") &&
+    (n.psdTextSource === undefined || typeof n.psdTextSource === "string" && /^(?:native:[0-9]{1,10}|[a-f0-9]{64}:[0-9]+)$/.test(n.psdTextSource)) &&
     (n.root === undefined || typeof n.root === "boolean") && (n.properties === undefined || validProperties(n.properties)) &&
     frameFields.every(f=>n[f]===undefined || Number.isFinite(n[f])) &&
     (n.undecided === undefined || Array.isArray(n.undecided) && n.undecided.every(f=>typeof f==="string" && (["text","name","parent","order",...frameFields].includes(f as never) || /^property:[A-Za-z][A-Za-z0-9]*(?:\.[A-Za-z][A-Za-z0-9]*)*$/.test(f)))) &&
@@ -102,6 +103,7 @@ export function implicitPsdComponentRoot(docId: string, page: GameFlowPage, asse
 export function psdTree(docId:string, page:GameFlowPage, asset:PsdAsset, makeId:(layer:PsdLayer)=>string, pairs:ReadonlyMap<string,string> = new Map(), forPrefab=false, components?: ReadonlyMap<string, PsdComponentInstance>): SyncNode[] {
   if (identityProblems(asset).length) throw new Error("PSD 图层身份重复，请先在切图编辑器中修复。");
   const base = currentSyncBase(docId,page,asset);
+  const layerIds = new Set(asset.layers.map(layer => layer.metadata.layerId));
   const result:SyncNode[] = [], seen = new Set<string>();
   const implicitRoot = implicitPsdComponentRoot(docId, page, asset);
   const rootNode: SyncNode | undefined = implicitRoot && { id: implicitRoot.id, name: implicitRoot.name, type: "container",
@@ -110,14 +112,21 @@ export function psdTree(docId:string, page:GameFlowPage, asset:PsdAsset, makeId:
   const previousChildren = implicitRoot && new Set(syncSubtree(base?.nodes ?? [], implicitRoot.id));
   let rootInserted = false;
   if (rootNode) seen.add(rootNode.id);
-  function walk(parentKey:number|null, parent:string, parentType?:NodeType) {
+  function walk(parentKey:number|null, parent:string) {
     // PSD records arrive front-to-back. Prototype siblings are painted back-to-front.
     for (const layer of asset.layers.filter(l=>l.parentKey===parentKey).reverse()) {
       if (layer.metadata.listCellIndex !== undefined || psdSlotField(layer.name)) continue;
       const ref = layer.metadata.prototype;
       if (prototypeLayerRef(ref) && (ref.documentId!==docId || ref.pageId!==page.id || ref.slot && ref.slot!=="image")) continue;
       if (prototypeLayerRef(ref) && ref.nodeId===page.id && layer.group) {walk(layer.key,"");continue;}
-      const saved = base?.nodes.find(n=>n.layer===layer.metadata.layerId);
+      // A Photoshop-created text layer gets a temporary GameFlow ID on each fresh read.
+      let psdTextSource: string | undefined;
+      if (layer.text && layer.identityOrigin === "new" && !prototypeLayerRef(ref)) {
+        const uniqueNativeId = layer.nativeId !== null && !asset.layers.some(other => other !== layer && other.nativeId === layer.nativeId);
+        psdTextSource = uniqueNativeId ? "native:" + layer.nativeId : asset.sourceHash + ":" + layer.key;
+      }
+      const saved = base?.nodes.find(n => n.layer === layer.metadata.layerId) ??
+        (psdTextSource ? base?.nodes.find(n => n.psdTextSource === psdTextSource && n.layer && !layerIds.has(n.layer)) : undefined);
       const paired = pairs.get(layer.metadata.layerId);
       const annotation = layer.name.match(/\s*\((UI\w+)\)$/);
       const tagged = COMPONENT_TYPES.find(type=>COMPONENTS[type].laya===annotation?.[1]);
@@ -128,9 +137,9 @@ export function psdTree(docId:string, page:GameFlowPage, asset:PsdAsset, makeId:
       const candidates = forPrefab && (tagged || standalone) ? page.nodes.filter(n=>n.name===name && n.type===(tagged??standalone)) : [];
       const id = paired ?? saved?.id ?? (prototypeLayerRef(ref) ? ref.nodeId : candidates.length===1 ? candidates[0].id : undefined);
       const proto = page.nodes.find(n=>n.id===id);
-      const type = proto?.type ?? saved?.type ?? tagged ?? standalone ?? (layer.text && (id || parentType==="button") ? "text" : undefined);
-      if (!type || !(id || tagged || standalone || layer.text && parentType==="button")) {
-        if(forPrefab && layer.group) walk(layer.key,parent,parentType);
+      const type = proto?.type ?? saved?.type ?? tagged ?? standalone ?? (layer.text ? "text" : undefined);
+      if (!type) {
+        if(forPrefab && layer.group) walk(layer.key,parent);
         continue;
       }
       const nodeId = id ?? makeId(layer);
@@ -141,8 +150,9 @@ export function psdTree(docId:string, page:GameFlowPage, asset:PsdAsset, makeId:
       if (belongsToRoot && !rootInserted) { result.push(rootNode); rootInserted = true; }
       const effectiveParent = belongsToRoot ? rootNode.id : parent;
       result.push({ id:nodeId, name, type, parent:effectiveParent, text:layer.textContent ?? "", layer:layer.metadata.layerId,
+        ...(psdTextSource && { psdTextSource }),
         variable:proto?.variableName, frame:{x:layer.left,y:layer.top,width:Math.max(1,layer.width),height:Math.max(1,layer.height)} });
-      if (layer.group && COMPONENTS[type].children && !components?.has(nodeId)) walk(layer.key,nodeId,type);
+      if (layer.group && COMPONENTS[type].children && !components?.has(nodeId)) walk(layer.key,nodeId);
     }
   }
   walk(null,"");
@@ -308,7 +318,8 @@ export function coordinatedBase(docId:string,pageId:string,psdId:string,c:Compar
   for (const node of trees.proto) {
     const art=trees.psd.find(a=>a.id===node.id), old=c.base?.nodes.find(n=>n.id===node.id);
     if (!art) {if(old) nodes.push(old);continue;}
-    const baseline:SyncNode={...node,frame:{...node.frame},properties:node.properties?{...node.properties}:undefined,layer:art.layer};
+    const baseline:SyncNode={...node,frame:{...node.frame},properties:node.properties?{...node.properties}:undefined,
+      layer:art.layer, psdTextSource:art.psdTextSource};
     for (const field of ["text","name","parent",...frameFields] as const) if(node[field]!==art[field]) {
       if(old) Object.assign(baseline,{[field]:old[field]});
       if(!old || old.undecided?.includes(field)) (baseline.undecided??=[]).push(field);

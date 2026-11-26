@@ -192,7 +192,7 @@ export function PageSyncDialog({session,loadedAsset,close,apply}:Props) {
       const componentUpdates = new Set(c.changes.filter(change => change.representation === "psd-component-layers" &&
         decisions[change.key] === "proto" && trees.psd.some(node => node.id === change.id)).map(change => change.id));
       const base=coordinatedBase(doc.documentId,page.id,asset!.documentId,c,trees);
-      const signature=(nodes:SyncNode[])=>JSON.stringify(nodes.map(n=>[n.id,n.parent,n.name,n.type,n.text,n.layer,n.undecided]));
+      const signature=(nodes:SyncNode[])=>JSON.stringify(nodes.map(n=>[n.id,n.parent,n.name,n.type,n.text,n.psdTextSource??n.layer,n.undecided]));
       const baselineChanged=!c.base || signature(c.base.nodes)!==signature(base.nodes);
       return {trees,proto,push,base,baselineChanged,conversions,componentUpdates,sourceUpdates,visualUpdates};
     }catch(e){return {issue:String(e)};}

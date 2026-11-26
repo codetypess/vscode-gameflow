@@ -6,7 +6,7 @@ import { isWebviewToHostMessage } from "../shared/protocol";
 import { effectiveExportName, makeSliceExportBatch } from "../shared/psd-export";
 import type { PsdAsset, PsdLayer } from "../shared/psd-meta";
 import { makeNode } from "../shared/editor-ops";
-import { prototypeTree, psdTree, compareTrees, coordinatedBase, plannedTrees } from "../shared/page-sync";
+import { applyPrototypeTree, prototypeTree, psdTree, compareTrees, coordinatedBase, plannedTrees } from "../shared/page-sync";
 import { PagePsdController, PagePsdWatcher, rebasePagePsds } from "../src/page-psd-controller";
 import type { PsdEditorProvider } from "../src/psd-editor-provider";
 import type { WorkbenchDocument } from "../src/workbench-document";
@@ -73,6 +73,61 @@ test("skipping an initial text disagreement does not assign it to one side on re
   const c=compareTrees(proto,psd), trees=plannedTrees(c,{[left.id+"/text"]:"skip"});
   const base=coordinatedBase("d",page.id,"a",c,trees);
   assert.equal(compareTrees(proto,psd,base).changes[0].suggested,undefined);
+});
+
+test("PSD sync adopts untagged root and container text while excluding decorative branches", () => {
+  const { page, asset, document } = fixture();
+  const box = { ...makeNode("container", "box", 0, 0), frame: { x: 10, y: 20, width: 160, height: 100 } };
+  page.nodes = [box];
+  const layer = (key: number, parentKey: number | null, name: string, group = false): PsdLayer => ({
+    ...asset.layers[0], key, nativeId: key, parentKey, name, group, left: 32, top: 54,
+    text: !group, textContent: group ? undefined : "正文 " + key, identityOrigin: "new",
+    metadata: { namespace: "com.codetypes.gameflow", version: 1, documentId: asset.documentId, layerId: "temp-" + key }
+  });
+  const container = layer(1, null, box.name, true);
+  container.metadata.prototype = { documentId: document.documentId, pageId: page.id, nodeId: box.id };
+  asset.layers = [container];
+  const proto = prototypeTree(page);
+  const build = (current: GameFlowPage) => psdTree(document.documentId, current, asset, item => "label-" + item.key);
+  const original = build(page);
+  page.psdSync = coordinatedBase(document.documentId, page.id, asset.documentId, compareTrees(proto, original), { proto, psd: original });
+  asset.layers.push(layer(2, null, "标题"), layer(3, 1, "标题"), layer(4, 1, "@normal", true), layer(5, 4, "皮肤文案"),
+    layer(6, null, "装饰", true), layer(7, 6, "水印"));
+  const comparison = compareTrees(proto, build(page), page.psdSync);
+  assert.deepEqual(comparison.changes.map(ch => [ch.id, ch.kind, ch.suggested]), [
+    ["label-2", "add", "psd"], ["label-3", "add", "psd"]
+  ]);
+  assert.deepEqual(plannedTrees(comparison, {}).proto.map(n => n.id), [box.id]);
+  const trees = plannedTrees(comparison, Object.fromEntries(comparison.changes.map(ch => [ch.key, "psd"])));
+  const next = applyPrototypeTree(page, trees.proto);
+  assert.deepEqual(next.nodes.filter(n => n.type === "text").map(n => [n.parentId, n.text, n.frame.x, n.frame.y]), [
+    [undefined, "正文 2", 32, 54], [box.id, "正文 3", 22, 34]
+  ]);
+  next.psdSync = coordinatedBase(document.documentId, page.id, asset.documentId, comparison, trees);
+  const reread = () => psdTree(document.documentId, next, asset, () => assert.fail("mapped text was imported twice"));
+  asset.layers = asset.layers.map(item => ({ ...item, metadata: { ...item.metadata, layerId: "reread-" + item.key } }));
+  assert.deepEqual(compareTrees(prototypeTree(next), reread(), next.psdSync).changes, []);
+  asset.sourceHash = "1".repeat(64);
+  asset.layers[1].textContent = "改过的文案";
+  assert.deepEqual(compareTrees(prototypeTree(next), reread(), next.psdSync).changes.map(ch => [ch.id, ch.field, ch.suggested]),
+    [["label-2", "text", "psd"]]);
+});
+
+test("anonymous text without a unique native ID is only paired by position for identical PSD bytes", () => {
+  const { page, asset, document } = fixture();
+  page.nodes = [];
+  const untagged = { ...asset.layers[0], identityOrigin: "new" as const, text: true, textContent: "公告" };
+  asset.layers = [null, 10, 10].map((nativeId, key) => ({ ...untagged, key, nativeId,
+    metadata: { ...untagged.metadata, prototype: undefined, layerId: "temp-" + key } }));
+  const art = psdTree(document.documentId, page, asset, item => "text-" + item.key);
+  const next = applyPrototypeTree(page, art);
+  const proto = prototypeTree(next);
+  next.psdSync = coordinatedBase(document.documentId, page.id, asset.documentId, compareTrees(proto, art), { proto, psd: art });
+  asset.layers = asset.layers.map(item => ({ ...item, metadata: { ...item.metadata, layerId: "fresh-" + item.key } }));
+  const compare = () => compareTrees(proto, psdTree(document.documentId, next, asset, item => "other-" + item.key), next.psdSync);
+  assert.deepEqual(compare().changes, []);
+  asset.sourceHash = "1".repeat(64);
+  assert.deepEqual(compare().changes.map(ch => ch.kind).sort(), ["add", "add", "add", "delete", "delete", "delete"]);
 });
 function fixture() {
   const page: GameFlowPage = { id: "page", name: "登录", kind: "screen", frame: { x: 0, y: 0, width: 320, height: 240 }, nodes: [makeNode("button", "button", 0, 0)] };
