@@ -1,3 +1,4 @@
+import { stringFingerprint } from "./string-fingerprint";
 import type { ResourceSizes } from "./ui-layout";
 import { GAMEFLOW_SCHEMA_VERSION, validateGameFlowDocument, type CanvasReference, type GameFlowDocument, type GameFlowNode, type GameFlowPage } from "./model";
 import { CANVAS_INSTANCE_LAYOUT_KEYS } from "./model";
@@ -438,9 +439,7 @@ export function revertCanvasSelections(document: GameFlowDocument, ownerId: stri
 
 export interface CanvasApplyRequest { pageId: string; ownerId: string; target?: CanvasTarget; fields?: string[]; selections?: CanvasPropertySelection[] }
 export function canvasFingerprint(document: GameFlowDocument): string {
-  const value = JSON.stringify(document); let a = 2166136261, b = 5381;
-  for (let i = 0; i < value.length; i++) { a = Math.imul(a ^ value.charCodeAt(i), 16777619); b = Math.imul(b, 33) ^ value.charCodeAt(i); }
-  return `${value.length}:${a >>> 0}:${b >>> 0}`;
+  return stringFingerprint(JSON.stringify(document));
 }
 export interface CanvasApplyPlan { document: GameFlowDocument; source: string; sourceDocument: GameFlowDocument; fields: string[] }
 /** Always writes the directly referenced definition, including its own nested-instance overlay. */

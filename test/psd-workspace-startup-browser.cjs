@@ -2,7 +2,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs"), path = require("node:path"), os = require("node:os");
 const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwright");
 (async () => {
-  const browser = await chromium.launch({ channel: "msedge", headless: true });
+  const browser = await chromium.launch({ channel: process.env.GAMEFLOW_BROWSER_CHANNEL || "msedge", headless: true });
   const context = await browser.newContext({ viewport: { width: 1400, height: 950 } });
   const page = await context.newPage(), errors = [], output = fs.mkdtempSync(path.join(os.tmpdir(), "gameflow-psd-startup-"));
   page.on("pageerror", error => errors.push(error.message));
@@ -106,6 +106,32 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
     assert.equal(await page.evaluate(() => window.__hostMessages.some(m => m.type === "pagePsd" && m.action === "slice")), false);
     await more.click();
     assert.equal(await page.getByRole("menuitem", { name: "重新绑定 PSD" }).isEnabled(), true);
+    await page.keyboard.press("Escape");
+    // VS Code forwards bubbling keydowns from window even when defaultPrevented is true.
+    await page.evaluate(() => {
+      window.__forwardedHistory = [];
+      window.addEventListener("keydown", event => {
+        if ((event.ctrlKey || event.metaKey) && ["z", "y"].includes(event.key.toLowerCase()))
+          window.__forwardedHistory.push(event.key);
+      });
+    });
+    const historyMessages = () => page.evaluate(() => window.__hostMessages.filter(m => m.type === "history" || m.type === "psdEditorCommand"));
+    await modeTrigger.focus();
+    await page.keyboard.press("Control+z");
+    await page.keyboard.press("Control+Shift+z");
+    assert.deepEqual((await historyMessages()).map(m => m.action), ["undo"], "redo waits for undo");
+    await send({ type: "commandCompleted", action: "undo" });
+    assert.deepEqual((await historyMessages()).map(m => m.action), ["undo", "redo"]);
+    await send({ type: "commandCompleted", action: "redo" });
+    await send({ type: "psdEditorReveal" });
+    await page.getByRole("button", { name: "工作台模式：PSD 切图", exact: true }).waitFor();
+    await modeTrigger.focus();
+    await page.keyboard.press("Control+y");
+    const psdHistory = (await historyMessages()).filter(m => m.type === "psdEditorCommand");
+    assert.deepEqual(psdHistory.map(m => m.action), ["redo"]);
+    await page.keyboard.press("Control+z");
+    assert.deepEqual(await page.evaluate(() => window.__forwardedHistory), [], "handled and busy history shortcuts must not also reach VS Code");
+    await send({ type: "psdEditorCommandResult", requestId: psdHistory[0].requestId });
     assert.deepEqual(errors, []);
     console.log("PASS PSD startup: restore stays in prototype, explicit open reveals slices, late decode preserves selection, unrelated PSD leaves page unbound and unsaved; screenshots: " + output);
   } finally { await browser.close(); }

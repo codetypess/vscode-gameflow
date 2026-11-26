@@ -3,7 +3,7 @@ const fs = require("node:fs"), os = require("node:os"), path = require("node:pat
 const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwright");
 
 (async () => {
-  const browser = await chromium.launch({ channel: "msedge", headless: true });
+  const browser = await chromium.launch({ channel: process.env.GAMEFLOW_BROWSER_CHANNEL || "msedge", headless: true });
   const context = await browser.newContext({ viewport: { width: 1400, height: 1000 } });
   const page = await context.newPage(), errors = [];
   const output = fs.mkdtempSync(path.join(os.tmpdir(), "gameflow-inspector-checkbox-"));
@@ -67,6 +67,21 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
     await page.getByRole("button", { name: /^重做/ }).click();
     await settle();
     assert.equal(await checkbox("选中状态").isChecked(), true, "redo restores the edit");
+
+    await checkbox("禁用状态").check();
+    await page.locator(".canvas-viewport").focus();
+    await page.keyboard.press("Control+z");
+    await settle();
+    assert.equal(await checkbox("选中状态").isChecked(), true, "one shortcut preserves the preceding edit");
+    assert.equal(await checkbox("禁用状态").isChecked(), false);
+    await page.keyboard.press("Control+Shift+z");
+    await settle();
+    assert.equal(await checkbox("禁用状态").isChecked(), true);
+    const search = page.getByRole("searchbox", { name: "搜索图层" });
+    await search.fill("测试");
+    await search.press("Control+z");
+    await settle();
+    assert.equal(await checkbox("禁用状态").isChecked(), true, "undo in the search field leaves document history alone");
 
     for (const name of ["测试复选", "测试单选"]) {
       await selectNode(name);

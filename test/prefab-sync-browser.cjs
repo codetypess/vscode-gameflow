@@ -78,7 +78,9 @@ async function checkRuntime(browser,root,prefab) {
     const exportName = p.getByRole("textbox",{name:"导出名称",exact:true});
     await exportName.fill("登录");
     await exportName.press("Enter");
-    await openPrefabFromBoard();
+    await p.locator(".page-caption").first().dblclick();
+    await p.locator(".canvas-viewport").click({button:"right",position:{x:35,y:150}});
+    await p.getByRole("menu",{name:"画布节点右键菜单",exact:true}).getByRole("menuitem",{name:"预制体同步",exact:true}).click();
     await p.waitForFunction(()=>JSON.parse(localStorage.getItem("gameflow.prototype.v1")).pages[0].prefabSync);
     // Two independently saved inputs, including a foreign Laya ID and a private component.
     await p.evaluate(async()=>{

@@ -40,6 +40,11 @@
 .psd-tree-row input, .psd-check input, .repeat-toggle input { accent-color: var(--primary); width: 13px; height: 13px; flex-shrink: 0; align-self: center; cursor: pointer; }
 .psd-tree-label { display: flex; align-items: center; text-align: left; gap: 6px; min-width: 0; padding: 4px 0; flex: 1; color: inherit; border: 0; background: none; }
 .psd-tree-label > svg { flex-shrink: 0; }
+.psd-visibility-toggle { display: grid; place-items: center; flex: 0 0 24px; height: 24px; align-self: center; border: 0; border-radius: 3px; color: var(--muted-foreground); background: transparent; cursor: pointer; }
+.psd-visibility-toggle:hover, .psd-visibility-toggle:focus-visible { background: var(--vscode-toolbar-hoverBackground, #ffffff18); color: var(--foreground); }
+.psd-visibility-toggle:focus-visible { outline: 1px solid var(--vscode-focusBorder, var(--selection)); }
+.psd-visibility-toggle:disabled { opacity: .45; cursor: default; }
+.psd-tree-row:has(> .psd-visibility-toggle[aria-pressed="false"]) > .psd-tree-label { color: var(--muted-foreground); }
 .psd-document-row { flex: 0 0 auto; min-height: 28px; padding: 4px 12px; }
 .psd-document-row:hover { background: var(--vscode-list-hoverBackground, #2a2d2e); }
 .psd-document-row[aria-pressed="true"] { background: var(--vscode-list-activeSelectionBackground, #04395e); }
@@ -51,6 +56,8 @@
 .psd-page-caption small { color: var(--muted-foreground); }
 .psd-preview-world { position: absolute; left: 0; top: 0; transform-origin: 0 0; overflow: hidden; }
 .psd-composite { width: 100%; height: 100%; display: block; }
+.psd-visible-layers { position: absolute; inset: 0; pointer-events: none; }
+.psd-visible-layers img { position: absolute; max-width: none; }
 .psd-selected-outline { border: 1px solid var(--selection); position: absolute; pointer-events: none; }
 .psd-container-outlines { position: absolute; inset: 0; overflow: hidden; pointer-events: none; color: var(--selection); }
 .psd-export-outline { position: absolute; border: 1px dashed var(--vscode-editorWarning-foreground, #cca700); pointer-events: none; }

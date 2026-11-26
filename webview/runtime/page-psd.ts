@@ -62,7 +62,7 @@ export async function requestPsd(request: Omit<PagePsdRequest, "type" | "request
       componentBindings.push({ canvas: output.canvas, documentId: output.documentId, pageId: output.pageId,
         binding: { documentId: asset.documentId, source: name } });
     }
-    if (request.action === "choose") { const file = await chooseFile(); if (!file) return; const opened=await openPsd(file); asset=opened.asset; syncBytes.set(asset,new Uint8Array(opened.bytes)); source = file.name; }
+    if (request.action === "choose") { const file = await chooseFile(); if (!file) return; const opened=await openPsd(file, "readPage"); asset=opened.asset; syncBytes.set(asset,new Uint8Array(opened.bytes)); source = file.name; }
     else { source = request.name!; asset = await psdTask<PsdAsset>("read", new Uint8Array(bytes!).buffer, source); if (!await saveOutput(source, "psd", bytes!)) return; syncBytes.set(asset,bytes!); }
     browserAssets.set(request.pageId + ":" + pagePsdKey({ source, documentId: asset.documentId }), asset);
     for (const companion of companions) {
@@ -88,7 +88,7 @@ export async function requestPsd(request: Omit<PagePsdRequest, "type" | "request
   if (result.cancelled || request.action === "slice") return;
   if (!result.base64 || !result.source || !result.name || !result.draft) throw new Error("PSD 返回数据不完整。");
   const decoded = decodePsd(result.base64);
-  const asset = applyPsdDraft(await psdTask<PsdAsset>("read", decoded.slice().buffer, result.name), result.draft, true);
+  const asset = applyPsdDraft(await psdTask<PsdAsset>("readPage", decoded.slice().buffer, result.name), result.draft, true);
   asset.sourceUri = result.sourceUri;
   syncBytes.set(asset,decoded);
   return { source: result.source, asset, componentBindings: result.componentBindings };

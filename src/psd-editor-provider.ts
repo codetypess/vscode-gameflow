@@ -154,15 +154,17 @@ export class PsdEditorProvider implements vscode.CustomEditorProvider<PsdDocumen
   }
   attachRenderer(panel: vscode.WebviewPanel, source: (hash: string) => Uint8Array | undefined | Promise<Uint8Array | undefined>) {
     const listener = panel.webview.onDidReceiveMessage(async raw => {
-      if (raw?.type !== "psdRenderSlice" || !isWebviewToHostMessage(raw) || raw.type !== "psdRenderSlice") return;
+      if (!isWebviewToHostMessage(raw) || (raw.type !== "psdRenderSlice" && raw.type !== "psdRenderVisibility")) return;
+      const visibility = raw.type === "psdRenderVisibility";
+      const type = visibility ? "psdRenderVisibilityResult" : "psdRenderSliceResult";
       try {
         const bytes = await source(raw.sourceHash);
         if (!bytes || bytesHash(bytes) !== raw.sourceHash) throw new Error("PSD 快照已变化，请重新打开切图。");
         const executable = vscode.workspace.getConfiguration("gameflow").get<string>("photoCraftCliPath", "").trim();
-        const image = await renderPhotoCraft(bytes, raw.keys, executable);
-        await panel.webview.postMessage({ type: "psdRenderSliceResult", requestId: raw.requestId, image } satisfies HostToWebviewMessage);
+        const image = await renderPhotoCraft(bytes, raw.keys, executable, visibility ? "visibility" : "slice");
+        await panel.webview.postMessage({ type, requestId: raw.requestId, image } satisfies HostToWebviewMessage);
       } catch (error) {
-        await panel.webview.postMessage({ type: "psdRenderSliceResult", requestId: raw.requestId, error: message(error) } satisfies HostToWebviewMessage);
+        await panel.webview.postMessage({ type, requestId: raw.requestId, error: message(error) } satisfies HostToWebviewMessage);
       }
     });
     panel.onDidDispose(() => listener.dispose());

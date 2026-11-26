@@ -1,0 +1,1509 @@
+{
+  "schema": "gameflow.psd-meta",
+  "version": 1,
+  "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+  "source": {
+    "name": "获取途径.psd",
+    "sha256": "739cf41b10d7b9232ec01e1b2a3411e34ae74f9d01333d4dc6ed89ee856bbde5",
+    "width": 750,
+    "height": 1334
+  },
+  "layers": [
+    {
+      "id": "mn9e2w4g",
+      "sourceKey": 71,
+      "nativeId": 411,
+      "name": "组 1653",
+      "config": {
+        "enabled": false,
+        "name": "组 1653",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "mn9e2w4g",
+        "slicing": {
+          "enabled": false,
+          "name": "组 1653",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "znwcxkkd",
+      "sourceKey": 70,
+      "nativeId": 410,
+      "name": "图层 1226 拷贝 2",
+      "config": {
+        "enabled": false,
+        "name": "图层 1226 拷贝 2",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "znwcxkkd",
+        "slicing": {
+          "enabled": false,
+          "name": "图层 1226 拷贝 2",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "w0lec17p",
+      "sourceKey": 69,
+      "nativeId": 409,
+      "name": "图层 1224 拷贝",
+      "config": {
+        "enabled": false,
+        "name": "图层 1224 拷贝",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "w0lec17p",
+        "slicing": {
+          "enabled": false,
+          "name": "图层 1224 拷贝",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "botgrrz1",
+      "sourceKey": 68,
+      "nativeId": 408,
+      "name": "图层 1225 拷贝",
+      "config": {
+        "enabled": false,
+        "name": "图层 1225 拷贝",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "botgrrz1",
+        "slicing": {
+          "enabled": false,
+          "name": "图层 1225 拷贝",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "gztcf2wz",
+      "sourceKey": 67,
+      "nativeId": 407,
+      "name": "20级 拷贝 3",
+      "config": {
+        "enabled": false,
+        "name": "20级 拷贝 3",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "gztcf2wz",
+        "slicing": {
+          "enabled": false,
+          "name": "20级 拷贝 3",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "dewudeig",
+      "sourceKey": 66,
+      "nativeId": 406,
+      "name": "20级 拷贝 2",
+      "config": {
+        "enabled": false,
+        "name": "20级 拷贝 2",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "dewudeig",
+        "slicing": {
+          "enabled": false,
+          "name": "20级 拷贝 2",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "2jewg8qr",
+      "sourceKey": 65,
+      "nativeId": 405,
+      "name": "20级 拷贝 4",
+      "config": {
+        "enabled": false,
+        "name": "20级 拷贝 4",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "2jewg8qr",
+        "slicing": {
+          "enabled": false,
+          "name": "20级 拷贝 4",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "snna189b",
+      "sourceKey": 64,
+      "nativeId": 404,
+      "name": "20级 拷贝 4",
+      "config": {
+        "enabled": false,
+        "name": "20级 拷贝 4",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "snna189b",
+        "slicing": {
+          "enabled": false,
+          "name": "20级 拷贝 4",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "b2ixr03v",
+      "sourceKey": 63,
+      "nativeId": 403,
+      "name": "20级 拷贝 4",
+      "config": {
+        "enabled": false,
+        "name": "20级 拷贝 4",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "b2ixr03v",
+        "slicing": {
+          "enabled": false,
+          "name": "20级 拷贝 4",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "knbknqll",
+      "sourceKey": 62,
+      "nativeId": 402,
+      "name": "20级 拷贝 2",
+      "config": {
+        "enabled": false,
+        "name": "20级 拷贝 2",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "knbknqll",
+        "slicing": {
+          "enabled": false,
+          "name": "20级 拷贝 2",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "3uil7ih3",
+      "sourceKey": 61,
+      "nativeId": 401,
+      "name": "20级 拷贝",
+      "config": {
+        "enabled": false,
+        "name": "20级 拷贝",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "3uil7ih3",
+        "slicing": {
+          "enabled": false,
+          "name": "20级 拷贝",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "vhqjxuvg",
+      "sourceKey": 60,
+      "nativeId": 400,
+      "name": "20级",
+      "config": {
+        "enabled": false,
+        "name": "20级",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "vhqjxuvg",
+        "slicing": {
+          "enabled": false,
+          "name": "20级",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "al3kx8nj",
+      "sourceKey": 59,
+      "nativeId": 399,
+      "name": "图层 77 拷贝 4",
+      "config": {
+        "enabled": false,
+        "name": "图层 77 拷贝 4",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "al3kx8nj",
+        "slicing": {
+          "enabled": false,
+          "name": "图层 77 拷贝 4",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "05o4b7t2",
+      "sourceKey": 58,
+      "nativeId": 398,
+      "name": "图层 77 拷贝 3",
+      "config": {
+        "enabled": false,
+        "name": "图层 77 拷贝 3",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "05o4b7t2",
+        "slicing": {
+          "enabled": false,
+          "name": "图层 77 拷贝 3",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "wclrjzqq",
+      "sourceKey": 57,
+      "nativeId": 397,
+      "name": "图层 77 拷贝 5",
+      "config": {
+        "enabled": false,
+        "name": "图层 77 拷贝 5",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "wclrjzqq",
+        "slicing": {
+          "enabled": false,
+          "name": "图层 77 拷贝 5",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "hckodkue",
+      "sourceKey": 56,
+      "nativeId": 396,
+      "name": "图层 77 拷贝 7",
+      "config": {
+        "enabled": false,
+        "name": "图层 77 拷贝 7",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "hckodkue",
+        "slicing": {
+          "enabled": false,
+          "name": "图层 77 拷贝 7",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "l45l9q07",
+      "sourceKey": 55,
+      "nativeId": 395,
+      "name": "图层 77 拷贝 5",
+      "config": {
+        "enabled": false,
+        "name": "图层 77 拷贝 5",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "l45l9q07",
+        "slicing": {
+          "enabled": false,
+          "name": "图层 77 拷贝 5",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "zkiyogte",
+      "sourceKey": 54,
+      "nativeId": 394,
+      "name": "图层 77 拷贝 2",
+      "config": {
+        "enabled": false,
+        "name": "图层 77 拷贝 2",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "zkiyogte",
+        "slicing": {
+          "enabled": false,
+          "name": "图层 77 拷贝 2",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "go9zx6kn",
+      "sourceKey": 53,
+      "nativeId": 393,
+      "name": "图层 77 拷贝",
+      "config": {
+        "enabled": false,
+        "name": "图层 77 拷贝",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "go9zx6kn",
+        "slicing": {
+          "enabled": false,
+          "name": "图层 77 拷贝",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "vvw7s13a",
+      "sourceKey": 52,
+      "nativeId": 392,
+      "name": "图层 23",
+      "config": {
+        "enabled": false,
+        "name": "图层 23",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "vvw7s13a",
+        "slicing": {
+          "enabled": false,
+          "name": "图层 23",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "2bg6bocw",
+      "sourceKey": 51,
+      "nativeId": 391,
+      "name": "前往领取",
+      "config": {
+        "enabled": false,
+        "name": "前往领取",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "2bg6bocw",
+        "slicing": {
+          "enabled": false,
+          "name": "前往领取",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "t6rfw0pd",
+      "sourceKey": 50,
+      "nativeId": 390,
+      "name": "组 1650",
+      "config": {
+        "enabled": false,
+        "name": "组 1650",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "t6rfw0pd",
+        "slicing": {
+          "enabled": false,
+          "name": "组 1650",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "kwyrnlmt",
+      "sourceKey": 49,
+      "nativeId": 389,
+      "name": "新的启程 拷贝 2",
+      "config": {
+        "enabled": false,
+        "name": "新的启程 拷贝 2",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "kwyrnlmt",
+        "slicing": {
+          "enabled": false,
+          "name": "新的启程 拷贝 2",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "cmliyoaw",
+      "sourceKey": 48,
+      "nativeId": 388,
+      "name": "新的启程 拷贝",
+      "config": {
+        "enabled": false,
+        "name": "新的启程 拷贝",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "cmliyoaw",
+        "slicing": {
+          "enabled": false,
+          "name": "新的启程 拷贝",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "tgteb2rn",
+      "sourceKey": 47,
+      "nativeId": 387,
+      "name": "多边形 902",
+      "config": {
+        "enabled": false,
+        "name": "多边形 902",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "tgteb2rn",
+        "slicing": {
+          "enabled": false,
+          "name": "多边形 902",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "9a2gjcrb",
+      "sourceKey": 46,
+      "nativeId": 386,
+      "name": "圆角矩形 1890",
+      "config": {
+        "enabled": false,
+        "name": "圆角矩形 1890",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "9a2gjcrb",
+        "slicing": {
+          "enabled": false,
+          "name": "圆角矩形 1890",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "1lsvb72t",
+      "sourceKey": 45,
+      "nativeId": 385,
+      "name": "新的启程",
+      "config": {
+        "enabled": false,
+        "name": "新的启程",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "1lsvb72t",
+        "slicing": {
+          "enabled": false,
+          "name": "新的启程",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "qdxk33js",
+      "sourceKey": 43,
+      "nativeId": 383,
+      "name": "组 1649",
+      "config": {
+        "enabled": false,
+        "name": "组 1649",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "qdxk33js",
+        "slicing": {
+          "enabled": false,
+          "name": "组 1649",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "5625ud9g",
+      "sourceKey": 42,
+      "nativeId": 382,
+      "name": "多边形 643 拷贝 6",
+      "config": {
+        "enabled": false,
+        "name": "多边形 643 拷贝 6",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "5625ud9g",
+        "slicing": {
+          "enabled": false,
+          "name": "多边形 643 拷贝 6",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "xy7rft5u",
+      "sourceKey": 41,
+      "nativeId": 381,
+      "name": "多边形 643 拷贝 5",
+      "config": {
+        "enabled": false,
+        "name": "多边形 643 拷贝 5",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "xy7rft5u",
+        "slicing": {
+          "enabled": false,
+          "name": "多边形 643 拷贝 5",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "jhane07r",
+      "sourceKey": 39,
+      "nativeId": 379,
+      "name": "多边形 900 拷贝 8",
+      "config": {
+        "enabled": false,
+        "name": "多边形 900 拷贝 8",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "jhane07r",
+        "slicing": {
+          "enabled": false,
+          "name": "多边形 900 拷贝 8",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "2vvm6uto",
+      "sourceKey": 38,
+      "nativeId": 378,
+      "name": "多边形 900 拷贝",
+      "config": {
+        "enabled": false,
+        "name": "多边形 900 拷贝",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "2vvm6uto",
+        "slicing": {
+          "enabled": false,
+          "name": "多边形 900 拷贝",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "m3boifvb",
+      "sourceKey": 37,
+      "nativeId": 377,
+      "name": "多边形 900",
+      "config": {
+        "enabled": false,
+        "name": "多边形 900",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "m3boifvb",
+        "slicing": {
+          "enabled": false,
+          "name": "多边形 900",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "ctkz0pmm",
+      "sourceKey": 36,
+      "nativeId": 376,
+      "name": "获取途径",
+      "config": {
+        "enabled": false,
+        "name": "获取途径",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "ctkz0pmm",
+        "slicing": {
+          "enabled": false,
+          "name": "获取途径",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "gnyautua",
+      "sourceKey": 35,
+      "nativeId": 375,
+      "name": "圆角矩形 1889",
+      "config": {
+        "enabled": false,
+        "name": "圆角矩形 1889",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "gnyautua",
+        "slicing": {
+          "enabled": false,
+          "name": "圆角矩形 1889",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "05bqj9jd",
+      "sourceKey": 34,
+      "nativeId": 374,
+      "name": "多边形 901",
+      "config": {
+        "enabled": false,
+        "name": "多边形 901",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "05bqj9jd",
+        "slicing": {
+          "enabled": false,
+          "name": "多边形 901",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "d2b73iq0",
+      "sourceKey": 33,
+      "nativeId": 373,
+      "name": "多边形 901",
+      "config": {
+        "enabled": false,
+        "name": "多边形 901",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "d2b73iq0",
+        "slicing": {
+          "enabled": false,
+          "name": "多边形 901",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "76n1omig",
+      "sourceKey": 32,
+      "nativeId": 372,
+      "name": "图层 22",
+      "config": {
+        "enabled": false,
+        "name": "图层 22",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "76n1omig",
+        "slicing": {
+          "enabled": false,
+          "name": "图层 22",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "4hv9vfyq",
+      "sourceKey": 31,
+      "nativeId": 371,
+      "name": "多边形 904 拷贝 9",
+      "config": {
+        "enabled": false,
+        "name": "多边形 904 拷贝 9",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "4hv9vfyq",
+        "slicing": {
+          "enabled": false,
+          "name": "多边形 904 拷贝 9",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "de989gzr",
+      "sourceKey": 30,
+      "nativeId": 370,
+      "name": "多边形 904 拷贝 8",
+      "config": {
+        "enabled": false,
+        "name": "多边形 904 拷贝 8",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "de989gzr",
+        "slicing": {
+          "enabled": false,
+          "name": "多边形 904 拷贝 8",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "mz73nsin",
+      "sourceKey": 29,
+      "nativeId": 369,
+      "name": "多边形 904 拷贝 5",
+      "config": {
+        "enabled": false,
+        "name": "多边形 904 拷贝 5",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "mz73nsin",
+        "slicing": {
+          "enabled": false,
+          "name": "多边形 904 拷贝 5",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "nybrtpha",
+      "sourceKey": 28,
+      "nativeId": 368,
+      "name": "多边形 904 拷贝 10",
+      "config": {
+        "enabled": false,
+        "name": "多边形 904 拷贝 10",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "nybrtpha",
+        "slicing": {
+          "enabled": false,
+          "name": "多边形 904 拷贝 10",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "c6i4nig1",
+      "sourceKey": 27,
+      "nativeId": 367,
+      "name": "多边形 904 拷贝 6",
+      "config": {
+        "enabled": false,
+        "name": "多边形 904 拷贝 6",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "c6i4nig1",
+        "slicing": {
+          "enabled": false,
+          "name": "多边形 904 拷贝 6",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "1qsefbjc",
+      "sourceKey": 26,
+      "nativeId": 366,
+      "name": "多边形 904 拷贝 5",
+      "config": {
+        "enabled": false,
+        "name": "多边形 904 拷贝 5",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "1qsefbjc",
+        "slicing": {
+          "enabled": false,
+          "name": "多边形 904 拷贝 5",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "vqkooa2p",
+      "sourceKey": 25,
+      "nativeId": 365,
+      "name": "多边形 904 拷贝 4",
+      "config": {
+        "enabled": false,
+        "name": "多边形 904 拷贝 4",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "vqkooa2p",
+        "slicing": {
+          "enabled": false,
+          "name": "多边形 904 拷贝 4",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "u94dtt2d",
+      "sourceKey": 24,
+      "nativeId": 364,
+      "name": "多边形 904 拷贝 3",
+      "config": {
+        "enabled": false,
+        "name": "多边形 904 拷贝 3",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "u94dtt2d",
+        "slicing": {
+          "enabled": false,
+          "name": "多边形 904 拷贝 3",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "r732yfro",
+      "sourceKey": 23,
+      "nativeId": 363,
+      "name": "多边形 904 拷贝 2",
+      "config": {
+        "enabled": false,
+        "name": "多边形 904 拷贝 2",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "r732yfro",
+        "slicing": {
+          "enabled": false,
+          "name": "多边形 904 拷贝 2",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "le374j7n",
+      "sourceKey": 22,
+      "nativeId": 362,
+      "name": "多边形 904 拷贝",
+      "config": {
+        "enabled": false,
+        "name": "多边形 904 拷贝",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "le374j7n",
+        "slicing": {
+          "enabled": false,
+          "name": "多边形 904 拷贝",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "n41sz7xf",
+      "sourceKey": 21,
+      "nativeId": 361,
+      "name": "多边形 904",
+      "config": {
+        "enabled": false,
+        "name": "多边形 904",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "n41sz7xf",
+        "slicing": {
+          "enabled": false,
+          "name": "多边形 904",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "8iyte72f",
+      "sourceKey": 20,
+      "nativeId": 360,
+      "name": "圆角矩形 1891",
+      "config": {
+        "enabled": false,
+        "name": "圆角矩形 1891",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "8iyte72f",
+        "slicing": {
+          "enabled": false,
+          "name": "圆角矩形 1891",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "zijfo8rz",
+      "sourceKey": 19,
+      "nativeId": 359,
+      "name": "组 1652",
+      "config": {
+        "enabled": false,
+        "name": "组 1652",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "zijfo8rz",
+        "slicing": {
+          "enabled": false,
+          "name": "组 1652",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "y925e5q1",
+      "sourceKey": 18,
+      "nativeId": 358,
+      "name": "矩形 5073",
+      "config": {
+        "enabled": false,
+        "name": "矩形 5073",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "y925e5q1",
+        "slicing": {
+          "enabled": false,
+          "name": "矩形 5073",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "ha8d5y6b",
+      "sourceKey": 17,
+      "nativeId": 357,
+      "name": "组 1651",
+      "config": {
+        "enabled": false,
+        "name": "组 1651",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "ha8d5y6b",
+        "slicing": {
+          "enabled": false,
+          "name": "组 1651",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "jobdiw0o",
+      "sourceKey": 16,
+      "nativeId": 356,
+      "name": "多边形 903 拷贝",
+      "config": {
+        "enabled": false,
+        "name": "多边形 903 拷贝",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "jobdiw0o",
+        "slicing": {
+          "enabled": false,
+          "name": "多边形 903 拷贝",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "i2ptv6be",
+      "sourceKey": 15,
+      "nativeId": 355,
+      "name": "多边形 903",
+      "config": {
+        "enabled": false,
+        "name": "多边形 903",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "i2ptv6be",
+        "slicing": {
+          "enabled": false,
+          "name": "多边形 903",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "ljex0925",
+      "sourceKey": 14,
+      "nativeId": 354,
+      "name": "图层 21",
+      "config": {
+        "enabled": false,
+        "name": "图层 21",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "ljex0925",
+        "slicing": {
+          "enabled": false,
+          "name": "图层 21",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "cwud430q",
+      "sourceKey": 13,
+      "nativeId": 353,
+      "name": "图层 20",
+      "config": {
+        "enabled": false,
+        "name": "图层 20",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "cwud430q",
+        "slicing": {
+          "enabled": false,
+          "name": "图层 20",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "eut25x3m",
+      "sourceKey": 12,
+      "nativeId": 352,
+      "name": "多边形 1 拷贝 8",
+      "config": {
+        "enabled": false,
+        "name": "多边形 1 拷贝 8",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "eut25x3m",
+        "slicing": {
+          "enabled": false,
+          "name": "多边形 1 拷贝 8",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "rz0uqctv",
+      "sourceKey": 11,
+      "nativeId": 351,
+      "name": "矩形 5074",
+      "config": {
+        "enabled": false,
+        "name": "矩形 5074",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "rz0uqctv",
+        "slicing": {
+          "enabled": false,
+          "name": "矩形 5074",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "j6ei7s3g",
+      "sourceKey": 9,
+      "nativeId": 349,
+      "name": "多边形 900",
+      "config": {
+        "enabled": false,
+        "name": "多边形 900",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "j6ei7s3g",
+        "slicing": {
+          "enabled": false,
+          "name": "多边形 900",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "v7eosl5h",
+      "sourceKey": 8,
+      "nativeId": 348,
+      "name": "图层 19",
+      "config": {
+        "enabled": false,
+        "name": "图层 19",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "v7eosl5h",
+        "slicing": {
+          "enabled": false,
+          "name": "图层 19",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "ed8r1l9e",
+      "sourceKey": 7,
+      "nativeId": 347,
+      "name": "图层 18",
+      "config": {
+        "enabled": false,
+        "name": "图层 18",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "ed8r1l9e",
+        "slicing": {
+          "enabled": false,
+          "name": "图层 18",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "nlxdwvu0",
+      "sourceKey": 6,
+      "nativeId": 346,
+      "name": "图层 17",
+      "config": {
+        "enabled": false,
+        "name": "图层 17",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "nlxdwvu0",
+        "slicing": {
+          "enabled": false,
+          "name": "图层 17",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "2qw612p9",
+      "sourceKey": 5,
+      "nativeId": 345,
+      "name": "图层 16",
+      "config": {
+        "enabled": false,
+        "name": "图层 16",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "2qw612p9",
+        "slicing": {
+          "enabled": false,
+          "name": "图层 16",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "quuev9pf",
+      "sourceKey": 4,
+      "nativeId": 344,
+      "name": "图层 15",
+      "config": {
+        "enabled": false,
+        "name": "图层 15",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "quuev9pf",
+        "slicing": {
+          "enabled": false,
+          "name": "图层 15",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "fcmvv0db",
+      "sourceKey": 3,
+      "nativeId": 343,
+      "name": "矩形 788",
+      "config": {
+        "enabled": false,
+        "name": "矩形 788",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "fcmvv0db",
+        "slicing": {
+          "enabled": false,
+          "name": "矩形 788",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "runahzmq",
+      "sourceKey": 2,
+      "nativeId": 342,
+      "name": "图层 14",
+      "config": {
+        "enabled": false,
+        "name": "图层 14",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "runahzmq",
+        "slicing": {
+          "enabled": false,
+          "name": "图层 14",
+          "nineGrid": null
+        }
+      }
+    },
+    {
+      "id": "ht15jb1t",
+      "sourceKey": 1,
+      "nativeId": 341,
+      "name": "图层 13",
+      "config": {
+        "enabled": false,
+        "name": "图层 13",
+        "nineGrid": null
+      },
+      "metadata": {
+        "namespace": "com.codetypes.gameflow",
+        "version": 1,
+        "documentId": "5157fac6-4947-4c7f-81fe-cacba0385e71",
+        "layerId": "ht15jb1t",
+        "slicing": {
+          "enabled": false,
+          "name": "图层 13",
+          "nineGrid": null
+        }
+      }
+    }
+  ]
+}

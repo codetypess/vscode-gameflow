@@ -46,7 +46,7 @@ export function createPsdStructure(raw: ParsedPsd, name: string, sourceHash: str
       const candidate = { enabled: true, name: r.name, nineGrid: { ...m.slice, repeat: false } };
       if (validConfig(candidate, r.width, r.height)) config = candidate;
     }
-    return { key: r.key, nativeId: r.nativeId, parentKey: r.parentKey, name: r.name, group: r.divider === 1 || r.divider === 2, left: r.left, top: r.top, width: r.width, height: r.height, hidden: r.hidden, identityOrigin: embedded ? "embedded" as const : "new" as const, metadata: m, config };
+    return { key: r.key, nativeId: r.nativeId, parentKey: r.parentKey, name: r.name, group: r.divider === 1 || r.divider === 2, left: r.left, top: r.top, width: r.width, height: r.height, hidden: r.hidden, sourceHidden: r.hidden, identityOrigin: embedded ? "embedded" as const : "new" as const, metadata: m, config };
   });
   return { name, ...(atlasName === undefined ? {} : { atlasName }), ...(independentDirectory ? { independentDirectory: true } : {}), sourceHash, documentId, hasEmbeddedIdentity: !!documentIds.size, width: raw.width, height: raw.height, layers: inheritLayerVisibility(layers), preview: "" };
 }

@@ -5,7 +5,7 @@ import { parsePsdBinary, patchPsdMetadata } from "../../shared/psd-binary";
 import { type PsdAsset, type PsdEmbeddedLayer, type PsdLayer, type PsdLayerMeta } from "../../shared/psd-meta";
 import { embeddedPsdFiles, psdContentHash } from "../runtime/psd-smart-object";
 import { maskedCellPixels, readableCellMask } from "./list-cell-mask";
-import { readPrototypeLayers } from "./prototype-import";
+import { needsImportComposite, readPrototypeLayers } from "./prototype-import";
 
 initializeCanvas(() => { throw new Error("图层需要当前不支持的 Canvas 解码。"); }, (width, height) => new ImageData(width, height));
 const scope = globalThis as unknown as { onmessage: (event: MessageEvent) => void; postMessage: (data: unknown, transfer?: Transferable[]) => void };
@@ -37,7 +37,7 @@ function embeddedLayers(bytes: Uint8Array): PsdEmbeddedLayer[] | undefined {
     return undefined;
   }
 }
-scope.onmessage = async ({ data }: MessageEvent<{ id: number; type: "read" | "patch" | "importPrototype"; bytes: ArrayBuffer; name: string; updates?: [number, PsdLayerMeta][] }>) => {
+scope.onmessage = async ({ data }: MessageEvent<{ id: number; type: "read" | "readPage" | "patch" | "importPrototype"; bytes: ArrayBuffer; name: string; updates?: [number, PsdLayerMeta][] }>) => {
   try {
     const bytes = new Uint8Array(data.bytes);
     if (data.type === "patch") {
@@ -46,7 +46,7 @@ scope.onmessage = async ({ data }: MessageEvent<{ id: number; type: "read" | "pa
     }
     const raw = parsePsdBinary(bytes);
     if (data.type === "importPrototype") {
-      const decoded = readPsd(bytes, { useImageData: true, skipThumbnail: true, skipCompositeImageData: true,
+      const decoded = readPsd(bytes, { useImageData: true, skipThumbnail: true, useRawThumbnail: true,
         skipLinkedFilesData: true, totalMemoryLimit: 384 * 1024 * 1024 });
       scope.postMessage({ id: data.id, result: await readPrototypeLayers(decoded) });
       return;
@@ -77,11 +77,24 @@ scope.onmessage = async ({ data }: MessageEvent<{ id: number; type: "read" | "pa
       (layer.blendMode !== "normal" && layer.blendMode !== "pass through");
     const walk = (children: Layer[], inherited = false) => { for (const l of [...children].reverse()) {
       const limitation = inherited || unsupported(l);
-      if (l.imageData && l.mask?.imageData && hasCellMask(l)) l.imageData = maskedCellPixels(l.imageData, l.mask.imageData);
       ordered.push({ layer: l, inheritedLimitation: limitation }); if (l.children) walk(l.children, limitation);
     } };
     walk(decoded.children ?? []);
     if (ordered.length !== raw.layers.length) throw new Error("PSD 图层结构解析不一致，已停止读取。");
+    const importPreview: Pick<PsdAsset, "importSignature" | "legacyImportSignature" | "importCorrections"> = {};
+    if (data.type === "readPage" && ordered.some(({ layer }) => needsImportComposite(layer))) {
+      // Use the same unmodified layer planes as the standalone import.
+      try {
+        const imported = await readPrototypeLayers(decoded, false);
+        importPreview.importSignature = imported.signature;
+        importPreview.legacyImportSignature = imported.legacySignature;
+        importPreview.importCorrections = imported.corrections;
+      }
+      catch { /* An otherwise readable PSD may contain no importable controls. */ }
+    }
+    for (const { layer } of ordered) {
+      if (layer.imageData && layer.mask?.imageData && hasCellMask(layer)) layer.imageData = maskedCellPixels(layer.imageData, layer.mask.imageData);
+    }
     let groupPixelsUsed = 0;
     const groupPixels = (group: Layer, bounds: PsdLayer): PixelData | undefined => {
       if (!bounds.width || !bounds.height || (groupPixelsUsed += bounds.width * bounds.height) > 24_000_000) return undefined;
@@ -100,7 +113,7 @@ scope.onmessage = async ({ data }: MessageEvent<{ id: number; type: "read" | "pa
         ? await verifyBuiltinOrigin(structure.layers[i].metadata.builtinOrigin, l.imageData) : undefined;
       layers.push({ ...structure.layers[i], smartObject: await smartObject(l), verifiedBuiltin, image: await png(l.children ? groupPixels(l, structure.layers[i]) : l.imageData), text: !!l.text, textContent: l.text?.text?.replace(/\r\n?/g,"\n"), limitation: flatUnsupported ? "此层含效果、蒙版、剪贴或特殊混合，单层图仅显示保存的基础像素。" : undefined });
     }
-    const result: PsdAsset = { ...structure, layers, preview: await png(decoded.imageData) };
+    const result: PsdAsset = { ...structure, ...importPreview, layers, hasArtboards: ordered.some(({ layer }) => !!layer.artboard), preview: await png(decoded.imageData) };
     scope.postMessage({ id: data.id, result });
   } catch (error) { scope.postMessage({ id: data.id, error: error instanceof Error ? error.message : String(error) }); }
 };

@@ -2,7 +2,7 @@ import { DialogHeading } from "../components/dialog-heading";
 import { useEffect, useImperativeHandle, useRef, useState, type ReactNode, type Ref } from "react";
 import { createPortal } from "react-dom";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { AlertTriangle, Box, Check, ChevronDown, ChevronRight, Crop, Download, Ellipsis, FileImage, FolderOpen, Grid3X3, ImageIcon, Layers3, MousePointerClick, Redo2, Save, Scissors, Share2, SquareDashed, Type, Undo2, X } from "lucide-react";
+import { AlertTriangle, Box, Check, ChevronDown, ChevronRight, Crop, Download, Ellipsis, Eye, EyeOff, FileImage, FolderOpen, Grid3X3, ImageIcon, Layers3, MousePointerClick, Redo2, Save, Scissors, Share2, SquareDashed, Type, Undo2, X } from "lucide-react";
 import { identityProblems, makeSidecar, newLayerIdentity, selectedMergeTree, sidecarName, sliceRegion, validConfig, type PsdAsset, type PsdEmbeddedLayer, type PsdLayer, type PsdLayerMeta, type SliceConfig, type SliceRegion, type NineGrid } from "../../shared/psd-meta";
 import { WorkbenchSettingsButton, type WorkbenchSettingsUI } from "../workbench-settings";
 import { Button } from "../components/ui/button";
@@ -27,6 +27,7 @@ import { defaultLayerVariableName, effectiveExportName, effectiveVariableName, e
 import { resourceExport } from "./export";
 import { restoreBrowserDraft, saveBrowserDraft } from "./browser-draft";
 import { useToolbarChoice } from "../lib/use-toolbar-choice";
+import { consumeHistoryShortcut } from "../lib/history-shortcut";
 import "./workspace.css";
 
 export type WorkspaceMode = "prototype" | "merge" | "slice";
@@ -56,7 +57,7 @@ function EmbeddedLayerRow({ layer, depth }: { layer: PsdEmbeddedLayer; depth: nu
   </div>;
 }
 
-function Tree({ asset, selected, onSelect, checked, toggle, individual = false, reveal = 0, issues = [] }: { individual?: boolean; asset: PsdAsset; selected: number | null; onSelect: (key: number) => void; checked?: (layer: PsdLayer) => boolean; toggle?: (layer: PsdLayer, value: boolean) => void; reveal?: number; issues?: ExportIssue[] }) {
+function Tree({ asset, selected, onSelect, checked, toggle, toggleVisibility, individual = false, reveal = 0, issues = [] }: { toggleVisibility?: (key: number) => void; individual?: boolean; asset: PsdAsset; selected: number | null; onSelect: (key: number) => void; checked?: (layer: PsdLayer) => boolean; toggle?: (layer: PsdLayer, value: boolean) => void; reveal?: number; issues?: ExportIssue[] }) {
   const [collapsed, setCollapsed] = useState(new Set<number>());
   const container = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -75,7 +76,7 @@ function Tree({ asset, selected, onSelect, checked, toggle, individual = false, 
     else if (item.bottom > bounds.bottom) tree.scrollTop += item.bottom - bounds.bottom;
   }, [selected, collapsed, reveal]);
   const duplicates = identityProblems(asset);
-  const render = (parent: number | null, depth: number): ReactNode => asset.layers.filter(l => l.parentKey === parent).map(l => {
+  const render = (parent: number | null, depth: number, parentHidden = false): ReactNode => asset.layers.filter(l => l.parentKey === parent).map(l => {
     const children = !individual && l.group ? getChildren(asset, l.key).filter(c => !c.group && !!c.image && !c.limitation && !duplicates.includes(c.metadata.layerId)) : [l];
     const count = checked ? children.filter(checked).length : 0;
     const mixed = count > 0 && count < children.length;
@@ -91,7 +92,12 @@ function Tree({ asset, selected, onSelect, checked, toggle, individual = false, 
       {expandable ? <button className="psd-tree-expander" aria-label={(expanded ? "折叠" : "展开") + l.name} onClick={() => setCollapsed(old => { const next = new Set(old); if (next.has(l.key)) next.delete(l.key); else next.add(l.key); return next; })}>{expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}</button> : <span className="psd-tree-spacer" />}
       {toggle && checked ? <input type="checkbox" aria-label={`选择${l.name}（${l.nativeId ?? l.key}）`} checked={children.length > 0 && count === children.length} ref={el => { if (el) el.indeterminate = mixed; }} disabled={!children.length || warning || (!l.group && (individual ? !l.image && !needsPhotoCraft(l, true) : !!l.limitation || !l.image))} onChange={e => toggle(l, e.target.checked)} /> : null}
       <button className="psd-tree-label" onClick={() => onSelect(l.key)} title={`${l.name} · ${l.metadata.layerId}${warning ? " · ID 重复" : ""}${conflictText ? `\n${conflictText}` : ""}`}><Icon size={13} aria-hidden="true" /><span>{l.name}</span>{!l.group && l.config.enabled && l.config.shared ? <span className="psd-shared-marker" role="img" aria-label={`${l.name}：共享导出`} title="共享导出"><Share2 size={12} aria-hidden="true" /></span> : null}{conflicts.length ? <span className="psd-conflict-marker" role="img" aria-label={`${l.name}：导出冲突`} title={conflictText}><AlertTriangle size={13} aria-hidden="true" /></span> : warning ? <AlertTriangle size={12} className="psd-warning" /> : l.config.nineGrid ? <Grid3X3 size={12} /> : null}</button>
-    </div>{expanded && (l.group ? <div role="group">{render(l.key, depth + 1)}</div>
+      {toggleVisibility && <button type="button" className="psd-visibility-toggle" aria-label={`图层可见性：${l.name}（${l.nativeId ?? l.key}）`}
+        aria-pressed={!l.hidden} title={parentHidden ? "父组已隐藏" : l.hidden ? "在画布上显示" : "在画布上隐藏"}
+        disabled={parentHidden} onClick={() => toggleVisibility(l.key)}>
+        {l.hidden ? <EyeOff size={14} /> : <Eye size={14} />}
+      </button>}
+    </div>{expanded && (l.group ? <div role="group">{render(l.key, depth + 1, l.hidden)}</div>
       : <div role="group" aria-label="智能对象内容（只读）">{contents.map(child => <EmbeddedLayerRow key={child.key} layer={child} depth={depth + 1} />)}</div>)}</div>;
   });
   return <ScrollArea className="psd-layer-scroll" label={`${asset.name} 图层内容`} viewportRef={container}><div className="psd-layer-tree" role="tree" aria-label={`${asset.name} 图层树`}>{render(null, 0)}</div></ScrollArea>;
@@ -233,8 +239,21 @@ export function PsdWorkspace({ mode, active, binding, documentActions, settings,
   };
   useEffect(() => {
     if (!active || mode !== "slice") return;
-    const keydown = (e: KeyboardEvent) => { if (editingGrid !== null || editingRegion !== null || pendingFile || busy || settings.open) return; if (!(e.ctrlKey || e.metaKey)) return; if (e.key.toLowerCase() === "s") { e.preventDefault(); (document.activeElement as HTMLElement)?.blur(); void save(false); } else if (!(e.target as Element).closest("input,textarea") && ["z", "y"].includes(e.key.toLowerCase())) { e.preventDefault(); undo(e.shiftKey || e.key.toLowerCase() === "y"); } };
-    window.addEventListener("keydown", keydown); return () => window.removeEventListener("keydown", keydown);
+    const keydown = (event: KeyboardEvent) => {
+      if (editingGrid !== null || editingRegion !== null || pendingFile || settings.open) return;
+      if (!(event.ctrlKey || event.metaKey)) return;
+      if (event.key.toLowerCase() === "s") {
+        if (busy) return;
+        event.preventDefault();
+        (document.activeElement as HTMLElement)?.blur();
+        void save(false);
+        return;
+      }
+      if (!loaded || (event.target as Element).closest('input, textarea, select, [contenteditable=true], [role=menu], dialog[open]')) return;
+      const action = consumeHistoryShortcut(event);
+      if (action) undo(action === "redo");
+    };
+    document.addEventListener("keydown", keydown); return () => document.removeEventListener("keydown", keydown);
   });
   useEffect(() => { if (!dirty || !isBrowserPreview) return; const unload = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ""; }; window.addEventListener("beforeunload", unload); return () => window.removeEventListener("beforeunload", unload); }, [dirty]);
   const drop = usePsdFileDrop({ disabled: !active || mode !== "slice" || busy || editingGrid !== null || editingRegion !== null || !!pendingFile || settings.open, onFile: file => { void readFile(file); }, onError: setMessage });
@@ -279,13 +298,13 @@ export function PsdWorkspace({ mode, active, binding, documentActions, settings,
       </>, documentActions) : null}
       {binding?.notice ? <p className="psd-config-notice">{binding.notice}</p> : null}
       {binding?.error ? <div className="psd-config-notice psd-warning" role="alert">{binding.error}<Button size="sm" variant="ghost" onClick={binding.retry}>重新提交修改</Button></div> : null}
-      {asset ? <PsdSliceCanvas key={`${asset.sourceHash}:${asset.name}`} asset={asset} selected={selected} active={active} directSelection={directSelection} showContainerOutlines={showContainerOutlines} scopeKey={scopeKey} onSelect={selectCanvasLayer} onNavigateScope={navigateScope}
+      {asset ? <PsdSliceCanvas key={JSON.stringify([asset.sourceUri ?? asset.name, asset.documentId, asset.sourceHash])} asset={asset} selected={selected} active={active} directSelection={directSelection} showContainerOutlines={showContainerOutlines} scopeKey={scopeKey} onSelect={selectCanvasLayer} onNavigateScope={navigateScope}
         toolbar={<><Button size="icon" variant={directSelection ? "secondary" : "ghost"} className={cn("psd-toolbar-action", directSelection && "tool-active")} aria-label="直选模式" aria-pressed={directSelection} title="直选模式" onClick={() => setDirectSelection(!directSelection)}><MousePointerClick size={19} /></Button><Button size="icon" variant={showContainerOutlines ? "secondary" : "ghost"} className={cn("psd-toolbar-action", showContainerOutlines && "tool-active")} aria-label="虚线框" aria-pressed={showContainerOutlines} title="虚线框" onClick={() => setShowContainerOutlines(!showContainerOutlines)}><SquareDashed size={19} /></Button><Separator orientation="vertical" /><Button size="icon" variant="ghost" className="psd-toolbar-action" aria-label="导出" disabled={busy || !!binding?.pending || !!exportPending || !!exportIssues.length || !!atlasInputError || !asset.layers.some(l => l.config.enabled)} title="导出标记的切图" onClick={() => void exportResources()}><Download size={15} /></Button><Separator orientation="vertical" /><Button size="icon" variant="ghost" className="psd-toolbar-action" aria-label="在文件管理器中打开" disabled={busy || settings.busy || isBrowserPreview || !settings.settings.resourceDirectory} title={isBrowserPreview ? "仅 VS Code 支持在文件管理器中打开" : settings.settings.resourceDirectory ? `在文件管理器中打开 ${settings.settings.resourceDirectory}` : "请先设置资源导出根目录"} onClick={() => void revealResources()}><FolderOpen size={15} /></Button></>}
-        tree={<><div className="floating-heading"><Layers3 size={14} /><strong>图层</strong><span>{asset.layers.length}</span></div>
+        tree={(preview, toggleVisibility) => <><div className="floating-heading"><Layers3 size={14} /><strong>图层</strong><span>{asset.layers.length}</span></div>
           <button type="button" className="psd-tree-label psd-document-row" aria-pressed={!selected && scopeKey === null} title={asset.name} onClick={() => navigateScope(null)}>
             <FileImage size={13} /><span>{asset.name}</span>
           </button>
-          <div className="psd-hint">勾选需要切图的图层{allExportIssues.length ? <span className="psd-warning" role="status"> · {allExportIssues.length} 项导出冲突</span> : null}</div><Tree individual={nativeSlices} asset={asset} selected={selectedKey} reveal={canvasSelection} issues={allExportIssues} onSelect={selectTreeLayer} checked={l => l.config.enabled} toggle={(layer, enabled) => { if (nativeSlices) { patchConfig(layer.key, { enabled }); return; } const keys = new Set(getChildren(asset, layer.key).filter(l => !l.group && l.image && !l.limitation && !duplicates.includes(l.metadata.layerId)).map(l => l.key)); change({ ...asset, layers: asset.layers.map(l => keys.has(l.key) ? { ...l, config: { ...l.config, enabled } } : l) }); }} /></>}
+          <div className="psd-hint">勾选需要切图的图层{allExportIssues.length ? <span className="psd-warning" role="status"> · {allExportIssues.length} 项导出冲突</span> : null}</div><Tree individual={nativeSlices} asset={preview} toggleVisibility={toggleVisibility} selected={selectedKey} reveal={canvasSelection} issues={allExportIssues} onSelect={selectTreeLayer} checked={l => l.config.enabled} toggle={(layer, enabled) => { if (nativeSlices) { patchConfig(layer.key, { enabled }); return; } const keys = new Set(getChildren(asset, layer.key).filter(l => !l.group && l.image && !l.limitation && !duplicates.includes(l.metadata.layerId)).map(l => l.key)); change({ ...asset, layers: asset.layers.map(l => keys.has(l.key) ? { ...l, config: { ...l.config, enabled } } : l) }); }} /></>}
         properties={<><div className="floating-heading"><Scissors size={14} /><strong>{selected ? "切图属性" : "文档配置"}</strong></div><ScrollArea className="psd-properties-scroll" label="切图属性内容"><div className="psd-properties-content">
           <section className="psd-property-section" aria-label="文档配置" hidden={!!selected}>
           <label className="psd-property"><span>图集名</span><AtlasNameInput key={asset.sourceHash + asset.documentId} name={asset.name} value={asset.atlasName} disabled={busy} onErrorChange={setAtlasInputError} onChange={atlasName => change({ ...asset, atlasName })} /></label>

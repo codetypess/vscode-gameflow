@@ -2,25 +2,25 @@ import type { PsdAsset, PsdLayer } from "../../shared/psd-meta";
 import { sliceSourceKeys, type SlicePixels } from "../../shared/psd-slice-source";
 import type { HostToWebviewMessage, WebviewToHostMessage } from "../../shared/protocol";
 
-type RenderRequest = Extract<WebviewToHostMessage, { type: "psdRenderSlice" }>;
+type RenderRequest = Extract<WebviewToHostMessage, { type: "psdRenderSlice" | "psdRenderVisibility" }>;
 let send: ((request: RenderRequest) => void) | undefined;
 export const hasPhotoCraftHost = () => !!send;
 export function connectPhotoCraft(post: (request: RenderRequest) => void) { send = post; }
 
-function requestRender(sourceHash: string, keys: number[]): Promise<string> {
+export function requestRender(sourceHash: string, keys: number[], type: RenderRequest["type"] = "psdRenderSlice"): Promise<string> {
   if (!send) return Promise.reject(new Error("合成切图需要在 VS Code 中使用 PhotoCraft CLI。"));
   return new Promise((resolve, reject) => {
     const requestId = crypto.randomUUID();
     const cleanup = () => { clearTimeout(timer); window.removeEventListener("message", receive); };
     const receive = ({ data }: MessageEvent<HostToWebviewMessage>) => {
-      if (data?.type !== "psdRenderSliceResult" || data.requestId !== requestId) return;
+      if (data?.type !== (type === "psdRenderSlice" ? "psdRenderSliceResult" : "psdRenderVisibilityResult") || data.requestId !== requestId) return;
       cleanup();
       if (data.image) resolve(data.image);
       else reject(new Error(data.error || "PhotoCraft 未返回图像。"));
     };
     const timer = setTimeout(() => { cleanup(); reject(new Error("PhotoCraft 渲染超时。")); }, 75000);
     window.addEventListener("message", receive);
-    send!({ type: "psdRenderSlice", requestId, sourceHash, keys });
+    send!({ type, requestId, sourceHash, keys });
   });
 }
 

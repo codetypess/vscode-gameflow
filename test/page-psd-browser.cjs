@@ -20,6 +20,9 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
     const boardMenu = page.getByRole("menu", { name: "画板右键菜单", exact: true });
     const openBoardMenu = id => page.locator(`[data-page-id="${id}"] .page-caption`).click({ button: "right" });
     const boardAction = name => boardMenu.getByRole("menuitem", { name, exact: true });
+    const editingMenu = page.getByRole("menu", { name: "画布节点右键菜单", exact: true });
+    const openEditingBackground = () => page.locator(".canvas-viewport").click({ button: "right", position: { x: 35, y: 150 } });
+    const editingAction = name => editingMenu.getByRole("menuitem", { name, exact: true });
     const sliceItem = moreMenu.getByRole("menuitem", { name: "PSD 切图", exact: true });
     const checkMore = async enabled => {
       await openMore();
@@ -75,6 +78,21 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
     const overviewCamera = await page.locator(".canvas-world").getAttribute("style");
     await page.locator('[data-page-id="pageb001"] .page-caption').dblclick();
     await page.locator('.canvas-viewport[aria-label="页面编辑画布"]').waitFor();
+    await openEditingBackground();
+    assert.deepEqual((await editingMenu.getByRole("menuitem").allTextContents()).slice(2, 7),
+      ["PSD 切图", "生成 PSD", "绑定 PSD", "PSD 同步", "预制体同步"]);
+    assert(await editingAction("PSD 切图").isDisabled());
+    assert(await editingAction("PSD 同步").isDisabled());
+    assert(await editingAction("生成 PSD").isEnabled());
+    assert(await editingAction("绑定 PSD").isEnabled());
+    assert(await editingAction("预制体同步").isEnabled());
+    await page.keyboard.press("Escape");
+    await editingMenu.waitFor({ state: "hidden" });
+    await page.locator('[data-node-id="nodeb001"]').click({ button: "right" });
+    await editingAction("转换节点类型").waitFor();
+    assert.equal(await editingAction("生成 PSD").count(), 0);
+    await page.keyboard.press("Escape");
+    await editingMenu.waitFor({ state: "hidden" });
     await page.locator(".canvas-viewport").click({ position: { x: 35, y: 150 } });
     await checkMore(true);
     const selectedRow = page.locator('[data-layer-id="nodeb001"]');
@@ -265,8 +283,13 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
     const sync = page.getByRole("dialog", { name: "PSD 同步", exact: true });
     assert.match(await sync.getByText(/红色页 \/ /).innerText(), /红色页/);
     await sync.getByRole("button", { name: "关闭同步窗", exact: true }).click();
-    await openBoardMenu("pageb001");
-    await boardAction("PSD 切图").click();
+    await page.locator('[data-page-id="pageb001"] .page-caption').dblclick();
+    await openEditingBackground();
+    await editingAction("PSD 同步").click();
+    assert.match(await sync.getByText(/红色页 \/ /).innerText(), /红色页/);
+    await sync.getByRole("button", { name: "关闭同步窗", exact: true }).click();
+    await openEditingBackground();
+    await editingAction("PSD 切图").click();
     await page.getByRole("tree", { name: "红色页.psd 图层树", exact: true }).waitFor();
     await page.goto((process.env.GAMEFLOW_TEST_URL || "http://127.0.0.1:5191") + "/@fs/" + path.join(__dirname, "runtime-preview-browser.html").replaceAll("\\", "/"));
     await page.getByRole("button", { name: "执行像素验收", exact: true }).click();

@@ -38,11 +38,14 @@ import { RenameDialog } from "./editor/rename-dialog";
 import { NodeView, orderedNodes } from "./editor/node-view";
 import { ContainerOutlines } from "./editor/container-outlines";
 import { useDocument } from "./use-document";
+import { consumeHistoryShortcut } from "./lib/history-shortcut";
 import { useToolbarChoice } from "./lib/use-toolbar-choice";
 import { isBrowserPreview, postHostMessage } from "./vscode-api";
 import { cn } from "./lib/utils";
 import { PsdWorkspace, type OpenBoundSlice, type WorkspaceMode } from "./psd/workspace";
 import { usePsdEditor } from "./psd/use-psd-editor";
+import { importedNodes } from "./psd/import-signature";
+import { ImportedPageSurface } from "./editor/imported-page-surface";
 import { importPsdPrototype } from "./psd/io";
 import { useWorkbenchSettings, WorkbenchSettingsButton, WorkbenchSettingsPanel } from "./workbench-settings";
 import { PROTOTYPE_PANELS, useFollowingPanels } from "./editor/use-following-panels";
@@ -522,12 +525,17 @@ export function App() {
         openCanvasMenu(Math.max(view.left+8,Math.min(view.right-8,bounds.left+bounds.width/2)),Math.max(view.top+8,Math.min(view.bottom-8,bounds.top+bounds.height/2)),editingId ?? selectedPageId ?? undefined,selectedNodeId ?? undefined);return;
       }
       if (key === "escape") { if (gesture.current) { gesture.current = null; setPreview(null); } else { setTool("select"); setSelectedNodeId(null); setInsertOpen(false); } return; }
-      if (command && ["z", "y", "s", "d", ...(editingId ? ["c", "v"] : [])].includes(key)) {
+      const historyAction = canvasDocument && consumeHistoryShortcut(event);
+      if (historyAction) {
+        if (!gesture.current) history(historyAction);
+        return;
+      }
+      if (command && ["s", "d", ...(editingId ? ["c", "v"] : [])].includes(key)) {
         event.preventDefault(); if (gesture.current) return;
         if (key === "s") save(); else if (key === "d") duplicate();
         else if (key === "c") { if (selectedNode) copyLayer(selectedNode.id); }
         else if (key === "v") { if (page) { const target = canvasPasteTarget(page, scopeId, selectedNodeIds.length > 1 ? null : selectedNodeId); pasteLayer(target.parentId, target.afterId); } }
-        else history(key === "y" || event.shiftKey ? "redo" : "undo"); return;
+        return;
       }
       if (key === " " && !(event.target as Element).closest("button")) { event.preventDefault(); setSpaceHand(true); return; }
       if (key === "delete" || key === "backspace") { event.preventDefault(); if (!gesture.current) remove(); return; }
@@ -549,8 +557,8 @@ export function App() {
     };
     const keyup = (event: KeyboardEvent) => { if (event.key === " ") setSpaceHand(false); };
     const blur = () => { setSpaceHand(false); gesture.current = null; setPreview(null); };
-    window.addEventListener("keydown", keydown); window.addEventListener("keyup", keyup); window.addEventListener("blur", blur);
-    return () => { window.removeEventListener("keydown", keydown); window.removeEventListener("keyup", keyup); window.removeEventListener("blur", blur); };
+    document.addEventListener("keydown", keydown); window.addEventListener("keyup", keyup); window.addEventListener("blur", blur);
+    return () => { document.removeEventListener("keydown", keydown); window.removeEventListener("keyup", keyup); window.removeEventListener("blur", blur); };
   });
   const startGesture = (event: ReactPointerEvent<HTMLDivElement>) => {
     if ((event.button !== 0 && event.button !== 1) || !canvasDocument) return;
@@ -653,7 +661,7 @@ export function App() {
     setNotice("");
     const failed = (error: unknown) => setNotice("导入 PSD 失败。" + (error instanceof Error ? error.message : String(error)));
     try {
-      const { width, height, layers, omitted, approximate } = await importPsdPrototype(file);
+      const { width, height, layers, omitted, approximate, signature, composite } = await importPsdPrototype(file);
       if (!read()) throw new Error("当前画布不可用，请重新导入。");
       edit(current => {
         try {
@@ -661,14 +669,10 @@ export function App() {
           const makeId = newIds(current);
           const id = makeId();
           const ids = layers.map(() => makeId());
-          const nodes = layers.map(({ node, parent }, index) => {
-            if (parent === null) return { ...node, id: ids[index] };
-            const { x, y } = layers[parent].node.frame;
-            return { ...node, id: ids[index], parentId: ids[parent], frame: { ...node.frame, x: node.frame.x - x, y: node.frame.y - y } };
-          });
+          const nodes = importedNodes(layers, ids);
           const x = current.pages.reduce((right, { frame }) => Math.max(right, frame.x + frame.width + 80), 0);
           const imported: GameFlowPage = { id, name: file.name.slice(0, -4).trim() || "PSD 原型", kind: "screen", rootType: "UIStack",
-            frame: { x: Math.ceil(x), y: 0, width, height }, nodes };
+            frame: { x: Math.ceil(x), y: 0, width, height }, nodes, ...(signature && composite && { psdImportPreview: { signature, image: composite } }) };
           const candidate = { ...current, schemaVersion: GAMEFLOW_SCHEMA_VERSION, pages: [...current.pages, imported] };
           const valid = validateGameFlowDocument(candidate);
           if (!valid.ok) throw new Error(valid.errors.join("；"));
@@ -815,14 +819,14 @@ export function App() {
             const foregroundNodes = activeNodes ? nodes.filter(node => activeNodes.has(node.id)) : [];
             return <article key={item.id} className={cn("page-group", !editingId && selectedPageId === item.id && "page-selected", editingId && "page-editing")} data-page-id={item.id} style={{ left: editingId ? 0 : frame.x, top: editingId ? 0 : frame.y, width: frame.width, height: frame.height }}>
               <div className="page-caption"><LayoutPanelTop size={14} /><span>{item.name}</span><small>{Math.round(frame.width)} × {Math.round(frame.height)}</small></div>
-              <SliceResourcesProvider value={{...(runtimeResources.forPage?.(visualPage) ?? runtimeResources),forPage:runtimeResources.forPage}}><div className={cn("page-surface", artBlocked && "page-art-blocked")} style={{ background: item.background ?? "#ffffff" }}>
+              <SliceResourcesProvider value={{...(runtimeResources.forPage?.(visualPage) ?? runtimeResources),forPage:runtimeResources.forPage}}><ImportedPageSurface page={visualPage} mode={resourceMode} source={loadedPsds.assets[item.id]} blocked={artBlocked} scopeCorners={activeNodes && scopeId ? geometry.nodes.get(scopeId)?.corners : undefined}>
                 {backgroundNodes.map(node => <NodeView key={node.id} page={visualPage} node={node} referenceError={(projection ?? composition)?.errors.get(node.id)} geometry={geometry.nodes.get(node.id)} />)}
                 {showContainerOutlines ? <ContainerOutlines page={visualPage} nodes={backgroundNodes} geometry={geometry} /> : null}
                 {activeNodes ? <div className="canvas-scope-dimmer" aria-hidden="true" /> : null}
                 {foregroundNodes.map(node => <NodeView key={node.id} page={visualPage} node={node} referenceError={(projection ?? composition)?.errors.get(node.id)} geometry={geometry.nodes.get(node.id)} />)}
                 {showContainerOutlines && activeNodes ? <ContainerOutlines page={visualPage} nodes={foregroundNodes} geometry={geometry} /> : null}
                 {artBlocked ? <PageArtState page={visualPage} actions={pagePsds} zoom={visibleCamera.zoom}/> : null}
-              </div></SliceResourcesProvider>
+              </ImportedPageSurface></SliceResourcesProvider>
             </article>;
           })}
         </div>
@@ -846,10 +850,6 @@ export function App() {
         {selectedGeometry?.inverse && selectionAnchor ? <span className="selection-anchor" aria-hidden="true" style={{ left: visibleCamera.x+selectionAnchor.x*visibleCamera.zoom, top: visibleCamera.y+selectionAnchor.y*visibleCamera.zoom }} /> : null}
         {editingId && page ? <LayerTree composition={composition ?? undefined} onRepair={repairOrphan} onCopyOrphan={copyOrphan} key={page.id} panelRef={panels.leftRef} panelStyle={panels.leftStyle} page={page} scopeId={scopeId} selectedIds={selectedNodeIds} selectedId={selectedNode?.id ?? null} reveal={canvasSelection} onSelect={selectNode} onPatch={patchNode} onBack={back} onAdd={addLayer} onDelete={deleteLayer} onMove={moveLayer}
           hasClipboard={!!clipboard} onCopy={copyLayer} onPaste={pasteLayer} onDuplicate={duplicateLayer} onConvert={convertLayer} onSaveToCanvas={saveToCanvas} onOpenSource={openSource} onUnbind={unbindPrefab} /> : null}
-        {editingId && page && <LayerMenu page={page} composition={composition ?? undefined} selectedIds={selectedNodeIds} target={canvasMenu?.kind === "nodes" ? canvasMenu.target : null} backgroundParentId={canvasMenu?.backgroundParentId} menuLabel="画布节点右键菜单"
-          onClose={()=>setCanvasMenu(null)} onRestoreFocus={restoreCanvasFocus} hasClipboard={!!clipboard} onAdd={addCanvasLayer} onDelete={deleteLayer} onCopy={copyLayer} onPaste={pasteLayer} onRename={beginCanvasRename} onDuplicate={duplicateLayer} onConvert={convertLayer} onSaveToCanvas={saveToCanvas} onOpenSource={openSource} onUnbind={unbindPrefab}>
-          <CanvasViewItems onFit={()=>{setCanvasMenu(null);fit([page],true);}} onBack={()=>{setCanvasMenu(null);if(scopeId){const current=scopePath.at(-1)!;navigateScope(current.parentId ?? null,current.id);}else back();}} backLabel={scopeId ? "返回上一级" : "返回总览"}/>
-        </LayerMenu>}
         {page && inspectorOpen ? <Inspector makeId={newIds()} variablePage={{...page,nodes:page.nodes.filter(node=>composition?.info.get(node.id)?.scope===selectedMeta?.scope)}} referenceMeta={selectedMeta} referenceName={referenceName} overrideManager={overrideManager} overrideActions={overrideActions} onOpenSource={() => { if (selectedNode) openSource(selectedNode.id); }} referenceError={selectedMeta?.ownerId ? composition?.errors.get(selectedMeta.ownerId) : undefined} onColorPreview={setColorPreview} selectedNodes={selectionBlocked ? [] : page.nodes.filter(node => selectedNodeIds.includes(node.id))} onCreateParts={() => { if (editingId && selectedNodeId) { const makeId = newIds(); updatePage(editingId, item => createControlParts(item, selectedNodeId, makeId)); } }} panelRef={panels.rightRef} panelStyle={panels.rightStyle} page={page} node={selectionBlocked ? null : selectedNode} editingPage={!!editingId} onNode={patchNode} onPage={(transform) => updatePage(page.id, transform)} onClose={() => setInspectorOpen(false)} onEnter={() => enter(page)} onImport={requestImport} /> : null}
         {canvasDocument.pages.length === 0 ? <div className="empty-canvas"><LayoutPanelTop size={32} /><strong>从第一个页面开始</strong><p>用底部 + 添加游戏界面</p><Button onClick={() => addPage()}><Plus size={15} />添加页面</Button></div> : null}
         <div className="canvas-toolbar floating-panel" onPointerDown={(event) => event.stopPropagation()}>
@@ -879,7 +879,25 @@ export function App() {
               <DropdownMenu.Item disabled={psdActionDisabled} onSelect={() => { if (page && !psdActionDisabled) void pagePsds.run(page.id, "generate"); }}><FileImage size={15} /><span>生成 PSD</span></DropdownMenu.Item>
               <DropdownMenu.Item disabled={psdActionDisabled} onSelect={() => { if (page && !psdActionDisabled) void pagePsds.run(page.id, "choose"); }}><Link2 size={15} /><span>{page?.artPsd ? "重新绑定 PSD" : "绑定 PSD"}</span></DropdownMenu.Item>
             </>}
-            renderPageMenu={pageActions => !editingId && <CanvasOverviewMenu
+            renderPageMenu={pageActions => editingId && page ? <LayerMenu
+              page={page} composition={composition ?? undefined} selectedIds={selectedNodeIds}
+              target={canvasMenu?.kind === "nodes" ? canvasMenu.target : null}
+              backgroundParentId={canvasMenu?.backgroundParentId} menuLabel="画布节点右键菜单"
+              onClose={() => setCanvasMenu(null)} onRestoreFocus={restoreCanvasFocus} hasClipboard={!!clipboard}
+              onAdd={addCanvasLayer} onDelete={deleteLayer} onCopy={copyLayer} onPaste={pasteLayer} onRename={beginCanvasRename}
+              onDuplicate={duplicateLayer} onConvert={convertLayer} onSaveToCanvas={saveToCanvas} onOpenSource={openSource} onUnbind={unbindPrefab}
+            >
+              {canvasMenu?.kind === "nodes" && !canvasMenu.target.id && <>
+                <DropdownMenu.Separator className="layer-menu-separator" />
+                {pageActions}
+              </>}
+              <CanvasViewItems onFit={() => { setCanvasMenu(null); fit([page], true); }} onBack={() => {
+                setCanvasMenu(null);
+                const current = scopePath.at(-1);
+                if (current) navigateScope(current.parentId ?? null, current.id);
+                else back();
+              }} backLabel={scopeId ? "返回上一级" : "返回总览"} />
+            </LayerMenu> : !editingId && <CanvasOverviewMenu
               target={canvasMenu?.kind === "overview" ? canvasMenu.target : null}
               page={canvasDocument.pages.find(item => item.id === canvasMenu?.pageId)}
               onClose={() => setCanvasMenu(null)} onRestoreFocus={restoreCanvasFocus}

@@ -7,13 +7,17 @@ import { Separator } from "../components/ui/separator";
 import { CanvasDots } from "../components/canvas-dots";
 import { fitPsdCamera, placePsdPanels, zoomPsdCamera, type CanvasSize, type PsdCamera } from "./canvas-layout";
 import { isCanvasDrag, pickPsdLayer, psdHitLayer, psdPoint, psdScopePath } from "./layer-hit-test";
+import { useLayerVisibility } from "./use-layer-visibility";
 import { createPixelHitCache } from "./pixel-hit-cache";
 
 const isPanel = (target: EventTarget | null) => target instanceof Element && !!target.closest(".psd-follow-panel, .psd-canvas-controls");
 
-export function PsdSliceCanvas({ asset, selected, onSelect, onNavigateScope, active, directSelection, showContainerOutlines, scopeKey, tree, properties, toolbar }: {
-  asset: PsdAsset; selected: PsdLayer | null; onSelect: (key: number | null) => void; onNavigateScope: (key: number | null, selectedKey?: number | null) => void; active: boolean; directSelection: boolean; showContainerOutlines: boolean; scopeKey: number | null; tree: ReactNode; properties: ReactNode; toolbar?: ReactNode;
+export function PsdSliceCanvas({ asset: source, selected: selection, onSelect, onNavigateScope, active, directSelection, showContainerOutlines, scopeKey, tree, properties, toolbar }: {
+  asset: PsdAsset; selected: PsdLayer | null; onSelect: (key: number | null) => void; onNavigateScope: (key: number | null, selectedKey?: number | null) => void; active: boolean; directSelection: boolean; showContainerOutlines: boolean; scopeKey: number | null; tree: (preview: PsdAsset, toggleVisibility: (key: number) => void) => ReactNode; properties: ReactNode; toolbar?: ReactNode;
 }) {
+  const visibility = useLayerVisibility(source, active);
+  const asset = visibility.preview;
+  const selected = selection && !asset.layers.find(l => l.key === selection.key)?.hidden ? selection : null;
   const stage = useRef<HTMLDivElement>(null), leftPanel = useRef<HTMLElement>(null), rightPanel = useRef<HTMLElement>(null);
   const [view, setView] = useState<{ size: CanvasSize; camera: PsdCamera; ready: boolean }>({ size: { width: 0, height: 0 }, camera: { x: 0, y: 0, zoom: 1 }, ready: false });
   const [heights, setHeights] = useState({ left: 0, right: 0 });
@@ -21,7 +25,7 @@ export function PsdSliceCanvas({ asset, selected, onSelect, onNavigateScope, act
   const gesture = useRef<{ pointerId: number; button: number; moved: boolean; x: number; y: number; camera: PsdCamera } | null>(null);
   const [hasPixel] = useState(createPixelHitCache);
   const selectionRequest = useRef(0);
-  useEffect(() => { selectionRequest.current++; }, [selected?.key, directSelection, scopeKey]);
+  useEffect(() => { selectionRequest.current++; }, [selected?.key, directSelection, scopeKey, asset.layers]);
 
   useLayoutEffect(() => {
     const element = stage.current; if (!element) return;
@@ -130,7 +134,11 @@ export function PsdSliceCanvas({ asset, selected, onSelect, onNavigateScope, act
     <div className="psd-page-preview" style={{ left: camera.x, top: camera.y, width: asset.width * camera.zoom, height: asset.height * camera.zoom, visibility: view.ready ? "visible" : "hidden" }}>
       <div className="psd-page-caption"><span>{asset.name}</span><small>{asset.width} × {asset.height}</small></div>
       <div className="psd-preview-world checkerboard" style={{ width: asset.width, height: asset.height, transform: `scale(${camera.zoom})` }}>
-        <img className="psd-composite" src={asset.preview} alt={`${asset.name} 整图预览`} draggable={false} />
+        {visibility.image ? <img className="psd-composite" src={visibility.image} alt={`${asset.name} 整图预览`} draggable={false} />
+          : <div className="psd-visible-layers" role="img" aria-label={`${asset.name} 图层预览`}>
+            {[...asset.layers].reverse().filter(l => !l.hidden && !l.group && l.image).map(l =>
+              <img key={l.key} src={l.image} alt="" draggable={false} style={{ left: l.left, top: l.top, width: l.width, height: l.height }} />)}
+          </div>}
         {showContainerOutlines ? <svg className="psd-container-outlines" width={asset.width} height={asset.height}
           viewBox={`0 0 ${asset.width} ${asset.height}`} aria-hidden="true" focusable="false">
           {asset.layers.filter(layer => !layer.hidden && layer.width > 0 && layer.height > 0).map(layer =>
@@ -142,8 +150,12 @@ export function PsdSliceCanvas({ asset, selected, onSelect, onNavigateScope, act
       </div>
     </div>
     {selected && region ? <div className="psd-export-outline" aria-label="自定义导出区域" style={{ left: camera.x + (selected.left + region.x) * camera.zoom, top: camera.y + (selected.top + region.y) * camera.zoom, width: region.width * camera.zoom, height: region.height * camera.zoom, visibility: view.ready ? "visible" : "hidden" }} /> : null}
-    <aside ref={leftPanel} aria-label="PSD 图层面板" className="psd-tree-panel psd-follow-panel floating-panel" style={{ ...panels.left, visibility: view.ready ? "visible" : "hidden" }}>{tree}</aside>
+    <aside ref={leftPanel} aria-label="PSD 图层面板" className="psd-tree-panel psd-follow-panel floating-panel" style={{ ...panels.left, visibility: view.ready ? "visible" : "hidden" }}>{tree(asset, visibility.toggle)}</aside>
     <aside ref={rightPanel} aria-label="PSD 切图属性面板" className="psd-properties psd-follow-panel floating-panel" style={{ ...panels.right, visibility: view.ready ? "visible" : "hidden" }}>{properties}</aside>
+    {(visibility.error || visibility.loading || visibility.approximate) && <div className="psd-status psd-canvas-controls" role="status">
+      {visibility.error ? <>当前显示基础像素。{visibility.error}<button type="button" onClick={visibility.retry}>重试</button></>
+        : visibility.loading ? "正在合成图层预览…" : "当前显示基础像素，桌面版可预览完整图层效果。"}
+    </div>}
     {toolbar ? <div className="canvas-toolbar psd-canvas-controls psd-export-toolbar floating-panel" role="toolbar" aria-label="PSD 切图工具栏">{toolbar}</div> : null}
     <div className="canvas-top-controls psd-canvas-controls">
       <div className="canvas-zoom floating-panel" role="group" aria-label="PSD 视图控制">

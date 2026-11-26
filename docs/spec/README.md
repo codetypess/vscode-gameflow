@@ -34,6 +34,12 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 
 ## Active Work Items
 
+- [工作台撤销与重做快捷键](workbench-history-shortcuts.md) — 原型和 PSD 切图每次按键只触发一次历史命令。
+
+- [PSD 图层可见性](psd-layer-visibility.md) — 切图工作区逐层与逐组切换画布显示。
+
+- [导入原型的 PSD 合成预览](psd-import-preview-fidelity.md) — 导入画板按源文件显示整页合成图，保留控件编辑及像素剪贴范围。
+
 - [PSD 复杂切图与原型预览](psd-photocraft-slices.md) — 桌面端对组、效果与多图层使用 PhotoCraft 合成，原型美术预览与导出共用区域和九宫格。
 
 - [required-prefab-export-name.md](required-prefab-export-name.md) — 预制体导出前检查原型及引用模板的导出名称，提示所有缺少名称的原型。

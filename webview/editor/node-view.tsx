@@ -4,6 +4,7 @@ import { orderedNodes } from "../../shared/editor-ops";
 import { ListCells } from "./list-cell-context";
 import { nodeImageSlot, progressRatio } from "../../shared/image-slots";
 import { SlotImage } from "../runtime/slot-image";
+import { ImportedImageCorrections } from "./imported-page-surface";
 import type { GameFlowNode, GameFlowPage } from "../../shared/model";
 import { defaultStyle, inheritedFlag } from "../../shared/editor-ops";
 import { resolvePageLayout, type ResolvedNode } from "../../shared/ui-layout";
@@ -15,6 +16,7 @@ import { ResourceCanvas, SliceResourcesProvider, useSliceResources } from "../ru
 export { orderedNodes } from "../../shared/editor-ops";
 
 export function NodeView({ page, node, geometry, hitId, referenceError, cellTrail = [], previewBudget = 5000 }: { page: GameFlowPage; node: GameFlowNode; geometry?: ResolvedNode; hitId?: string; referenceError?: string; cellTrail?: string[]; previewBudget?: number }) {
+  const importedImage = useContext(ImportedImageCorrections).get(node.id) ?? node.imageData;
   const resources = useSliceResources();
   const resource = node.sliceResource && resources.mode !== "prototype" ? resources.resolve(node.sliceResource) : undefined;
   if (inheritedFlag(page, node, "hidden")) return null;
@@ -59,7 +61,7 @@ export function NodeView({ page, node, geometry, hitId, referenceError, cellTrai
       ? <SlotImage slot={nodeImageSlot(node, resources.mode)} width={bounds.width} height={bounds.height} label={node.name} fit={widget.imageFit ?? "fill"} progress={progress} />
       : resource ? resource.status === "ready" ? <ResourceCanvas resource={resource} width={bounds.width} height={bounds.height} fit={widget.imageFit ?? "fill"} label={node.name} progress={progress} />
         : <span className="slice-resource-placeholder" role="status" data-resource-status={resource.status}>{resource.status === "error" ? "切图异常\n" + resource.error : "装载中…"}</span>
-      : node.imageData && (!node.sliceResource || resources.mode !== "prototype") ? <img src={node.imageData} alt={node.name} draggable={false} style={{ objectFit: widget.imageFit ?? "fill" }} />
+      : importedImage && (!node.sliceResource || resources.mode !== "prototype") ? <img src={importedImage} alt={node.name} draggable={false} style={{ objectFit: widget.imageFit ?? "fill" }} />
       : <SlotImage slot={{ builtin: "image/default" }} width={bounds.width} height={bounds.height} label={node.name} progress={progress} />
       : node.type === "input" ? <span className="widget-input" style={{ opacity: node.text ? 1 : 0.55 }}>{node.text ? widget.password ? "•".repeat(Math.min(node.text.length, widget.maxChars || Infinity)) : node.text.slice(0, widget.maxChars || undefined) : widget.placeholder ?? "请输入内容"}</span>
       : node.type === "text" ? <LabelView node={displayNode} width={bounds.width} height={bounds.height} />

@@ -1,9 +1,21 @@
+import { importedNodes, importSignature } from "./import-signature";
+import { importPixels } from "./import-clipping";
+import { stringFingerprint } from "../../shared/string-fingerprint";
+import type { ImportedPixelCorrection } from "../../shared/psd-meta";
 import type { Layer, LayerTextData, PixelData, Psd } from "ag-psd";
 import { isImageData, type Frame, type GameFlowNode, type NodeStyle } from "../../shared/model";
 
 type ImportedNode = Omit<GameFlowNode, "id" | "parentId">;
 export type ImportedLayer = { node: ImportedNode; parent: number | null };
-export type PsdPrototype = { width: number; height: number; layers: ImportedLayer[]; omitted: number; approximate: boolean };
+export type PsdPrototype = { width: number; height: number; layers: ImportedLayer[]; omitted: number; approximate: boolean; signature?: string; legacySignature?: string; corrections?: ImportedPixelCorrection[]; composite?: string };
+
+export function needsImportComposite(layer: Layer): boolean {
+  const text = layer.text;
+  return !!(layer.artboard || layer.mask || layer.vectorMask || layer.effects || layer.clipping || layer.adjustment ||
+    layer.blendMode && layer.blendMode !== "normal" && layer.blendMode !== "pass through" ||
+    text && ((text.styleRuns?.length ?? 0) > 1 || (text.paragraphStyleRuns?.length ?? 0) > 1 ||
+      text.warp?.style && text.warp.style !== "none"));
+}
 
 function pixelFrame(layer: Layer): Frame {
   const x = layer.left ?? 0, y = layer.top ?? 0;
@@ -67,25 +79,23 @@ async function encodeImage(pixels: PixelData): Promise<{ imageData: string; appr
   }
 }
 
-export async function readPrototypeLayers(psd: Psd): Promise<PsdPrototype> {
+export async function readPrototypeLayers(psd: Psd, includeComposite = true): Promise<PsdPrototype> {
   const layers: ImportedLayer[] = [];
+  const originals = new Map<number, string>();
+  const corrections: ImportedPixelCorrection[] = [];
   let omitted = 0, approximate = false;
 
-  async function visit(layer: Layer, parent: number | null): Promise<Frame | undefined> {
+  async function visit(layer: Layer, parent: number | null, clipBase?: Layer): Promise<Frame | undefined> {
     const name = layer.name?.trim() || "未命名图层";
     const frame = pixelFrame(layer);
     const opacity = (layer.opacity ?? 1) * (layer.fillOpacity ?? 1);
     const style = opacity < 1 ? { opacity } : undefined;
     const base = { name, frame, ...(layer.hidden && { hidden: true }), ...(style && { style }) };
-    approximate ||= !!(layer.mask || layer.vectorMask || layer.effects || layer.clipping || layer.adjustment ||
-      layer.blendMode && layer.blendMode !== "normal" && layer.blendMode !== "pass through");
+    approximate ||= needsImportComposite(layer);
     if (layer.children) {
       const index = layers.push({ node: { ...base, type: "container" }, parent }) - 1;
       const children: Frame[] = [];
-      for (const child of layer.children) {
-        const bounds = await visit(child, index);
-        if (bounds) children.push(bounds);
-      }
+      await visitSiblings(layer.children, index, children);
       if (children.length) {
         frame.x = Math.min(...children.map(child => child.x));
         frame.y = Math.min(...children.map(child => child.y));
@@ -106,12 +116,16 @@ export async function readPrototypeLayers(psd: Psd): Promise<PsdPrototype> {
         frame.width ||= box ? box[2] - box[0] : Math.max(...text.split("\n").map(line => line.length)) * size;
         frame.height ||= box ? box[3] - box[1] : text.split("\n").length * size * 1.35;
       }
-      approximate ||= (layer.text.styleRuns?.length ?? 0) > 1 || (layer.text.paragraphStyleRuns?.length ?? 0) > 1 ||
-        !!layer.text.warp?.style && layer.text.warp.style !== "none";
       layers.push({ node: { ...base, type: "text", text, style: { ...style, ...appearance },
         widget: paragraph ? { wordWrap: true } : { wordWrap: false, overflow: "visible", ...(layoutFrame && { valign: "middle" }) } }, parent });
     } else if (layer.imageData?.width && layer.imageData.height && !layer.adjustment) {
-      const image = await encodeImage(layer.imageData);
+      const pixels = importPixels(layer, clipBase);
+      const image = await encodeImage(pixels);
+      if (!includeComposite && pixels !== layer.imageData) {
+        const original = (await encodeImage(layer.imageData)).imageData;
+        originals.set(layers.length, original);
+        corrections.push({ index: layers.length, name, original: stringFingerprint(original), image: image.imageData });
+      }
       approximate ||= image.approximate;
       layers.push({ node: { ...base, type: "image", imageData: image.imageData }, parent });
     } else {
@@ -123,7 +137,25 @@ export async function readPrototypeLayers(psd: Psd): Promise<PsdPrototype> {
     return frame;
   }
 
-  for (const layer of psd.children ?? []) await visit(layer, null);
+  async function visitSiblings(siblings: Layer[], parent: number | null, frames?: Frame[]) {
+    let base: Layer | undefined;
+    for (const layer of siblings) {
+      if (!layer.clipping) base = layer;
+      const frame = await visit(layer, parent, base);
+      if (frame) frames?.push(frame);
+    }
+  }
+  await visitSiblings(psd.children ?? [], null);
   if (!layers.length) throw new Error("PSD 中没有可导入的图层。");
-  return { width: psd.width, height: psd.height, layers, omitted, approximate };
+  const { width, height } = psd;
+  const nodes = importedNodes(layers, layers.map((_, i) => String(i)));
+  const frame = { x: 0, y: 0, width, height };
+  const merged = psd.imageData;
+  const hasComposite = approximate && merged && psd.imageResources?.versionInfo?.hasRealMergedData !== false &&
+    merged.data.some((value, i) => i % 4 === 3 && value > 0);
+  const signature = hasComposite ? importSignature({ frame, nodes }) : undefined;
+  const legacySignature = hasComposite && originals.size ? importSignature({ frame, nodes: nodes.map((node, i) =>
+    originals.has(i) ? { ...node, imageData: originals.get(i) } : node) }) : undefined;
+  const composite = includeComposite && hasComposite ? (await encodeImage(merged)).imageData : undefined;
+  return { width, height, layers, omitted, approximate, signature, legacySignature, corrections, composite };
 }

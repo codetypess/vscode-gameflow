@@ -105,6 +105,7 @@ export function isPagePsdBinding(value: unknown): value is PagePsdBinding {
 }
 
 export interface GameFlowPage {
+  psdImportPreview?: { signature: string; image: string };
   /** Explicit art source, relative to this GameFlow file. */
   artPsd?: PagePsdBinding;
   psdSync?: SyncBase;
@@ -405,6 +406,11 @@ function validatePage(
   if (!rootTypeValid) errors.push(`${path}.rootType must be UIStack, UITop, UIScene, or UIBox`);
   const exportNameValid = value.exportName === undefined || validateString(value.exportName, `${path}.exportName`, errors);
   const artPsdValid = value.artPsd === undefined || isPagePsdBinding(value.artPsd);
+  if (value.psdImportPreview !== undefined && !(isRecord(value.psdImportPreview) &&
+    typeof value.psdImportPreview.signature === "string" && /^\d{1,10}:\d{1,10}:\d{1,10}$/.test(value.psdImportPreview.signature) &&
+    isImageData(value.psdImportPreview.image))) {
+    errors.push(`${path}.psdImportPreview contains an invalid composite or signature`); return false;
+  }
   if (!artPsdValid) errors.push(`${path}.artPsd must contain a relative PSD source and documentId`);
   const syncValid = value.psdSync === undefined || validSyncBase(value.psdSync);
   if (!syncValid) errors.push(`${path}.psdSync 同步基线无效`);

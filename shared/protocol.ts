@@ -16,7 +16,7 @@ import { isPrefabExportBatch, validPrefabTarget, type ImageMetaTarget, type Pref
 import { validGrid } from "./psd-meta";
 
 export type WebviewToHostMessage =
-  | { type: "psdRenderSlice"; requestId: string; sourceHash: string; keys: number[] }
+  | { type: "psdRenderSlice" | "psdRenderVisibility"; requestId: string; sourceHash: string; keys: number[] }
   | PagePsdRequest
   | { type:"prefabInspect";requestId:string;target:PrefabTarget;images?:ImageMetaTarget[] }
   | { type:"prefabCommit";requestId:string;batch:PrefabExportBatch;guard:PrefabWriteGuard;root:string;baseVersion:number;document:GameFlowDocument }
@@ -40,7 +40,7 @@ export type WebviewToHostMessage =
     };
 
 export type HostToWebviewMessage =
-  | { type: "psdRenderSliceResult"; requestId: string; image?: string; error?: string }
+  | { type: "psdRenderSliceResult" | "psdRenderVisibilityResult"; requestId: string; image?: string; error?: string }
   | PagePsdResult
   | {type:"prefabInspectResult";requestId:string;snapshot?:PrefabSnapshot;error?:string}
   | { type: "pagePsdChanged"; documentId: string }
@@ -82,7 +82,7 @@ export function isWebviewToHostMessage(
   if (!isRecord(value) || typeof value.type !== "string") {
     return false;
   }
-  if (value.type === "psdRenderSlice") return typeof value.requestId === "string" && value.requestId.length > 0 && value.requestId.length <= 80 &&
+  if (value.type === "psdRenderSlice" || value.type === "psdRenderVisibility") return typeof value.requestId === "string" && value.requestId.length > 0 && value.requestId.length <= 80 &&
     typeof value.sourceHash === "string" && /^[a-f0-9]{64}$/.test(value.sourceHash) &&
     Array.isArray(value.keys) && value.keys.length > 0 && value.keys.length <= 128 &&
     value.keys.every(key => Number.isInteger(key) && key >= 0 && key < 256) && new Set(value.keys).size === value.keys.length;

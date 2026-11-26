@@ -79,6 +79,18 @@ export function isolateSlice(bytes: Uint8Array, keys: number[]) {
   return Buffer.concat([...parts, copy.subarray(previous)]);
 }
 
+// Keys are switches relative to the saved local flag. Group inheritance is handled by the compositor.
+function togglePreviewLayers(bytes: Uint8Array, keys: number[]) {
+  const layers = new Map(parsePsdBinary(bytes).layers.map(layer => [layer.key, layer]));
+  const copy = Buffer.from(bytes);
+  for (const key of keys) {
+    const layer = layers.get(key);
+    if (!layer) throw new Error("预览引用的图层已变化。");
+    copy[layer.extraLengthAt - 2] ^= 2;
+  }
+  return copy;
+}
+
 const run = promisify(execFile);
 function defaultExecutable() {
   if (process.platform === "win32") {
@@ -90,9 +102,9 @@ function defaultExecutable() {
   }
   return "photocraft-cli";
 }
-export async function renderPhotoCraft(bytes: Uint8Array, keys: number[], executable: string): Promise<string> {
+export async function renderPhotoCraft(bytes: Uint8Array, keys: number[], executable: string, mode: "slice" | "visibility" = "slice"): Promise<string> {
   if (executable && !isAbsolute(executable)) throw new Error("gameflow.photoCraftCliPath 须为可执行文件的绝对路径。");
-  const snapshot = isolateSlice(bytes, keys);
+  const snapshot = mode === "visibility" ? togglePreviewLayers(bytes, keys) : isolateSlice(bytes, keys);
   const dir = await mkdtemp(join(tmpdir(), "gameflow-slice-"));
   try {
     await writeFile(join(dir, "source.psd"), snapshot);
