@@ -223,6 +223,52 @@ test("component PSD companion generation protects existing files and waits for t
   assert.match(stale.error!, /组件 PSD 已变化/);
   assert.deepEqual(referenceHost.files.get("/workspace/art/login.psd"), bytes);
 });
+test("generating a bound page and its missing component together checks the original component binding", async () => {
+  const { binding, bytes } = pagePsdFixture();
+  for (const outcome of ["generate", "cancel", "restored", "rebound", "changed during save"] as const) {
+    const f = hostFixture();
+    f.page.artPsd = binding;
+    const missingBinding = { documentId: "old-art", source: "服务器列表项.psd" };
+    const component = { ...f.page, id: "component", nodes: [], artPsd: missingBinding };
+    f.document.pages.push(component);
+    f.setDocument(f.document);
+    const target = { canvas: "", pageId: component.id, documentId: f.document.documentId };
+    const review = { type: "pagePsd" as const, action: "review" as const, requestId: "read",
+      pageId: component.id, expected: missingBinding, component: target };
+    const missing = await f.controller.handle(f.doc, review);
+    assert.equal(missing.missingComponent, true, missing.error);
+    const parent = new Uri("/workspace/layouts/login.psd");
+    const source = "/workspace/layouts/服务器列表项.psd";
+    if (outcome !== "cancel") referenceHost.picked = parent;
+    if (outcome === "restored") referenceHost.files.set(source, "restored art");
+    if (outcome === "rebound") { component.artPsd = { ...binding }; f.setDocument(f.document); }
+    if (outcome === "changed during save") referenceHost.beforeRename = uri => {
+      if (uri.path === source) referenceHost.files.set(source, "restored art");
+    };
+    const request = { type: "pagePsd" as const, action: "generate" as const, requestId: "generate",
+      pageId: f.page.id, expected: binding, name: binding.source, base64: bytes.toString("base64"),
+      componentOutputs: [{ ...target, missingBinding, name: missingBinding.source, base64: bytes.toString("base64") }] };
+    assert.ok(isWebviewToHostMessage(request));
+    assert.equal(isWebviewToHostMessage({ ...request, componentOutputs: [{ ...request.componentOutputs[0],
+      missingBinding: { ...missingBinding, source: "C:/invalid.psd" } }] }), false);
+    const result = await f.controller.handle(f.doc, request);
+    if (outcome === "generate") {
+      assert.equal(result.error, undefined);
+      assert.deepEqual(result.componentBindings, [{ ...target, binding: { source: missingBinding.source, documentId: binding.documentId } }]);
+      assert.deepEqual(referenceHost.files.get(source), bytes);
+      assert.deepEqual(referenceHost.files.get(parent.path), bytes);
+      assert.equal(referenceHost.files.size, 2);
+    } else if (outcome === "cancel") {
+      assert.ok(result.cancelled);
+      assert.equal(referenceHost.files.size, 0);
+    } else {
+      assert.match(result.error!, /组件 PSD.*已变化/);
+      assert.equal(referenceHost.files.has(parent.path), false);
+      if (outcome !== "rebound") assert.deepEqual([...referenceHost.files], [[source, "restored art"]]);
+    }
+  }
+});
+
 test("host page PSD loading uses the saved relative source and preserves the active editor", async () => {
   const f = hostFixture(); f.page.artPsd = { source: "../art/login.psd", documentId: "art" }; f.setDocument(f.document);
   const active = f.doc.currentPsd;

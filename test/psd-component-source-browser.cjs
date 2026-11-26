@@ -29,10 +29,7 @@ async function main() {
     page.on("pageerror", error => errors.push(error.message));
     const root = resolve(__dirname, "..").replaceAll("\\", "/");
     const document = JSON.parse(readFileSync(resolve(root, "sample/star-sea-login.gameflow.json"), "utf8"));
-    delete document.pages[0].artPsd;
     delete document.pages[0].psdSync;
-    delete document.pages[1].artPsd;
-    delete document.pages[1].psdSync;
     document.pages[0].nodes.find(node => node.variableName === "serverList").name = instanceName;
     document.pages[0].exportName = "LayaLogin";
     document.pages[1].exportName = "laya-server-list";
@@ -49,9 +46,11 @@ async function main() {
     const generated = [];
     const collect = download => generated.push(download);
     page.on("download", collect);
+    await page.getByRole("button", { name: "美术 PSD资源", exact: true }).click();
+    await page.waitForFunction(() => document.querySelectorAll('[data-art-state="error"]').length === 2);
     await menu("生成 PSD");
-    await page.waitForFunction(key => JSON.parse(localStorage.getItem(key)).pages.slice(0, 2).every(page => page.artPsd), storageKey);
     await page.waitForFunction(key => JSON.parse(localStorage.getItem(key)).pages[0].psdSync, storageKey);
+    await page.waitForFunction(() => document.querySelectorAll("[data-art-state]").length === 0);
     const bindings = await page.evaluate(key => JSON.parse(localStorage.getItem(key)).pages.map(page => page.artPsd), storageKey);
     assert.equal(generated.length, 2);
     page.off("download", collect);

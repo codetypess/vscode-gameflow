@@ -27,6 +27,16 @@ export async function pagePsdChecks(api: { workbench: GameFlowEditorProvider; ps
     assert.equal(await controller.renderSource(doc, "0".repeat(64)), undefined);
     assert.equal(doc.getText(), boundText); assert.equal(readFileSync(file, "utf8"), boundDisk);
     checks.push("page art loads its saved file without opening, dirtying, rebinding or saving the prototype");
+    const component = document.pages[1];
+    const componentReview = { type: "pagePsd" as const, requestId: "missing-component", action: "review" as const,
+      pageId: component.id, expected: component.artPsd, component: { canvas: "", documentId: document.documentId, pageId: component.id } };
+    const missingComponent = await controller.handle(doc, componentReview);
+    assert.equal(missingComponent.missingComponent, true, missingComponent.error);
+    writeFileSync(join(directory, component.artPsd!.source), Buffer.from("damaged PSD"));
+    const unreadableComponent = await controller.handle(doc, componentReview);
+    assert.ok(unreadableComponent.error);
+    assert.equal(unreadableComponent.missingComponent, undefined);
+    checks.push("native component review distinguishes a missing bound PSD from a damaged file");
     const review=await controller.handle(doc,{type:"pagePsd",requestId:"sync-review",action:"review",pageId:document.pages[0].id,expected:document.pages[0].artPsd});
     assert.equal(review.error,undefined);
     assert.deepEqual(review.draft,result.draft);

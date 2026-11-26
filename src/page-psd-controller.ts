@@ -14,6 +14,19 @@ import type { WorkbenchDocument } from "./workbench-document";
 import { atomicWrite } from "./psd-file-io";
 import type { PsdDocument, PsdEditorProvider } from "./psd-editor-provider";
 type ComponentAccess = CanvasDocumentAccess & { openSource(source: string): Promise<CanvasText> };
+async function readIfPresent(uri: vscode.Uri) {
+  try { return await vscode.workspace.fs.readFile(uri); }
+  catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === "FileNotFound" || code === "ENOENT") return undefined;
+    throw error;
+  }
+}
+async function checkComponentFile(uri: vscode.Uri, expectedHash?: string) {
+  const bytes = await readIfPresent(uri);
+  if ((bytes && bytesHash(bytes)) !== expectedHash)
+    throw new Error("组件 PSD 已变化，请重新生成：" + posix.basename(uri.path));
+}
 function fileKey(uri: vscode.Uri) {
   const path = uri.scheme === "file" && /^\/[a-z]:\//i.test(uri.path) ? uri.path.toLowerCase() : uri.path;
   return JSON.stringify([uri.scheme, uri.authority, path]);
@@ -78,7 +91,8 @@ export class PagePsdController {
   private async componentSnapshot(owner: CanvasText, binding: NonNullable<GameFlowDocument["pages"][number]["artPsd"]>) {
     const uri = vscode.Uri.joinPath(owner.uri, "..", binding.source);
     const name = posix.basename(uri.path);
-    const bytes = await vscode.workspace.fs.readFile(uri);
+    const bytes = await readIfPresent(uri);
+    if (!bytes) return;
     const asset = createPsdStructure(parsePsdBinary(bytes), name, bytesHash(bytes));
     if (asset.hasEmbeddedIdentity && asset.documentId !== binding.documentId)
       throw new Error("组件 PSD 身份已变化，请重新绑定。");
@@ -280,6 +294,7 @@ export class PagePsdController {
         const binding=page.artPsd!, snapshot=component ? await this.componentSnapshot(owner, binding)
           : await this.review(doc,vscode.Uri.joinPath(owner.uri,"..",binding.source),binding.documentId);
         currentPage();
+        if (!snapshot) return { ...result, missingComponent: true, error: "组件 PSD 源文件不存在：" + binding.source };
         this.rememberRenderSource(doc, snapshot.draft.sourceHash, vscode.Uri.joinPath(owner.uri, "..", binding.source));
         return {...result,sourceUri:vscode.Uri.joinPath(owner.uri, "..", binding.source).toString(),name:snapshot.name,source:binding.source,draft:snapshot.draft,base64:Buffer.from(snapshot.bytes).toString("base64")};
       }
@@ -312,12 +327,23 @@ export class PagePsdController {
         generationLock = key;
         await this.checkComponents(doc, request, uri, access);
         const targets = new Set<string>();
+        const componentFiles = new Map<string, { uri: vscode.Uri; hash?: string }>();
         for (const output of request.componentOutputs ?? []) {
           const target = await this.componentPage(doc, output, access);
           const key = JSON.stringify([fileKey(target.owner.uri), target.page.id]);
-          if (target.page.id === page.id && target.owner === doc || target.page.artPsd || targets.has(key))
+          if (target.page.id === page.id && target.owner === doc || targets.has(key) ||
+              pagePsdKey(target.page.artPsd) !== pagePsdKey(output.missingBinding))
             throw new Error("组件 PSD 关联已变化，请重新生成。");
           targets.add(key);
+          const missingUri = output.missingBinding && vscode.Uri.joinPath(target.owner.uri, "..", output.missingBinding.source);
+          if (missingUri) {
+            const sourceKey = fileKey(missingUri);
+            if (sourceKey === fileKey(uri)) throw new Error("请选择与组件源 PSD 不同的保存路径。");
+            if (!componentFiles.has(sourceKey)) {
+              await checkComponentFile(missingUri);
+              componentFiles.set(sourceKey, { uri: missingUri });
+            }
+          }
           const ownerStat = target.owner === doc ? undefined : await vscode.workspace.fs.stat(target.owner.uri);
           if (ownerStat?.permissions && (ownerStat.permissions & vscode.FilePermission.Readonly) ||
               vscode.workspace.fs.isWritableFileSystem(target.owner.uri.scheme) === false)
@@ -340,11 +366,12 @@ export class PagePsdController {
             }
           }
           if (!componentUri) throw new Error("找不到可用的组件 PSD 文件名：" + output.name);
+          componentFiles.set(fileKey(componentUri), { uri: componentUri, hash });
           const binding = { documentId: structure.documentId, source: relativeSource(target.owner.uri, componentUri) };
           componentBindings.push({ canvas: output.canvas, documentId: output.documentId, pageId: output.pageId, binding });
           if (target.owner !== doc) {
             const pending = external.get(target.owner) ?? { document: target.owner, version: target.version, draft: target.document };
-            pending.draft = { ...pending.draft, pages: pending.draft.pages.map(item => item.id === target.page.id ? { ...item, artPsd: binding } : item) };
+            pending.draft = { ...pending.draft, pages: pending.draft.pages.map(item => item.id === target.page.id ? { ...item, artPsd: binding, psdSync: undefined } : item) };
             external.set(target.owner, pending);
           }
         }
@@ -355,14 +382,12 @@ export class PagePsdController {
         let previous: Uint8Array | undefined;
         await atomicWrite(uri, bytes, async () => {
           await this.checkComponents(doc, request, uri, access);
+          for (const file of componentFiles.values()) await checkComponentFile(file.uri, file.hash);
           currentPage();
           if (doc.disposed || doc.version !== version) throw new Error("画布已变化，请重新生成 PSD。");
           if ([...external.values()].some(item => item.document.version !== item.version))
             throw new Error("组件画布已变化，请重新生成 PSD。");
-          if (created.size) {
-            try { previous = await vscode.workspace.fs.readFile(uri); }
-            catch (error) { if ((error as { code?: string }).code !== "FileNotFound") throw error; }
-          }
+          if (created.size) previous = await readIfPresent(uri);
         });
         if (created.size) replaced = { uri, hash: bytesHash(bytes), previous };
       }

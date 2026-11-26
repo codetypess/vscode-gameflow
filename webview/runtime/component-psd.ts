@@ -25,11 +25,15 @@ export function componentPsdTargets(document: GameFlowDocument, sources: CanvasS
 const targetKey = (target: ComponentPage) => JSON.stringify([target.canvas, target.documentId, target.pageId]);
 const reference = ({ canvas, documentId, pageId }: ComponentPage): ComponentPage => ({ canvas, documentId, pageId });
 
-export async function readComponentPsd(target: ComponentPsdTarget) {
+export async function readComponentPsd(target: ComponentPsdTarget, purpose: "generate" | "review" = "review") {
   const binding = target.page.artPsd;
   if (!binding) return;
   const loaded = await requestPsd({ action: "review", pageId: target.pageId, expected: binding, component: reference(target) });
-  if (!loaded || loaded.asset.documentId !== binding.documentId) throw new Error("组件 PSD 关联已变化");
+  if (!loaded) {
+    if (purpose === "generate") return;
+    throw new Error("组件 PSD 源文件不可用：" + binding.source);
+  }
+  if (loaded.asset.documentId !== binding.documentId) throw new Error("组件 PSD 关联已变化");
   const { sourceHash } = loaded.asset;
   const check: ComponentPsdCheck = { ...reference(target), binding, hash: sourceHash };
   const source: ComponentPsd = { name: loaded.asset.name, embeddedName: pagePsdFileName(target.page.name), bytes: sourceBytes(loaded.asset),
@@ -68,7 +72,7 @@ export async function prepareComponentPsdGeneration(document: GameFlowDocument, 
       if (ancestors.has(key)) throw new Error("检测到循环画布引用。");
       let source = generated.get(key);
       if (!source) {
-        const existing = await readComponentPsd(target);
+        const existing = await readComponentPsd(target, "generate");
         if (existing) {
           source = existing.source;
           checks.push(existing.check);
@@ -81,7 +85,7 @@ export async function prepareComponentPsdGeneration(document: GameFlowDocument, 
           const psdId = resourceUuid(target.documentId + ":" + target.pageId + ":psd");
           source = { name, embeddedName: name, bytes,
             origin: { documentId: target.documentId, pageId: target.pageId, psdId, sourceHash, embeddedHash: sourceHash } };
-          outputs.push({ ...reference(target), name, base64: encodePsd(bytes) });
+          outputs.push({ ...reference(target), name, base64: encodePsd(bytes), missingBinding: target.page.artPsd });
         }
         generated.set(key, source);
       }

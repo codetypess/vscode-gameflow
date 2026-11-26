@@ -44,6 +44,7 @@ export async function requestPsd(request: Omit<PagePsdRequest, "type" | "request
   if (isBrowserPreview) {
     if (request.action === "load" || request.action === "review" || request.action === "slice") {
       const asset = browserAssets.get(request.pageId + ":" + pagePsdKey(request.expected));
+      if (!asset && request.component) return;
       if (!asset) throw new Error("浏览器刷新后需重新选择本地 PSD；请点击重新绑定 PSD。");
       return { source: request.expected!.source, asset };
     }
@@ -83,6 +84,7 @@ export async function requestPsd(request: Omit<PagePsdRequest, "type" | "request
     window.addEventListener("message", receive);
     postHostMessage({ ...request, type: "pagePsd", requestId, ...(base64 ? { base64 } : {}) });
   });
+  if (request.component && result.missingComponent) return;
   if (result.error) throw new Error(result.error);
   // The native slice editor receives its document through psdEditorInit.
   if (result.cancelled || request.action === "slice") return;
@@ -171,10 +173,14 @@ export function usePagePsds(document: GameFlowDocument | null, read: () => GameF
         if (page.id === pageId) return { ...bindPagePsd(page, current.documentId, result.source, result.asset),
           psdSync: base ?? (pagePsdKey(page.artPsd) === pagePsdKey({ source: result.source, documentId: result.asset.documentId }) ? page.psdSync : undefined) };
         const binding = componentBindings.get(page.id);
-        return binding && !page.artPsd ? { ...page, artPsd: binding } : page;
+        if (!binding || pagePsdKey(page.artPsd) !== pagePsdKey(current.pages.find(item => item.id === page.id)?.artPsd)) return page;
+        return { ...page, artPsd: binding, psdSync: undefined };
       }) }));
+      for (const id of componentBindings.keys()) retry(id);
       setStates(previous => ({ ...previous, [pageId]: { key: pagePsdKey({ source: result.source, documentId: result.asset.documentId }), status: "ready" } }));
-      latest.current.notice((action === "generate" ? "已生成并绑定 PSD：" : "已绑定 PSD：") + result.source);
+      const count = result.componentBindings?.length ?? 0;
+      latest.current.notice((action === "generate" ? "已生成并绑定 PSD：" : "已绑定 PSD：") + result.source +
+        (count ? `（含 ${count} 份组件 PSD）` : ""));
     } catch (error) { latest.current.notice(String(error)); }
     finally { actions.current.delete(pageId); if (alive.current) setBusy(previous => { const next = new Set(previous); next.delete(pageId); return next; }); }
   };

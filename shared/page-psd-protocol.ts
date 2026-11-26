@@ -2,10 +2,10 @@ import { isCanvasReferenceSource, isPagePsdBinding, type PagePsdBinding } from "
 import type { PsdDraft } from "./psd-draft";
 export type ComponentPage = { canvas: string; documentId: string; pageId: string };
 export type ComponentPsdCheck = ComponentPage & { binding: PagePsdBinding; hash: string };
-export type ComponentPsdOutput = ComponentPage & { name: string; base64: string };
+export type ComponentPsdOutput = ComponentPage & { name: string; base64: string; missingBinding?: PagePsdBinding };
 export type ComponentPsdBinding = ComponentPage & { binding: PagePsdBinding };
 export type PagePsdRequest = { type: "pagePsd"; requestId: string; pageId: string; action: "choose" | "load" | "slice" | "review" | "generate" | "syncCopy"; reviewStamp?: string; sourceHash?: string; expected?: PagePsdBinding; name?: string; base64?: string; component?: ComponentPage; componentChecks?: ComponentPsdCheck[]; componentOutputs?: ComponentPsdOutput[] };
-export type PagePsdResult = { type: "pagePsdResult"; requestId: string; sourceUri?: string; source?: string; name?: string; base64?: string; draft?: PsdDraft; cancelled?: boolean; error?: string; componentBindings?: ComponentPsdBinding[] };
+export type PagePsdResult = { type: "pagePsdResult"; requestId: string; sourceUri?: string; source?: string; name?: string; base64?: string; draft?: PsdDraft; cancelled?: boolean; error?: string; missingComponent?: true; componentBindings?: ComponentPsdBinding[] };
 
 const record = (value: unknown): value is Record<string, unknown> => !!value && typeof value === "object" && !Array.isArray(value);
 const id = (value: unknown) => typeof value === "string" && value.length > 0 && value.length <= 128;
@@ -24,6 +24,7 @@ export function validComponentPsdFields(request: Record<string, unknown>) {
       Array.isArray(componentChecks) && componentChecks.length <= 128 &&
       componentChecks.every(check => componentPage(check) && isPagePsdBinding(check.binding) && hash(check.hash))) &&
     (componentOutputs === undefined || action === "generate" && Array.isArray(componentOutputs) && componentOutputs.length <= 128 &&
-      componentOutputs.every(item => componentPage(item) && validPsdFilename(item.name) && validPsdBase64(item.base64)) &&
+      componentOutputs.every(item => componentPage(item) && validPsdFilename(item.name) && validPsdBase64(item.base64) &&
+        (item.missingBinding === undefined || isPagePsdBinding(item.missingBinding))) &&
       componentOutputs.reduce((total, item) => total + item.base64.length, 0) <= 44_739_244);
 }
