@@ -196,7 +196,8 @@ export const psdTests: { name: string; run: () => void | Promise<void> }[] = [
     const meta = makeSidecar(original), restored = applySidecar(asset(), JSON.parse(JSON.stringify(meta)));
     assert.deepEqual(restored.layers.find(l => l.nativeId === 111)!.config, button.config);
     assert.equal(restored.layers.find(l => l.nativeId === 111)!.metadata.customFlag, "keep");
-    assert.throws(() => applySidecar(asset(), { ...meta, documentId: "other" }), /谱系/);
+    assert.throws(() => applySidecar(asset(), { ...meta, documentId: "other" }), /这份切图设置属于另一张设计图/);
+    assert.throws(() => applySidecar(asset(), { ...meta, documentId: "" }), /缺少有效的设计图编号/);
     assert.throws(() => applySidecar(asset(), { ...meta, layers: [...meta.layers, meta.layers[0]] }), /重复/);
     const bad = structuredClone(meta); bad.layers.find(l => l.nativeId === 111)!.config.nineGrid!.left = 500;
     assert.throws(() => applySidecar(asset(), bad), /九宫格/);
@@ -211,7 +212,7 @@ export const psdTests: { name: string; run: () => void | Promise<void> }[] = [
     assert.equal(restored.documentId, original.documentId);
     assert.deepEqual(restored.layers.map(l => l.metadata.layerId), original.layers.map(l => l.metadata.layerId));
     reopened.sourceHash = "changed";
-    assert.throws(() => applySidecar(reopened, meta), /谱系/);
+    assert.throws(() => applySidecar(reopened, meta), /这份切图设置属于另一张设计图/);
   } },
   { name: "duplicate repair allocates an identity for only the selected copy", run() {
     const original = asset(), copy = structuredClone(original.layers[1]); copy.key = 999; copy.nativeId = 999; original.layers.push(copy);

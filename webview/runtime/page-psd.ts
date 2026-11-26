@@ -192,7 +192,7 @@ export function usePagePsds(document: GameFlowDocument | null, read: () => GameF
       const count = result.componentBindings?.length ?? 0;
       latest.current.notice((action === "generate" ? "已生成并绑定 PSD：" : "已绑定 PSD：") + result.source +
         (count ? `（含 ${count} 份组件 PSD）` : ""));
-    } catch (error) { latest.current.notice(String(error)); }
+    } catch (error) { latest.current.notice(error instanceof Error ? error.message : String(error)); }
     finally { actions.current.delete(pageId); if (alive.current) setBusy(previous => { const next = new Set(previous); next.delete(pageId); return next; }); }
   };
   const readyAssets = useMemo(() => Object.fromEntries((document?.pages ?? []).filter(page => page.artPsd && states[page.id]?.key === pagePsdKey(page.artPsd) && states[page.id]?.status === "ready" && assets[page.id]?.documentId === page.artPsd.documentId).map(page => [page.id, assets[page.id]])), [bindingStamp, states, assets]);

@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import { attachExtensionUpdates } from "./extension-updates";
-import { rename } from "node:fs/promises";
+import { constants } from "node:fs";
+import { copyFile, rename } from "node:fs/promises";
 import { parseGameFlowDocument, serializeGameFlowDocument, validateGameFlowDocument } from "../shared/model";
 import { isWebviewToHostMessage, type HostToWebviewMessage } from "../shared/protocol";
 import { isPsdEditorRequest, type PsdEditorMessage } from "../shared/psd-editor-protocol";
@@ -30,13 +31,22 @@ async function write(uri: vscode.Uri, text: string) {
   try { await vscode.workspace.fs.writeFile(temp, new TextEncoder().encode(text)); await vscode.workspace.fs.rename(temp, uri, { overwrite: true }); }
   finally { await remove(temp); }
 }
-async function writeCanvas(uri: vscode.Uri, text: string) {
+async function writeCanvas(uri: vscode.Uri, text: string, create: boolean) {
   // workspace.fs.rename emits a workbench file-move operation. Replacing the
   // active custom resource that way disposes/recreates it from a stale backup.
-  if (uri.scheme !== "file") { await vscode.workspace.fs.writeFile(uri, new TextEncoder().encode(text)); return; }
+  const bytes = new TextEncoder().encode(text);
+  if (uri.scheme !== "file" && !create) { await vscode.workspace.fs.writeFile(uri, bytes); return; }
   const temp = uri.with({ path: `${uri.path}.${crypto.randomUUID()}.tmp` });
-  try { await vscode.workspace.fs.writeFile(temp, new TextEncoder().encode(text)); await rename(temp.fsPath, uri.fsPath); }
-  finally { await remove(temp); }
+  try {
+    await vscode.workspace.fs.writeFile(temp, bytes);
+    if (uri.scheme !== "file") await vscode.workspace.fs.copy(temp, uri, { overwrite: false });
+    else if (create) await copyFile(temp.fsPath, uri.fsPath, constants.COPYFILE_EXCL);
+    else await rename(temp.fsPath, uri.fsPath);
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (create && (code === "EEXIST" || code === "FileExists")) throw new Error("保存时原路径出现了同名文件，画布上的修改已保留。");
+    throw error;
+  } finally { await remove(temp); }
 }
 
 /** One native working copy owns the prototype and its PSD configuration sessions. */
@@ -316,14 +326,18 @@ export class GameFlowEditorProvider implements vscode.CustomEditorProvider<Workb
     await this.flush(doc);
     await doc.enqueue(async () => {
       if (cancellation.isCancellationRequested) throw new vscode.CancellationError();
-      if (doc.canvasDirty) {
-        parseGameFlowDocument(doc.getText());
+      const diskText = await optional(doc.uri);
+      const saved = doc.canvasDirty || diskText === undefined ? doc.getText() : undefined;
+      if (saved !== undefined) {
+        parseGameFlowDocument(saved);
         if (vscode.workspace.textDocuments.some(text => text.uri.toString() === doc.uri.toString() && text.isDirty)) throw new Error("原型在文本编辑器中有未保存修改，请先处理后重试。");
-        if (bytesHash(new TextEncoder().encode(await read(doc.uri))) !== doc.diskHash) throw new Error("原型文件已被外部修改，未覆盖外部内容，工作台草稿已保留。");
+        if (diskText !== undefined && bytesHash(new TextEncoder().encode(diskText)) !== doc.diskHash) throw new Error("原型文件已被外部修改，未覆盖外部内容，工作台草稿已保留。");
       }
       for (const psd of doc.psds.values()) if (psd.model.dirty) await this.psd.saveCustomDocument(psd, cancellation);
-      if (doc.canvasDirty) {
-        const saved = doc.getText(); await writeCanvas(doc.uri, saved); doc.baseline = saved; doc.diskHash = bytesHash(new TextEncoder().encode(saved));
+      if (saved !== undefined) {
+        await writeCanvas(doc.uri, saved, diskText === undefined);
+        doc.baseline = saved;
+        doc.diskHash = bytesHash(new TextEncoder().encode(saved));
       }
       if (doc.dirty) throw new Error("保存期间出现了新修改，请再次保存。");
       await remove(doc.cache); await doc.refresh();

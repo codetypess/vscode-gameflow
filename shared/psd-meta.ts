@@ -30,6 +30,7 @@ export type PsdAsset = { importFlags?: ImportLayerFlag[]; importSignature?: stri
 export type PsdSidecar = { schema: "gameflow.psd-meta"; version: 1; documentId: string; atlasName?: string; independentDirectory?: boolean; source: { name: string; sha256: string; width: number; height: number }; layers: { id: string; sourceKey: number; nativeId: number | null; name: string; config: SliceConfig; metadata: PsdLayerMeta }[] };
 export const EMPTY_GRID: NineGrid = { top: 0, right: 0, bottom: 0, left: 0, repeat: false };
 export const sidecarName = (name: string) => name.replace(/\.psd$/i, "") + ".meta.json";
+export const FOREIGN_PSD_SETTINGS = "这份切图设置属于另一张设计图。";
 const record = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
 
 export function validAtlasName(value: unknown): value is string | undefined {
@@ -170,7 +171,8 @@ export function applySidecar(asset: PsdAsset, raw: unknown): PsdAsset {
   if (!validAtlasName(raw.atlasName)) throw new Error("配置中的图集名无效。");
   if (!validIndependentDirectory(raw.independentDirectory)) throw new Error("配置中的独立目录设置无效。");
   const exactSource = raw.source.sha256 === asset.sourceHash;
-  if (typeof raw.documentId !== "string" || !raw.documentId || (!(!asset.hasEmbeddedIdentity && exactSource) && raw.documentId !== asset.documentId)) throw new Error("配置属于另一个 PSD 文档谱系，不能覆盖当前配置。");
+  if (typeof raw.documentId !== "string" || !raw.documentId) throw new Error("这份切图设置缺少有效的设计图编号。");
+  if (!(!asset.hasEmbeddedIdentity && exactSource) && raw.documentId !== asset.documentId) throw new Error(FOREIGN_PSD_SETTINGS);
   const imported = new Map<string, Record<string, unknown>>();
   const sourceKeys = new Set<number>();
   for (const item of raw.layers) {

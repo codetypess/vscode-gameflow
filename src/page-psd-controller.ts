@@ -5,7 +5,7 @@ import { pagePsdKey } from "../shared/page-psd";
 import { makePsdDraft } from "../shared/psd-draft";
 import { parsePsdBinary } from "../shared/psd-binary";
 import { createPsdStructure } from "../shared/psd-structure";
-import { applyBoundPsdSidecar, makeSidecar, sidecarName, type PsdAsset, type PsdSidecar } from "../shared/psd-meta";
+import { applyBoundPsdSidecar, FOREIGN_PSD_SETTINGS, makeSidecar, sidecarName, type PsdAsset, type PsdSidecar } from "../shared/psd-meta";
 import type { ComponentPage, ComponentPsdBinding, PagePsdRequest, PagePsdResult } from "../shared/page-psd-protocol";
 import type { CanvasDocumentAccess, CanvasText } from "./canvas-reference-controller";
 import { bytesHash } from "./psd-document-model";
@@ -461,6 +461,10 @@ export class PagePsdController {
         const cancellation = new vscode.CancellationTokenSource();
         try { await this.psd.reloadFromDisk(psd, cancellation.token, previewId); }
         finally { cancellation.dispose(); }
+      }
+      if (psd.configReadIssue === FOREIGN_PSD_SETTINGS) {
+        const action = request.action === "load" ? "，再点「重试」。" : "后再试一次。";
+        throw new Error(FOREIGN_PSD_SETTINGS + "请换成当前 PSD 对应的设置文件" + action);
       }
       if (psd.configReadIssue) throw new Error("PSD 配置无法读取：" + psd.configReadIssue);
       if (boundFile && psd.model.asset.documentId !== page.artPsd!.documentId) throw new Error("PSD 身份与页面关联不一致，请重新绑定。");

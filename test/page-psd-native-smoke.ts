@@ -119,7 +119,8 @@ export async function pagePsdChecks(api: { workbench: GameFlowEditorProvider; ps
     assert.equal((await slice()).error, undefined);
     assert.deepEqual(Buffer.from(doc.currentPsd!.bytes), source);
     assert.equal(doc.currentPsd!.model.asset.documentId, binding.documentId);
-    assert.match(doc.currentPsd!.configReadIssue!, /谱系/);
+    assert.match(doc.currentPsd!.configReadIssue!, /这份切图设置属于另一张设计图/);
+    assert.equal((await load()).error, "这份切图设置属于另一张设计图。请换成当前 PSD 对应的设置文件，再点「重试」。");
     assert.doesNotMatch(doc.currentPsd!.state().warning!, /已放弃本次修改/);
     assert.equal(doc.dirty, false);
     assert.deepEqual(readFileSync(configFile), savedConfig);
