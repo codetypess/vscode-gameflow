@@ -10,6 +10,7 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
   const errors = [];
   await context.addInitScript(() => {
     window.__updateMessages = [];
+    window.__updateState = { status: "current" };
     window.acquireVsCodeApi = () => ({ getState() {}, setState() {}, postMessage(message) {
       window.__updateMessages.push(message);
       const send = data => setTimeout(() => window.dispatchEvent(new MessageEvent("message", { data })), 0);
@@ -17,14 +18,14 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
         { id: "page0001", name: "登录页", kind: "screen", frame: { x: 0, y: 0, width: 320, height: 240 }, nodes: [] }
       ] }, documentVersion: 1, dirty: false, resourceName: "update.gameflow.json" });
       if (message.type === "workbenchSettings") send({ type: "workbenchSettingsResult", requestId: message.requestId, settings: {} });
-      if (message.type === "extensionUpdateReady") send({ type: "extensionUpdateState", state: { status: "current" } });
+      if (message.type === "extensionUpdateReady") send({ type: "extensionUpdateState", state: window.__updateState });
       if (message.type === "save") send({ type: "commandCompleted", action: "save" });
     } });
   });
   const url = process.env.GAMEFLOW_TEST_URL || "http://127.0.0.1:5197";
   const page = await context.newPage();
   page.on("pageerror", error => errors.push(error.message));
-  const send = state => page.evaluate(state => window.dispatchEvent(new MessageEvent("message", { data: { type: "extensionUpdateState", state } })), state);
+  const send = state => page.evaluate(state => { window.__updateState = state; window.dispatchEvent(new MessageEvent("message", { data: { type: "extensionUpdateState", state } })); }, state);
   const button = page.getByRole("button", { name: "更新插件", exact: true });
   const trigger = page.getByRole("button", { name: /^工作台模式：/ });
   const mode = async name => { await trigger.click(); await page.getByRole("menuitem", { name, exact: true }).click(); };
@@ -38,7 +39,8 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
     // The menu is still mounted when the state arrives; its old callback must read the latest gate.
     await page.evaluate(() => {
       const item = [...document.querySelectorAll('[role="menuitem"]')].find(x => x.textContent === "PSD 合并");
-      window.dispatchEvent(new MessageEvent("message", { data: { type: "extensionUpdateState", state: { status: "available", version: "0.2.0" } } }));
+      window.__updateState = { status: "available", version: "0.2.0" };
+      window.dispatchEvent(new MessageEvent("message", { data: { type: "extensionUpdateState", state: window.__updateState } }));
       item.click();
     });
     await button.waitFor();
@@ -47,6 +49,8 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
     assert.equal(await page.getByLabel("页面总览画布", { exact: true }).isVisible(), true);
     await page.evaluate(() => window.dispatchEvent(new MessageEvent("message", { data: { type: "psdEditorReveal" } })));
     assert.equal(await page.getByLabel("页面总览画布", { exact: true }).isVisible(), true);
+    await page.mouse.move(1100, 700);
+    await page.waitForFunction(() => getComputedStyle(document.querySelector('.workspace-update-button')).backgroundColor === "rgb(35, 134, 54)");
     const color = await button.evaluate(el => getComputedStyle(el).backgroundColor);
     assert.equal(color, "rgb(35, 134, 54)");
     assert.equal(await installs(), 0);
@@ -65,7 +69,16 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
     await page.waitForFunction(() => document.querySelector('.workspace-update-button')?.title.includes("已安装"));
     assert.match(await button.getAttribute("title"), /先保存文件/);
     await page.screenshot({ path: path.join(output, "prototype-update.png") });
-    await send({ status: "current" }); await trigger.waitFor();
+    for (const event of ["focus", "pageshow", "visibilitychange"]) {
+      await send({ status: "pending", version: "0.2.0" }); await button.waitFor();
+      await page.evaluate(event => {
+        window.__updateState = { status: "current" };
+        (event === "visibilitychange" ? document : window).dispatchEvent(new Event(event));
+      }, event);
+      await trigger.waitFor();
+      assert.equal(await button.count(), 0, event + " restores a retained workbench without a remount");
+      assert.equal(await page.getByLabel("页面总览画布", { exact: true }).isVisible(), true);
+    }
     await mode("PSD 切图");
     await send({ status: "available", version: "0.2.0" }); await button.waitFor();
     await page.evaluate(() => window.dispatchEvent(new MessageEvent("message", { data: { type: "psdEditorReveal" } })));
@@ -87,7 +100,7 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
     await standalone.evaluate(() => window.dispatchEvent(new MessageEvent("message", { data: { type: "extensionUpdateState", state: { status: "pending", version: "0.2.0" } } })));
     await standalone.getByRole("button", { name: "更新插件", exact: true }).waitFor();
     assert.deepEqual(errors, []);
-    console.log("PASS workbench update: green button, open-menu and reveal guards, save, click deduplication, failure retry, pending, narrow viewport and standalone PSD");
+    console.log("PASS workbench update: green button, switch guards, save, click deduplication, retry, pending, retained focus/pageshow/visibility recovery, narrow viewport and standalone PSD");
     console.log("Screenshots: " + output);
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

@@ -17,5 +17,7 @@ export function attachExtensionUpdates(panel: vscode.WebviewPanel, updates?: Sel
     if (raw.type === "installExtensionUpdate") await updates.install();
     await send();
   });
-  return { dispose() { changes.dispose(); requests.dispose(); } };
+  const views = panel.onDidChangeViewState(() => { if (panel.visible) void send(); });
+  void send();
+  return { dispose() { changes.dispose(); requests.dispose(); views.dispose(); } };
 }

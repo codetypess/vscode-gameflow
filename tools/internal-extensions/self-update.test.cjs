@@ -391,3 +391,21 @@ test("invalid or incompatible metadata never gates the workbench", async (t) => 
   await app.api.install();
   assert.equal(app.installs.length, 0);
 });
+
+test("pending clears for the running upgraded version even before an offline metadata check", async (t) => {
+  const directory = temporary(t);
+  const bytes = fs.readFileSync(await packageFile(directory));
+  const pair = crypto.generateKeyPairSync("ed25519");
+  const control = { bytes, signed: lib.signMetadata(metadata(bytes), pair.privateKey) };
+  const server = await serve(t, control);
+  const original = boot(t, directory, server.source, pair.publicKey, { response: "安装更新" });
+  await original.startup();
+  assert.equal(original.api.getState().status, "pending");
+  const oldHost = boot(t, directory, server.source, pair.publicKey);
+  assert.equal(oldHost.api.getState().status, "pending", "a package on disk does not mean the old host has activated it");
+  const newHost = boot(t, directory, server.source, pair.publicKey, { version: "1.1.0" });
+  assert.equal(newHost.api.getState().status, "current", "newly attached views must receive current without waiting for the network");
+  control.signed = "offline-invalid";
+  await newHost.startup();
+  assert.equal(newHost.api.getState().status, "current");
+});

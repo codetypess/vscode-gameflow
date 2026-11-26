@@ -10,6 +10,7 @@ export function useExtensionUpdate() {
   const requested = useRef(false);
   useEffect(() => {
     if (isBrowserPreview) return;
+    const synchronize = () => { if (!document.hidden) postHostMessage({ type: "extensionUpdateReady" }); };
     const receive = ({ data }: MessageEvent) => {
       if (data?.type !== "extensionUpdateState" || !isExtensionUpdateState(data.state)) return;
       latest.current = data.state;
@@ -17,8 +18,16 @@ export function useExtensionUpdate() {
       setState(data.state);
     };
     window.addEventListener("message", receive);
-    postHostMessage({ type: "extensionUpdateReady" });
-    return () => window.removeEventListener("message", receive);
+    window.addEventListener("focus", synchronize);
+    window.addEventListener("pageshow", synchronize);
+    document.addEventListener("visibilitychange", synchronize);
+    synchronize();
+    return () => {
+      window.removeEventListener("message", receive);
+      window.removeEventListener("focus", synchronize);
+      window.removeEventListener("pageshow", synchronize);
+      document.removeEventListener("visibilitychange", synchronize);
+    };
   }, []);
   return {
     state,

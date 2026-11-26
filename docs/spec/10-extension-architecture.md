@@ -15,6 +15,8 @@ The host applies a per-Webview script nonce to the packaged module entry and exp
 
 The embedded self-update client owns verified update availability, installation and pending activation. A disposable per-panel bridge sends `extensionUpdateState` snapshots and changes to both workbench and standalone PSD Webviews. Webviews request a snapshot with `extensionUpdateReady`; `installExtensionUpdate` is an explicit user confirmation with no version, URL, path or command payload. Mode-switch guards read the latest received state, including in asynchronous PSD reveal callbacks. See [workbench-plugin-update.md](workbench-plugin-update.md).
 
+Update snapshots are pushed immediately when a host attaches to a panel and whenever that panel becomes visible. Retained Webviews also request the snapshot on focus, visibility restoration and pageshow, so extension-page reload can reconcile a previous pending display without remounting React or reloading the document. Recovery reads local updater state; it does not wait for metadata or trigger installation. See [update-state-after-reload.md](update-state-after-reload.md).
+
 The repository workspace disables the JavaScript debugger's experimental network view. This avoids the Node inspector network-tracking assertion during F5 startup on VS Code 1.147.0. See the [debug-host regression](f5-extension-host-startup.md).
 
 ## Document Rules

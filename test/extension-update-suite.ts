@@ -5,6 +5,33 @@ import { isWebviewToHostMessage } from "../shared/protocol";
 import type { ExtensionUpdateState } from "../shared/extension-update";
 
 export const extensionUpdateTests = [{
+  name: "retained pending workbench receives current state immediately when a new host attaches",
+  async run() {
+    let displayed: ExtensionUpdateState = { status: "pending", version: "1.2.3" };
+    const currentDisplay = (): ExtensionUpdateState => displayed;
+    let state: ExtensionUpdateState = { status: "current" };
+    let reveal: (() => void) | undefined;
+    const changes = new Set<(state: ExtensionUpdateState) => void>();
+    const panel = { visible: true, webview: {
+      async postMessage(message: { state: ExtensionUpdateState }) { displayed = message.state; return true; },
+      onDidReceiveMessage() { return { dispose() {} }; }
+    }, onDidChangeViewState(listener: () => void) { reveal = listener; return { dispose() { reveal = undefined; } }; }
+    } as unknown as vscode.WebviewPanel;
+    const updates: SelfUpdateClient = { async check() {}, async install() {}, getState: () => state,
+      subscribe(listener) { changes.add(listener); return { dispose() { changes.delete(listener); } }; }
+    };
+    const attachment = attachExtensionUpdates(panel, updates);
+    assert.equal(currentDisplay().status, "current", "a retained webview does not send a second mount-ready request");
+    state = { status: "pending", version: "1.3.0" };
+    reveal?.();
+    assert.equal(currentDisplay().status, "pending", "reveal must read the latest snapshot even if a hidden update was missed");
+    state = { status: "current" };
+    attachment.dispose();
+    reveal?.();
+    assert.equal(currentDisplay().status, "pending");
+    assert.equal(changes.size, 0);
+  }
+}, {
   name: "update panels receive current snapshots and broadcasts; disposed panels cannot install",
   async run() {
     let state: ExtensionUpdateState = { status: "available", version: "1.2.3" };
@@ -18,7 +45,7 @@ export const extensionUpdateTests = [{
     const makePanel = () => {
       const received: unknown[] = [];
       let receive: ((raw: unknown) => Promise<void>) | undefined;
-      const panel = { webview: {
+      const panel = { onDidChangeViewState() { return { dispose() {} }; }, webview: {
         async postMessage(message: unknown) { received.push(message); return true; },
         onDidReceiveMessage(fn: typeof receive) { receive = fn; return { dispose() { receive = undefined; } }; }
       } } as unknown as vscode.WebviewPanel;
@@ -26,6 +53,8 @@ export const extensionUpdateTests = [{
     };
     const first = makePanel(), second = makePanel();
     const one = attachExtensionUpdates(first.panel, client), two = attachExtensionUpdates(second.panel, client);
+    assert.deepEqual(first.received, [{ type: "extensionUpdateState", state }]);
+    first.received.length = 0;
     await first.send({ type: "extensionUpdateReady" });
     assert.deepEqual(first.received, [{ type: "extensionUpdateState", state }]);
     await first.send({ type: "installExtensionUpdate", url: "https://other.invalid/file.vsix" });
