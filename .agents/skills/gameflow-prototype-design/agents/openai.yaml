@@ -1,0 +1,4 @@
+interface:
+  display_name: "原型设计"
+  short_description: "结合游戏策划文档与手绘草图，生成符合 GameFlow 组件标准的可编辑原型"
+  default_prompt: "请用 $gameflow-prototype-design 分析我提供的策划文档和草图，梳理涉及的页面、弹窗和状态，生成可编辑的 GameFlow 原型。"

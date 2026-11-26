@@ -21,6 +21,14 @@ GameFlow 是一个面向游戏策划的 VS Code 扩展骨架，用同一份结�
 - 页面管理、子树复制删除、隐藏锁定、父级调整、图片配置、撤销重做和保存均写回 JSON，并接入 VS Code 原生 dirty 状态。
 - 严格 CSP、共享 TypeScript 协议和宿主侧运行时校验。
 
+## 策划用 Agent 生成原型
+
+把策划文档和可选的手绘草图交给 Codex 等外部 Agent，使用仓库内的[原型设计技能](.agents/skills/gameflow-prototype-design/SKILL.md)。在独立策划项目中使用 Codex 时，将整个 `gameflow-prototype-design` 目录复制到该项目的 `.agents/skills/` 下即可。
+
+> 请用 $gameflow-prototype-design，结合《公会物资征集》策划案和附图，梳理页面、弹窗与状态，生成 GameFlow 原型，并列出需要我确认的图文差异。
+
+Agent 生成的 `*.gameflow.json` 可直接用 GameFlow 打开并继续编辑。[公会物资征集示例](.agents/skills/gameflow-prototype-design/references/guild-supplies.gameflow.json)包含可复用的列表项画板、互斥筛选、征集进度条和数量滑块。
+
 ## 开发
 
 环境要求：Node.js 20.19+，VS Code 1.105+。

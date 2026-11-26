@@ -1,0 +1,791 @@
+{
+  "schemaVersion": 5,
+  "elementIdScheme": "nanoid-8",
+  "documentId": "guild-supplies-example",
+  "title": "公会物资征集",
+  "requirements": [
+    {
+      "id": "goal",
+      "text": "成员查看本周征集进度，按进行中或已完成筛选物资列表。",
+      "status": "confirmed",
+      "source": "示例策划 §1 征集概览"
+    },
+    {
+      "id": "materials",
+      "text": "每行展示物资名称、图标和剩余需求量。进行中的物资可发起捐献。",
+      "status": "confirmed",
+      "source": "示例策划 §2 物资条目"
+    },
+    {
+      "id": "quantity",
+      "text": "弹窗内可调整捐献数量，上限取剩余需求和持有量中的较小值。取消返回，确认后返回并更新征集进度。",
+      "status": "confirmed",
+      "source": "示例策划 §3 捐献数量"
+    },
+    {
+      "id": "example-values",
+      "text": "样例展示进行中的征集，当前进度 60/100，持有木材 12 份，本次选择 6 份。",
+      "status": "inferred",
+      "source": "原型演示数据，供评审布局与数值范围"
+    }
+  ],
+  "pages": [
+    {
+      "id": "p9uk7z2m",
+      "name": "公会物资征集",
+      "exportName": "GuildSupplies",
+      "kind": "screen",
+      "rootType": "UIStack",
+      "background": "#eef2f5",
+      "frame": {
+        "x": 0,
+        "y": 0,
+        "width": 750,
+        "height": 1334
+      },
+      "nodes": [
+        {
+          "id": "q3wd8u1t",
+          "name": "本期征集概况",
+          "type": "container",
+          "frame": {
+            "x": 33,
+            "y": 32,
+            "width": 684,
+            "height": 192
+          }
+        },
+        {
+          "id": "f9yv6m1h",
+          "name": "页面标题",
+          "type": "text",
+          "parentId": "q3wd8u1t",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 684,
+            "height": 68
+          },
+          "text": "公会物资征集",
+          "style": {
+            "fontSize": 50,
+            "color": "#263244",
+            "fontWeight": 700
+          },
+          "widget": {
+            "valign": "middle"
+          }
+        },
+        {
+          "id": "d7qx2p8k",
+          "name": "征集进度说明",
+          "type": "text",
+          "parentId": "q3wd8u1t",
+          "frame": {
+            "x": 0,
+            "y": 88,
+            "width": 320,
+            "height": 48
+          },
+          "text": "本周目标",
+          "style": {
+            "fontSize": 30,
+            "color": "#566577"
+          },
+          "widget": {
+            "valign": "middle"
+          }
+        },
+        {
+          "id": "j9ec5z3v",
+          "name": "当前征集进度",
+          "type": "text",
+          "parentId": "q3wd8u1t",
+          "frame": {
+            "x": 410,
+            "y": 88,
+            "width": 274,
+            "height": 48
+          },
+          "text": "60 / 100",
+          "style": {
+            "fontSize": 30,
+            "color": "#225b8a",
+            "textAlign": "right",
+            "fontWeight": 600
+          },
+          "widget": {
+            "valign": "middle"
+          }
+        },
+        {
+          "id": "g6hc2k8b",
+          "name": "本周征集进度",
+          "type": "progress",
+          "parentId": "q3wd8u1t",
+          "frame": {
+            "x": 0,
+            "y": 152,
+            "width": 684,
+            "height": 24
+          },
+          "widget": {
+            "mode": "horizontal",
+            "min": 0,
+            "max": 100,
+            "value": 60,
+            "skinNodeId": "r4yf7j1u"
+          }
+        },
+        {
+          "id": "b1xk5g9a",
+          "name": "进度底槽",
+          "type": "image",
+          "parentId": "g6hc2k8b",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 684,
+            "height": 24
+          },
+          "image": {
+            "builtin": "progress/base"
+          },
+          "widget": {
+            "imageFit": "fill"
+          }
+        },
+        {
+          "id": "r4yf7j1u",
+          "name": "当前进度填充",
+          "type": "image",
+          "parentId": "g6hc2k8b",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 684,
+            "height": 24
+          },
+          "image": {
+            "builtin": "progress/fill"
+          },
+          "widget": {
+            "imageFit": "fill"
+          }
+        },
+        {
+          "id": "v5kg1n7q",
+          "name": "征集状态筛选",
+          "type": "radioGroup",
+          "frame": {
+            "x": 33,
+            "y": 248,
+            "width": 684,
+            "height": 72
+          },
+          "widget": {
+            "optionNodeIds": [
+              "x7av2m9e",
+              "t6zc4y2s"
+            ],
+            "selectedIndex": 0
+          }
+        },
+        {
+          "id": "w8dc2p6h",
+          "name": "筛选选项行",
+          "type": "hbox",
+          "parentId": "v5kg1n7q",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 684,
+            "height": 72
+          },
+          "layout": {
+            "gap": 32,
+            "valign": "middle"
+          }
+        },
+        {
+          "id": "x7av2m9e",
+          "name": "进行中",
+          "type": "radio",
+          "parentId": "w8dc2p6h",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 240,
+            "height": 72
+          },
+          "widget": {
+            "skinNodeId": "b7wd4q8f"
+          }
+        },
+        {
+          "id": "e4jn6k2h",
+          "name": "单选底框",
+          "type": "image",
+          "parentId": "x7av2m9e",
+          "frame": {
+            "x": 0,
+            "y": 12,
+            "width": 48,
+            "height": 48
+          },
+          "image": {
+            "builtin": "radio/base"
+          },
+          "widget": {
+            "imageFit": "fill"
+          }
+        },
+        {
+          "id": "b7wd4q8f",
+          "name": "选中标记",
+          "type": "image",
+          "parentId": "x7av2m9e",
+          "frame": {
+            "x": 0,
+            "y": 12,
+            "width": 48,
+            "height": 48
+          },
+          "image": {
+            "builtin": "radio/mark"
+          },
+          "widget": {
+            "imageFit": "fill"
+          }
+        },
+        {
+          "id": "z5ec8s2v",
+          "name": "筛选名称",
+          "type": "text",
+          "parentId": "x7av2m9e",
+          "frame": {
+            "x": 68,
+            "y": 0,
+            "width": 172,
+            "height": 72
+          },
+          "text": "进行中",
+          "style": {
+            "fontSize": 32,
+            "color": "#263244"
+          },
+          "widget": {
+            "valign": "middle"
+          }
+        },
+        {
+          "id": "t6zc4y2s",
+          "name": "已完成",
+          "type": "radio",
+          "parentId": "w8dc2p6h",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 240,
+            "height": 72
+          },
+          "widget": {
+            "skinNodeId": "m5sw7f2g"
+          }
+        },
+        {
+          "id": "h1rx7k8a",
+          "name": "单选底框",
+          "type": "image",
+          "parentId": "t6zc4y2s",
+          "frame": {
+            "x": 0,
+            "y": 12,
+            "width": 48,
+            "height": 48
+          },
+          "image": {
+            "builtin": "radio/base"
+          },
+          "widget": {
+            "imageFit": "fill"
+          }
+        },
+        {
+          "id": "m5sw7f2g",
+          "name": "选中标记",
+          "type": "image",
+          "parentId": "t6zc4y2s",
+          "frame": {
+            "x": 0,
+            "y": 12,
+            "width": 48,
+            "height": 48
+          },
+          "image": {
+            "builtin": "radio/mark"
+          },
+          "widget": {
+            "imageFit": "fill"
+          }
+        },
+        {
+          "id": "y8sq2b9e",
+          "name": "筛选名称",
+          "type": "text",
+          "parentId": "t6zc4y2s",
+          "frame": {
+            "x": 68,
+            "y": 0,
+            "width": 172,
+            "height": 72
+          },
+          "text": "已完成",
+          "style": {
+            "fontSize": 32,
+            "color": "#263244"
+          },
+          "widget": {
+            "valign": "middle"
+          }
+        },
+        {
+          "id": "n8uz6w4y",
+          "name": "物资征集列表",
+          "type": "list",
+          "frame": {
+            "x": 33,
+            "y": 352,
+            "width": 684,
+            "height": 950
+          },
+          "layout": {
+            "scrollType": 2,
+            "wrapCount": 1,
+            "gapY": 16
+          },
+          "cellPrefab": {
+            "source": "",
+            "documentId": "guild-supplies-example",
+            "pageId": "c4mf2y8k"
+          }
+        }
+      ]
+    },
+    {
+      "id": "s5vc8e3q",
+      "name": "捐献物资",
+      "kind": "modal",
+      "rootType": "UITop",
+      "exportName": "DonateSupplies",
+      "background": "#ffffff",
+      "frame": {
+        "x": 844,
+        "y": 0,
+        "width": 656,
+        "height": 516
+      },
+      "nodes": [
+        {
+          "id": "c3fv8z9a",
+          "name": "木材捐献数量",
+          "type": "container",
+          "frame": {
+            "x": 40,
+            "y": 28,
+            "width": 576,
+            "height": 344
+          }
+        },
+        {
+          "id": "p2rz7v5w",
+          "name": "弹窗标题",
+          "type": "text",
+          "parentId": "c3fv8z9a",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 576,
+            "height": 72
+          },
+          "text": "捐献营地木材",
+          "style": {
+            "fontSize": 46,
+            "color": "#263244",
+            "fontWeight": 700
+          },
+          "widget": {
+            "valign": "middle"
+          }
+        },
+        {
+          "id": "j7kt2y9m",
+          "name": "数量限制",
+          "type": "text",
+          "parentId": "c3fv8z9a",
+          "frame": {
+            "x": 0,
+            "y": 88,
+            "width": 576,
+            "height": 52
+          },
+          "text": "持有 12 份，本次最多捐献 12 份",
+          "style": {
+            "fontSize": 30,
+            "color": "#566577"
+          },
+          "widget": {
+            "valign": "middle"
+          }
+        },
+        {
+          "id": "r5qd9m2k",
+          "name": "数量标签",
+          "type": "text",
+          "parentId": "c3fv8z9a",
+          "frame": {
+            "x": 0,
+            "y": 168,
+            "width": 288,
+            "height": 56
+          },
+          "text": "捐献数量",
+          "style": {
+            "fontSize": 32,
+            "color": "#263244"
+          },
+          "widget": {
+            "valign": "middle"
+          }
+        },
+        {
+          "id": "n6vy1w8s",
+          "name": "选定数量",
+          "type": "text",
+          "parentId": "c3fv8z9a",
+          "frame": {
+            "x": 344,
+            "y": 168,
+            "width": 232,
+            "height": 56
+          },
+          "text": "6 份",
+          "style": {
+            "fontSize": 36,
+            "color": "#225b8a",
+            "fontWeight": 700,
+            "textAlign": "right"
+          },
+          "widget": {
+            "valign": "middle"
+          }
+        },
+        {
+          "id": "a1wc8p4e",
+          "name": "捐献数量滑块",
+          "type": "slider",
+          "parentId": "c3fv8z9a",
+          "frame": {
+            "x": 0,
+            "y": 248,
+            "width": 576,
+            "height": 64
+          },
+          "widget": {
+            "direction": "horizontal",
+            "min": 1,
+            "max": 12,
+            "value": 6,
+            "skinNodeId": "y8ab5g1t"
+          }
+        },
+        {
+          "id": "f6uk9v2z",
+          "name": "数量轨道",
+          "type": "image",
+          "parentId": "a1wc8p4e",
+          "frame": {
+            "x": 0,
+            "y": 26,
+            "width": 576,
+            "height": 12
+          },
+          "image": {
+            "builtin": "slider/track"
+          },
+          "widget": {
+            "imageFit": "fill"
+          }
+        },
+        {
+          "id": "y8ab5g1t",
+          "name": "数量手柄",
+          "type": "image",
+          "parentId": "a1wc8p4e",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 48,
+            "height": 48
+          },
+          "image": {
+            "builtin": "slider/thumb"
+          },
+          "widget": {
+            "imageFit": "fill"
+          }
+        },
+        {
+          "id": "h9gf7r3a",
+          "name": "捐献操作区",
+          "type": "hbox",
+          "frame": {
+            "x": 40,
+            "y": 392,
+            "width": 576,
+            "height": 84
+          },
+          "layout": {
+            "gap": 24
+          }
+        },
+        {
+          "id": "p7gu4v8c",
+          "name": "取消",
+          "type": "button",
+          "parentId": "h9gf7r3a",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 276,
+            "height": 84
+          },
+          "normalSkin": {
+            "builtin": "button/white"
+          }
+        },
+        {
+          "id": "u2yg5p4m",
+          "name": "取消文案",
+          "type": "text",
+          "parentId": "p7gu4v8c",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 276,
+            "height": 84
+          },
+          "text": "取消",
+          "style": {
+            "fontSize": 30,
+            "color": "#263244",
+            "fontWeight": 600,
+            "textAlign": "center"
+          },
+          "widget": {
+            "valign": "middle"
+          }
+        },
+        {
+          "id": "w4hj7m3u",
+          "name": "确认捐献",
+          "type": "button",
+          "parentId": "h9gf7r3a",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 276,
+            "height": 84
+          },
+          "normalSkin": {
+            "builtin": "button/blue"
+          }
+        },
+        {
+          "id": "z3vy6d5n",
+          "name": "确认捐献文案",
+          "type": "text",
+          "parentId": "w4hj7m3u",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 276,
+            "height": 84
+          },
+          "text": "确认捐献",
+          "style": {
+            "fontSize": 30,
+            "color": "#ffffff",
+            "fontWeight": 600,
+            "textAlign": "center"
+          },
+          "widget": {
+            "valign": "middle"
+          }
+        }
+      ]
+    },
+    {
+      "id": "c4mf2y8k",
+      "name": "物资征集条目",
+      "exportName": "GuildSupplyCell",
+      "kind": "screen",
+      "rootType": "UIBox",
+      "componentRootId": "k6ua9x3s",
+      "background": "transparent",
+      "frame": {
+        "x": 844,
+        "y": 620,
+        "width": 684,
+        "height": 132
+      },
+      "nodes": [
+        {
+          "id": "k6ua9x3s",
+          "name": "物资条目内容",
+          "type": "container",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 684,
+            "height": 132
+          }
+        },
+        {
+          "id": "u6qj9t2p",
+          "name": "条目底板",
+          "type": "image",
+          "parentId": "k6ua9x3s",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 684,
+            "height": 132
+          },
+          "image": {
+            "builtin": "block/fill-white"
+          },
+          "widget": {
+            "imageFit": "fill"
+          }
+        },
+        {
+          "id": "v1kw8m4h",
+          "name": "物资图标",
+          "type": "image",
+          "parentId": "k6ua9x3s",
+          "frame": {
+            "x": 24,
+            "y": 30,
+            "width": 72,
+            "height": 72
+          },
+          "image": {
+            "builtin": "icon/chest"
+          },
+          "widget": {
+            "imageFit": "fill"
+          }
+        },
+        {
+          "id": "e8ps1z6q",
+          "name": "物资名称",
+          "type": "text",
+          "parentId": "k6ua9x3s",
+          "frame": {
+            "x": 120,
+            "y": 12,
+            "width": 296,
+            "height": 56
+          },
+          "text": "营地木材",
+          "style": {
+            "fontSize": 34,
+            "color": "#263244",
+            "fontWeight": 600
+          },
+          "widget": {
+            "valign": "middle"
+          }
+        },
+        {
+          "id": "d2bx7q1j",
+          "name": "需求剩余量",
+          "type": "text",
+          "parentId": "k6ua9x3s",
+          "frame": {
+            "x": 120,
+            "y": 68,
+            "width": 296,
+            "height": 46
+          },
+          "text": "还需 40 份",
+          "style": {
+            "fontSize": 28,
+            "color": "#566577"
+          },
+          "widget": {
+            "valign": "middle"
+          }
+        },
+        {
+          "id": "a4gh8s2w",
+          "name": "捐献",
+          "type": "button",
+          "parentId": "k6ua9x3s",
+          "frame": {
+            "x": 480,
+            "y": 28,
+            "width": 176,
+            "height": 76
+          },
+          "normalSkin": {
+            "builtin": "button/blue"
+          }
+        },
+        {
+          "id": "b3hv6f7m",
+          "name": "捐献文案",
+          "type": "text",
+          "parentId": "a4gh8s2w",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 176,
+            "height": 76
+          },
+          "text": "捐献",
+          "style": {
+            "fontSize": 30,
+            "color": "#ffffff",
+            "fontWeight": 600,
+            "textAlign": "center"
+          },
+          "widget": {
+            "valign": "middle"
+          }
+        }
+      ]
+    }
+  ],
+  "interactions": [
+    {
+      "id": "open-donate",
+      "fromPageId": "p9uk7z2m",
+      "toPageId": "s5vc8e3q",
+      "trigger": "点击物资条目的捐献按钮"
+    },
+    {
+      "id": "cancel-donate",
+      "fromPageId": "s5vc8e3q",
+      "toPageId": "p9uk7z2m",
+      "trigger": "点击取消，保留原进度"
+    },
+    {
+      "id": "finish-donate",
+      "fromPageId": "s5vc8e3q",
+      "toPageId": "p9uk7z2m",
+      "trigger": "点击确认捐献，返回并刷新本周进度"
+    }
+  ]
+}
