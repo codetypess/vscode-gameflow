@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import type { SelfUpdateClient } from "./extension-updates";
 import { createGameFlowDocument } from "./create-document";
 import { PsdEditorProvider, PSD_EDITOR_VIEW_TYPE } from "./psd-editor-provider";
 import {
@@ -6,12 +7,12 @@ import {
   GameFlowEditorProvider
 } from "./gameflow-editor-provider";
 const { activateSelfUpdate } = require("../tools/internal-extensions/self-update.cjs") as {
-  activateSelfUpdate(context: vscode.ExtensionContext, namespace: string): { check(options?: { silent?: boolean }): Promise<unknown> };
+  activateSelfUpdate(context: vscode.ExtensionContext, namespace: string): SelfUpdateClient;
 };
 
 export function activate(context: vscode.ExtensionContext) {
   const updates = activateSelfUpdate(context, "gameflow");
-  const psd = new PsdEditorProvider(context);
+  const psd = new PsdEditorProvider(context, updates);
   const workbench = new GameFlowEditorProvider(context, psd);
   context.subscriptions.push(
     vscode.window.registerCustomEditorProvider(PSD_EDITOR_VIEW_TYPE, psd, { supportsMultipleEditorsPerDocument: false, webviewOptions: { retainContextWhenHidden: true } }),

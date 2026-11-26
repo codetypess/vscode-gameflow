@@ -12,6 +12,8 @@ http://vsix.bitserver.wang/vscode-gameflow/metadata.json
 
 发现新版提示“安装更新 / 稍后”，确认后才下载安装。命令面板提供“原型工作台: 检查更新”和“查看更新日志”，用户设置 `gameflow.checkForUpdates` 可关闭自动检查。插件不主动重载窗口，保存文件后按 VS Code 提示操作。
 
+工作台左上角同步显示绿色「更新插件」，点击就是安装确认。关闭系统通知不清除该按钮；新版生效前暂停工作模式切换，编辑与保存仍可用。接入 Webview 时可复用客户端 `getState / subscribe / install` API；下载地址和包校验仍只由宿主更新模块管理。
+
 0.1.0～0.1.2 需要手动安装一次 0.1.3 或更新版本。旧的独立“Bit 内部插件更新器”可以卸载；它不再是依赖，同时保留可能仍会看到它的旧提示。
 
 ## 每个插件一个目录
@@ -40,7 +42,8 @@ npm version patch --no-git-tag-version
 npm test
 npm run package:vsix
 $releaseVersion = node -p "require('./package.json').version"
-npm run publish:internal -- --file "dist/packages/codetypes.vscode-gameflow-$releaseVersion.vsix"
+$releaseId = node -p "require('./package.json').publisher + '.' + require('./package.json').name"
+npm run publish:internal -- --file "dist/packages/$releaseId-$releaseVersion.vsix"
 ```
 
 发布工具从 VSIX 提取身份、版本、引擎和摘要，通过 SSH 上传。先落盘不可覆盖的 VSIX，再原子替换对应 metadata。新增插件只需：
@@ -50,6 +53,8 @@ npm run publish:internal -- --file D:/path/to/another-plugin.vsix
 ```
 
 支持 --host、--root、--channel stable|beta。客户端跟随 stable，beta 不成为升级目标。历史版本不可覆盖。发行包沿用 .vscodeignore 运行文件白名单，不能跳过 vsce 的敏感信息检查。
+
+打包身份直接取源 package.json 的 publisher/name，不根据本机安装列表覆盖 publisher。原型工作台的正式 ID 已改为 `codetypess.vscode-gameflow`。同名插件更换 publisher 时，首次 stable 发布可显式传 `--replace-id codetypes.vscode-gameflow`，在一次有备份的发布事务中转交 metadata 目录；旧 VSIX 保留，目标 ID 必须尚未存在。普通发布继续拒绝不同 publisher 占用同名目录。旧 ID 的客户端保持身份校验，需要安装新 ID 的 VSIX。
 
 ## 其他插件照这个模式接入
 

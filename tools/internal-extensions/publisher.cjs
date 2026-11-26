@@ -66,11 +66,17 @@ async function transaction(root, mutate) {
     fs.rmdirSync(lock);
   }
 }
-async function publish(root, file, channel, hidden) {
+async function publish(root, file, channel, hidden, replaceId) {
   assert(channel === "stable" || channel === "beta", "Invalid channel");
   const metadata = await readVsix(file);
   if (channel === "stable") assert(!require("semver").prerelease(metadata.manifest.version), "Prerelease cannot enter stable");
   return transaction(root, (catalog) => {
+    if (replaceId !== undefined) {
+      assert(channel === "stable", "Publisher replacement requires a stable release");
+      assert(ID_PATTERN.test(replaceId) && replaceId !== metadata.id && replaceId.split(".")[1] === metadata.manifest.name, "Replacement must name the previous publisher of the same plugin");
+      assert(catalog.extensions[replaceId] && !catalog.extensions[metadata.id], "Replacement requires an existing source ID and a new target ID");
+      delete catalog.extensions[replaceId];
+    }
     const relative = releasePath(metadata.id, metadata.manifest.version);
     const target = path.join(root, "public", relative);
     const previous = catalog.extensions[metadata.id];
@@ -81,7 +87,7 @@ async function publish(root, file, channel, hidden) {
     // An identical, unreferenced file can remain after an interrupted catalog commit.
     if (fs.existsSync(target)) assert(sha256(fs.readFileSync(target)) === metadata.sha256, "Existing orphan release has different content; refusing overwrite");
     else fs.copyFileSync(file, target, fs.constants.COPYFILE_EXCL);
-    return { id: metadata.id, version: release.version, sha256: metadata.sha256, path: relative, metadata: `${metadata.manifest.name}/metadata.json` };
+    return { id: metadata.id, version: release.version, sha256: metadata.sha256, path: relative, metadata: `${metadata.manifest.name}/metadata.json`, ...(replaceId ? { replacedId: replaceId } : {}) };
   });
 }
 async function promote(root, id, version, channel = "stable") {
@@ -100,7 +106,7 @@ async function promote(root, id, version, channel = "stable") {
 async function main() {
   const root = path.resolve(option("root", "/Users/bit/services/vscode-extensions"));
   if (process.argv[2] === "init") initialize(root);
-  else if (process.argv[2] === "publish") { assert(option("file"), "--file is required"); await publish(root, path.resolve(option("file")), option("channel", "stable"), process.argv.includes("--hidden")); }
+  else if (process.argv[2] === "publish") { assert(option("file"), "--file is required"); await publish(root, path.resolve(option("file")), option("channel", "stable"), process.argv.includes("--hidden"), option("replace-id")); }
   else if (process.argv[2] === "promote") await promote(root, option("id"), option("version"), option("channel", "stable"));
   else throw new Error("Usage: publisher.cjs init|publish|promote --root DIR [--file package.vsix | --id publisher.name --version VERSION|none]");
 }

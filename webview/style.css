@@ -50,6 +50,8 @@ button svg { flex-shrink: 0; }
 .brand-mark { display: flex; align-items: center; color: var(--vscode-icon-foreground, #c5c5c5); }
 .workspace-mode-trigger { flex-shrink: 0; padding: 0 6px; color: var(--foreground); font-weight: 600; }
 .workspace-mode-trigger > span { white-space: nowrap; }
+.workspace-update-button { flex-shrink: 0; gap: 6px; padding: 0 9px; background: #238636; color: #fff; font-weight: 600; }
+.workspace-update-button:hover { background: #2ea043; }
 .workspace-mode-trigger[data-state=open], .page-switch-trigger[data-state=open] { background: var(--vscode-toolbar-activeBackground, var(--accent)); }
 .page-switch-trigger { min-width: 0; padding: 0 6px; }
 .page-switch-trigger > span { overflow: hidden; text-overflow: ellipsis; }

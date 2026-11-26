@@ -7,7 +7,7 @@ const trust = require("./trust.json");
 function option(name, fallback) { const at = process.argv.indexOf(`--${name}`); return at < 0 ? fallback : process.argv[at + 1]; }
 async function main() {
   const name = option("name", "vscode-gameflow");
-  const id = option("id", `codetypes.${name}`);
+  const id = option("id", `${require("../../package.json").publisher}.${name}`);
   const count = Number(option("count", "1"));
   lib.assert(/^[a-z0-9-]+$/.test(name) && lib.ID_PATTERN.test(id), "Invalid plugin name or ID");
   lib.assert(Number.isSafeInteger(count) && count > 0 && count <= 100, "Count must be 1..100");

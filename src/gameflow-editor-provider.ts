@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { attachExtensionUpdates } from "./extension-updates";
 import { rename } from "node:fs/promises";
 import { parseGameFlowDocument, serializeGameFlowDocument, validateGameFlowDocument } from "../shared/model";
 import { isWebviewToHostMessage, type HostToWebviewMessage } from "../shared/protocol";
@@ -169,6 +170,7 @@ export class GameFlowEditorProvider implements vscode.CustomEditorProvider<Workb
     this.psd.attachRenderer(panel, hash => this.pagePsds.renderSource(doc, hash));
     doc.panels.add(panel);
     const settings = this.psd.settings.attach(panel, doc.uri);
+    const updates = attachExtensionUpdates(panel, this.psd.updates);
     const references = new CanvasReferenceController(doc, panel.webview, this.access(doc));
     const checkPrefabExportNames = (pageId: unknown, fromPsd = false) => {
       const current = parseGameFlowDocument(doc.getText());
@@ -268,7 +270,7 @@ export class GameFlowEditorProvider implements vscode.CustomEditorProvider<Workb
         if (!doc.canvasDirty) { doc.replace(text); doc.baseline = text; doc.diskHash = hash; this.uriChanges.fire(doc.uri); await doc.refresh(); }
       } catch { /* Save reports conflicts without replacing the in-memory draft. */ }
     });
-    panel.onDidDispose(() => { settings.dispose(); subscription.dispose(); watcher.dispose(); changed.dispose(); references.dispose(); doc.refreshers.delete(snapshot); doc.panels.delete(panel); });
+    panel.onDidDispose(() => { updates.dispose(); settings.dispose(); subscription.dispose(); watcher.dispose(); changed.dispose(); references.dispose(); doc.refreshers.delete(snapshot); doc.panels.delete(panel); });
   }
   private async flush(doc: WorkbenchDocument) {
     if (doc.panels.size) {

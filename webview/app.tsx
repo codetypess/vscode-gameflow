@@ -67,6 +67,7 @@ import { requestPsd, sourceBytes, usePagePsds } from "./runtime/page-psd";
 import { PageSyncDialog, type SyncSession } from "./editor/page-sync-dialog";
 import { componentPsdTargets } from "./runtime/component-psd";
 import { PageArtState, pagePreviewBlocked } from "./editor/page-art-state";
+import { ExtensionUpdateButton, useExtensionUpdate } from "./extension-update";
 
 type Tool = "select" | "hand";
 type Camera = { x: number; y: number; zoom: number };
@@ -87,6 +88,7 @@ function IconTool({ label, active, disabled, onClick, children }: { label: strin
 }
 
 export function App() {
+  const extensionUpdate = useExtensionUpdate();
   const [mode, setMode] = useState<WorkspaceMode>("prototype");
   const [resourceMode, setResourceMode] = useToolbarChoice("resourceMode", ["prototype", "art", "prefab"]);
   const psdEditor = usePsdEditor(() => switchMode("slice"));
@@ -653,7 +655,7 @@ export function App() {
     setResourceMode(next);
     runtimeResources.refresh();
   };
-  const switchMode = (next: WorkspaceMode) => { setCanvasMenu(null); setRenameTarget(null); gesture.current = null; setPreview(null); setSpaceHand(false); setInsertOpen(false); setMode(next); };
+  const switchMode = (next: WorkspaceMode) => { if (extensionUpdate.isBlocked()) return; setCanvasMenu(null); setRenameTarget(null); gesture.current = null; setPreview(null); setSpaceHand(false); setInsertOpen(false); setMode(next); };
 
   const importPrototype = async (file?: File) => {
     const documentId = read()?.documentId;
@@ -734,7 +736,7 @@ export function App() {
     else if (source === "proto") void pagePsds.run(composition.page.id, "generate");
   }
   const openPageSlice = async () => {
-    if (!canonicalPage?.artPsd || pageActionBusy) return;
+    if (extensionUpdate.isBlocked() || !canonicalPage?.artPsd || pageActionBusy) return;
     if (!isBrowserPreview && !document.querySelector('meta[name="gameflow-page-psd-slice"][content="1"]')) {
       setNotice("请按 F1 执行「Developer: Reload Window」（重新加载窗口），以启用当前页面的 PSD 切图。");
       return;
@@ -751,6 +753,7 @@ export function App() {
   };
 
   const selectWorkspace = (next: WorkspaceMode) => {
+    if (extensionUpdate.isBlocked()) return;
     if (mode === "prototype" && next === "slice" && canonicalPage?.artPsd) void openPageSlice();
     else switchMode(next);
   };
@@ -758,12 +761,12 @@ export function App() {
   const CurrentWorkspaceIcon = currentWorkspace.icon;
 
   return <ListCells.Provider value={listCells}><SliceResourcesProvider value={{ ...selectedResources, forPage: runtimeResources.forPage }}><TooltipProvider delayDuration={300}><main className="app-shell">
-    <header className="topbar"><DropdownMenu.Root modal={false}>
+    <header className="topbar">{extensionUpdate.blocked ? <ExtensionUpdateButton update={extensionUpdate} /> : <DropdownMenu.Root modal={false}>
       <DropdownMenu.Trigger asChild><Button size="sm" variant="ghost" className="workspace-mode-trigger" aria-label={`工作台模式：${currentWorkspace.label}`}><CurrentWorkspaceIcon size={17} aria-hidden="true" /><span>{currentWorkspace.label}</span><ChevronDown size={13} aria-hidden="true" /></Button></DropdownMenu.Trigger>
       <DropdownMenu.Portal><DropdownMenu.Content loop side="bottom" align="start" sideOffset={5} collisionPadding={6} className="layer-context-menu workspace-mode-menu" aria-label="工作模式" onPointerDown={event => event.stopPropagation()} onKeyDown={event => event.stopPropagation()}>
         {WORKSPACE_MODES.map(({ id, label, icon: Icon }) => <DropdownMenu.Item key={id} aria-current={mode === id ? "page" : undefined} disabled={id === "slice" && mode === "prototype" && !!canonicalPage?.artPsd && pageActionBusy} onSelect={() => selectWorkspace(id)}><Icon size={15} aria-hidden="true" /><span>{label}</span>{mode === id ? <Check size={14} aria-hidden="true" /> : null}</DropdownMenu.Item>)}
       </DropdownMenu.Content></DropdownMenu.Portal>
-    </DropdownMenu.Root><Separator orientation="vertical" className="topbar-separator" />
+    </DropdownMenu.Root>}<Separator orientation="vertical" className="topbar-separator" />
       <div ref={setDocumentActions} className="workbench-document-actions" role="group" aria-label="文档操作">{mode === "prototype" ? <>
         <IconTool label="撤销 (Ctrl+Z)" disabled={pending || !canvasDocument} onClick={() => history("undo")}><Undo2 size={15} /></IconTool>
         <IconTool label="重做 (Ctrl+Shift+Z)" disabled={pending || !canvasDocument} onClick={() => history("redo")}><Redo2 size={15} /></IconTool>

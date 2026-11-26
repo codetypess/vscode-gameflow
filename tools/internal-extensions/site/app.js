@@ -16,7 +16,7 @@ async function load() {
     if (entry.hidden || id === "codetypes.internal-updater") continue;
     const latest = entry.releases.find((release) => release.version === entry.channels.stable);
     if (!latest) continue;
-    if (id === "codetypes.vscode-gameflow") {
+    if (id === "codetypess.vscode-gameflow") {
       const button = document.getElementById("extension-download");
       button.href = download(latest, "").href; button.textContent = `下载${entry.displayName} v${latest.version}`; button.removeAttribute("aria-disabled"); button.setAttribute("download", "");
     }

@@ -39,6 +39,8 @@ Scope: 一个 VSIX 内置自身更新检查；每个插件通过自己的 metada
 
 ## 6. Verification
 
+后续多窗口真实验收发现后台窗口提示长期持锁的问题，已在 [self-update-window-focus.md](self-update-window-focus.md) 修复，当前旧 ID 兼容 stable 已升至 0.1.6。下方保留 0.1.3/0.1.4 初始发布记录。
+
 - 固定业务源码快照加本轮内置模块：403 项共享测试、25 项分发测试、两个版本的生产类型检查与 VSIX 打包通过。
 - 已发布 0.1.3（内置检查测试起点）和 0.1.4（stable），签名 revision 为 12。两个包均 14 个发行文件，无 extensionDependencies；0.1.3 为 4871059 字节，SHA-256 `16c93011fc3d15e77377b5d5ff4555635e8c2fd320a9751be40d9503db5ea85b`；0.1.4 为 4871060 字节，SHA-256 `2d977fd8b6ff2745a14dc6364b3c2421a69e43b800817e84d01742d90b5da5e7`。
 - 正式 metadata URL 为 `http://vsix.bitserver.wang/vscode-gameflow/metadata.json`，已直接读取并验签。两个版本都可通过同目录 `<version>.vsix` 下载，与本地产物逐字节一致；证据位于忽略的 `dist/release-embedded-55b3099/online-verification.json`。

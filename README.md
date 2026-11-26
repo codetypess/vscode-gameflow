@@ -1,8 +1,10 @@
 # 原型工作台
 
-原型工作台是一个面向游戏策划的 VS Code 扩展，用同一份结构化文档组织策划需求、UI 页面组、页面内节点和页面跳转。插件 ID 为 `codetypes.vscode-gameflow`，文档继续使用 `*.gameflow.json` 格式。
+原型工作台是一个面向游戏策划的 VS Code 扩展，用同一份结构化文档组织策划需求、UI 页面组、页面内节点和页面跳转。插件 ID 为 `codetypess.vscode-gameflow`，文档继续使用 `*.gameflow.json` 格式。
 
 安装一个 VSIX 即可。插件启动约 30 秒后、之后每六小时读取 [metadata.json](http://vsix.bitserver.wang/vscode-gameflow/metadata.json)，发现新版先提示，点击“安装更新”后才下载和安装。可执行“原型工作台: 检查更新”或“查看更新日志”；用户设置 `gameflow.checkForUpdates` 可关闭自动检查。0.1.0～0.1.2 需要一次手动升级到内置检查的新版本。之前安装的独立“Bit 内部插件更新器”可以卸载。
+
+发现兼容新版时，工作台左上角也会显示绿色「更新插件」按钮，点击后下载安装。新版生效前暂时不能切换工作区，当前编辑与保存仍可使用；更新失败可重试，安装成功后先保存文件，再按 VS Code 的提示完成生效。
 
 当前版本提供：
 

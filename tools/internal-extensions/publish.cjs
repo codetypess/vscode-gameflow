@@ -13,9 +13,11 @@ async function main() {
   const host = option("host", "bit@macmini.bitserver.wang");
   const root = option("root", "/Users/bit/services/vscode-extensions");
   const channel = option("channel", "stable");
+  const replaceId = option("replace-id");
   assert(/^[A-Za-z0-9._-]+@[A-Za-z0-9.-]+$/.test(host), "Invalid SSH host");
   assert(/^\/[A-Za-z0-9/_-]+$/.test(root), "Invalid remote root");
   assert(["stable", "beta"].includes(channel), "Invalid channel");
+  assert(replaceId === undefined || require("./lib.cjs").ID_PATTERN.test(replaceId) && replaceId !== metadata.id && replaceId.split(".")[1] === metadata.manifest.name && channel === "stable", "Invalid publisher replacement");
   const ssh = process.platform === "win32" ? path.join(process.env.SystemRoot || "C:\\Windows", "System32/OpenSSH/ssh.exe") : "ssh";
   const scp = process.platform === "win32" ? path.join(process.env.SystemRoot || "C:\\Windows", "System32/OpenSSH/scp.exe") : "scp";
   const upload = `${root}/staging/${crypto.randomUUID()}.vsix`;
@@ -23,7 +25,7 @@ async function main() {
   run(ssh, [...args, host, `test -f ${root}/tools/publisher.cjs && mkdir -p ${root}/staging`]);
   run(scp, [...args, file, `${host}:${upload}`]);
   try {
-    run(ssh, [...args, host, `/opt/homebrew/bin/node ${root}/tools/publisher.cjs publish --root ${root} --file ${upload} --channel ${channel}${process.argv.includes("--hidden") ? " --hidden" : ""}`]);
+    run(ssh, [...args, host, `/opt/homebrew/bin/node ${root}/tools/publisher.cjs publish --root ${root} --file ${upload} --channel ${channel}${process.argv.includes("--hidden") ? " --hidden" : ""}${replaceId ? ` --replace-id ${replaceId}` : ""}`]);
   } finally { run(ssh, [...args, host, `/bin/rm -f ${upload}`]); }
   console.log(`Published ${metadata.id}@${metadata.manifest.version}`);
 }

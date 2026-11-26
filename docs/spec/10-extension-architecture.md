@@ -13,6 +13,8 @@ Status: Baseline for the initial extension scaffold
 
 The host applies a per-Webview script nonce to the packaged module entry and exposes the same nonce through Vite's `csp-nonce` metadata. Vite uses it for the `modulepreload` links it creates when a lazy feature loads, including PSD sync previews.
 
+The embedded self-update client owns verified update availability, installation and pending activation. A disposable per-panel bridge sends `extensionUpdateState` snapshots and changes to both workbench and standalone PSD Webviews. Webviews request a snapshot with `extensionUpdateReady`; `installExtensionUpdate` is an explicit user confirmation with no version, URL, path or command payload. Mode-switch guards read the latest received state, including in asynchronous PSD reveal callbacks. See [workbench-plugin-update.md](workbench-plugin-update.md).
+
 The repository workspace disables the JavaScript debugger's experimental network view. This avoids the Node inspector network-tracking assertion during F5 startup on VS Code 1.147.0. See the [debug-host regression](f5-extension-host-startup.md).
 
 ## Document Rules

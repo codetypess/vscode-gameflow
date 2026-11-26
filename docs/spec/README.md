@@ -34,6 +34,11 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 
 ## Active Work Items
 
+- [publisher-identity-correction.md](publisher-identity-correction.md) — Done：新包和签名 metadata 均为 codetypess.vscode-gameflow，已发布 0.1.9 / 0.1.10，stable revision 18；31 项分发测试、生产构建与公开下载摘要验证通过。旧 ID 包仅保留历史。
+- [workbench-plugin-update.md](workbench-plugin-update.md) — Done：新版以绿色「更新插件」替换模式入口，生效前禁止工作区切换；405 项共享测试、浏览器交互与生产构建通过。原测试包身份错误，已改用新 publisher，见 publisher-identity-correction。
+
+- [self-update-window-focus.md](self-update-window-focus.md) — Verifying：后台提示长期持锁已修复，27 项分发测试通过；旧 ID 的 0.1.6 已发布，已在用户当前窗口真实显示更新提示，待用户确认安装。
+
 - [embedded-extension-updates.md](embedded-extension-updates.md) — Verifying：只安装一个 VSIX，插件自查 metadata.json；0.1.3/0.1.4 已发布，403 项共享测试、25 项分发测试及两个运行时各 50 次下载校验通过，待用户点击升级验收。
 
 - [internal-extension-auto-discovery.md](internal-extension-auto-discovery.md) — Superseded：原型工作台更名与独立更新器历史记录；现行单插件元信息与内置更新见 embedded-extension-updates。

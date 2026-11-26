@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { attachExtensionUpdates, type SelfUpdateClient } from "./extension-updates";
 import { parsePsdBinary, patchPsdMetadata } from "../shared/psd-binary";
 import { createPsdStructure } from "../shared/psd-structure";
 import { applySidecar, makeSidecar, sidecarName, type PsdAsset } from "../shared/psd-meta";
@@ -57,7 +58,7 @@ export class PsdEditorProvider implements vscode.CustomEditorProvider<PsdDocumen
   readonly documents = new Map<string, PsdDocument>();
   private readonly changes = new vscode.EventEmitter<vscode.CustomDocumentEditEvent<PsdDocument>>();
   readonly onDidChangeCustomDocument = this.changes.event;
-  constructor(private readonly context: vscode.ExtensionContext) { this.settings = new WorkbenchSettingsController(context); context.subscriptions.push(this.changes, this.settings); }
+  constructor(private readonly context: vscode.ExtensionContext, readonly updates?: SelfUpdateClient) { this.settings = new WorkbenchSettingsController(context); context.subscriptions.push(this.changes, this.settings); }
   async open(uri?: vscode.Uri) {
     if (!uri) uri = (await vscode.window.showOpenDialog({ canSelectMany: false, filters: { Photoshop: ["psd"] }, openLabel: "打开 PSD 配置" }))?.[0];
     if (!uri) return;
@@ -150,7 +151,8 @@ export class PsdEditorProvider implements vscode.CustomEditorProvider<PsdDocumen
     const attachment = this.attach(doc, panel, () => this.open());
     this.attachRenderer(panel, hash => hash === doc.model.asset.sourceHash ? doc.bytes : undefined);
     const settings = this.settings.attach(panel, doc.uri);
-    panel.onDidDispose(() => { attachment.dispose(); settings.dispose(); });
+    const updates = attachExtensionUpdates(panel, this.updates);
+    panel.onDidDispose(() => { attachment.dispose(); settings.dispose(); updates.dispose(); });
   }
   attachRenderer(panel: vscode.WebviewPanel, source: (hash: string) => Uint8Array | undefined | Promise<Uint8Array | undefined>) {
     const listener = panel.webview.onDidReceiveMessage(async raw => {

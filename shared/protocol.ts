@@ -14,8 +14,10 @@ import { isSliceResourcePath, type ExportedSliceResult } from "./slice-resources
 
 import { isPrefabExportBatch, validPrefabTarget, type ImageMetaTarget, type PrefabExportBatch, type PrefabTarget, type PrefabSnapshot, type PrefabWriteGuard } from "./prefab-export";
 import { validGrid } from "./psd-meta";
+import { isExtensionUpdateRequest, type ExtensionUpdateRequest, type ExtensionUpdateMessage } from "./extension-update";
 
 export type WebviewToHostMessage =
+  | ExtensionUpdateRequest
   | { type: "psdRenderSlice" | "psdRenderVisibility"; requestId: string; sourceHash: string; keys: number[]; base64?: string }
   | { type: "psdImportSource"; requestId: string; pageId: string }
   | PagePsdRequest
@@ -41,6 +43,7 @@ export type WebviewToHostMessage =
     };
 
 export type HostToWebviewMessage =
+  | ExtensionUpdateMessage
   | { type: "psdImportSourceResult"; requestId: string; base64?: string; name?: string }
   | { type: "psdRenderSliceResult" | "psdRenderVisibilityResult"; requestId: string; image?: string; error?: string }
   | PagePsdResult
@@ -84,6 +87,7 @@ export function isWebviewToHostMessage(
   if (!isRecord(value) || typeof value.type !== "string") {
     return false;
   }
+  if (value.type === "extensionUpdateReady" || value.type === "installExtensionUpdate") return isExtensionUpdateRequest(value);
   if (value.type === "psdImportSource") return typeof value.requestId === "string" && value.requestId.length <= 80 &&
     typeof value.pageId === "string" && value.pageId.length > 0 && value.pageId.length <= 128;
   if (value.type === "psdRenderSlice" || value.type === "psdRenderVisibility") return typeof value.requestId === "string" && value.requestId.length > 0 && value.requestId.length <= 80 &&
