@@ -4,7 +4,7 @@ export { defaultAtlasName } from "./psd-naming";
 
 export type NineGrid = { top: number; right: number; bottom: number; left: number; repeat: boolean };
 export type SliceRegion = { x: number; y: number; width: number; height: number };
-export type SliceConfig = { enabled: boolean; name: string; variableName?: string; /** Legacy variable override. */ exportName?: string; shared?: boolean; region?: SliceRegion; nineGrid: NineGrid | null };
+export type SliceConfig = { enabled: boolean; name: string; variableName?: string; /** Legacy variable override. */ exportName?: string; shared?: boolean; composite?: boolean; region?: SliceRegion; nineGrid: NineGrid | null };
 export type PsdLayerMeta = Record<string, unknown> & { namespace: "com.codetypes.gameflow"; version: 1; documentId: string; layerId: string; atlasName?: string; independentDirectory?: boolean; slicing?: SliceConfig };
 export type BuiltinSlice = { id: string; width: number; height: number };
 export type PsdEmbeddedLayer = { key: number; name: string; kind: "group" | "image" | "text" | "smartObject"; children: PsdEmbeddedLayer[] };
@@ -81,9 +81,34 @@ export function setGridEdge(grid: NineGrid, edge: "top" | "right" | "bottom" | "
 }
 export function validConfig(value: unknown, width: number, height: number): value is SliceConfig {
   if (!record(value) || (value.region !== undefined && !validSliceRegion(value.region))) return false;
+  if (value.composite !== undefined && typeof value.composite !== "boolean") return false;
   const region = value.region as SliceRegion | undefined;
   return typeof value.enabled === "boolean" && typeof value.name === "string" && value.name.length <= 120 && (value.variableName === undefined || typeof value.variableName === "string" && value.variableName.length <= 120) && (value.exportName === undefined || typeof value.exportName === "string" && value.exportName.length <= 120) && (value.shared === undefined || typeof value.shared === "boolean") && (value.nineGrid === null || validGrid(value.nineGrid, region?.width ?? width, region?.height ?? height));
 }
+export const isCompositeGroup = (layer: PsdLayer) => layer.group && layer.config.composite === true;
+
+/** PSD records visit parents before children. Attribute each covered layer to its outermost composite. */
+export function compositeOwners(layers: PsdLayer[]): Map<number, PsdLayer> {
+  const owners = new Map<number, PsdLayer>();
+  for (const layer of layers) {
+    const parent = layer.parentKey === null ? undefined : owners.get(layer.parentKey);
+    if (parent) owners.set(layer.key, parent);
+    else if (isCompositeGroup(layer)) owners.set(layer.key, layer);
+  }
+  return owners;
+}
+
+/** Preserve physical group records for the renderer while exposing one logical image to consumers. */
+export function sliceLayers(layers: PsdLayer[]): PsdLayer[] {
+  if (!layers.some(isCompositeGroup)) return layers;
+  const owners = compositeOwners(layers);
+  return layers.filter(layer => !owners.has(layer.key) || owners.get(layer.key) === layer);
+}
+
+export function enabledSliceLayers(asset: PsdAsset): PsdLayer[] {
+  return sliceLayers(asset.layers).filter(layer => layer.config.enabled);
+}
+
 export function identityProblems(asset: PsdAsset): string[] {
   const counts = new Map<string, number>();
   for (const l of asset.layers) counts.set(l.metadata.layerId, (counts.get(l.metadata.layerId) ?? 0) + 1);

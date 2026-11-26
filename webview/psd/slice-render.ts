@@ -1,4 +1,4 @@
-import { sliceRegion, type NineGrid, type PsdAsset, type SliceRegion } from "../../shared/psd-meta";
+import { enabledSliceLayers, sliceRegion, type NineGrid, type PsdAsset, type SliceRegion } from "../../shared/psd-meta";
 import { effectiveExportName, exportLayerName, makeSliceExportBatch, MAX_EXPORT_BYTES, psdLayerPath, sliceExportIssues, type SliceProductGeometry } from "../../shared/psd-export";
 import { builtinSlice, builtinSliceDescription } from "../../shared/psd-builtin";
 import { builtinImage } from "../../shared/builtin-image";
@@ -18,7 +18,7 @@ export function generateSliceProducts(asset: PsdAsset): Promise<Map<number, Slic
   if (cached?.stamp === stamp) return cached.result;
   const result = (async () => {
     const entries = new Map<number, SliceProduct>(), issues = sliceExportIssues(asset, hasPhotoCraftHost());
-    for (const layer of asset.layers.filter(l => l.config.enabled)) {
+    for (const layer of enabledSliceLayers(asset)) {
       const { width, height } = sliceRegion(layer);
       const description: SliceResourceDescription = { path: `${effectiveExportName(asset, layer)}.png`, width, height, nineGrid: layer.config.nineGrid,
         source: { documentId: asset.documentId, psdName: asset.name, sourceHash: asset.sourceHash }, layerId: layer.metadata.layerId, layerName: exportLayerName(asset, layer), shared: layer.config.shared === true };

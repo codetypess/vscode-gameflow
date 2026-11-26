@@ -2,6 +2,7 @@ import type { GameFlowDocument, GameFlowPage } from "../../shared/model";
 import { makeNode } from "../../shared/editor-ops";
 import { psdTree } from "../../shared/page-sync";
 import { psdSlotField } from "../../shared/psd-slot-markers";
+import { enabledSliceLayers } from "../../shared/psd-meta";
 import { resourceUuid, type ExportImageResolver } from "../../shared/prefab-export";
 import { builtinImage, builtinPath } from "../../shared/image-slots";
 import { builtinSlice } from "../../shared/psd-builtin";
@@ -25,6 +26,7 @@ export async function readPsdPrefabSource(doc: GameFlowDocument, page: GameFlowP
   if (!tree.length) throw new Error("PSD 中没有可同步的控件、文字或已启用的切图。");
   const byId = new Map(tree.map(node=>[node.id,node]));
   const layers = new Map(asset.layers.map(layer=>[layer.metadata.layerId,layer]));
+  const slices = enabledSliceLayers(asset);
   const projected:GameFlowPage = {
     ...page,frame:{...page.frame,width:asset.width,height:asset.height},
     nodes:tree.map(node=>{
@@ -36,7 +38,7 @@ export async function readPsdPrefabSource(doc: GameFlowDocument, page: GameFlowP
       if (node.type==="image" || node.type==="button") {
         delete control.image;
         delete control.normalSkin;
-        const slots = asset.layers.filter(l=>l.parentKey===layer.key && psdSlotField(l.name) && l.config.enabled);
+        const slots = slices.filter(l=>l.parentKey===layer.key && psdSlotField(l.name));
         if (node.type==="image" && !slots.length && layer.config.enabled) slots.push(layer);
         const seen = new Set<string>();
         for (const slot of slots) {

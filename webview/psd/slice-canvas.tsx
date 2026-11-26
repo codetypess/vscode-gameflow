@@ -1,7 +1,7 @@
-import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent, type PointerEvent, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent, type ReactNode } from "react";
 import { ChevronRight, FileImage, Focus, Layers3, Minus, Plus } from "lucide-react";
 import type { PsdAsset, PsdLayer } from "../../shared/psd-meta";
-import { sliceRegion } from "../../shared/psd-meta";
+import { isCompositeGroup, sliceLayers, sliceRegion } from "../../shared/psd-meta";
 import { Button } from "../components/ui/button";
 import { Separator } from "../components/ui/separator";
 import { CanvasDots } from "../components/canvas-dots";
@@ -17,6 +17,8 @@ export function PsdSliceCanvas({ asset: source, selected: selection, onSelect, o
 }) {
   const visibility = useLayerVisibility(source, active);
   const asset = visibility.preview;
+  const treeAsset = useMemo(() => ({ ...asset, layers: sliceLayers(asset.layers).map(layer =>
+    isCompositeGroup(layer) ? { ...layer, group: false } : layer) }), [asset]);
   const selected = selection && !asset.layers.find(l => l.key === selection.key)?.hidden ? selection : null;
   const stage = useRef<HTMLDivElement>(null), leftPanel = useRef<HTMLElement>(null), rightPanel = useRef<HTMLElement>(null);
   const [view, setView] = useState<{ size: CanvasSize; camera: PsdCamera; ready: boolean }>({ size: { width: 0, height: 0 }, camera: { x: 0, y: 0, zoom: 1 }, ready: false });
@@ -115,7 +117,7 @@ export function PsdSliceCanvas({ asset: source, selected: selection, onSelect, o
     void pickPsdLayer(asset, point, hasPixel).then(key => {
       if (selectionRequest.current !== request) return;
       const layer = psdHitLayer(asset, scopeKey, key ?? undefined);
-      if (layer?.group) onNavigateScope(layer.key);
+      if (layer?.group && !isCompositeGroup(layer)) onNavigateScope(layer.key);
       else if (!layer && scopeKey !== null) {
         const current = asset.layers.find(item => item.key === scopeKey);
         if (current?.group) onNavigateScope(current.parentKey, current.key);
@@ -141,7 +143,7 @@ export function PsdSliceCanvas({ asset: source, selected: selection, onSelect, o
           </div>}
         {showContainerOutlines ? <svg className="psd-container-outlines" width={asset.width} height={asset.height}
           viewBox={`0 0 ${asset.width} ${asset.height}`} aria-hidden="true" focusable="false">
-          {asset.layers.filter(layer => !layer.hidden && layer.width > 0 && layer.height > 0).map(layer =>
+          {treeAsset.layers.filter(layer => !layer.hidden && layer.width > 0 && layer.height > 0).map(layer =>
             <rect key={layer.key} x={layer.left} y={layer.top} width={layer.width} height={layer.height}
               fill="none" stroke="currentColor" strokeWidth={1 / camera.zoom} strokeDasharray={`${4 / camera.zoom} ${3 / camera.zoom}`} />
           )}
@@ -150,7 +152,7 @@ export function PsdSliceCanvas({ asset: source, selected: selection, onSelect, o
       </div>
     </div>
     {selected && region ? <div className="psd-export-outline" aria-label="自定义导出区域" style={{ left: camera.x + (selected.left + region.x) * camera.zoom, top: camera.y + (selected.top + region.y) * camera.zoom, width: region.width * camera.zoom, height: region.height * camera.zoom, visibility: view.ready ? "visible" : "hidden" }} /> : null}
-    <aside ref={leftPanel} aria-label="PSD 图层面板" className="psd-tree-panel psd-follow-panel floating-panel" style={{ ...panels.left, visibility: view.ready ? "visible" : "hidden" }}>{tree(asset, visibility.toggle)}</aside>
+    <aside ref={leftPanel} aria-label="PSD 图层面板" className="psd-tree-panel psd-follow-panel floating-panel" style={{ ...panels.left, visibility: view.ready ? "visible" : "hidden" }}>{tree(treeAsset, visibility.toggle)}</aside>
     <aside ref={rightPanel} aria-label="PSD 切图属性面板" className="psd-properties psd-follow-panel floating-panel" style={{ ...panels.right, visibility: view.ready ? "visible" : "hidden" }}>{properties}</aside>
     {(visibility.error || visibility.loading || visibility.approximate) && <div className="psd-status psd-canvas-controls" role="status">
       {visibility.error ? <>当前显示基础像素。{visibility.error}<button type="button" onClick={visibility.retry}>重试</button></>

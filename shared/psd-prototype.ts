@@ -1,7 +1,7 @@
 import type { GameFlowNode, GameFlowPage } from "./model";
 import { IMAGE_SLOT_FIELDS, type ImageSlotField } from "./image-slots";
 import { layerNameKey, psdLayerPath } from "./psd-export";
-import type { PsdAsset, PsdLayer } from "./psd-meta";
+import { enabledSliceLayers, type PsdAsset, type PsdLayer } from "./psd-meta";
 import { psdSlotField } from "./psd-slot-markers";
 import { isSliceResourcePath } from "./slice-resources";
 
@@ -38,8 +38,7 @@ function matchSlot(layer: PsdLayer, layers: ReadonlyMap<number, PsdLayer>, page:
 export function bindPrototypePsd(page: GameFlowPage, documentId: string, asset: PsdAsset): GameFlowPage {
   const layers = new Map(asset.layers.map(layer => [layer.key, layer]));
   const bindings = new Map<string, Map<ImageSlotField, PsdLayer>>();
-  for (const layer of asset.layers) {
-    if (!layer.config.enabled) continue;
+  for (const layer of enabledSliceLayers(asset)) {
     const target = matchSlot(layer, layers, page, documentId);
     if (!target) continue;
     const { node, field } = target;

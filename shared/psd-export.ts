@@ -1,5 +1,5 @@
 import { needsPhotoCraft } from "./psd-slice-source";
-import { defaultAtlasName, identityProblems, sliceRegion, validConfig, validGrid, type NineGrid, type PsdAsset, type PsdLayer } from "./psd-meta";
+import { defaultAtlasName, enabledSliceLayers, identityProblems, isCompositeGroup, sliceRegion, validConfig, validGrid, type NineGrid, type PsdAsset, type PsdLayer } from "./psd-meta";
 import { psdSlotField } from "./psd-slot-markers";
 import { atlasNameError, normalizeAtlasName, psdNameInitials } from "./psd-naming";
 import { exportDirectoryError } from "./export-directory";
@@ -64,7 +64,7 @@ export function exportLayerName(asset: PsdAsset, layer: PsdLayer): string {
 export function layerVariableOverride(asset: PsdAsset, layer: PsdLayer): string {
   if (layer.config.variableName !== undefined) return layer.config.variableName;
   const legacy = layer.config.exportName ?? "";
-  const buttonGroup = layer.group && asset.layers.some(child => child.parentKey === layer.key &&
+  const buttonGroup = layer.group && !isCompositeGroup(layer) && asset.layers.some(child => child.parentKey === layer.key &&
     psdSlotField(child.name) !== undefined && psdSlotField(child.name) !== "image");
   return buttonGroup ? legacy.replace(/^btn_/i, "") : legacy;
 }
@@ -110,7 +110,7 @@ export function psdSliceDirectory(asset: Pick<PsdAsset, "name" | "atlasName" | "
 export const layerNameKey = (name: string) => name.trim().normalize("NFC");
 
 export function sliceExportIssues(asset: PsdAsset, nativeSlices = false): ExportIssue[] {
-  const issues: ExportIssue[] = [], layers = asset.layers.filter(l => l.config.enabled);
+  const issues: ExportIssue[] = [], layers = enabledSliceLayers(asset);
   let directory = "unclassified";
   try { directory = psdExportDirectory(asset) ?? directory; } catch (error) { issues.push({ keys: layers.map(l => l.key), message: error instanceof Error ? error.message : String(error) }); }
   const identities = identityProblems(asset);
@@ -135,8 +135,7 @@ export function makeSliceExportBatch(asset: PsdAsset, products?: ReadonlyMap<num
   const issues = sliceExportIssues(asset, !!products); if (issues.length) throw new Error(issues.map(i => i.message).join("\n"));
   const directory = psdExportDirectory(asset);
   const builtinPaths = new Set<string>();
-  const uniqueLayers = asset.layers.filter(layer => {
-    if (!layer.config.enabled) return false;
+  const uniqueLayers = enabledSliceLayers(asset).filter(layer => {
     if (!builtinSlice(layer)) return true;
     const path = psdLayerPath(asset, layer);
     if (builtinPaths.has(path)) return false;

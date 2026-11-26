@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { readPsd } from "ag-psd";
 import { parsePsdBinary, patchPsdMetadata } from "../shared/psd-binary";
-import { applySidecar, EMPTY_GRID, identityProblems, inheritLayerVisibility, makeSidecar, newLayerIdentity, selectedMergeTree, setGridEdge, validGrid, type PsdAsset, type PsdLayerMeta } from "../shared/psd-meta";
+import { applySidecar, EMPTY_GRID, identityProblems, inheritLayerVisibility, makeSidecar, newLayerIdentity, selectedMergeTree, setGridEdge, sliceLayers, validConfig, validGrid, type PsdAsset, type PsdLayerMeta } from "../shared/psd-meta";
 import { isWebviewToHostMessage } from "../shared/protocol";
 import { fitPsdCamera, placePsdPanels, zoomPsdCamera } from "../webview/psd/canvas-layout";
 import { isCanvasDrag, makePixelMask, maskContains, pickPsdLayer, psdHitLayer, psdPoint, psdScopePath } from "../webview/psd/layer-hit-test";
@@ -72,6 +72,14 @@ export const psdTests: { name: string; run: () => void | Promise<void> }[] = [
     assert.equal(psdHitLayer(source, outer.key, leaf.key, true)?.key, leaf.key);
     assert.deepEqual(psdScopePath(source, inner.key).map(layer => layer.key), [outer.key, inner.key]);
     assert.deepEqual(psdScopePath(source, leaf.key), []);
+    inner.config = { ...inner.config, composite: true };
+    assert.deepEqual(sliceLayers(source.layers), [outer, inner, other]);
+    assert.equal(psdHitLayer(source, outer.key, leaf.key, true), inner);
+    assert.deepEqual(psdScopePath(source, inner.key), []);
+    outer.config = { ...outer.config, composite: true };
+    assert.deepEqual(sliceLayers(source.layers), [outer, other]);
+    assert.equal(psdHitLayer(source, null, leaf.key, true), outer);
+    assert.equal(validConfig({ ...outer.config, composite: "true" }, 10, 10), false);
   } },
   { name: "PSD click tolerance is screen-based and selection coordinates follow pan and zoom", run() {
     assert.equal(isCanvasDrag({ x: 10, y: 10 }, { x: 14, y: 10 }), false);

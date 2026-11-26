@@ -5,7 +5,7 @@ import type { HostToWebviewMessage } from "../../shared/protocol";
 import { legacyDefaultPath } from "../../shared/builtin-image";
 import { exportLayerName, psdLayerPath } from "../../shared/psd-export";
 import { builtinSlice, builtinSliceDescription } from "../../shared/psd-builtin";
-import type { PsdAsset } from "../../shared/psd-meta";
+import { enabledSliceLayers, type PsdAsset } from "../../shared/psd-meta";
 import { resolveSliceResource, sourceKey, type SliceResourceDescription, type SliceResourceRef } from "../../shared/slice-resources";
 import { generateSliceProducts, loadSliceImage, sliceGenerationStamp } from "../psd/slice-render";
 import type { Resources, RuntimeResource } from "./resource-context";
@@ -36,7 +36,7 @@ export function useRuntimeResources(observedAssets: PsdAsset[], pages: GameFlowP
   const stamp = useMemo(() => JSON.stringify(assets.map(sliceGenerationStamp)), [assets]);
   const pending = useMemo(() => {
     const entries = new Map<string, RuntimeResource>();
-    for (const asset of assets) for (const layer of asset.layers.filter(l => l.config.enabled)) {
+    for (const asset of assets) for (const layer of enabledSliceLayers(asset)) {
       try { merge(entries, { status: "loading", description: description(asset, layer) }, assets.indexOf(asset)); } catch { /* Invalid names have no selectable resource path; PSD tree diagnoses them. */ }
     }
     return entries;
@@ -98,9 +98,10 @@ export function useRuntimeResources(observedAssets: PsdAsset[], pages: GameFlowP
       const sources = new Map<string, string | null>();
       for (const asset of assets.filter(item => item === scopedAsset && item.documentId === page.artPsd?.documentId)) {
         for (const node of page.nodes) for (const ref of nodeArtRefs(node)) if (ref.source?.documentId === asset.documentId) sources.set(sourceKey(ref.source), null);
+        const enabled = new Set(enabledSliceLayers(asset));
         for (const layer of asset.layers) {
           let path: string | null = null;
-          try { if (layer.config.enabled) path = description(asset, layer).path; } catch { /* Invalid names remain unavailable. */ }
+          try { if (enabled.has(layer)) path = description(asset, layer).path; } catch { /* Invalid names remain unavailable. */ }
           sources.set(sourceKey({ documentId: asset.documentId, layerId: layer.metadata.layerId }), path);
         }
       }

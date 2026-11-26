@@ -155,6 +155,25 @@ test("explicit binding maps stable slots, preserves builtins and does not guess 
   assert.equal(replacement.nodes[0].normalSkin?.art, undefined); assert.equal(replacement.nodes[0].normalSkin?.builtin, "button/gray");
   assert.deepEqual(bindPagePsd(bound, f.document.documentId, "moved.psd", { ...f.asset, layers: [] }).nodes, f.page.nodes, "removed layers release their derived slots");
 });
+test("composite artwork binds a button state as a single image and hides its internal slots", () => {
+  const { page, asset, document } = fixture();
+  const state = asset.layers[0];
+  state.group = true;
+  state.name = "@normal";
+  state.config.composite = true;
+  state.parentKey = 1;
+  const button = { ...state, key: 1, parentKey: null, name: page.nodes[0].name,
+    metadata: { ...state.metadata, layerId: "button-layer", prototype: { documentId: document.documentId, pageId: page.id, nodeId: "button" } },
+    config: { ...state.config, composite: false, enabled: false } };
+  const detail = { ...state, key: 2, group: false, parentKey: state.key, name: "高光",
+    metadata: { ...state.metadata, layerId: "highlight" } };
+  asset.layers = [button, state, detail];
+  const bind = () => bindPagePsd(page, document.documentId, "art/login.psd", asset);
+  assert.equal(bind().nodes[0].normalSkin?.art?.source?.layerId, state.metadata.layerId);
+  assert.deepEqual(psdTree(document.documentId, page, asset, l => l.name).map(node => node.id), ["button"]);
+  state.config.composite = false;
+  assert.throws(bind, /多个 PSD 图层/);
+});
 test("public PSD groups resolve direct state and image markers, without prototype metadata", () => {
   const { document, page, asset } = fixture();
   const button = { ...page.nodes[0], name: "登录按钮" };

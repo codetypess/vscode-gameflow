@@ -1,4 +1,4 @@
-import type { PsdAsset, PsdLayer } from "../../shared/psd-meta";
+import { compositeOwners, isCompositeGroup, type PsdAsset, type PsdLayer } from "../../shared/psd-meta";
 import type { PsdCamera } from "./canvas-layout";
 
 export type Point = { x: number; y: number };
@@ -24,7 +24,7 @@ export function psdScopePath(asset: PsdAsset, scopeKey: number | null): PsdLayer
   let key = scopeKey;
   while (key !== null) {
     const layer = asset.layers.find(item => item.key === key);
-    if (!layer?.group || visited.has(key)) return [];
+    if (!layer?.group || isCompositeGroup(layer) || visited.has(key)) return [];
     visited.add(key); path.unshift(layer); key = layer.parentKey;
   }
   return path;
@@ -33,7 +33,8 @@ export function psdScopePath(asset: PsdAsset, scopeKey: number | null): PsdLayer
 /** Normally select the scope's direct child; direct mode keeps the actual visible hit. */
 export function psdHitLayer(asset: PsdAsset, scopeKey: number | null, hitKey?: number, direct = false): PsdLayer | null {
   const visited = new Set<number>();
-  let layer = asset.layers.find(item => item.key === hitKey);
+  if (hitKey === undefined) return null;
+  let layer = compositeOwners(asset.layers).get(hitKey) ?? asset.layers.find(item => item.key === hitKey);
   if (direct) return layer && !layer.hidden ? layer : null;
   while (layer && !visited.has(layer.key)) {
     if (layer.key === scopeKey) return null;

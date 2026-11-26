@@ -16,7 +16,7 @@ import { syncDialogResizeEdges, useSyncDialogSize } from "./use-sync-dialog-size
 import { SyncChange, describeDecision } from "./sync-change";
 import { PsdSyncLayerPicker } from "./psd-sync-layer-picker";
 import { loadComponentPsds, type ComponentPsdTarget } from "../runtime/component-psd";
-import { psdComponentSource } from "../../shared/psd-meta";
+import { psdComponentSource, sliceLayers } from "../../shared/psd-meta";
 import { missingComponentLayers } from "../../shared/psd-component-layers";
 import type { CanvasSources } from "../../shared/canvas-references";
 import { psdVisualUpdates } from "../../shared/psd-visual-updates";
@@ -272,7 +272,8 @@ export function PageSyncDialog({session,loadedAsset,close,apply}:Props) {
   }
   const shown=result && plan.trees?plan.trees:c;
   const selectedLayer=asset?.layers.find(l=>l.metadata.layerId===c?.psd.find(n=>n.id===selected)?.layer);
-  const artChildren=selectedLayer ? asset?.layers.filter(l=>l.parentKey===selectedLayer.key).map(l=>l.name) : [];
+  const layers=useMemo(() => asset ? sliceLayers(asset.layers) : [], [asset]);
+  const artChildren=selectedLayer ? layers.filter(l=>l.parentKey===selectedLayer.key).map(l=>l.name) : [];
   const message=error || comparison.issue || plan.issue || copyIssue;
   return <dialog ref={dialog} className="floating-panel workbench-dialog page-sync-dialog" aria-labelledby="page-sync-title" style={{width:size.width,height:size.height}}
     onCancel={e=>{e.preventDefault();if(!busy)close();}}>
@@ -297,7 +298,7 @@ export function PageSyncDialog({session,loadedAsset,close,apply}:Props) {
           {ch.field === "exist" && !!artChildren?.length && <p>随组处理　{artChildren.join("、")}</p>}
         </SyncChange>)}
         {asset && c && node && !c.psd.some(n => n.id === node.id) && c.proto.some(n => n.id === node.id) &&
-          <PsdSyncLayerPicker key={node.id} layers={asset.layers} comparison={c} documentId={doc.documentId}
+          <PsdSyncLayerPicker key={node.id} layers={layers} comparison={c} documentId={doc.documentId}
             pageId={page.id} disabled={busy || !canReview} onConfirm={pairLayer} />}
         {review && c && <fieldset><legend>本轮应用明细</legend>{changes.map(ch => <p key={ch.key}>
           {nodeList.find(n => n.id === ch.id)?.name} · {changeTitle(ch)}　{describeDecision(c, ch, decisions[ch.key], "PSD", page.name)}

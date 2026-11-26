@@ -38,6 +38,25 @@ class MemoryDirectory implements ResourceDirectory {
   manifest() { return parseResourceManifest(JSON.parse(new TextDecoder().decode(this.files.get(RESOURCE_MANIFEST)))); }
 }
 export const psdExportTests: { name: string; run: () => void | Promise<void> }[] = [
+  { name: "a composite button state owns its slice and retains covered settings on reopen", run() {
+    const button = layer(0, "Start"), normal = layer(1, "@normal");
+    button.group = normal.group = true;
+    button.config.enabled = false;
+    normal.parentKey = button.key;
+    normal.config.composite = true;
+    const stroke = layer(2, "描边"), highlight = layer(3, "高光"), selected = layer(4, "@selected");
+    stroke.parentKey = highlight.parentKey = normal.key;
+    selected.parentKey = button.key;
+    // Both covered layers have conflicting export names until the group is unpacked.
+    stroke.config.variableName = highlight.config.variableName = "glow";
+    const source = asset(button, normal, stroke, highlight, selected);
+    const saved = applySidecar(source, JSON.parse(JSON.stringify(makeSidecar(source))));
+    assert.deepEqual(makeSliceExportBatch(saved).items.map(item => item.name), ["dlym_start_normal", "dlym_start_selected"]);
+    saved.layers[1].config.enabled = false;
+    assert.deepEqual(makeSliceExportBatch(saved).items.map(item => item.layerId), [selected.metadata.layerId]);
+    saved.layers[1].config.composite = false;
+    assert.deepEqual(sliceExportIssues(saved).map(issue => issue.keys), [[stroke.key, highlight.key]]);
+  } },
   { name: "two PSDs reuse the catalog PNG while edited layers export independently", async run() {
     const directory = new MemoryDirectory(), close = builtinImage("icon/close")!;
     const first = layer(), second = layer(1);

@@ -4,7 +4,7 @@ import type { Frame, GameFlowPage, NodeType } from "./model";
 import { resolvePageLayout } from "./ui-layout";
 import { COMPONENTS, COMPONENT_TYPES } from "./ui-components";
 import { prototypeLayerRef } from "./psd-prototype";
-import { identityProblems, type PsdAsset, type PsdLayer } from "./psd-meta";
+import { identityProblems, isCompositeGroup, sliceLayers, type PsdAsset, type PsdLayer } from "./psd-meta";
 import { psdSlotField } from "./psd-slot-markers";
 
 export interface SyncNode {
@@ -103,6 +103,7 @@ export function implicitPsdComponentRoot(docId: string, page: GameFlowPage, asse
 export function psdTree(docId:string, page:GameFlowPage, asset:PsdAsset, makeId:(layer:PsdLayer)=>string, pairs:ReadonlyMap<string,string> = new Map(), forPrefab=false, components?: ReadonlyMap<string, PsdComponentInstance>): SyncNode[] {
   if (identityProblems(asset).length) throw new Error("PSD 图层身份重复，请先在切图编辑器中修复。");
   const base = currentSyncBase(docId,page,asset);
+  const layers = sliceLayers(asset.layers);
   const layerIds = new Set(asset.layers.map(layer => layer.metadata.layerId));
   const result:SyncNode[] = [], seen = new Set<string>();
   const implicitRoot = implicitPsdComponentRoot(docId, page, asset);
@@ -114,7 +115,7 @@ export function psdTree(docId:string, page:GameFlowPage, asset:PsdAsset, makeId:
   if (rootNode) seen.add(rootNode.id);
   function walk(parentKey:number|null, parent:string) {
     // PSD records arrive front-to-back. Prototype siblings are painted back-to-front.
-    for (const layer of asset.layers.filter(l=>l.parentKey===parentKey).reverse()) {
+    for (const layer of layers.filter(l=>l.parentKey===parentKey).reverse()) {
       if (layer.metadata.listCellIndex !== undefined || psdSlotField(layer.name)) continue;
       const ref = layer.metadata.prototype;
       if (prototypeLayerRef(ref) && (ref.documentId!==docId || ref.pageId!==page.id || ref.slot && ref.slot!=="image")) continue;
@@ -131,13 +132,14 @@ export function psdTree(docId:string, page:GameFlowPage, asset:PsdAsset, makeId:
       const annotation = layer.name.match(/\s*\((UI\w+)\)$/);
       const tagged = COMPONENT_TYPES.find(type=>COMPONENTS[type].laya===annotation?.[1]);
       const name = tagged ? layer.name.slice(0,annotation!.index).trim() : layer.name;
-      const slots = forPrefab && layer.group ? asset.layers.filter(l=>l.parentKey===layer.key).map(l=>psdSlotField(l.name)) : [];
+      const slots = forPrefab && layer.group ? layers.filter(l=>l.parentKey===layer.key).map(l=>psdSlotField(l.name)) : [];
       const standalone = !forPrefab ? undefined : slots.includes("image") ? "image" : slots.some(Boolean) ? "button" :
         layer.text ? "text" : layer.config.enabled ? "image" : undefined;
-      const candidates = forPrefab && (tagged || standalone) ? page.nodes.filter(n=>n.name===name && n.type===(tagged??standalone)) : [];
+      const inferredType = isCompositeGroup(layer) ? "image" : tagged ?? standalone;
+      const candidates = (forPrefab || isCompositeGroup(layer)) && inferredType ? page.nodes.filter(n=>n.name===name && n.type===inferredType) : [];
       const id = paired ?? saved?.id ?? (prototypeLayerRef(ref) ? ref.nodeId : candidates.length===1 ? candidates[0].id : undefined);
       const proto = page.nodes.find(n=>n.id===id);
-      const type = proto?.type ?? saved?.type ?? tagged ?? standalone ?? (layer.text ? "text" : undefined);
+      const type = proto?.type ?? saved?.type ?? inferredType ?? (layer.text ? "text" : undefined);
       if (!type) {
         if(forPrefab && layer.group) walk(layer.key,parent);
         continue;

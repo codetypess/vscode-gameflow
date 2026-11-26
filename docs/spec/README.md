@@ -52,6 +52,8 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 
 - [PSD 图层可见性](psd-layer-visibility.md) — 切图工作区逐层与逐组切换画布显示。
 
+- [PSD 合成图片](psd-composite-image.md) — 切图组可作为一张图片选择、绑定和导出，支持恢复内部图层。
+
 - [导入原型的 PSD 合成预览](psd-import-preview-fidelity.md) — 导入画板由组件树绘制，保留独立控件的显隐、描边、阴影及剪贴范围。
 
 - [PSD 复杂切图与原型预览](psd-photocraft-slices.md) — 桌面端使用 PhotoCraft 渲染所选图层或组，原型美术预览与导出共用区域和九宫格。

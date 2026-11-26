@@ -1,7 +1,7 @@
 import { useId, useMemo, useRef, useState } from "react";
 import { ChevronDown, ChevronRight, FileImage, Folder } from "lucide-react";
 import type { Comparison } from "../../shared/page-sync";
-import type { PsdLayer } from "../../shared/psd-meta";
+import { isCompositeGroup, type PsdLayer } from "../../shared/psd-meta";
 import { prototypeLayerRef } from "../../shared/psd-prototype";
 import { psdSlotField } from "../../shared/psd-slot-markers";
 import { COMPONENTS } from "../../shared/ui-components";
@@ -64,7 +64,7 @@ export function PsdSyncLayerPicker({ layers, comparison, documentId, pageId, dis
     return <ul>{options.map(option => {
       const { layer, children, selectable, path } = option;
       const expanded = children.length > 0 && !collapsed.has(layer.key);
-      const Icon = layer.group ? Folder : FileImage;
+      const Icon = layer.group && !isCompositeGroup(layer) ? Folder : FileImage;
       return <li key={layer.key}>
         <div className="psd-sync-layer-row">
           {children.length > 0 ? <button type="button" className="psd-sync-layer-toggle" aria-expanded={expanded} aria-label={(expanded ? "折叠 " : "展开 ") + path}
