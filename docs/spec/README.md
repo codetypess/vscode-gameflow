@@ -110,7 +110,7 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 
 - [prototype-art-prefab-resource-modes.md](prototype-art-prefab-resource-modes.md) — Verifying：三种资源模式、69 张内置 PNG、UIButton 三态、控件图片部件、横向/圆形进度、PSD 生成/稳定关联和 Prefab 输出已实现，示例已直接更新；350 项共享测试、14 组浏览器、41 项 PSD/资源宿主、6 项实例宿主检查及生产构建通过。真实 Laya 工程和 Photoshop 往返待验收，复杂 PSD 变换与 imageFit 的目标映射边界已记录。
 
-- [psd-atlas-name.md](psd-atlas-name.md) — Done：文件级图集名默认仅作 placeholder，小写/下划线/拼音首字母统一用于输入、旧配置回读与导出；普通/共享资源统一包含图集名，变量与导出名分行（见 page-psd-layer-conventions）；自定义值进入配置/草稿/PSD 副本/历史并刷新运行预览。322 项共享测试、生产构建、真实 PSD 中英文输入/下划线/跨图层/清空及此前窄窗口验收通过。
+- [psd-atlas-name.md](psd-atlas-name.md) — Done：文件级图集名默认仅作 placeholder，小写/下划线/拼音首字母统一用于输入、旧配置回读与导出；普通资源带图集前缀，共享资源使用变量名，变量与导出名分行（见 page-psd-layer-conventions）；自定义值进入配置/草稿/PSD 副本/历史并刷新运行预览。322 项共享测试、生产构建、真实 PSD 中英文输入/下划线/跨图层/清空及此前窄窗口验收通过。
 
 - [psd-slice-region.md](psd-slice-region.md) — Done：独立导出尺寸、拖动图片/四边线、方向键微调、滚轮缩放、居中/透明留白/裁剪、九宫格区域适配及配置持久化；313 项共享测试、3 项既有浏览器像素检查、生产构建及真实 PSD/360px 窄窗口/草稿重载验收通过；输入框对齐、外侧聚焦框及方向文字移除，弹窗标题栏普通指针拖动与右下角缩放完成。
 
@@ -132,7 +132,7 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 
 - [canvas-context-menu.md](canvas-context-menu.md) — Done：总览画板/空白、页内节点/当前层空白右键菜单，复用图层命令及保护；含右键位置新增、重命名对话框和键盘菜单。244 项测试、生产构建及总览/页内/多选/保护/窄窗口浏览器验收通过。
 
-- [psd-export-names.md](psd-export-names.md) — Done：变量与只读导出名称拆行，统一 `{图集名}_{变量名}`，共享也保留图集，不自动添加 btn/img；详见 [page-psd-layer-conventions.md](page-psd-layer-conventions.md)。保留冲突检测、分类目录和来源清单。
+- [psd-export-names.md](psd-export-names.md) — Done：变量与只读导出名称拆行，普通切图使用 `{图集名}_{变量名}`，共享切图使用变量名；详见 [page-psd-layer-conventions.md](page-psd-layer-conventions.md)。保留冲突检测、分类目录和来源清单。
 
 - [canvas-instance-editing.md](canvas-instance-editing.md) — Done：v5 引用实例展开、局部覆盖/附加节点、专色与“+”标记、属性右键还原/应用到源及继承结构保护；引用区简化为单行，覆盖属性默认双栏，支持跨节点逐字段勾选还原/应用。261 项回归、生产构建、浏览器交互及真实 VS Code 跨文件关联撤销/保存验收通过，保留 v1–v4 读取。
 

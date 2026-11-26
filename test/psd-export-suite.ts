@@ -105,10 +105,10 @@ export const psdExportTests: { name: string; run: () => void | Promise<void> }[]
     assert.equal(effectiveExportName(a, l), "dlym_andt"); assert.equal(l.config.variableName, undefined);
     l.config.exportName = "CUSTOM_01"; assert.equal(effectiveExportName(a, l), "dlym_custom_01");
     l.config.variableName = "BTN_Start"; assert.equal(effectiveExportName(a, l), "dlym_btn_start");
-    l.config.shared = true; assert.equal(effectiveExportName(a, l), "dlym_btn_start");
-    a.atlasName = "Common"; assert.equal(effectiveExportName(a, l), "common_btn_start");
-    l.config.variableName = "img_icon"; assert.equal(effectiveExportName(a, l), "common_img_icon");
-    l.config.variableName = ""; assert.equal(effectiveExportName(a, l), "common_andt");
+    l.config.shared = true; assert.equal(effectiveExportName(a, l), "btn_start");
+    a.atlasName = "Common"; assert.equal(effectiveExportName(a, l), "btn_start");
+    l.config.variableName = "img_icon"; assert.equal(effectiveExportName(a, l), "img_icon");
+    l.config.variableName = ""; assert.equal(effectiveExportName(a, l), "andt");
     l.config.shared = false; assert.equal(effectiveExportName(a, l), "common_andt");
     l.name = "底部提示 (UILabel)"; assert.equal(effectiveExportName(a, l), "common_dbts");
     l.config.variableName = "bad/name"; assert.ok(sliceExportIssues(a).some(issue => issue.message.includes("导出名称")));
@@ -194,21 +194,20 @@ export const psdExportTests: { name: string; run: () => void | Promise<void> }[]
     await exportSlicesToDirectory(d, batch(), codec);
     assert.equal(d.manifest().resources.length, 2);
   } },
-  { name: "PSD shared names retain atlas identity and matching atlases transfer provenance", async run() {
+  { name: "PSDs with different atlases export the same shared variable to one path and transfer provenance", async run() {
     const d = new MemoryDirectory(), first = asset(); first.layers[0].config.shared = true;
     const second = asset(); second.name = "设置界面.psd"; second.documentId = "psd-b"; second.layers[0].config.shared = true;
     first.atlasName = "Login UI"; second.atlasName = "Settings UI";
     const a = makeSliceExportBatch(first), b = makeSliceExportBatch(second);
-    assert.equal(a.items[0].name, "login_ui_andt"); assert.equal(b.items[0].name, "settings_ui_andt");
+    assert.equal(sliceExportPath(a, a.items[0]), "shared/andt.png");
+    assert.equal(sliceExportPath(b, b.items[0]), "shared/andt.png");
     await exportSlicesToDirectory(d, a, codec); await exportSlicesToDirectory(d, b, codec);
-    assert.equal(d.manifest().resources.length, 2);
-    second.atlasName = first.atlasName;
-    await exportSlicesToDirectory(d, makeSliceExportBatch(second), codec);
-    assert.equal(d.manifest().resources.find(r => r.name === "login_ui_andt")?.source.psdName, "设置界面.psd");
+    assert.equal(d.manifest().resources.length, 1);
+    assert.equal(d.manifest().resources[0].source.psdName, "设置界面.psd");
     second.layers[0].config.variableName = "custom_button";
-    assert.equal(makeSliceExportBatch(second).items[0].name, "login_ui_custom_button");
+    assert.equal(makeSliceExportBatch(second).items[0].name, "custom_button");
     second.layers[0].config.variableName = ""; second.layers[0].config.shared = false;
-    assert.equal(makeSliceExportBatch(second).items[0].name, "login_ui_andt");
+    assert.equal(makeSliceExportBatch(second).items[0].name, "settings_ui_andt");
   } },
   { name: "PSD unmanaged files require explicit sharing and malformed provenance is rejected", async run() {
     const d = new MemoryDirectory(), b = batch(); d.files.set(sliceExportPath(b, b.items[0]), png);
@@ -268,7 +267,7 @@ export const psdExportTests: { name: string; run: () => void | Promise<void> }[]
   } },
   { name: "PSD root ledger distinguishes equal basenames across shared atlas and unclassified directories", async run() {
     const one = layer(0, "普通图标"), two = layer(1, "共享图标");
-    one.config.exportName = two.config.exportName = "img_same"; two.config.shared = true;
+    one.config.exportName = "img_same"; two.config.exportName = "common_ui_img_same"; two.config.shared = true;
     const a: PsdAsset = { ...asset(one, two), independentDirectory: true, atlasName: "Common UI" };
     const b = makeSliceExportBatch(a), d = new MemoryDirectory();
     assert.equal(b.directory, "common_ui"); assert.equal(isSliceExportBatch(b), true);
@@ -282,7 +281,7 @@ export const psdExportTests: { name: string; run: () => void | Promise<void> }[]
     assert.deepEqual(d.files.get("common_ui/common_ui_img_same.png"), new Uint8Array(png));
   } },
   { name: "PSD mixed-folder batch restores both folders when an image or root ledger write fails", async run() {
-    for (const failed of ["shared/common_img_two.png", RESOURCE_MANIFEST]) {
+    for (const failed of ["shared/img_two.png", RESOURCE_MANIFEST]) {
       const one = layer(0, "图标一"), two = layer(1, "图标二");
       one.config.exportName = "img_one"; two.config.exportName = "img_two"; two.config.shared = true;
       const b = makeSliceExportBatch({ ...asset(one, two), atlasName: "common", independentDirectory: true }), d = new MemoryDirectory();

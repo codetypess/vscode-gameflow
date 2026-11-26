@@ -23,9 +23,9 @@ export const psdIndependentDirectoryTests = [
     const layer = asset.layers.find(l => l.name === "按钮底图")!;
     layer.config.shared = true;
     assert.equal(psdSliceDirectory(asset, true), "shared");
-    assert.equal(effectiveExportName(asset, layer), "gg_ui_andt");
+    assert.equal(effectiveExportName(asset, layer), "andt");
     layer.config.exportName = "CUSTOM";
-    assert.equal(effectiveExportName(asset, layer), "gg_ui_custom");
+    assert.equal(effectiveExportName(asset, layer), "custom");
     const enabledStamp = sliceGenerationStamp(asset);
     delete asset.independentDirectory;
     assert.notEqual(sliceGenerationStamp(asset), enabledStamp);

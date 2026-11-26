@@ -307,6 +307,7 @@ label.dialog-body > input { margin-top: 0; }
 .layer-action + .layer-action { margin-left: -4px; }
 .layer-action:hover { opacity: 1; color: var(--foreground); }
 .is-muted .layer-name { opacity: 0.4; }
+.layer-row.is-export-excluded .layer-name { color: var(--muted-foreground); }
 .layer-footer { padding: 8px 10px; color: var(--muted-foreground); border-top: 1px solid var(--vscode-panel-border, #3b3b3b); }
 .empty-layers { padding: 18px; text-align: center; line-height: 1.8; color: var(--muted-foreground); }
 .canvas-toolbar { position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%); z-index: 30; display: flex; gap: 2px; align-items: center; padding: 5px; white-space: nowrap; }

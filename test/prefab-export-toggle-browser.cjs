@@ -44,6 +44,16 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
     await button("完成").click();
     const row = page.locator('[data-layer-id="group001"]');
     await row.click();
+    await row.getByRole("button", { name: "展开设计参考" }).click();
+    const color = locator => locator.evaluate(element => getComputedStyle(element).color);
+    const muted = await color(page.locator(".layer-panel .tree-root small"));
+    const assertBranchMuted = async expected => {
+      for (const id of ["group001", "text0001"]) {
+        assert.equal(await color(page.locator(`[data-layer-id="${id}"] .layer-name`)) === muted, expected, id);
+      }
+      assert.notEqual(await color(page.locator('[data-layer-id="text0002"] .layer-name')), muted);
+    };
+    await assertBranchMuted(false);
     const toggle = page.getByRole("checkbox", { name: "导出节点", exact: true });
     const variableBounds = await page.getByRole("textbox", { name: "变量", exact: true }).boundingBox();
     const toggleBounds = await toggle.boundingBox();
@@ -54,10 +64,13 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
     assert((await readPrefab())._$child.some(node => node._$id === "group001"));
 
     await toggle.uncheck();
+    await assertBranchMuted(true);
     await button("撤销 (Ctrl+Z)").click();
     await toggle.and(page.locator(":checked")).waitFor();
+    await assertBranchMuted(false);
     await button("重做 (Ctrl+Shift+Z)").click();
     await toggle.and(page.locator(":not(:checked)")).waitFor();
+    await assertBranchMuted(true);
     const designNode = page.locator('.page-editing [data-node-id="text0001"]');
     assert(await designNode.isVisible());
 
@@ -75,7 +88,11 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
     await page.locator(".page-caption").dblclick();
     await row.click();
     assert.equal(await toggle.isChecked(), false);
-    console.log("PASS prefab export checkbox defaults, undo/redo, previews, file filtering and reload");
+    await row.getByRole("button", { name: "展开设计参考" }).click();
+    await assertBranchMuted(true);
+    await toggle.check();
+    await assertBranchMuted(false);
+    console.log("PASS prefab export checkbox defaults, layer tree colors, undo/redo, previews, file filtering and reload");
   } finally {
     await browser?.close();
     await server.close();

@@ -1,9 +1,10 @@
 import type { CanvasComposition, CanvasOrphan } from "../../shared/canvas-instances";
 import { skinOwner } from "../../shared/ui-parts";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type MouseEvent, type PointerEvent as ReactPointerEvent } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { Eye, EyeOff, LockKeyhole, UnlockKeyhole, Package, Plus, Search, X } from "lucide-react";
 import type { GameFlowNode, GameFlowPage } from "../../shared/model";
 import { inheritedFlag, type InsertType, type LayerDrop } from "../../shared/editor-ops";
+import { excludedPrefabNodeIds } from "../../shared/prefab-node-export";
 import { moveSelection } from "../../shared/selection-ops";
 import { visibleLayerOrder, type SelectionIntent } from "../lib/node-selection";
 import { Button } from "../components/ui/button";
@@ -41,6 +42,7 @@ export function LayerTree({ page, scopeId, selectedId, selectedIds, reveal, onSe
   const searchInput = useRef<HTMLInputElement | null>(null);
   const filtering = !!query.trim();
   const { matches, visible } = searchLayers(page, query);
+  const excludedFromExport = useMemo(() => excludedPrefabNodeIds(page), [page]);
   const componentRoot = componentLayerRoot(page);
   const activeCollapsed = filtering ? searchCollapsed : new Set(page.nodes.filter(node => !expanded.has(node.id)).map(node => node.id));
   const selectionOrder = visibleLayerOrder(page, visible, activeCollapsed).filter(id=>id!==componentRoot?.id);
@@ -174,10 +176,12 @@ export function LayerTree({ page, scopeId, selectedId, selectedIds, reveal, onSe
     const protectedStructure = !!meta?.inherited;
     const owner = skinOwner(page, node), controlledVisibility = owner?.type === "checkbox" || owner?.type === "radio";
     const hidden = controlledVisibility ? inheritedFlag(page, node, "hidden") : node.hidden;
+    const exportExcluded = excludedFromExport.has(node.id);
     return <div key={node.id}>
       <LayerRow data-layer-id={node.id} name={node.name} depth={depth} selected={selectedIds.includes(node.id)}
         expanded={hasChildren ? !activeCollapsed.has(node.id) : undefined} onToggle={() => toggle(node.id)}
-        className={cn(filtering && matches.has(node.id) && "layer-search-match", inheritedFlag(page, node, "hidden") && "is-muted", dragging === node.id && "layer-drag-source", dropClass(node.id))}
+        className={cn(filtering && matches.has(node.id) && "layer-search-match", inheritedFlag(page, node, "hidden") && "is-muted",
+          exportExcluded && "is-export-excluded", dragging === node.id && "layer-drag-source", dropClass(node.id))}
         onContextMenu={(event) => openMenu(event, node.id)}>
         {renaming?.id === node.id ? <input ref={renameInput} className="layer-rename" aria-label="节点名称" value={renaming.value}
           onChange={(event) => setRenaming({ id: node.id, value: event.target.value })} onBlur={finishRename}
@@ -186,6 +190,7 @@ export function LayerTree({ page, scopeId, selectedId, selectedIds, reveal, onSe
             if (event.key === "Enter") { event.preventDefault(); event.currentTarget.blur(); }
             else if (event.key === "Escape") { event.preventDefault(); renameCancelled.current = true; event.currentTarget.blur(); }
           }} /> : <button className={cn("layer-name", (meta?.inherited || meta?.reference) && "layer-reference", !locked && !filtering && !protectedStructure && "layer-draggable")} aria-haspopup="menu"
+          title={exportExcluded ? "此节点不导出到预制体" : undefined}
           onPointerDown={(event) => {
             suppressClick.current = false;
             if (event.button !== 0 || menu) return;

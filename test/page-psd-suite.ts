@@ -196,7 +196,7 @@ test("public PSD groups resolve direct state and image markers, without prototyp
   asset.atlasName = "Menu";
   assert.equal(bind().nodes[0].normalSkin?.art?.path, "unclassified/menu_dlan_normal.png");
   normal.config.shared = true;
-  assert.equal(bind().nodes[0].normalSkin?.art?.path, "shared/menu_dlan_normal.png");
+  assert.equal(bind().nodes[0].normalSkin?.art?.path, "shared/dlan_normal.png");
   normal.config.shared = false;
   asset.layers.push(layer(6, null, "退出按钮", true), layer(7, 6, "@normal"));
   const ordinary = layer(9, null, "普通切图");
@@ -254,16 +254,16 @@ test("button state export and page binding follow the parent group's custom expo
   assertNames("journey");
 });
 
-test("PSD image markers follow the parent variable and keep atlas names in shared exports", () => {
+test("shared PSD image markers use the parent variable across atlas changes", () => {
   const { asset } = fixture(), base = asset.layers[0];
   const owner: PsdLayer = { ...base, group: true, name: "头像 (UIImage)", config: { ...base.config, enabled: false, exportName: undefined, variableName: "portrait" } };
   const image: PsdLayer = { ...base, key: 1, parentKey: owner.key, name: "@image", image: "data:image/png;base64,AAAA", metadata: { ...base.metadata, layerId: "portrait-image" }, config: { ...base.config, variableName: "ignored", shared: true } };
   asset.layers = [owner, image];
-  assert.equal(makeSliceExportBatch(asset).items[0].name, "login_portrait");
+  assert.equal(makeSliceExportBatch(asset).items[0].name, "portrait");
   owner.config.variableName = "";
-  assert.equal(makeSliceExportBatch(asset).items[0].name, "login_tx");
+  assert.equal(makeSliceExportBatch(asset).items[0].name, "tx");
   asset.atlasName = "menu";
-  assert.equal(makeSliceExportBatch(asset).items[0].name, "menu_tx");
+  assert.equal(makeSliceExportBatch(asset).items[0].name, "tx");
 });
 test("page PSD protocol constrains requests and requires an explicit load binding", () => {
   const base = { type: "pagePsd", requestId: "request", pageId: "page" };

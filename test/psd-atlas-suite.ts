@@ -4,7 +4,7 @@ import { applySidecar, defaultAtlasName, makeSidecar } from "../shared/psd-meta"
 import { applyPsdDraft, draftStamp, isPsdDraft, makePsdDraft } from "../shared/psd-draft";
 import { parsePsdBinary, patchPsdMetadata } from "../shared/psd-binary";
 import { createPsdStructure } from "../shared/psd-structure";
-import { defaultExportName, effectiveExportName } from "../shared/psd-export";
+import { defaultExportName, defaultVariableName, effectiveExportName } from "../shared/psd-export";
 import { isPsdEditorRequest } from "../shared/psd-editor-protocol";
 import { bytesHash, PsdDocumentModel } from "../src/psd-document-model";
 import { sliceGenerationStamp } from "../webview/psd/slice-render";
@@ -130,8 +130,8 @@ export const psdAtlasTests = [
     for (const layer of edited.layers.filter(l => !l.group)) {
       assert.equal(effectiveExportName(edited, layer), defaultExportName(edited.name, layer.name, "Common"));
       const sharedLayer = { ...layer, config: { ...layer.config, shared: true } };
-      assert.equal(effectiveExportName(edited, sharedLayer), defaultExportName(edited.name, layer.name, "Common"));
-      assert.notEqual(effectiveExportName(edited, sharedLayer), effectiveExportName(original, sharedLayer));
+      assert.equal(effectiveExportName(edited, sharedLayer), defaultVariableName(layer.name));
+      assert.equal(effectiveExportName(edited, sharedLayer), effectiveExportName(original, sharedLayer));
     }
     const layer = edited.layers.find(l => !l.group)!;
     const sharedAsset = { ...edited, layers: edited.layers.map(l => l.key === layer.key ? { ...l, config: { ...l.config, shared: true } } : l) };

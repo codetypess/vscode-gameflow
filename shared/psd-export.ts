@@ -80,8 +80,9 @@ export function effectiveVariableName(asset: PsdAsset, layer: PsdLayer): string 
 export function effectiveExportName(asset: PsdAsset, layer: PsdLayer): string {
   const builtin = builtinSlice(layer);
   if (builtin) return builtinPath(builtin.id).split("/").pop()!.slice(0, -4);
-  const atlas = normalizeAtlasName(asset.atlasName) ?? defaultAtlasName(asset.name);
   const variable = effectiveVariableName(asset, layer);
+  if (layer.config.shared) return variable;
+  const atlas = normalizeAtlasName(asset.atlasName) ?? defaultAtlasName(asset.name);
   return atlas && variable ? `${atlas}_${variable}` : "";
 }
 /** The optional independent atlas directory, always directly below the resource root. */

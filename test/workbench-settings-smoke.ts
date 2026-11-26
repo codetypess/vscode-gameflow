@@ -117,10 +117,10 @@ export async function settingsChecks(api: { psd: PsdEditorProvider }, root: stri
     assert.equal(isolatedPreview.error, undefined); assert.equal(isolatedPreview.description?.source.documentId, asset.documentId);
     isolatedAsset.layers[0].config.shared = true;
     const sharedBatch = makeSliceExportBatch(isolatedAsset), sharedFile = sharedBatch.items[0].name + ".png";
-    assert.equal(sharedFile, "ggzy_tb.png");
+    assert.equal(sharedFile, "tb.png");
     assert.equal(await isolated.export(sharedBatch), 1);
     assert.ok(existsSync(join(second.fsPath, "shared", sharedFile)));
-    assert.equal(existsSync(join(second.fsPath, "ggzy", sharedFile)), true);
+    assert.ok(existsSync(join(second.fsPath, "ggzy", isolatedFile)));
     sharedBatch.source = { ...sharedBatch.source, documentId: "shared-replacement", psdName: "Replacement.psd" };
     assert.equal(await isolated.export(sharedBatch), 1);
     const ledger = JSON.parse(readFileSync(join(second.fsPath, RESOURCE_MANIFEST), "utf8"));

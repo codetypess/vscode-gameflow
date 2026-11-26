@@ -377,6 +377,7 @@ const sharedUrl = file => "/@fs/" + path.resolve(__dirname, "../shared", file).s
     assert.equal(await shared.isChecked(),false,"blank space beside the checkbox must not toggle it");
     await settingsSection.getByText("共享资源", {exact:true}).click();
     assert.equal(await shared.isChecked(),true);
+    assert.equal(await exportName.inputValue(),"start");
     await shared.press("Space");
     assert.equal(await shared.isChecked(),false);
     assert.equal(await exportName.inputValue(),"login_start");
@@ -473,8 +474,9 @@ const sharedUrl = file => "/@fs/" + path.resolve(__dirname, "../shared", file).s
     await variableName.fill("footer");
     assert.equal(await exportName.inputValue(),"login_footer");
     await shared.check();
-    assert.equal(await exportName.inputValue(),"login_footer");
+    assert.equal(await exportName.inputValue(),"footer");
     await shared.uncheck();
+    assert.equal(await exportName.inputValue(),"login_footer");
     await variableName.fill("btn_manual");
     assert.equal(await exportName.inputValue(),"login_btn_manual");
     await variableName.fill("");

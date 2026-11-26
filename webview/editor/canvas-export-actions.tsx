@@ -1,8 +1,9 @@
 import { DialogHeading } from "../components/dialog-heading";
+import { PrefabSyncIcon, PsdSyncIcon } from "../components/sync-icons";
 import {useEffect,useRef,useState,type ReactNode} from "react";
 import {createPortal} from "react-dom";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import {ArrowRight, ChevronRight, GitMerge, MoreHorizontal, Pin, RefreshCw} from "lucide-react";
+import {ArrowRight, ChevronRight, MoreHorizontal, Pin} from "lucide-react";
 import type {GameFlowDocument,GameFlowPage} from "../../shared/model";
 import type {CanvasSources} from "../../shared/canvas-references";
 import {planListPrefabExport} from "../../shared/list-prefab-export";
@@ -146,16 +147,16 @@ export function CanvasExportActions({document,sources,page,sourcePage,resources,
   const psdUnavailable=psdDisabled || busy;
   const psdPin=useSyncPin("psd"), prefabPin=useSyncPin("prefab");
   const syncActions=[
-    {label:"PSD 同步",Icon:GitMerge,disabled:psdUnavailable || !sourcePage?.artPsd,run:onPsdSync,...psdPin},
-    {label:prefabSyncLabels.review,Icon:RefreshCw,disabled:unavailable || mappingError,run:()=>exportPrefab("review"),...prefabPin}
+    {label:"PSD 同步",Icon:PsdSyncIcon,disabled:psdUnavailable || !sourcePage?.artPsd,run:onPsdSync,...psdPin},
+    {label:prefabSyncLabels.review,Icon:PrefabSyncIcon,disabled:unavailable || mappingError,run:()=>exportPrefab("review"),...prefabPin}
   ];
   const syncItem = ({label,Icon,disabled,run}: (typeof syncActions)[number]) =>
-    <DropdownMenu.Item key={label} disabled={disabled} onSelect={run}><Icon size={15}/><span>{label}</span></DropdownMenu.Item>;
+    <DropdownMenu.Item key={label} disabled={disabled} onSelect={run}><Icon size={15} aria-hidden="true"/><span>{label}</span></DropdownMenu.Item>;
   const pageActions = <>{psdItems}{syncActions.map(syncItem)}</>;
   return <>
     {syncActions.filter(action=>action.pinned).map(({label,Icon,disabled,run})=>
       <Tooltip key={label}><TooltipTrigger asChild>
-        <Button size="icon" variant="ghost" className="toolbar-button" aria-label={label} disabled={disabled} onClick={run}><Icon size={18}/></Button>
+        <Button size="icon" variant="ghost" className="toolbar-button" aria-label={label} disabled={disabled} onClick={run}><Icon size={18} aria-hidden="true"/></Button>
       </TooltipTrigger><TooltipContent side="top">{label}</TooltipContent></Tooltip>
     )}
     <DropdownMenu.Root modal={false}>
