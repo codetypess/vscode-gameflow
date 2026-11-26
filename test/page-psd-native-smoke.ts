@@ -7,11 +7,11 @@ import type { GameFlowEditorProvider } from "../src/gameflow-editor-provider";
 import type { PsdEditorProvider } from "../src/psd-editor-provider";
 import { rebasePagePsds, type PagePsdController } from "../src/page-psd-controller";
 import { parseGameFlowDocument, serializeGameFlowDocument } from "../shared/model";
+import { pagePsdFixture } from "./page-psd-fixture";
 export async function pagePsdChecks(api: { workbench: GameFlowEditorProvider; psd: PsdEditorProvider }, root: string, directory: string): Promise<string[]> {
   const checks: string[] = [], cancel = new vscode.CancellationTokenSource();
   const document = parseGameFlowDocument(readFileSync(join(root, "sample/star-sea-login.gameflow.json"), "utf8"));
-  const binding = document.pages[0].artPsd!;
-  const source = readFileSync(join(root, "sample", binding.source));
+  const { binding, bytes: source } = pagePsdFixture(root);
   document.pages[0].artPsd = { ...binding, source: "page-art.psd" };
   const file = join(directory, "page-binding.gameflow.json"), uri = vscode.Uri.file(file);
   writeFileSync(file, serializeGameFlowDocument(document)); writeFileSync(join(directory, "page-art.psd"), source);
@@ -75,6 +75,23 @@ export async function pagePsdChecks(api: { workbench: GameFlowEditorProvider; ps
     assert.equal((await slice()).error, undefined);
     assert.equal(doc.currentPsd, existing); assert.equal(doc.getText(), beforeSlice); assert.equal(doc.dirty, false);
     checks.push("page slice opens the bound native document with its saved sidecar and reuses the session on repeat");
+    const configFile = join(directory, "plain-art.meta.json");
+    const savedConfig = readFileSync(configFile);
+    writeFileSync(plainUri.fsPath, source);
+    assert.equal((await slice()).error, undefined);
+    assert.deepEqual(Buffer.from(doc.currentPsd!.bytes), source);
+    assert.equal(doc.currentPsd!.model.asset.documentId, binding.documentId);
+    assert.match(doc.currentPsd!.configReadIssue!, /谱系/);
+    assert.doesNotMatch(doc.currentPsd!.state().warning!, /已放弃本次修改/);
+    assert.equal(doc.dirty, false);
+    assert.deepEqual(readFileSync(configFile), savedConfig);
+    assert.equal(doc.getText(), beforeSlice);
+    checks.push("page slice loads the replacement PSD at the bound path and preserves the previous file's sidecar");
+    doc.dispose(); doc = await open();
+    assert.equal((await slice()).error, undefined);
+    assert.deepEqual(Buffer.from(doc.currentPsd!.bytes), source);
+    assert.deepEqual(readFileSync(configFile), savedConfig);
+    checks.push("reopening page slice with a foreign sidecar shows the current artwork");
   } finally { doc.dispose(); cancel.dispose(); }
   return checks;
 }

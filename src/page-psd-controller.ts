@@ -45,6 +45,7 @@ export class PagePsdController {
     return uri && vscode.workspace.fs.readFile(uri);
   }
   private pending = new Map<string, Promise<PsdDocument>>();
+  private users = new Map<string, number>();
   async importSource(doc: WorkbenchDocument, pageId: string) {
     const page = parseGameFlowDocument(doc.getText()).pages.find(item => item.id === pageId);
     if (!page?.psdImportPreview) return;
@@ -125,26 +126,20 @@ export class PagePsdController {
     const draft=makePsdDraft(asset); cache.set(uri.toString(),{stamp,draft});
     return {bytes,name,config,draft};
   }
-  private async ensure(doc: WorkbenchDocument, uri: vscode.Uri, explicit: boolean): Promise<PsdDocument> {
+  private async ensure(doc: WorkbenchDocument, uri: vscode.Uri, action: PagePsdRequest["action"]): Promise<PsdDocument> {
     const source = uri.toString(), key = doc.uri.toString() + "|" + source;
+    const existing = doc.psds.get(source);
+    if (existing) return existing;
     const pending = this.pending.get(key); if (pending) return pending;
     const operation = (async () => {
-      let model = doc.psds.get(source);
-      if (this.psd.documents.has(source) && !model) throw new Error("此 PSD 已在其他工作台或编辑器中打开，请先关闭该会话。");
+      if (this.psd.documents.has(source)) throw new Error("此 PSD 已在其他工作台或编辑器中打开，请先关闭该会话。");
       const cancellation = new vscode.CancellationTokenSource();
       try {
-        if (model) {
-          if (bytesHash(await vscode.workspace.fs.readFile(uri)) !== model.model.asset.sourceHash) {
-            if (model.model.dirty) throw new Error("PSD 文件已变化且有未保存配置，请先处理 PSD 修改再重新绑定。");
-            await this.psd.revertCustomDocument(model, cancellation.token);
-          }
-        } else {
-          if (doc.psds.size >= 32) throw new Error("本工作台已载入 32 份 PSD，请保存并重新打开工作台。");
-          model = await this.psd.openCustomDocument(uri, { backupId: undefined, untitledDocumentData: undefined }, cancellation.token, { preview: true, acceptChangedSource: explicit });
-          if (doc.disposed) { model.dispose(); throw new Error("工作台已关闭。"); }
-          doc.psds.set(source, model);
-        }
-        if (model.configReadIssue) throw new Error("PSD 配置无法读取：" + model.configReadIssue);
+        if (doc.psds.size >= 32) throw new Error("本工作台已载入 32 份 PSD，请保存并重新打开工作台。");
+        const model = await this.psd.openCustomDocument(uri, { backupId: undefined, untitledDocumentData: undefined }, cancellation.token,
+          { preview: true, acceptChangedSource: action !== "load", pageSlice: action === "slice" });
+        if (doc.disposed) { model.dispose(); throw new Error("工作台已关闭。"); }
+        doc.psds.set(source, model);
         return model;
       } finally { cancellation.dispose(); }
     })();
@@ -266,6 +261,7 @@ export class PagePsdController {
   async handle(doc: WorkbenchDocument, request: PagePsdRequest, access?: ComponentAccess): Promise<PagePsdResult> {
     const result: PagePsdResult = { type: "pagePsdResult", requestId: request.requestId };
     let sourceUri: vscode.Uri | undefined;
+    let useKey: string | undefined;
     let generationLock: string | undefined;
     let replaced: { uri: vscode.Uri; hash: string; previous?: Uint8Array } | undefined;
     const created = new Map<vscode.Uri, string>();
@@ -303,6 +299,8 @@ export class PagePsdController {
       else uri = await vscode.window.showSaveDialog({ defaultUri: vscode.Uri.joinPath(doc.uri, "..", request.name!), filters: { Photoshop: ["psd"] }, saveLabel: "生成并绑定 PSD" });
       if (!uri) return { ...result, cancelled: true };
       sourceUri = uri;
+      useKey = doc.uri.toString() + "|" + uri.toString();
+      this.users.set(useKey, (this.users.get(useKey) ?? 0) + 1);
       source ??= relativeSource(doc.uri, uri);
       const componentBindings: ComponentPsdBinding[] = [];
       const external = new Map<CanvasText, { document: CanvasText; version: number; draft: GameFlowDocument }>();
@@ -368,13 +366,22 @@ export class PagePsdController {
         });
         if (created.size) replaced = { uri, hash: bytesHash(bytes), previous };
       }
-      const psd = await this.ensure(doc, uri, !boundFile);
-      if (boundFile && psd.model.asset.documentId !== page.artPsd!.documentId) throw new Error("PSD 身份与页面关联不一致，请重新绑定。");
+      const existing = doc.psds.get(uri.toString());
+      const psd = await this.ensure(doc, uri, request.action);
       if (request.action === "slice") {
         currentPage();
         await this.openSlice(doc, uri, currentPage);
         return result;
       }
+      if (existing && bytesHash(await vscode.workspace.fs.readFile(uri)) !== psd.model.asset.sourceHash) {
+        await this.psd.flush(psd);
+        if (psd.model.dirty) throw new Error("PSD 文件已变化且有未保存配置，请先处理 PSD 修改再重新绑定。");
+        const cancellation = new vscode.CancellationTokenSource();
+        try { await this.psd.reloadFromDisk(psd, cancellation.token); }
+        finally { cancellation.dispose(); }
+      }
+      if (psd.configReadIssue) throw new Error("PSD 配置无法读取：" + psd.configReadIssue);
+      if (boundFile && psd.model.asset.documentId !== page.artPsd!.documentId) throw new Error("PSD 身份与页面关联不一致，请重新绑定。");
       if (external.size) await access!.apply([...external.values()].map(item => ({
         document: item.document, version: item.version, text: serializeGameFlowDocument(item.draft),
       })));
@@ -404,7 +411,12 @@ export class PagePsdController {
       if (generationLock) this.overwriting.delete(generationLock);
       // A page preview owns a snapshot, not a persistent editing session.
       const key = sourceUri?.toString(), loaded = key ? doc.psds.get(key) : undefined;
-      if (loaded && !loaded.model.dirty && loaded !== doc.currentPsd && !loaded.panels.size) {
+      if (useKey) {
+        const remaining = this.users.get(useKey)! - 1;
+        if (remaining) this.users.set(useKey, remaining);
+        else this.users.delete(useKey);
+      }
+      if (loaded && useKey && !this.users.has(useKey) && !loaded.model.dirty && loaded !== doc.currentPsd && !loaded.panels.size) {
         doc.psds.delete(key!);
         loaded.dispose();
       }

@@ -25,7 +25,8 @@ export async function run() {
     const original = readFileSync(join(root, "examples/psd-metadata/GameFlow-PSD-Metadata-Sample.psd"));
     writeFileSync(file, original);
     const uri = vscode.Uri.file(file);
-    const api = await vscode.extensions.getExtension<{ psd: PsdEditorProvider; workbench: GameFlowEditorProvider }>("codetypes.vscode-gameflow")!.activate();
+    const manifest = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
+    const api = await vscode.extensions.getExtension<{ psd: PsdEditorProvider; workbench: GameFlowEditorProvider }>(`${manifest.publisher}.${manifest.name}`)!.activate();
     await api.psd.open(uri);
     await until(() => !!api.psd.documents.get(uri.toString())?.announced, "PSD editor initialization");
     doc = api.psd.documents.get(uri.toString())!;
@@ -82,9 +83,9 @@ export async function run() {
     await assert.rejects(api.psd.saveCustomDocument(repairable, cancel.token), /重复 ID/);
     assert.equal(JSON.parse(readFileSync(meta, "utf8")).layers[0].config.exportName, "native_saved");
     repairable.dispose(); checks.push("incompatible sidecar preserves editable identity repair and original config");
-    checks.push(...await settingsChecks(api, root, directory));
-    checks.push(...await workbenchChecks(api, root, directory));
     checks.push(...await pagePsdChecks(api, root, directory));
+    checks.push(...await workbenchChecks(api, root, directory));
+    checks.push(...await settingsChecks(api, root, directory));
     if (process.env.GAMEFLOW_PSD_CLOSE_UI === "1") checks.push(...await closeUiChecks(api, root, directory));
     writeFileSync(report, JSON.stringify({ ok: true, directory, checks }, null, 2));
   } catch (error) { writeFileSync(report, JSON.stringify({ ok: false, directory, checks, error: String(error), stack: error instanceof Error ? error.stack : undefined }, null, 2)); throw error; }

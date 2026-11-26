@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import type * as vscode from "vscode";
 import { createDefaultGameFlowDocument, isPagePsdBinding, isPagePsdSource, parseGameFlowDocument, serializeGameFlowDocument, validateGameFlowDocument, type GameFlowPage } from "../shared/model";
 import { bindPagePsd, pagePsdKey } from "../shared/page-psd";
@@ -14,7 +13,8 @@ import type { WorkbenchDocument } from "../src/workbench-document";
 import { FileSystemError, referenceHost, Uri, workspace, TestTextDocument } from "./vscode-reference-host";
 import { bytesHash } from "../src/psd-document-model";
 import { parsePsdBinary, patchPsdMetadata } from "../shared/psd-binary";
-import { sidecarName } from "../shared/psd-meta";
+import { makeSidecar, sidecarName } from "../shared/psd-meta";
+import { pagePsdFixture } from "./page-psd-fixture";
 const tests: { name: string; run: () => void | Promise<void> }[] = [];
 const test = (name: string, run: () => void | Promise<void>) => tests.push({ name, run });
 export const pagePsdTests = tests;
@@ -189,9 +189,7 @@ test("host page PSD choice and generation cancellation leave the working copy un
 });
 test("component PSD companion generation protects existing files and waits for the parent save", async () => {
   const f = hostFixture();
-  const sample = parseGameFlowDocument(readFileSync("sample/star-sea-login.gameflow.json", "utf8"));
-  const art = sample.pages[0].artPsd!;
-  const bytes = readFileSync("sample/" + art.source);
+  const { binding: art, bytes } = pagePsdFixture();
   const component: GameFlowPage = { ...f.page, id: "component", name: "列表项", nodes: [] };
   f.document.pages.push(component);
   f.setDocument(f.document);
@@ -234,12 +232,14 @@ test("host page PSD loading uses the saved relative source and preserves the act
   const stale = await f.controller.handle(f.doc, { type: "pagePsd", requestId: "old", pageId: "page", action: "load", expected: { source: "other.psd", documentId: "art" } });
   assert.match(stale.error!, /已变化/); assert.equal(f.opens, 1);
 });
-test("host PSD binding rejects identity mismatch and missing target pages", async () => {
+test("page art validates the bound identity while explicit slicing opens the current file at that path", async () => {
   const f = hostFixture(); f.page.artPsd = { source: "a.psd", documentId: "wrong" }; f.setDocument(f.document);
-  for (const action of ["slice", "load"] as const) {
-    f.doc.psds.clear();
-    assert.match((await f.controller.handle(f.doc, { type: "pagePsd", requestId: "bad", pageId: "page", action, expected: f.page.artPsd })).error!, /身份/);
-  }
+  assert.match((await f.controller.handle(f.doc, { type: "pagePsd", requestId: "bad", pageId: "page", action: "load", expected: f.page.artPsd })).error!, /身份/);
+  const controller = new PagePsdController(f.psd, async (doc, uri) => { doc.currentPsd = doc.psds.get(uri.toString()); });
+  const sliced = await controller.handle(f.doc, { type: "pagePsd", requestId: "slice", pageId: "page", action: "slice", expected: f.page.artPsd });
+  assert.equal(sliced.error, undefined);
+  assert.equal(f.doc.currentPsd?.uri.path, "/workspace/layouts/a.psd");
+  assert.equal(f.doc.currentPsd?.model.asset.documentId, "art");
   assert.match((await f.controller.handle(f.doc, { type: "pagePsd", requestId: "gone", pageId: "deleted", action: "choose" })).error!, /已删除/);
 });
 test("save as rebases every page PSD while preserving source file identity", () => {
@@ -260,9 +260,7 @@ test("host choice and generation return the selected file for the captured page"
 });
 
 test("PSD sync copy recovers from other occupied save paths and keeps cancellation read-only", async () => {
-  const sample = parseGameFlowDocument(readFileSync("sample/star-sea-login.gameflow.json", "utf8"));
-  const binding = sample.pages[0].artPsd!;
-  const bytes = readFileSync("sample/" + binding.source);
+  const { binding, bytes } = pagePsdFixture();
   for (const retry of [true, false]) {
     const f = hostFixture();
     const original = new Uri("/workspace/layouts/" + binding.source);
@@ -300,11 +298,9 @@ test("PSD sync copy recovers from other occupied save paths and keeps cancellati
 });
 
 test("PSD sync can overwrite the bound source and keeps PSD and sidecar consistent on failure", async () => {
-  const sample = parseGameFlowDocument(readFileSync("sample/star-sea-login.gameflow.json", "utf8"));
-  const binding = sample.pages[0].artPsd!;
-  const bytes = readFileSync("sample/" + binding.source);
+  const { binding, bytes, asset } = pagePsdFixture();
   const configName = sidecarName(binding.source);
-  const config = readFileSync("sample/" + configName);
+  const config = Buffer.from(JSON.stringify(makeSidecar(asset)));
   const layer = parsePsdBinary(bytes).layers.find(item => item.metadata)!;
   const output = Buffer.from(patchPsdMetadata(bytes, new Map([[layer.key, { ...(layer.metadata as object), syncProbe: true }]])));
   assert.notEqual(bytesHash(bytes), bytesHash(output));

@@ -27,6 +27,14 @@ async function readOptional(uri: vscode.Uri, limit: number): Promise<Uint8Array 
   } catch (e) { if (e instanceof vscode.FileSystemError && e.code === "FileNotFound") return null; throw e; }
 }
 async function removeIfPresent(uri: vscode.Uri) { try { await vscode.workspace.fs.delete(uri); } catch (e) { if (!(e instanceof vscode.FileSystemError && e.code === "FileNotFound")) throw e; } }
+function loadConfig(asset: PsdAsset, config: Uint8Array) {
+  try {
+    const raw = JSON.parse(new TextDecoder().decode(config));
+    return { asset: applySidecar(asset, raw), changedSource: raw.source.sha256 !== asset.sourceHash };
+  } catch (error) {
+    return { asset, configReadIssue: message(error) };
+  }
+}
 interface Backup {
   schema: "gameflow.psd-draft"; version: 1; source: string; sourceHash: string;
   draft: PsdDraft; baseline: PsdDraft; configHash: string | null; needsSave: boolean; sourceBase64?: string; configReadIssue?: string;
@@ -65,7 +73,7 @@ export class PsdEditorProvider implements vscode.CustomEditorProvider<PsdDocumen
     if (!/\.psd$/i.test(uri.path)) throw new Error("请选择 PSD 文件。");
     await vscode.commands.executeCommand("vscode.openWith", uri, PSD_EDITOR_VIEW_TYPE, { preview: false });
   }
-  async openCustomDocument(uri: vscode.Uri, context: vscode.CustomDocumentOpenContext, token: vscode.CancellationToken, options?: { preview?: boolean; acceptChangedSource?: boolean }): Promise<PsdDocument> {
+  async openCustomDocument(uri: vscode.Uri, context: vscode.CustomDocumentOpenContext, token: vscode.CancellationToken, options?: { preview?: boolean; acceptChangedSource?: boolean; pageSlice?: boolean }): Promise<PsdDocument> {
     if (this.documents.has(uri.toString())) throw new Error("此 PSD 已在工作台或配置编辑器中打开，请先关闭原会话。");
     const cache = vscode.Uri.joinPath(this.context.globalStorageUri, "psd-drafts", bytesHash(new TextEncoder().encode(uri.toString())));
     let backup: Backup | undefined;
@@ -90,25 +98,23 @@ export class PsdEditorProvider implements vscode.CustomEditorProvider<PsdDocumen
     const savedBytes = await readOptional(configUri(uri), 1024 * 1024);
     let notice: string | undefined, configReadIssue: string | undefined;
     if (savedBytes && !backup) {
-      let matched: PsdAsset | undefined, changedSource = false;
-      try {
-        const raw = JSON.parse(new TextDecoder().decode(savedBytes));
-        matched = applySidecar(asset, raw); changedSource = raw.source.sha256 !== asset.sourceHash;
-      } catch (error) { configReadIssue = message(error); notice = `已有配置未能自动读取：${configReadIssue} 原文件已保留。可修复身份后读取配置，或另存为 PSD 副本。`; }
-      if (matched) {
-        if (changedSource) {
+      const loaded = loadConfig(asset, savedBytes);
+      configReadIssue = loaded.configReadIssue;
+      if (configReadIssue) notice = `已有配置未能自动读取：${configReadIssue} 原文件已保留。可修复身份后读取配置，或另存为 PSD 副本。`;
+      else {
+        if (loaded.changedSource && !options?.pageSlice) {
           if (options?.preview && !options.acceptChangedSource) throw new Error("PSD 已变化，请重新绑定并确认采用已有配置。");
           const answer = await vscode.window.showWarningMessage("PSD 已变化，是否按图层身份采用已有配置？", { modal: true }, "采用配置");
           if (answer !== "采用配置") throw new vscode.CancellationError();
           notice = "已按图层身份读取配置，请检查后保存。";
         }
-        asset = matched;
+        asset = loaded.asset;
       }
     }
-    const model = new PsdDocumentModel(asset, savedBytes ? bytesHash(savedBytes) : null, !savedBytes || !!notice);
+    const model = new PsdDocumentModel(asset, savedBytes ? bytesHash(savedBytes) : null, !savedBytes || (!!notice && !configReadIssue));
     if (backup) { model.restore(backup.draft, backup.baseline); model.configHash = backup.configHash; model.needsSave = backup.needsSave; configReadIssue = backup.configReadIssue; notice = "已恢复未保存草稿，请检查后保存配置。"; }
     else if (!savedBytes) notice = "已新建切图配置，Ctrl+S 保存到 PSD 同目录。";
-    if (options?.preview && !backup && !savedBytes && asset.hasEmbeddedIdentity) { model.needsSave = false; notice = undefined; }
+    if (!backup && (options?.pageSlice || (options?.preview && !savedBytes && asset.hasEmbeddedIdentity))) { model.needsSave = false; if (!configReadIssue) notice = undefined; }
     const doc = new PsdDocument(uri, bytes, model, cache); doc.notice = notice; doc.configReadIssue = configReadIssue;
     if (backup) doc.backup = "saved";
     cancelled(token); this.documents.set(uri.toString(), doc);
@@ -247,23 +253,50 @@ export class PsdEditorProvider implements vscode.CustomEditorProvider<PsdDocumen
     });
     if (doc.model.dirty) this.backupSoon(doc);
   }
+  async diskChanged(doc: PsdDocument) {
+    const source = await readOptional(doc.uri, 32 * 1024 * 1024);
+    if (!source) throw new Error("源 PSD 不存在。");
+    if (bytesHash(source) !== doc.model.asset.sourceHash) return true;
+    const config = await readOptional(configUri(doc.uri), 1024 * 1024);
+    return (config ? bytesHash(config) : null) !== doc.model.configHash;
+  }
+  async discardForSwitch(doc: PsdDocument) {
+    await doc.enqueue(async () => {
+      doc.model.reset(applyPsdDraft(doc.model.asset, doc.model.baseline), doc.model.configHash);
+      doc.error = undefined; doc.warning = undefined; doc.backup = "none";
+      await this.clearDraft(doc);
+    });
+  }
+  async reloadFromDisk(doc: PsdDocument, token: vscode.CancellationToken): Promise<void> {
+    return this.resetDocument(doc, token, false);
+  }
   async revertCustomDocument(doc: PsdDocument, token: vscode.CancellationToken): Promise<void> {
+    return this.resetDocument(doc, token, true);
+  }
+  private async resetDocument(doc: PsdDocument, token: vscode.CancellationToken, allowBaselineFallback: boolean): Promise<void> {
+    const version = doc.model.version;
     await doc.enqueue(async () => {
       cancelled(token);
       try {
         const bytes = await readOptional(doc.uri, 32 * 1024 * 1024); if (!bytes) throw new Error("源 PSD 不存在。");
         const config = await readOptional(configUri(doc.uri), 1024 * 1024);
         let asset = createPsdStructure(parsePsdBinary(bytes), nameOf(doc.uri), bytesHash(bytes));
-        if (config) asset = applySidecar(asset, JSON.parse(new TextDecoder().decode(config)));
-        else if (asset.sourceHash === doc.model.asset.sourceHash) asset = applyPsdDraft(asset, doc.model.baseline, true);
-        doc.bytes = bytes; doc.model.reset(asset, config ? bytesHash(config) : null); doc.notice = undefined; doc.warning = undefined; doc.configReadIssue = undefined;
+        let configReadIssue: string | undefined;
+        if (config) {
+          const loaded = loadConfig(asset, config);
+          asset = loaded.asset; configReadIssue = loaded.configReadIssue;
+        }
+        else if (asset.sourceHash === doc.model.asset.sourceHash && doc.model.configHash === null) asset = applyPsdDraft(asset, doc.model.baseline, true);
+        if (!allowBaselineFallback && doc.model.version !== version) throw new Error("读取 PSD 期间出现了新修改，请重新打开切图。");
+        doc.bytes = bytes; doc.model.reset(asset, config ? bytesHash(config) : null); doc.notice = undefined; doc.warning = undefined; doc.configReadIssue = configReadIssue;
       } catch (error) {
+        if (!allowBaselineFallback) throw error;
         // Explicit discard must remain possible even if an external file was removed/damaged.
         doc.model.reset(applyPsdDraft(doc.model.asset, doc.model.baseline), doc.model.configHash);
         doc.warning = `已放弃本次修改；外部文件暂时无法读取：${message(error)}。请重新打开后核对。`;
       }
       doc.error = undefined; doc.backup = "none"; await this.clearDraft(doc);
-      for (const panel of doc.panels) await panel.webview.postMessage({ type: "psdEditorInit", name: nameOf(doc.uri), base64: Buffer.from(doc.bytes).toString("base64"), state: doc.state(), configPath: configUri(doc.uri).fsPath, notice: doc.notice } satisfies PsdEditorMessage);
+      for (const panel of doc.panels) await this.initialize(doc, panel);
     });
   }
   async backupCustomDocument(doc: PsdDocument, context: vscode.CustomDocumentBackupContext, token: vscode.CancellationToken): Promise<vscode.CustomDocumentBackup> {
@@ -303,11 +336,15 @@ export class PsdEditorProvider implements vscode.CustomEditorProvider<PsdDocumen
     }
     return stamp;
   }
-  private async copy(doc: PsdDocument) {
+  async copy(doc: PsdDocument) {
     const target = await vscode.window.showSaveDialog({ defaultUri: vscode.Uri.joinPath(doc.uri, "..", nameOf(doc.uri).replace(/\.psd$/i, "-configured.psd")), filters: { Photoshop: ["psd"] }, saveLabel: "写入 PSD 副本" });
-    if (!target) return;
+    if (!target) return false;
     if (target.toString() === doc.uri.toString()) throw new Error("请另选 PSD 副本路径，常规保存使用 .meta.json。");
     const cancellation = new vscode.CancellationTokenSource();
-    try { await this.writeCopy(doc, target, cancellation.token); } finally { cancellation.dispose(); }
+    try {
+      const saved = await this.writeCopy(doc, target, cancellation.token);
+      if (saved !== draftStamp(doc.model.asset)) throw new Error("写入副本期间出现了新修改，请再次保存。");
+      return true;
+    } finally { cancellation.dispose(); }
   }
 }

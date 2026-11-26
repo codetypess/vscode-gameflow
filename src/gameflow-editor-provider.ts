@@ -6,7 +6,7 @@ import { isWebviewToHostMessage, type HostToWebviewMessage } from "../shared/pro
 import { isPsdEditorRequest, type PsdEditorMessage } from "../shared/psd-editor-protocol";
 import { configureGameFlowWebview } from "./webview-html";
 import { CanvasReferenceController, type CanvasDocumentAccess, type CanvasText } from "./canvas-reference-controller";
-import { PsdEditorProvider } from "./psd-editor-provider";
+import { PsdEditorProvider, type PsdDocument } from "./psd-editor-provider";
 import { bytesHash } from "./psd-document-model";
 import { WorkbenchDocument } from "./workbench-document";
 import { readWorkbenchSlices } from "./slice-resource-controller";
@@ -127,33 +127,48 @@ export class GameFlowEditorProvider implements vscode.CustomEditorProvider<Workb
     for (const change of changes) if (change.document instanceof WorkbenchDocument) { await change.document.refresh(); this.checkpoint(change.document); }
     this.checkpoint(owner);
   }
+  private async finishPsdEdits(current: PsdDocument, reloading: boolean, token: vscode.CancellationToken, checkBinding?: () => void) {
+    await this.psd.flush(current);
+    if (!current.model.dirty) return true;
+    const save = reloading ? "保存副本并打开" : "保存并打开";
+    const answer = await vscode.window.showWarningMessage(
+      reloading ? "磁盘上的 PSD 或配置已更新。是否将当前切图修改保存为副本后打开新版本？" : "切换 PSD 前是否保存当前切图修改？",
+      { modal: true }, save, "不保存并打开");
+    if (!answer) return false;
+    checkBinding?.();
+    if (answer === save) {
+      if (reloading) return this.psd.copy(current);
+      await this.psd.saveCustomDocument(current, token);
+      if (current.model.dirty) throw new Error("保存期间出现了新的切图修改，请再次保存。");
+    } else if (!reloading) {
+      await this.psd.discardForSwitch(current);
+    }
+    return true;
+  }
   async openPsd(doc: WorkbenchDocument, uri?: vscode.Uri, checkBinding?: () => void) {
     if (!uri) uri = (await vscode.window.showOpenDialog({ canSelectMany: false, filters: { Photoshop: ["psd"] }, openLabel: "在工作台打开 PSD" }))?.[0];
     if (!uri || doc.disposed) return;
     if (!/\.psd$/i.test(uri.path)) throw new Error("请选择 PSD 文件。");
     const source = uri.toString();
-    if (source === doc.currentPsd?.uri.toString()) {
-      for (const panel of doc.panels) await panel.webview.postMessage({ type: "psdEditorReveal" } satisfies PsdEditorMessage);
-      return;
-    }
     if (this.psd.documents.has(source) && !doc.psds.has(source)) throw new Error("此 PSD 已在其他工作台或编辑器中打开，请先关闭该会话。");
-    if (doc.currentPsd) {
-      await this.psd.flush(doc.currentPsd);
-      if (doc.currentPsd.model.dirty) {
-        const answer = await vscode.window.showWarningMessage("当前 PSD 配置尚未保存。打开其他 PSD 前如何处理？", { modal: true }, "保存并打开", "不保存并打开");
-        if (!answer) return;
-        checkBinding?.();
-        const cancellation = new vscode.CancellationTokenSource();
-        try {
-          if (answer === "保存并打开") { await vscode.commands.executeCommand("workbench.action.files.save"); if (doc.currentPsd.model.dirty) throw new Error("PSD 配置尚未保存，请处理保存错误后重试。"); }
-          else await this.psd.revertCustomDocument(doc.currentPsd, cancellation.token);
-        } finally { cancellation.dispose(); }
-      }
-    }
     if (doc.psds.size >= 32 && !doc.psds.has(source)) throw new Error("本工作台已打开过 32 份 PSD，请保存并重新打开工作台。");
     const cancellation = new vscode.CancellationTokenSource();
     let psd = doc.psds.get(source);
-    try { psd ??= await this.psd.openCustomDocument(uri, { backupId: undefined, untitledDocumentData: undefined }, cancellation.token); }
+    try {
+      const reload = psd && await this.psd.diskChanged(psd);
+      if (psd && reload) {
+        if (!await this.finishPsdEdits(psd, true, cancellation.token, checkBinding)) return;
+        checkBinding?.();
+        await this.psd.reloadFromDisk(psd, cancellation.token);
+      }
+      if (psd && psd === doc.currentPsd) {
+        checkBinding?.();
+        for (const panel of doc.panels) await panel.webview.postMessage({ type: "psdEditorReveal" } satisfies PsdEditorMessage);
+        return;
+      }
+      if (doc.currentPsd && !await this.finishPsdEdits(doc.currentPsd, false, cancellation.token, checkBinding)) return;
+      psd ??= await this.psd.openCustomDocument(uri, { backupId: undefined, untitledDocumentData: undefined }, cancellation.token);
+    }
     finally { cancellation.dispose(); }
     if (doc.disposed) { psd.dispose(); return; }
     checkBinding?.();

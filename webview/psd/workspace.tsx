@@ -25,7 +25,7 @@ import { hasFileDrag } from "./file-drop-input";
 import { cn } from "../lib/utils";
 import { defaultLayerVariableName, effectiveExportName, effectiveVariableName, exportNameError, isLayerVariableNameFixed, layerVariableOverride, psdSliceDirectory, sliceExportIssues, SliceExportConflict, type ExportIssue } from "../../shared/psd-export";
 import { resourceExport } from "./export";
-import { restoreBrowserDraft, saveBrowserDraft } from "./browser-draft";
+import { discardBrowserDraft, markBrowserConfigSaved, restoreBrowserDraft, saveBrowserDraft } from "./browser-draft";
 import { useToolbarChoice } from "../lib/use-toolbar-choice";
 import { consumeHistoryShortcut } from "../lib/history-shortcut";
 import "./workspace.css";
@@ -121,9 +121,14 @@ function PsdPreview({ asset, selected, children }: { asset: PsdAsset; selected?:
   </div>;
 }
 
-function ConfirmReplacement({ onAccept, onCancel }: { onAccept: () => void; onCancel: () => void }) {
+function ConfirmReplacement({ onSave, onDiscard, onCancel, busy, error }: { onSave: () => void; onDiscard: () => void; onCancel: () => void; busy: boolean; error: string }) {
   const ref = useRef<HTMLDialogElement>(null); useEffect(() => { ref.current?.showModal(); }, []);
-  return <dialog ref={ref} className="floating-panel workbench-dialog psd-dialog confirm-dialog" aria-label="当前配置尚未保存" onCancel={e => { e.preventDefault(); onCancel(); }}><DialogHeading heading="当前配置尚未保存" onClose={onCancel} /><p>打开另一份 PSD 会替换当前配置。可以取消并先保存，或继续打开新文件。</p><footer><Button onClick={onAccept}>继续打开</Button><Button variant="secondary" onClick={onCancel}>取消</Button></footer></dialog>;
+  return <dialog ref={ref} className="floating-panel workbench-dialog psd-dialog confirm-dialog" aria-label="当前配置尚未保存" onCancel={e => { e.preventDefault(); if (!busy) onCancel(); }}>
+    <DialogHeading heading="当前配置尚未保存" onClose={() => { if (!busy) onCancel(); }} />
+    <p>切换 PSD 前是否保存当前切图修改？</p>
+    {error && <p role="alert">{error}</p>}
+    <footer><Button disabled={busy} onClick={onSave}>保存并打开</Button><Button disabled={busy} variant="secondary" onClick={onDiscard}>不保存并打开</Button><Button disabled={busy} variant="secondary" onClick={onCancel}>取消</Button></footer>
+  </dialog>;
 }
 
 function DropHint({ label }: { label: string }) {
@@ -152,6 +157,7 @@ export function PsdWorkspace({ mode, active, binding, documentActions, settings,
   const [localDirty, setDirty] = useState(false);
   const dirty = binding?.dirty ?? localDirty;
   const [pendingFile, setPendingFile] = useState<File | Loaded | null>(null);
+  const [switchError, setSwitchError] = useState("");
   const [past, setPast] = useState<PsdAsset[]>([]), [future, setFuture] = useState<PsdAsset[]>([]);
   const input = useRef<HTMLInputElement>(null);
   const loading = useRef(false);
@@ -209,20 +215,24 @@ export function PsdWorkspace({ mode, active, binding, documentActions, settings,
   }
   const undo = (redo = false) => { if (!loaded || busy) return; if (binding) { void binding.history(redo).catch(error => setMessage(String(error))); return; } const source = redo ? future : past, item = source.at(-1); if (!item) return; setDirectoryIssues([]); if (redo) { setFuture(source.slice(0, -1)); setPast([...past, loaded.asset]); } else { setPast(source.slice(0, -1)); setFuture([...future, loaded.asset]); } backupBrowser(item); setLoaded({ ...loaded, asset: item }); setDirty(true); };
   const openSource = () => { if (isBrowserPreview) input.current?.click(); else postHostMessage({ type: "openPsdEditor" }); };
-  const readFile = async (file?: File | Loaded, discard = false) => {
+  const readFile = async (file?: File | Loaded, choice?: "save" | "discard") => {
     if (file && !isBrowserPreview) { setMessage("请在文件选择器中定位此 PSD，将在当前工作台内打开。"); openSource(); return; }
-    if (!file || busy || loading.current) return; if (dirty && !discard) { setPendingFile(file); return; } loading.current = true; setBusy(true); setMessage("正在读取 PSD…");
+    if (!file || busy || loading.current) return;
+    if (dirty && !choice) { setSwitchError(""); setPendingFile(file); return; }
+    loading.current = true; setBusy(true); setMessage("正在读取 PSD…");
     try {
       const source = file instanceof File ? await openPsd(file) : file;
-      let draft: PsdAsset | null = null, restoreError = "";
+      if (choice === "save" && !await save(false, true)) return;
+      if (choice === "discard" && loaded) discardBrowserDraft(loaded.asset);
+      let draft: ReturnType<typeof restoreBrowserDraft> = null, restoreError = "";
       try { draft = restoreBrowserDraft(source.asset); }
       catch (error) { restoreError = `草稿恢复失败，备份已保留：${String(error)}`; }
-      const asset = draft ?? source.asset;
-      setDirectoryIssues([]); setLoaded({ ...source, asset }); setSelectedKey(null); setScopeKey(null); setPast([]); setFuture([]); setDirty(!!draft);
-      setMessage(restoreError || (draft ? "已恢复本地草稿，请保存配置文件。" : identityProblems(asset).length ? "存在重复 ID：选中副本后，点击“作为新节点”。" : ""));
+      const asset = draft?.asset ?? source.asset;
+      setPendingFile(null); setDirectoryIssues([]); setLoaded({ ...source, asset }); setSelectedKey(null); setScopeKey(null); setPast([]); setFuture([]); setDirty(!!draft?.dirty);
+      setMessage(restoreError || (draft?.dirty ? "已恢复本地草稿，请保存配置文件。" : identityProblems(asset).length ? "存在重复 ID：选中副本后，点击“作为新节点”。" : ""));
       if (!(file instanceof File)) onReveal?.();
     }
-    catch (e) { setMessage(String(e instanceof Error ? e.message : e)); } finally { loading.current = false; setBusy(false); }
+    catch (e) { const error = e instanceof Error ? e.message : String(e); setMessage(error); if (choice) setSwitchError(error); } finally { loading.current = false; setBusy(false); }
   };
   useImperativeHandle(openBoundRef, () => source => {
     if (asset?.documentId === source.asset.documentId && asset.sourceHash === source.asset.sourceHash && asset.name === source.asset.name) {
@@ -232,16 +242,24 @@ export function PsdWorkspace({ mode, active, binding, documentActions, settings,
     if (busy || loading.current) throw new Error("切图工作区正在处理 PSD，请稍后重试。");
     void readFile(source);
   });
-  const save = async (embedded: boolean) => {
+  const save = async (embedded: boolean, switching = false) => {
     if (!loaded || busy) return; setBusy(true); setMessage(embedded ? "正在写入 PSD 副本…" : "正在保存配置…");
     try {
-      if (binding) { await binding.save(embedded); setMessage(""); return; }
+      if (binding) { await binding.save(embedded); setMessage(""); return true; }
       const meta = makeSidecar(loaded.asset);
       const bytes = embedded ? new Uint8Array(await psdTask<ArrayBuffer>("patch", loaded.bytes, asset!.name, loaded.asset.layers.map(l => [l.key, meta.layers.find(m => m.id === l.metadata.layerId)!.metadata] as [number, PsdLayerMeta]))) : new TextEncoder().encode(JSON.stringify(meta, null, 2) + "\n");
       const name = embedded ? asset!.name.replace(/\.psd$/i, "") + "-configured.psd" : sidecarName(asset!.name);
       const saved = await saveOutput(name, embedded ? "psd" : "meta", bytes);
-      if (saved) { if (!embedded) setDirty(false); setMessage(isBrowserPreview ? `已发起下载：${name}，本地草稿已保留。` : `已保存：${name}`); } else setMessage("已取消保存。");
-    } catch (e) { setMessage(e instanceof Error ? e.message : String(e)); } finally { setBusy(false); }
+      if (saved) {
+        if (!embedded) { markBrowserConfigSaved(loaded.asset); setDirty(false); }
+        setMessage(isBrowserPreview ? `已发起下载：${name}` : `已保存：${name}`);
+      } else setMessage("已取消保存。");
+      return saved;
+    } catch (e) {
+      const error = e instanceof Error ? e.message : String(e); setMessage(error);
+      if (switching) setSwitchError(error);
+      return false;
+    } finally { setBusy(false); }
   };
   useEffect(() => {
     if (!active || mode !== "slice") return;
@@ -350,7 +368,9 @@ export function PsdWorkspace({ mode, active, binding, documentActions, settings,
       <input ref={input} type="file" accept=".psd" className="hidden" aria-label="打开切图 PSD" onChange={e => { void readFile(e.target.files?.[0]); e.target.value = ""; }} />
       {editingGrid !== null && original && selected?.key === editingGrid && rendered.ready ? <NineGridEditor layer={selected} onSave={saveGrid} onCancel={() => setEditingGrid(null)} /> : null}
       {editingRegion !== null && original && selected?.key === editingRegion && rendered.ready ? <RegionEditor layer={selected} onSave={saveRegion} onCancel={() => setEditingRegion(null)} /> : null}
-      {pendingFile ? createPortal(<ConfirmReplacement onAccept={() => { const file = pendingFile; setPendingFile(null); void readFile(file, true); }} onCancel={() => setPendingFile(null)} />, document.body) : null}
+      {pendingFile ? createPortal(<ConfirmReplacement busy={busy} error={switchError}
+        onSave={() => void readFile(pendingFile, "save")} onDiscard={() => void readFile(pendingFile, "discard")}
+        onCancel={() => setPendingFile(null)} />, document.body) : null}
     </>}
   </section>;
 }
