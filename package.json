@@ -27,6 +27,17 @@
   ],
   "main": "./dist/extension.js",
   "contributes": {
+    "configuration": {
+      "title": "GameFlow",
+      "properties": {
+        "gameflow.photoCraftCliPath": {
+          "type": "string",
+          "default": "",
+          "scope": "machine",
+          "description": "PhotoCraft CLI 可执行文件的绝对路径。留空时自动查找 Windows 的 PhotoCraft 安装目录及 PATH。用于复杂 PSD 图层和分组切图。"
+        }
+      }
+    },
     "commands": [
       {
         "command": "gameflow.openPsd",

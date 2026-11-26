@@ -1,3 +1,4 @@
+import { needsPhotoCraft, sliceSourceKeys } from "./psd-slice-source";
 import { defaultAtlasName, identityProblems, sliceRegion, validConfig, validGrid, type NineGrid, type PsdAsset, type PsdLayer } from "./psd-meta";
 import { psdSlotField } from "./psd-slot-markers";
 import { atlasNameError, normalizeAtlasName, psdNameInitials } from "./psd-naming";
@@ -108,7 +109,7 @@ export function psdSliceDirectory(asset: Pick<PsdAsset, "name" | "atlasName" | "
 }
 export const layerNameKey = (name: string) => name.trim().normalize("NFC");
 
-export function sliceExportIssues(asset: PsdAsset): ExportIssue[] {
+export function sliceExportIssues(asset: PsdAsset, nativeSlices = false): ExportIssue[] {
   const issues: ExportIssue[] = [], layers = asset.layers.filter(l => l.config.enabled);
   let directory = "unclassified";
   try { directory = psdExportDirectory(asset) ?? directory; } catch (error) { issues.push({ keys: layers.map(l => l.key), message: error instanceof Error ? error.message : String(error) }); }
@@ -116,7 +117,10 @@ export function sliceExportIssues(asset: PsdAsset): ExportIssue[] {
   for (const l of layers) {
     const name = effectiveExportName(asset, l), error = exportNameError(name);
     if (error) issues.push({ keys: [l.key], message: `${l.name}：${error}` });
-    if (!l.image || l.limitation) issues.push({ keys: [l.key], message: `${l.name}：当前图层无法独立导出。` });
+    if (needsPhotoCraft(l, nativeSlices)) {
+      if (!nativeSlices) issues.push({ keys: [l.key], message: `${l.name}：合成切图需要在 VS Code 中使用 PhotoCraft CLI。` });
+      try { sliceSourceKeys(asset, l); } catch (error) { issues.push({ keys: [l.key], message: String(error) }); }
+    } else if (!l.image) issues.push({ keys: [l.key], message: `${l.name}：当前图层无法独立导出。` });
     if (identities.includes(l.metadata.layerId)) issues.push({ keys: [l.key], message: `${l.name}：图层 ID 重复，请先分配新身份。` });
     if (!validConfig(l.config, l.width, l.height)) issues.push({ keys: [l.key], message: `${l.name}：切图区域或九宫格范围无效。` });
   }
@@ -129,7 +133,7 @@ export function sliceExportIssues(asset: PsdAsset): ExportIssue[] {
 }
 
 export function makeSliceExportBatch(asset: PsdAsset, products?: ReadonlyMap<number, { image: string; geometry: SliceProductGeometry }>): SliceExportBatch {
-  const issues = sliceExportIssues(asset); if (issues.length) throw new Error(issues.map(i => i.message).join("\n"));
+  const issues = sliceExportIssues(asset, !!products); if (issues.length) throw new Error(issues.map(i => i.message).join("\n"));
   const directory = psdExportDirectory(asset);
   const builtinPaths = new Set<string>();
   const uniqueLayers = asset.layers.filter(layer => {
@@ -153,6 +157,7 @@ export function makeSliceExportBatch(asset: PsdAsset, products?: ReadonlyMap<num
           shared: true, width: description.width, height: description.height, nineGrid: description.nineGrid, base64: image.split(",")[1] };
       }
       if (l.config.region && !product) throw new Error(`${l.name}：需先生成自定义区域的 PNG 切图。`);
+      if (needsPhotoCraft(l, !!products) && !product) throw new Error(`${l.name}：需先生成配置对应的 PNG 切图。`);
       const image = product?.image ?? l.image;
       if (!image?.startsWith("data:image/png;base64,")) throw new Error(`${l.name}：没有有效的 PNG 切图。`);
       const { width, height } = sliceRegion(l);

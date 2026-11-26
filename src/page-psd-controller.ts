@@ -30,6 +30,19 @@ export function rebasePagePsds(document: GameFlowDocument, from: vscode.Uri, to:
   return { ...document, pages: document.pages.map(page => page.artPsd ? { ...page, artPsd: { ...page.artPsd, source: relativeSource(to, vscode.Uri.joinPath(from, "..", page.artPsd.source)) } } : page) };
 }
 export class PagePsdController {
+  private reviewedSources = new WeakMap<WorkbenchDocument, Map<string, vscode.Uri>>();
+
+  private rememberRenderSource(doc: WorkbenchDocument, hash: string, uri: vscode.Uri) {
+    const sources = this.reviewedSources.get(doc) ?? new Map<string, vscode.Uri>();
+    sources.set(hash, uri);
+    this.reviewedSources.set(doc, sources);
+  }
+
+  async renderSource(doc: WorkbenchDocument, hash: string) {
+    for (const psd of doc.psds.values()) if (psd.model.asset.sourceHash === hash) return psd.bytes;
+    const uri = this.reviewedSources.get(doc)?.get(hash);
+    return uri && vscode.workspace.fs.readFile(uri);
+  }
   private pending = new Map<string, Promise<PsdDocument>>();
   private snapshots = new WeakMap<WorkbenchDocument, Map<string,{stamp:string;draft:ReturnType<typeof makePsdDraft>}>>();
   private overwriting = new Set<string>();
@@ -256,7 +269,8 @@ export class PagePsdController {
         const binding=page.artPsd!, snapshot=component ? await this.componentSnapshot(owner, binding)
           : await this.review(doc,vscode.Uri.joinPath(owner.uri,"..",binding.source),binding.documentId);
         currentPage();
-        return {...result,name:snapshot.name,source:binding.source,draft:snapshot.draft,base64:Buffer.from(snapshot.bytes).toString("base64")};
+        this.rememberRenderSource(doc, snapshot.draft.sourceHash, vscode.Uri.joinPath(owner.uri, "..", binding.source));
+        return {...result,sourceUri:vscode.Uri.joinPath(owner.uri, "..", binding.source).toString(),name:snapshot.name,source:binding.source,draft:snapshot.draft,base64:Buffer.from(snapshot.bytes).toString("base64")};
       }
       let uri: vscode.Uri | undefined;
       let source: string | undefined;
@@ -264,7 +278,10 @@ export class PagePsdController {
       if (request.action === "syncCopy") {
         const copy = await this.saveSyncCopy(doc, request, currentPage, access);
         if (!copy) return { ...result, cancelled: true };
-        if (copy.draft) return { ...result, source: copy.source, name: posix.basename(copy.uri.path), base64: request.base64, draft: copy.draft };
+        if (copy.draft) {
+          this.rememberRenderSource(doc, copy.draft.sourceHash, copy.uri);
+          return { ...result, sourceUri: copy.uri.toString(), source: copy.source, name: posix.basename(copy.uri.path), base64: request.base64, draft: copy.draft };
+        }
         ({ uri, source } = copy);
       } else if (boundFile) uri = vscode.Uri.joinPath(doc.uri, "..", page.artPsd!.source);
       else if (request.action === "choose") uri = (await vscode.window.showOpenDialog({ canSelectMany: false, filters: { Photoshop: ["psd"] }, openLabel: "绑定此页面的 PSD", defaultUri: vscode.Uri.joinPath(doc.uri, "..") }))?.[0];
@@ -347,7 +364,8 @@ export class PagePsdController {
         document: item.document, version: item.version, text: serializeGameFlowDocument(item.draft),
       })));
       created.clear();
-      return { ...result, source, name: uri.path.split("/").pop()!, base64: Buffer.from(psd.bytes).toString("base64"),
+      this.rememberRenderSource(doc, psd.model.asset.sourceHash, uri);
+      return { ...result, sourceUri: uri.toString(), source, name: uri.path.split("/").pop()!, base64: Buffer.from(psd.bytes).toString("base64"),
         draft: makePsdDraft(psd.model.asset), componentBindings };
     } catch (error) {
       let rollbackIssue = "";

@@ -9,9 +9,10 @@ import { rebasePagePsds, type PagePsdController } from "../src/page-psd-controll
 import { parseGameFlowDocument, serializeGameFlowDocument } from "../shared/model";
 export async function pagePsdChecks(api: { workbench: GameFlowEditorProvider; psd: PsdEditorProvider }, root: string, directory: string): Promise<string[]> {
   const checks: string[] = [], cancel = new vscode.CancellationTokenSource();
-  const source = readFileSync(join(root, "examples/star-sea-login/Star-Sea-Login-750x1334.psd"));
   const document = parseGameFlowDocument(readFileSync(join(root, "sample/star-sea-login.gameflow.json"), "utf8"));
-  document.pages[0].artPsd = { source: "page-art.psd", documentId: "47061573-175a-4735-986e-15e5faa87890" };
+  const binding = document.pages[0].artPsd!;
+  const source = readFileSync(join(root, "sample", binding.source));
+  document.pages[0].artPsd = { ...binding, source: "page-art.psd" };
   const file = join(directory, "page-binding.gameflow.json"), uri = vscode.Uri.file(file);
   writeFileSync(file, serializeGameFlowDocument(document)); writeFileSync(join(directory, "page-art.psd"), source);
   const controller = (api.workbench as unknown as { pagePsds: PagePsdController }).pagePsds;
@@ -21,7 +22,9 @@ export async function pagePsdChecks(api: { workbench: GameFlowEditorProvider; ps
   try {
     const boundText = doc.getText(), boundDisk = readFileSync(file, "utf8");
     const result = await load(); assert.equal(result.error, undefined); assert.equal(result.draft?.documentId, document.pages[0].artPsd.documentId);
-    assert.equal(doc.currentPsd, undefined); assert.equal(doc.dirty, false); assert.equal(doc.psds.size, 1);
+    assert.equal(doc.currentPsd, undefined); assert.equal(doc.dirty, false); assert.equal(doc.psds.size, 0);
+    assert.deepEqual(Buffer.from((await controller.renderSource(doc, result.draft!.sourceHash))!), source);
+    assert.equal(await controller.renderSource(doc, "0".repeat(64)), undefined);
     assert.equal(doc.getText(), boundText); assert.equal(readFileSync(file, "utf8"), boundDisk);
     checks.push("page art loads its saved file without opening, dirtying, rebinding or saving the prototype");
     const review=await controller.handle(doc,{type:"pagePsd",requestId:"sync-review",action:"review",pageId:document.pages[0].id,expected:document.pages[0].artPsd});
@@ -64,9 +67,10 @@ export async function pagePsdChecks(api: { workbench: GameFlowEditorProvider; ps
     doc.dispose(); doc = await open();
     const plainReload = await load(); assert.equal(plainReload.error, undefined); assert.equal(plainReload.draft?.documentId, document.pages[0].artPsd.documentId);
     checks.push("untagged PSD identity is saved in sidecar and reloads through its page binding");
-    const beforeSlice = doc.getText(), existing = doc.psds.get(plainUri.toString());
+    const beforeSlice = doc.getText();
     const slice = () => controller.handle(doc, { type: "pagePsd", requestId: "open-slice", pageId: document.pages[0].id, action: "slice", expected: document.pages[0].artPsd });
     assert.equal((await slice()).error, undefined);
+    const existing = doc.psds.get(plainUri.toString());
     assert.ok(existing); assert.equal(doc.currentPsd, existing);
     assert.equal((await slice()).error, undefined);
     assert.equal(doc.currentPsd, existing); assert.equal(doc.getText(), beforeSlice); assert.equal(doc.dirty, false);

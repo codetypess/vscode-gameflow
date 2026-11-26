@@ -10,9 +10,11 @@ import { loadCanvasSources, type CanvasSources } from "../shared/canvas-referenc
 import { planCanvasApply } from "../shared/canvas-instances";
 import type { PsdEditorRequest } from "../shared/psd-editor-protocol";
 import { browserSettings } from "./browser-directories";
+import { connectPhotoCraft } from "./psd/photocraft";
 
 export const isBrowserPreview = typeof acquireVsCodeApi !== "function";
 const api = isBrowserPreview ? createBrowserPreviewApi() : acquireVsCodeApi();
+if (!isBrowserPreview) connectPhotoCraft(postHostMessage);
 
 function createBrowserPreviewApi(): VsCodeApi {
   const sampleName = new URLSearchParams(location.search).get("sample");

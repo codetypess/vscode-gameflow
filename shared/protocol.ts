@@ -16,6 +16,7 @@ import { isPrefabExportBatch, validPrefabTarget, type ImageMetaTarget, type Pref
 import { validGrid } from "./psd-meta";
 
 export type WebviewToHostMessage =
+  | { type: "psdRenderSlice"; requestId: string; sourceHash: string; keys: number[] }
   | PagePsdRequest
   | { type:"prefabInspect";requestId:string;target:PrefabTarget;images?:ImageMetaTarget[] }
   | { type:"prefabCommit";requestId:string;batch:PrefabExportBatch;guard:PrefabWriteGuard;root:string;baseVersion:number;document:GameFlowDocument }
@@ -39,6 +40,7 @@ export type WebviewToHostMessage =
     };
 
 export type HostToWebviewMessage =
+  | { type: "psdRenderSliceResult"; requestId: string; image?: string; error?: string }
   | PagePsdResult
   | {type:"prefabInspectResult";requestId:string;snapshot?:PrefabSnapshot;error?:string}
   | { type: "pagePsdChanged"; documentId: string }
@@ -80,6 +82,10 @@ export function isWebviewToHostMessage(
   if (!isRecord(value) || typeof value.type !== "string") {
     return false;
   }
+  if (value.type === "psdRenderSlice") return typeof value.requestId === "string" && value.requestId.length > 0 && value.requestId.length <= 80 &&
+    typeof value.sourceHash === "string" && /^[a-f0-9]{64}$/.test(value.sourceHash) &&
+    Array.isArray(value.keys) && value.keys.length > 0 && value.keys.length <= 128 &&
+    value.keys.every(key => Number.isInteger(key) && key >= 0 && key < 256) && new Set(value.keys).size === value.keys.length;
   if (value.type === "pagePsd") return typeof value.requestId === "string" && value.requestId.length > 0 && value.requestId.length <= 80 && typeof value.pageId === "string" && value.pageId.length > 0 && value.pageId.length <= 128 && (value.expected === undefined || isPagePsdBinding(value.expected)) && (value.action === "choose" || (value.action === "load" || value.action === "slice" || value.action === "review") && isPagePsdBinding(value.expected) || (value.action === "generate" || value.action === "syncCopy" && isPagePsdBinding(value.expected) && typeof value.reviewStamp === "string" && /^[a-f0-9]{64}$/.test(value.reviewStamp) && typeof value.sourceHash === "string" && /^[a-f0-9]{64}$/.test(value.sourceHash)) && validPsdFilename(value.name) && validPsdBase64(value.base64)) && validComponentPsdFields(value);
   if (value.type === "workbenchSettings") return isWorkbenchSettingsRequest(value);
   if (value.type === "sliceResources") return typeof value.requestId === "string" && value.requestId.length > 0 && value.requestId.length <= 80 &&

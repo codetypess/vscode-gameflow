@@ -89,6 +89,7 @@ export async function requestPsd(request: Omit<PagePsdRequest, "type" | "request
   if (!result.base64 || !result.source || !result.name || !result.draft) throw new Error("PSD 返回数据不完整。");
   const decoded = decodePsd(result.base64);
   const asset = applyPsdDraft(await psdTask<PsdAsset>("read", decoded.slice().buffer, result.name), result.draft, true);
+  asset.sourceUri = result.sourceUri;
   syncBytes.set(asset,decoded);
   return { source: result.source, asset, componentBindings: result.componentBindings };
 }

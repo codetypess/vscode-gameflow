@@ -126,13 +126,20 @@ export function App() {
   const [syncSession,setSyncSession]=useState<SyncSession|null>(null);
   const [psdAssets, setPsdAssets] = useState<PsdAsset[]>([]);
   const observePsd = useCallback((asset: PsdAsset) => setPsdAssets(previous => {
-    const index = previous.findIndex(a => a.documentId === asset.documentId);
+    const sameSource = (a: PsdAsset) => a.documentId === asset.documentId && a.sourceUri === asset.sourceUri;
+    const index = previous.findIndex(sameSource);
     if (index >= 0 && sliceGenerationStamp(previous[index]) === sliceGenerationStamp(asset)) return previous;
-    return [...previous.filter(a => a.documentId !== asset.documentId), asset];
+    return [...previous.filter(a => !sameSource(a)), asset];
   }), []);
   const compositions = useMemo(() => new Map(canvasDocument?.pages.map(p => [p.id, composeCanvasPage(canvasDocument, p, sources)])), [canvasDocument, sources]);
   const updatePage = (id: string, transform: (page: GameFlowPage) => GameFlowPage) => edit(document => { try { return editCanvasPage(document, id, sources, transform); } catch (error) { setNotice(error instanceof Error ? error.message : String(error)); return document; } });
   const loadedPsds = usePagePsds(canvasDocument, read, edit, observePsd, setNotice, (document, page) => composeCanvasPage(document, page, sources), sources);
+  const editedPsd = psdEditor.binding?.loaded.asset;
+  const livePageAssets = useMemo(() => Object.fromEntries(Object.entries(loadedPsds.assets).map(([pageId, bound]) => {
+    const editingSnapshot = editedPsd && bound.sourceUri && editedPsd.sourceUri === bound.sourceUri &&
+      editedPsd.documentId === bound.documentId && editedPsd.sourceHash === bound.sourceHash;
+    return [pageId, editingSnapshot ? editedPsd : bound];
+  })), [loadedPsds.assets, editedPsd]);
   const listCells = useMemo(() => {
     const pages = new Map<string,GameFlowPage>();
     return {
@@ -141,7 +148,7 @@ export function App() {
         const key = cellKey(ref);
         if (!pages.has(key)) {
           const target = resolveCellPage(canvasDocument, sources, ref);
-          const asset = !ref.source && loadedPsds.assets[ref.pageId];
+          const asset = !ref.source && livePageAssets[ref.pageId];
           pages.set(key, asset ? bindPrototypePsd(target.page,target.document.documentId,asset) : target.page);
         }
         return pages.get(key)!;
@@ -153,11 +160,11 @@ export function App() {
         }
       }
     };
-  }, [canvasDocument, sources, editingId, loadedPsds.assets]);
+  }, [canvasDocument, sources, editingId, livePageAssets]);
   const { resourcePages, mappingErrors } = useMemo(() => {
     const mappingErrors: typeof loadedPsds.states = {};
     const resourcePages = Array.from(compositions.values(), ({ page }) => {
-      const asset = loadedPsds.assets[page.id];
+      const asset = livePageAssets[page.id];
       if (!asset || !canvasDocument) return page;
       try { return bindPrototypePsd(page, canvasDocument.documentId, asset); }
       catch (error) {
@@ -166,8 +173,8 @@ export function App() {
       }
     });
     return { resourcePages, mappingErrors };
-  }, [compositions, loadedPsds.assets, canvasDocument]);
-  const pagePsds = { ...loadedPsds, states: { ...loadedPsds.states, ...mappingErrors } };
+  }, [compositions, livePageAssets, canvasDocument]);
+  const pagePsds = { ...loadedPsds, assets: livePageAssets, states: { ...loadedPsds.states, ...mappingErrors } };
   const canonicalPage = canvasDocument?.pages.find((item) => item.id === (editingId ?? selectedPageId)) ?? null;
   const composition = canonicalPage ? compositions.get(canonicalPage.id) : undefined;
   const page = resourcePages.find(item => item.id === canonicalPage?.id) ?? null;

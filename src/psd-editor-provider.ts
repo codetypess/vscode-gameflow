@@ -11,6 +11,7 @@ import { PsdExportController } from "./psd-export-controller";
 import { configureGameFlowWebview } from "./webview-html";
 import { WorkbenchSettingsController } from "./workbench-settings-controller";
 import { atomicWrite } from "./psd-file-io";
+import { renderPhotoCraft } from "./photocraft-render";
 
 export const PSD_EDITOR_VIEW_TYPE = "gameflow.psdEditor";
 const message = (error: unknown) => error instanceof Error ? error.message : String(error);
@@ -147,11 +148,27 @@ export class PsdEditorProvider implements vscode.CustomEditorProvider<PsdDocumen
   async resolveCustomEditor(doc: PsdDocument, panel: vscode.WebviewPanel): Promise<void> {
     configureGameFlowWebview(panel.webview, this.context.extensionUri, `${nameOf(doc.uri)} · 切图配置`, "psd");
     const attachment = this.attach(doc, panel, () => this.open());
+    this.attachRenderer(panel, hash => hash === doc.model.asset.sourceHash ? doc.bytes : undefined);
     const settings = this.settings.attach(panel, doc.uri);
     panel.onDidDispose(() => { attachment.dispose(); settings.dispose(); });
   }
+  attachRenderer(panel: vscode.WebviewPanel, source: (hash: string) => Uint8Array | undefined | Promise<Uint8Array | undefined>) {
+    const listener = panel.webview.onDidReceiveMessage(async raw => {
+      if (raw?.type !== "psdRenderSlice" || !isWebviewToHostMessage(raw) || raw.type !== "psdRenderSlice") return;
+      try {
+        const bytes = await source(raw.sourceHash);
+        if (!bytes || bytesHash(bytes) !== raw.sourceHash) throw new Error("PSD 快照已变化，请重新打开切图。");
+        const executable = vscode.workspace.getConfiguration("gameflow").get<string>("photoCraftCliPath", "").trim();
+        const image = await renderPhotoCraft(bytes, raw.keys, executable);
+        await panel.webview.postMessage({ type: "psdRenderSliceResult", requestId: raw.requestId, image } satisfies HostToWebviewMessage);
+      } catch (error) {
+        await panel.webview.postMessage({ type: "psdRenderSliceResult", requestId: raw.requestId, error: message(error) } satisfies HostToWebviewMessage);
+      }
+    });
+    panel.onDidDispose(() => listener.dispose());
+  }
   async initialize(doc: PsdDocument, panel: vscode.WebviewPanel) {
-    await panel.webview.postMessage({ type: "psdEditorInit", name: nameOf(doc.uri), base64: Buffer.from(doc.bytes).toString("base64"), state: doc.state(), configPath: configUri(doc.uri).fsPath, notice: doc.notice } satisfies PsdEditorMessage);
+    await panel.webview.postMessage({ type: "psdEditorInit", sourceUri: doc.uri.toString(), name: nameOf(doc.uri), base64: Buffer.from(doc.bytes).toString("base64"), state: doc.state(), configPath: configUri(doc.uri).fsPath, notice: doc.notice } satisfies PsdEditorMessage);
     this.announce(doc);
   }
   announce(doc: PsdDocument) {

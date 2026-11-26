@@ -5,7 +5,7 @@ export type ComponentPsdCheck = ComponentPage & { binding: PagePsdBinding; hash:
 export type ComponentPsdOutput = ComponentPage & { name: string; base64: string };
 export type ComponentPsdBinding = ComponentPage & { binding: PagePsdBinding };
 export type PagePsdRequest = { type: "pagePsd"; requestId: string; pageId: string; action: "choose" | "load" | "slice" | "review" | "generate" | "syncCopy"; reviewStamp?: string; sourceHash?: string; expected?: PagePsdBinding; name?: string; base64?: string; component?: ComponentPage; componentChecks?: ComponentPsdCheck[]; componentOutputs?: ComponentPsdOutput[] };
-export type PagePsdResult = { type: "pagePsdResult"; requestId: string; source?: string; name?: string; base64?: string; draft?: PsdDraft; cancelled?: boolean; error?: string; componentBindings?: ComponentPsdBinding[] };
+export type PagePsdResult = { type: "pagePsdResult"; requestId: string; sourceUri?: string; source?: string; name?: string; base64?: string; draft?: PsdDraft; cancelled?: boolean; error?: string; componentBindings?: ComponentPsdBinding[] };
 
 const record = (value: unknown): value is Record<string, unknown> => !!value && typeof value === "object" && !Array.isArray(value);
 const id = (value: unknown) => typeof value === "string" && value.length > 0 && value.length <= 128;

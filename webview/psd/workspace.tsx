@@ -3,7 +3,7 @@ import { useEffect, useImperativeHandle, useRef, useState, type ReactNode, type 
 import { createPortal } from "react-dom";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { AlertTriangle, Box, Check, ChevronDown, ChevronRight, Crop, Download, Ellipsis, FileImage, FolderOpen, Grid3X3, ImageIcon, Layers3, MousePointerClick, Redo2, Save, Scissors, Share2, SquareDashed, Type, Undo2, X } from "lucide-react";
-import { identityProblems, makeSidecar, newLayerIdentity, selectedMergeTree, sidecarName, sliceRegion, validConfig, type PsdAsset, type PsdEmbeddedLayer, type PsdLayer, type PsdLayerMeta, type SliceConfig } from "../../shared/psd-meta";
+import { identityProblems, makeSidecar, newLayerIdentity, selectedMergeTree, sidecarName, sliceRegion, validConfig, type PsdAsset, type PsdEmbeddedLayer, type PsdLayer, type PsdLayerMeta, type SliceConfig, type SliceRegion, type NineGrid } from "../../shared/psd-meta";
 import { WorkbenchSettingsButton, type WorkbenchSettingsUI } from "../workbench-settings";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -13,6 +13,8 @@ import { AtlasNameInput } from "./atlas-name-input";
 import { isBrowserPreview, postHostMessage } from "../vscode-api";
 import { openPsd, psdTask, saveOutput } from "./io";
 import { NineGridEditor, NineGridPreview } from "./nine-grid-editor";
+import { useRenderedSlice } from "./use-rendered-slice";
+import { needsPhotoCraft, translateRegion } from "../../shared/psd-slice-source";
 import { RegionEditor } from "./region-editor";
 import { SliceImage } from "./slice-image";
 import { renderSliceExportBatch } from "./slice-render";
@@ -54,7 +56,7 @@ function EmbeddedLayerRow({ layer, depth }: { layer: PsdEmbeddedLayer; depth: nu
   </div>;
 }
 
-function Tree({ asset, selected, onSelect, checked, toggle, reveal = 0, issues = [] }: { asset: PsdAsset; selected: number | null; onSelect: (key: number) => void; checked?: (layer: PsdLayer) => boolean; toggle?: (layer: PsdLayer, value: boolean) => void; reveal?: number; issues?: ExportIssue[] }) {
+function Tree({ asset, selected, onSelect, checked, toggle, individual = false, reveal = 0, issues = [] }: { individual?: boolean; asset: PsdAsset; selected: number | null; onSelect: (key: number) => void; checked?: (layer: PsdLayer) => boolean; toggle?: (layer: PsdLayer, value: boolean) => void; reveal?: number; issues?: ExportIssue[] }) {
   const [collapsed, setCollapsed] = useState(new Set<number>());
   const container = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -74,7 +76,7 @@ function Tree({ asset, selected, onSelect, checked, toggle, reveal = 0, issues =
   }, [selected, collapsed, reveal]);
   const duplicates = identityProblems(asset);
   const render = (parent: number | null, depth: number): ReactNode => asset.layers.filter(l => l.parentKey === parent).map(l => {
-    const children = l.group ? getChildren(asset, l.key).filter(c => !c.group && !!c.image && !c.limitation && !duplicates.includes(c.metadata.layerId)) : [l];
+    const children = !individual && l.group ? getChildren(asset, l.key).filter(c => !c.group && !!c.image && !c.limitation && !duplicates.includes(c.metadata.layerId)) : [l];
     const count = checked ? children.filter(checked).length : 0;
     const mixed = count > 0 && count < children.length;
     const warning = duplicates.includes(l.metadata.layerId);
@@ -87,7 +89,7 @@ function Tree({ asset, selected, onSelect, checked, toggle, reveal = 0, issues =
     const expanded = expandable && !collapsed.has(l.key);
     return <div role="none" key={l.key}><div data-layer-key={l.key} className={cn("psd-tree-row", selected === l.key && "is-selected")} role="treeitem" aria-selected={selected === l.key} aria-expanded={expandable ? expanded : undefined} style={{ paddingLeft: 6 + depth * 10 }}>
       {expandable ? <button className="psd-tree-expander" aria-label={(expanded ? "折叠" : "展开") + l.name} onClick={() => setCollapsed(old => { const next = new Set(old); if (next.has(l.key)) next.delete(l.key); else next.add(l.key); return next; })}>{expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}</button> : <span className="psd-tree-spacer" />}
-      {toggle && checked ? <input type="checkbox" aria-label={`选择${l.name}（${l.nativeId ?? l.key}）`} checked={children.length > 0 && count === children.length} ref={el => { if (el) el.indeterminate = mixed; }} disabled={!children.length || warning || (!l.group && (!!l.limitation || !l.image))} onChange={e => toggle(l, e.target.checked)} /> : null}
+      {toggle && checked ? <input type="checkbox" aria-label={`选择${l.name}（${l.nativeId ?? l.key}）`} checked={children.length > 0 && count === children.length} ref={el => { if (el) el.indeterminate = mixed; }} disabled={!children.length || warning || (!l.group && (individual ? !l.image && !needsPhotoCraft(l, true) : !!l.limitation || !l.image))} onChange={e => toggle(l, e.target.checked)} /> : null}
       <button className="psd-tree-label" onClick={() => onSelect(l.key)} title={`${l.name} · ${l.metadata.layerId}${warning ? " · ID 重复" : ""}${conflictText ? `\n${conflictText}` : ""}`}><Icon size={13} aria-hidden="true" /><span>{l.name}</span>{!l.group && l.config.enabled && l.config.shared ? <span className="psd-shared-marker" role="img" aria-label={`${l.name}：共享导出`} title="共享导出"><Share2 size={12} aria-hidden="true" /></span> : null}{conflicts.length ? <span className="psd-conflict-marker" role="img" aria-label={`${l.name}：导出冲突`} title={conflictText}><AlertTriangle size={13} aria-hidden="true" /></span> : warning ? <AlertTriangle size={12} className="psd-warning" /> : l.config.nineGrid ? <Grid3X3 size={12} /> : null}</button>
     </div>{expanded && (l.group ? <div role="group">{render(l.key, depth + 1)}</div>
       : <div role="group" aria-label="智能对象内容（只读）">{contents.map(child => <EmbeddedLayerRow key={child.key} layer={child} depth={depth + 1} />)}</div>)}</div>;
@@ -141,7 +143,10 @@ export function PsdWorkspace({ mode, active, binding, documentActions, settings,
   const [past, setPast] = useState<PsdAsset[]>([]), [future, setFuture] = useState<PsdAsset[]>([]);
   const input = useRef<HTMLInputElement>(null);
   const loading = useRef(false);
-  const asset = loaded?.asset, selected = asset?.layers.find(l => l.key === selectedKey) ?? null;
+  const asset = loaded?.asset, original = asset?.layers.find(l => l.key === selectedKey) ?? null;
+  const rendered = useRenderedSlice(asset, original, active && mode === "slice");
+  const selected = rendered.layer;
+  const nativeSlices = !isBrowserPreview;
   useEffect(() => { if (asset) onAsset?.(asset); }, [asset, onAsset]);
   const selectCanvasLayer = (key: number | null) => {
     setSelectedKey(key);
@@ -165,6 +170,31 @@ export function PsdWorkspace({ mode, active, binding, documentActions, settings,
   const backupBrowser = (next: PsdAsset) => { try { saveBrowserDraft(next); } catch { setMessage("草稿备份失败，浏览器存储可能已满，请保存配置文件。"); } };
   const change = (next: PsdAsset) => { if (!loaded || busy) return; setDirectoryIssues([]); if (binding) { binding.change(next); return; } backupBrowser(next); setPast(p => [...p.slice(-39), loaded.asset]); setFuture([]); setLoaded({ ...loaded, asset: next }); setDirty(true); };
   const patchConfig = (key: number, patch: Partial<SliceConfig>) => { if (asset) change({ ...asset, layers: asset.layers.map(l => l.key === key ? { ...l, config: { ...l.config, ...patch } } : l) }); };
+  function saveSliceGeometry(region: SliceRegion | undefined, nineGrid: NineGrid | null, enable: boolean) {
+    if (!selected || !original) return false;
+    const config = { ...original.config, region, nineGrid };
+    if (!validConfig(config, selected.width, selected.height)) {
+      setMessage("导出区域容纳不下当前九宫格，请调整区域或切线。");
+      return false;
+    }
+    // A group can have smaller PSD bounds than its effects and additional sources.
+    // Record its rendered default bounds only when necessary to persist a valid grid.
+    const bounds = region ?? (!validConfig(config, original.width, original.height)
+      ? { x: 0, y: 0, width: selected.width, height: selected.height } : undefined);
+    const stored = bounds && translateRegion(bounds, selected, original);
+    if (!validConfig({ ...config, region: stored }, original.width, original.height)) {
+      setMessage("导出区域超出可保存的坐标范围，请调整图片位置。");
+      return false;
+    }
+    patchConfig(original.key, { region: stored, nineGrid, enabled: enable || original.config.enabled });
+    return true;
+  }
+  function saveRegion(region: SliceRegion | undefined) {
+    if (selected && saveSliceGeometry(region, selected.config.nineGrid, false)) setEditingRegion(null);
+  }
+  function saveGrid(grid: NineGrid) {
+    if (selected && saveSliceGeometry(selected.config.region, grid, true)) setEditingGrid(null);
+  }
   const undo = (redo = false) => { if (!loaded || busy) return; if (binding) { void binding.history(redo).catch(error => setMessage(String(error))); return; } const source = redo ? future : past, item = source.at(-1); if (!item) return; setDirectoryIssues([]); if (redo) { setFuture(source.slice(0, -1)); setPast([...past, loaded.asset]); } else { setPast(source.slice(0, -1)); setFuture([...future, loaded.asset]); } backupBrowser(item); setLoaded({ ...loaded, asset: item }); setDirty(true); };
   const openSource = () => { if (isBrowserPreview) input.current?.click(); else postHostMessage({ type: "openPsdEditor" }); };
   const readFile = async (file?: File | Loaded, discard = false) => {
@@ -209,7 +239,7 @@ export function PsdWorkspace({ mode, active, binding, documentActions, settings,
   useEffect(() => { if (!dirty || !isBrowserPreview) return; const unload = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ""; }; window.addEventListener("beforeunload", unload); return () => window.removeEventListener("beforeunload", unload); }, [dirty]);
   const drop = usePsdFileDrop({ disabled: !active || mode !== "slice" || busy || editingGrid !== null || editingRegion !== null || !!pendingFile || settings.open, onFile: file => { void readFile(file); }, onError: setMessage });
   const duplicates = asset ? identityProblems(asset) : [];
-  const exportIssues = asset ? sliceExportIssues(asset) : [];
+  const exportIssues = asset ? sliceExportIssues(asset, nativeSlices) : [];
   const allExportIssues = [...exportIssues, ...directoryIssues];
   const selectedExportName = asset && selected ? effectiveExportName(asset, selected) : "";
   const selectedBuiltin = selected && builtinSlice(selected);
@@ -255,7 +285,7 @@ export function PsdWorkspace({ mode, active, binding, documentActions, settings,
           <button type="button" className="psd-tree-label psd-document-row" aria-pressed={!selected && scopeKey === null} title={asset.name} onClick={() => navigateScope(null)}>
             <FileImage size={13} /><span>{asset.name}</span>
           </button>
-          <div className="psd-hint">勾选需要切图的图层{allExportIssues.length ? <span className="psd-warning" role="status"> · {allExportIssues.length} 项导出冲突</span> : null}</div><Tree asset={asset} selected={selectedKey} reveal={canvasSelection} issues={allExportIssues} onSelect={selectTreeLayer} checked={l => l.config.enabled} toggle={(layer, enabled) => { const keys = new Set(getChildren(asset, layer.key).filter(l => !l.group && l.image && !l.limitation && !duplicates.includes(l.metadata.layerId)).map(l => l.key)); change({ ...asset, layers: asset.layers.map(l => keys.has(l.key) ? { ...l, config: { ...l.config, enabled } } : l) }); }} /></>}
+          <div className="psd-hint">勾选需要切图的图层{allExportIssues.length ? <span className="psd-warning" role="status"> · {allExportIssues.length} 项导出冲突</span> : null}</div><Tree individual={nativeSlices} asset={asset} selected={selectedKey} reveal={canvasSelection} issues={allExportIssues} onSelect={selectTreeLayer} checked={l => l.config.enabled} toggle={(layer, enabled) => { if (nativeSlices) { patchConfig(layer.key, { enabled }); return; } const keys = new Set(getChildren(asset, layer.key).filter(l => !l.group && l.image && !l.limitation && !duplicates.includes(l.metadata.layerId)).map(l => l.key)); change({ ...asset, layers: asset.layers.map(l => keys.has(l.key) ? { ...l, config: { ...l.config, enabled } } : l) }); }} /></>}
         properties={<><div className="floating-heading"><Scissors size={14} /><strong>{selected ? "切图属性" : "文档配置"}</strong></div><ScrollArea className="psd-properties-scroll" label="切图属性内容"><div className="psd-properties-content">
           <section className="psd-property-section" aria-label="文档配置" hidden={!!selected}>
           <label className="psd-property"><span>图集名</span><AtlasNameInput key={asset.sourceHash + asset.documentId} name={asset.name} value={asset.atlasName} disabled={busy} onErrorChange={setAtlasInputError} onChange={atlasName => change({ ...asset, atlasName })} /></label>
@@ -264,7 +294,7 @@ export function PsdWorkspace({ mode, active, binding, documentActions, settings,
           {targetDirectoryError || atlasInputError ? <p className="psd-warning" role="alert">{atlasInputError ?? targetDirectoryError}</p> : null}
           </section>{selected ? <><section className="psd-property-section" aria-label="图层信息"><div className="psd-section-heading"><strong>{selected.name}</strong><small>{selected.group ? "分组" : `${selected.smartObject ? "智能对象 · " : ""}${selected.width} × ${selected.height}`}</small></div><label className="psd-property"><span>图层 ID</span><code>{selected.metadata.layerId}</code></label><label className="psd-property"><span>原生 ID</span><code>{selected.nativeId ?? "无"}</code></label>
           {duplicates.includes(selected.metadata.layerId) ? <div className="psd-warning-box"><AlertTriangle size={14} /><span>此 ID 有多个图层使用。选中副本后分配新身份。</span><Button size="sm" variant="secondary" onClick={() => change(newLayerIdentity(asset, selected.key))}>作为新节点</Button></div> : null}
-          {selected.image ? <div className="psd-layer-image checkerboard"><SliceImage layer={selected} /></div> : <p className="psd-hint">选择包含图片的子图层设置切图区域和九宫格。</p>}
+          {rendered.loading ? <p role="status">正在合成切图…</p> : rendered.error ? <p role="alert" className="psd-warning">{rendered.error} <Button size="sm" variant="secondary" onClick={rendered.retry}>重试</Button></p> : selected.image ? <div className="psd-layer-image checkerboard"><SliceImage layer={selected} /></div> : <p className="psd-hint">选择包含图片的子图层设置切图区域和九宫格。</p>}
           </section><Separator /><section className="psd-property-section" aria-label="导出设置"><div className="property-section-title">导出设置</div>
           <label className="psd-property"><span>变量名称</span><Input aria-label="变量名称"
             value={nameFixed ? effectiveVariableName(asset, selected) : layerVariableOverride(asset, selected)}
@@ -274,18 +304,30 @@ export function PsdWorkspace({ mode, active, binding, documentActions, settings,
             value={selectedExportName} title={selectedBuiltin ? builtinSliceDescription(selectedBuiltin).path : `${selectedExportName}.png`} aria-invalid={!!selectedNameError} readOnly /></label>
           {selectedBuiltin && <p className="psd-hint">复用内置图片 {builtinSliceDescription(selectedBuiltin).path}</p>}
           {selectedNameError ? <p className="psd-warning" role="alert">{selectedNameError}</p> : null}
-          {selected.limitation ? <p className="psd-warning">{selected.limitation}</p> : null}
+          {selected.limitation && !nativeSlices ? <p className="psd-warning">{selected.limitation}</p> : null}
           {allExportIssues.filter(issue => issue.keys.some(key => getChildren(asset, selected.key).some(l => l.key === key))).map((issue, i) => <p key={i} className="psd-warning" role="alert">{issue.message}</p>)}
-          <label className="psd-check"><input type="checkbox" checked={selected.config.enabled} disabled={selected.group || !selected.image || !!selected.limitation} onChange={e => patchConfig(selected.key, { enabled: e.target.checked })} />标记为切图</label>
+          <label className="psd-check"><input type="checkbox" checked={selected.config.enabled} disabled={!selected.config.enabled && !(needsPhotoCraft(selected, nativeSlices) ? nativeSlices : selected.image)} onChange={e => patchConfig(selected.key, { enabled: e.target.checked })} />标记为切图</label>
+          {nativeSlices && <details key={selected.key} className="psd-slice-sources"><summary>合成来源{selected.config.additionalLayerIds?.length ? `（另含 ${selected.config.additionalLayerIds.length} 层）` : ""}</summary>
+            <label className="psd-property"><span>加入图层</span><select aria-label="加入合成图层" value="" onChange={event => {
+              const id = event.target.value;
+              if (id) patchConfig(selected.key, { additionalLayerIds: [...selected.config.additionalLayerIds ?? [], id] });
+            }}><option value="">选择图层…</option>{asset.layers.filter(l => l.key !== selected.key && !duplicates.includes(l.metadata.layerId) &&
+              !selected.config.additionalLayerIds?.includes(l.metadata.layerId)).map(l => <option key={l.key} value={l.metadata.layerId}>{l.name}（{l.nativeId ?? l.key}）</option>)}</select></label>
+            {selected.config.additionalLayerIds?.map(id => <div className="psd-property" key={id}><span>{asset.layers.find(l => l.metadata.layerId === id)?.name ?? id}</span>
+              <Button size="sm" variant="ghost" onClick={() => {
+                const ids = selected.config.additionalLayerIds!.filter(value => value !== id);
+                patchConfig(selected.key, { additionalLayerIds: ids.length ? ids : undefined });
+              }}>移除</Button></div>)}
+          </details>}
           <label className="psd-check"><input type="checkbox" aria-label="共享资源" checked={selected.config.shared === true} onChange={e => patchConfig(selected.key, { shared: e.target.checked })} />共享资源</label>
           {selected.config.shared ? <p className="psd-hint">导出到 shared/，覆盖同名共享资源并更新来源 PSD。</p> : null}
           </section><Separator /><section className="psd-property-section" aria-label="九宫格"><div className="psd-section-heading property-section-title"><strong>九宫格</strong><Button size="sm" variant="ghost" disabled={!selected.config.nineGrid} onClick={() => patchConfig(selected.key, { nineGrid: null })}>清除</Button></div>
           {selected.config.nineGrid ? <div className="psd-grid-summary">上 {selected.config.nineGrid.top} · 右 {selected.config.nineGrid.right} · 下 {selected.config.nineGrid.bottom} · 左 {selected.config.nineGrid.left}<small>{selected.config.nineGrid.repeat ? "重复填充" : "拉伸填充"}</small></div> : <p className="psd-hint">尚未设置</p>}
-          <Button variant="secondary" disabled={!selected.image || selected.group || !!selected.limitation} onClick={() => setEditingGrid(selected.key)}><Grid3X3 size={14} />编辑九宫格</Button>
-          {selected.image && selected.config.nineGrid ? <NineGridPreview image={selected.image} width={selectedRegion!.width} height={selectedRegion!.height} grid={selected.config.nineGrid} region={selected.config.region} /> : null}
-          </section><Separator /><section className="psd-property-section" aria-label="导出区域"><div className="psd-section-heading property-section-title"><strong>导出区域</strong><Button size="sm" variant="ghost" aria-label="恢复原始导出区域" disabled={!selected.config.region} onClick={() => { if (validConfig({ ...selected.config, region: undefined }, selected.width, selected.height)) patchConfig(selected.key, { region: undefined }); else setMessage("原始尺寸容纳不下当前九宫格，请先调整或清除九宫格。"); }}>恢复原始</Button></div>
+          <Button variant="secondary" disabled={!rendered.ready} onClick={() => setEditingGrid(selected.key)}><Grid3X3 size={14} />编辑九宫格</Button>
+          {rendered.ready && selected.image && selected.config.nineGrid ? <NineGridPreview image={selected.image} width={selectedRegion!.width} height={selectedRegion!.height} grid={selected.config.nineGrid} region={selected.config.region} /> : null}
+          </section><Separator /><section className="psd-property-section" aria-label="导出区域"><div className="psd-section-heading property-section-title"><strong>导出区域</strong><Button size="sm" variant="ghost" aria-label="恢复原始导出区域" disabled={!selected.config.region || !rendered.ready} onClick={() => saveRegion(undefined)}>恢复原始</Button></div>
           <div className="psd-grid-summary">{selectedRegion!.width} × {selectedRegion!.height} px<small>{selected.config.region ? `图片位置 X ${-selectedRegion!.x} · Y ${-selectedRegion!.y}` : "使用图层原始范围"}</small></div>
-          <Button variant="secondary" disabled={!selected.image || selected.group || !!selected.limitation} onClick={() => setEditingRegion(selected.key)}><Crop size={14} />编辑区域</Button>
+          <Button variant="secondary" disabled={!rendered.ready} onClick={() => setEditingRegion(selected.key)}><Crop size={14} />编辑区域</Button>
           </section>
           {!binding ? <p className="psd-hint">导出 PNG 和来源清单，九宫格随清单保存。浏览器本地草稿可在重新选择同一 PSD 后恢复。</p> : null}
         </> : null}</div></ScrollArea></>}
@@ -293,8 +335,8 @@ export function PsdWorkspace({ mode, active, binding, documentActions, settings,
       {drop.dragging ? <DropHint label="松开以打开 PSD" /> : null}
       {message ? <div className="psd-status" role="status">{busy ? null : <Check size={13} />}{message}<button aria-label="关闭提示" onClick={() => setMessage("")}><X size={13} /></button></div> : null}
       <input ref={input} type="file" accept=".psd" className="hidden" aria-label="打开切图 PSD" onChange={e => { void readFile(e.target.files?.[0]); e.target.value = ""; }} />
-      {editingGrid !== null && asset?.layers.find(l => l.key === editingGrid) ? <NineGridEditor layer={asset.layers.find(l => l.key === editingGrid)!} onSave={nineGrid => { patchConfig(editingGrid, { nineGrid, enabled: true }); setEditingGrid(null); }} onCancel={() => setEditingGrid(null)} /> : null}
-      {editingRegion !== null && asset?.layers.find(l => l.key === editingRegion) ? <RegionEditor layer={asset.layers.find(l => l.key === editingRegion)!} onSave={region => { if (JSON.stringify(region) !== JSON.stringify(asset.layers.find(l => l.key === editingRegion)!.config.region)) patchConfig(editingRegion, { region }); setEditingRegion(null); }} onCancel={() => setEditingRegion(null)} /> : null}
+      {editingGrid !== null && original && selected?.key === editingGrid && rendered.ready ? <NineGridEditor layer={selected} onSave={saveGrid} onCancel={() => setEditingGrid(null)} /> : null}
+      {editingRegion !== null && original && selected?.key === editingRegion && rendered.ready ? <RegionEditor layer={selected} onSave={saveRegion} onCancel={() => setEditingRegion(null)} /> : null}
       {pendingFile ? createPortal(<ConfirmReplacement onAccept={() => { const file = pendingFile; setPendingFile(null); void readFile(file, true); }} onCancel={() => setPendingFile(null)} />, document.body) : null}
     </>}
   </section>;

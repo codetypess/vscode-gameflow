@@ -29,6 +29,12 @@ GameFlow 是一个面向游戏策划的 VS Code 扩展骨架，用同一份结�
 
 Agent 生成的 `*.gameflow.json` 可直接用 GameFlow 打开并继续编辑。[公会物资征集示例](.agents/skills/gameflow-prototype-design/references/guild-supplies.gameflow.json)包含可复用的列表项画板、互斥筛选、征集进度条和数量滑块。
 
+## PSD 预览和切图
+
+PSD 画布使用 ag-psd 读取文件保存的整页合成图。在 VS Code 的「PSD 切图」中勾选一个组，会将组内可见图层合成一张切图。需要组外内容时，在「切图属性 → 合成来源 → 加入图层」中选择。例如，`sample/6.psd` 的「组 1651」是按钮底图，「前往领取」可以单独加入。
+
+「编辑区域」可以裁剪或添加透明留白，「编辑九宫格」可以设置拉伸边界。将切图与当前原型页的图片槽位绑定后，切到「美术 PSD」即可查看应用这些设置的结果。复杂图层和组使用本机 PhotoCraft CLI。扩展会查找 Windows 默认安装位置及 PATH，也可在 VS Code 设置 `gameflow.photoCraftCliPath` 中填写可执行文件绝对路径。
+
 ## 开发
 
 环境要求：Node.js 20.19+，VS Code 1.105+。

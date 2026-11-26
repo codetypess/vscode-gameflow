@@ -3,6 +3,8 @@ import { effectiveExportName, exportLayerName, makeSliceExportBatch, MAX_EXPORT_
 import { builtinSlice, builtinSliceDescription } from "../../shared/psd-builtin";
 import { builtinImage } from "../../shared/builtin-image";
 import { compactNineGrid } from "../../shared/nine-grid";
+import { needsPhotoCraft, renderedSliceLayer } from "../../shared/psd-slice-source";
+import { hasPhotoCraftHost, photoCraftPixels } from "./photocraft";
 import type { SliceResourceDescription, SliceResourceState } from "../../shared/slice-resources";
 
 export type SliceProduct = SliceResourceState<HTMLCanvasElement>;
@@ -15,7 +17,7 @@ export function generateSliceProducts(asset: PsdAsset): Promise<Map<number, Slic
   const stamp = sliceGenerationStamp(asset), cached = products.get(asset.documentId);
   if (cached?.stamp === stamp) return cached.result;
   const result = (async () => {
-    const entries = new Map<number, SliceProduct>(), issues = sliceExportIssues(asset);
+    const entries = new Map<number, SliceProduct>(), issues = sliceExportIssues(asset, hasPhotoCraftHost());
     for (const layer of asset.layers.filter(l => l.config.enabled)) {
       const { width, height } = sliceRegion(layer);
       const description: SliceResourceDescription = { path: `${effectiveExportName(asset, layer)}.png`, width, height, nineGrid: layer.config.nineGrid,
@@ -34,15 +36,19 @@ export function generateSliceProducts(asset: PsdAsset): Promise<Map<number, Slic
           entries.set(layer.key, { status: "ready", description: builtinSliceDescription(builtin), pixels });
           continue;
         }
-        const source = await loadSliceImage(layer.image!);
-        if (source.naturalWidth !== layer.width || source.naturalHeight !== layer.height) throw new Error("图层像素尺寸与 PSD 描述不一致。");
-        const { pixels, geometry } = sliceImageProduct(source, sliceRegion(layer), layer.config.nineGrid);
+        const rendered = needsPhotoCraft(layer, hasPhotoCraftHost()) ? renderedSliceLayer(layer, await photoCraftPixels(asset, layer)) : layer;
+        const source = await loadSliceImage(rendered.image!);
+        if (source.naturalWidth !== rendered.width || source.naturalHeight !== rendered.height) throw new Error("图层像素尺寸与 PSD 描述不一致。");
+        const { pixels, geometry } = sliceImageProduct(source, sliceRegion(rendered), layer.config.nineGrid);
         entries.set(layer.key, { status: "ready", description: { ...description, ...geometry }, pixels });
       } catch (error) { entries.set(layer.key, { status: "error", description, error: error instanceof Error ? error.message : String(error) }); }
     }
     return entries;
   })();
   products.set(asset.documentId, { stamp, result });
+  void result.then(entries => {
+    if ([...entries.values()].some(entry => entry.status === "error") && products.get(asset.documentId)?.result === result) products.delete(asset.documentId);
+  });
   if (products.size > 32) products.delete(products.keys().next().value!);
   return result;
 }
@@ -77,7 +83,7 @@ export function sliceImageProduct(source: HTMLImageElement, region: SliceRegion,
 }
 
 export async function renderSliceExportBatch(asset: PsdAsset) {
-  const issues = sliceExportIssues(asset); if (issues.length) throw new Error(issues.map(i => i.message).join("\n"));
+  const issues = sliceExportIssues(asset, hasPhotoCraftHost()); if (issues.length) throw new Error(issues.map(i => i.message).join("\n"));
   const images = new Map<number, { image: string; geometry: SliceProductGeometry }>();
   let bytes = 0;
   const seen = new Set<string>();

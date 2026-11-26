@@ -34,6 +34,8 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 
 ## Active Work Items
 
+- [PSD 复杂切图与原型预览](psd-photocraft-slices.md) — 桌面端对组、效果与多图层使用 PhotoCraft 合成，原型美术预览与导出共用区域和九宫格。
+
 - [required-prefab-export-name.md](required-prefab-export-name.md) — 预制体导出前检查原型及引用模板的导出名称，提示所有缺少名称的原型。
 
 - [psd-prototype-import.md](psd-prototype-import.md) — 从已有 PSD 建立可编辑的原型画板。

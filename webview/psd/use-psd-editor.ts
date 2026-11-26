@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { PsdAsset } from "../../shared/psd-meta";
 import { applyPsdDraft, makePsdDraft } from "../../shared/psd-draft";
 import type { PsdEditorMessage } from "../../shared/psd-editor-protocol";
@@ -33,7 +33,7 @@ export function usePsdEditor(onOpen?: () => void) {
           const bytes = Uint8Array.from(atob(data.base64), c => c.charCodeAt(0)).buffer;
           const asset = await psdTask<PsdAsset>("read", bytes, data.name);
           if (!alive || current !== generation) return;
-          setSource({ asset, bytes }); setConfigPath(data.configPath);
+          setSource({ asset: { ...asset, sourceUri: data.sourceUri }, bytes }); setConfigPath(data.configPath);
         } catch (error) { if (alive && current === generation) setInitialError(error instanceof Error ? error.message : String(error)); }
       } else if (data && typeof data.type === "string" && data.type.startsWith("psdEditor")) session.current!.receive(data);
     };
@@ -41,8 +41,11 @@ export function usePsdEditor(onOpen?: () => void) {
     return () => { alive = false; window.removeEventListener("message", listener); session.current!.dispose(); };
   }, []);
   const controller = session.current;
-  const binding: PsdWorkspaceBinding | undefined = source && controller.state && controller.draft && source.asset.sourceHash === controller.draft.sourceHash ? {
-    loaded: { ...source, asset: applyPsdDraft(source.asset, controller.draft, true) },
+  const draft = controller.draft;
+  const loaded = useMemo(() => source && draft && source.asset.sourceHash === draft.sourceHash
+    ? { ...source, asset: applyPsdDraft(source.asset, draft, true) } : undefined, [source, draft]);
+  const binding: PsdWorkspaceBinding | undefined = loaded && controller.state ? {
+    loaded,
     dirty: controller.state.dirty || controller.pending || controller.unsent,
     pending: controller.pending, busy: controller.busy,
     status: controller.pending ? "正在同步修改…" : controller.state.dirty ? controller.state.backup === "saved" ? "草稿已备份 · 尚未保存配置" : controller.state.backup === "pending" ? "正在备份草稿…" : "配置尚未保存" : "配置已保存",

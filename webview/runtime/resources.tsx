@@ -48,7 +48,7 @@ export function useRuntimeResources(observedAssets: PsdAsset[], pages: GameFlowP
       setGenerated({ stamp, entries });
     });
     return () => { cancelled = true; };
-  }, [stamp]);
+  }, [stamp, revision]);
   const memory = generated.stamp === stamp ? generated.entries : pending;
   const [disk, setDisk] = useState<{ stamp: string; root?: string; entries: Map<string, RuntimeResource>; owners: Map<string, { exists: boolean; documentId?: string }> }>({ stamp: "", entries: new Map(), owners: new Map() });
   const paths = useMemo(() => {

@@ -13,7 +13,7 @@ export interface PsdEditorState {
 export type PsdEditorMessage = PsdEditorState
   | { type: "psdEditorReveal" }
   | { type: "psdEditorFlush"; requestId: string }
-  | { type: "psdEditorInit"; name: string; base64: string; state: PsdEditorState; configPath: string; notice?: string }
+  | { type: "psdEditorInit"; sourceUri?: string; name: string; base64: string; state: PsdEditorState; configPath: string; notice?: string }
   | { type: "psdEditorCommandResult"; requestId: string; error?: string };
 export function isPsdEditorRequest(value: unknown): value is PsdEditorRequest {
   if (!value || typeof value !== "object") return false;
