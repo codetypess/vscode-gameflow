@@ -65,9 +65,12 @@ export async function requestPsd(request: Omit<PagePsdRequest, "type" | "request
     }
     if (request.action === "choose") { const file = await chooseFile(); if (!file) return; const opened=await openPsd(file, "readPage"); asset=opened.asset; syncBytes.set(asset,new Uint8Array(opened.bytes)); source = file.name; }
     else { source = request.name!; asset = await psdTask<PsdAsset>("read", new Uint8Array(bytes!).buffer, source); if (!await saveOutput(source, "psd", bytes!)) return; syncBytes.set(asset,bytes!); }
+    // A browser file selection has no filesystem URI. Identify this selected snapshot across slice edits.
+    asset.sourceUri = "urn:uuid:" + crypto.randomUUID();
     browserAssets.set(request.pageId + ":" + pagePsdKey({ source, documentId: asset.documentId }), asset);
     for (const companion of companions) {
       if (!await saveOutput(companion.name, "psd", companion.bytes)) return;
+      companion.asset.sourceUri = "urn:uuid:" + crypto.randomUUID();
       syncBytes.set(companion.asset, companion.bytes);
       browserAssets.set(companion.pageId + ":" + pagePsdKey({ source: companion.name, documentId: companion.asset.documentId }), companion.asset);
     }

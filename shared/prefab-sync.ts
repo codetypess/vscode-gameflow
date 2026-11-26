@@ -4,11 +4,11 @@ import { allocateElementId, reserveDocumentElementIds } from "./element-id";
 import { inheritedFlag, makeNode } from "./editor-ops";
 import { COMPONENTS, COMPONENT_TYPES, pageRootType } from "./ui-components";
 import { applyPrototypeTree, compareTrees, coordinatedBase, frameFields, plannedTrees, prototypeTree, syncSubtree, type Decision, type SyncNode } from "./page-sync";
-import { type PrefabExportBatch, type PrefabMetadataReview, referencedCellUuids, resourceUrl } from "./prefab-export";
+import { nodeSlots, type PrefabExportBatch, type PrefabMetadataReview, referencedCellUuids, resourceUrl } from "./prefab-export";
 import { applyNodeProperty, applyNodeRecordProperty, applyPageProperty, applyRootRecordProperty, prefabPropertyNames, prototypeNodeProperties, prototypePageProperties, recordNodeProperties, recordPageProperties, sameSyncProperty } from "./prefab-sync-properties";
 import { variableNameError } from "./node-variable";
 import { isSliceResourcePath } from "./slice-resources";
-import { builtinPath } from "./builtin-image";
+import { builtinPath, BUILTIN_SOURCE } from "./builtin-image";
 import { excludedPrefabNodeIds, prefabExportPage } from "./prefab-node-export";
 
 type RecordNode = Record<string,unknown>;
@@ -52,7 +52,10 @@ function baseSignature(base:PrefabBase | undefined) {
   });
 }
 
-export function inspectPrefab(document:GameFlowDocument,page:GameFlowPage,target:string,root:RecordNode,metadata?:PrefabMetadataReview, cellReferences: ReadonlyMap<string,CanvasReference> = new Map(), mode:PrefabSyncMode="review") {
+type PrefabImages = {batch: PrefabExportBatch; skins?: Record<string,string>};
+export const prefabImageChangeKey = (id:string, field:string) => id+"/image/"+(field==="image" ? "skin" : field);
+
+export function inspectPrefab(document:GameFlowDocument,page:GameFlowPage,target:string,root:RecordNode,metadata?:PrefabMetadataReview, cellReferences: ReadonlyMap<string,CanvasReference> = new Map(), mode:PrefabSyncMode="review", images?:PrefabImages) {
   if (root._$id!==page.id || root._$type!==pageRootType(page)) throw new Error("目标文件的页面身份或根类型不匹配，请检查导出名称和目标文件。");
   const componentRoot=page.componentRootId ? page.nodes.find(node=>node.id===page.componentRootId && node.type==="container" && !node.parentId && !node.prefab) : undefined;
   const legacyComponentRecord=componentRoot ? children(root).find(child=>child._$id===componentRoot.id) : undefined;
@@ -137,6 +140,34 @@ export function inspectPrefab(document:GameFlowDocument,page:GameFlowPage,target
   }
   const base = savedBase && { ...savedBase, nodes: savedBase.nodes.filter(node => !excluded.has(node.id) && !excludedNativeIds.has(node.layer ?? node.id)) };
   const comparison=compareTrees(proto,tree,base,true,mode!=="review");
+  if (mode === "review" && images) {
+    const generated = new Map<string,RecordNode>();
+    walk(images.batch.prefab, node => generated.set(String(node._$id), node));
+    const byUrl = new Map(images.batch.images.map(image => [resourceUrl(image.path), image]));
+    for (const control of exportPage.nodes) {
+      const source = originals.get(control.id), output = generated.get(control.id);
+      if (!source || !output || source._$prefab || output._$prefab) continue;
+      for (const [slot] of nodeSlots(control)) {
+        const field = slot === "image" ? "skin" : slot;
+        const planned = output[field], current = source[field] ?? "";
+        if (typeof planned !== "string" || typeof current !== "string" || current === planned) continue;
+        const image = byUrl.get(planned);
+        const path = image?.path ?? planned;
+        const meta = metadata?.images[path];
+        if ((meta && current === "res://"+meta.uuid) || current === path ||
+            (path === builtinPath("image/default") && metadata?.legacyDefaultSkins?.includes(current))) continue;
+        const currentPath = images.skins?.[current] ?? (isSliceResourcePath(current) ? current : "");
+        const external = !!current && !currentPath;
+        const boundArt = control[slot]?.art || (image && image.description.source.documentId !== BUILTIN_SOURCE.documentId);
+        if (external && !boundArt) continue;
+        // A newly imported Laya control can omit its image. GameFlow supplies a prototype-only default.
+        if (source[field] === undefined && !boundArt &&
+            (slot === "normalSkin" && path === builtinPath("button/gray") || slot === "image" && path === builtinPath("image/default"))) continue;
+        comparison.changes.push({id:control.id, key:prefabImageChangeKey(control.id,field), field:"property", property:field,
+          kind:"edit", members:[control.id], suggested:external ? "skip" : undefined, prefabImage:{current:currentPath || current, planned:path}});
+      }
+    }
+  }
   const referenceKey=(ref:CanvasReference)=>JSON.stringify([resolveCanvasSource("",ref.source),ref.documentId,ref.pageId]);
   const plannedReferences=new Set([...cellReferences.values()].map(referenceKey));
   for(const node of exportPage.nodes) {
@@ -277,6 +308,7 @@ export function mergePrefab(review:PrefabReview,decisions:Record<string,Decision
   }
   const logicalId=new Map([...originals].map(([id,source])=>[source,id]));
   const current=new Map(c.psd.map(n=>[n.id,n]));
+  const appliedImages = new Set(c.changes.filter(change => change.prefabImage && decisions[change.key] === "proto").map(change => change.key));
   const acceptedReplacements=new Set(c.changes.filter(change=>change.replacement && decisions[change.key]===change.replacement).map(change=>change.id));
   const externalId=(id:string)=>{const external=rawIds.get(id);if(!external)throw new Error("请同时同步控件引用的节点："+id);return external;};
   function build(n:SyncNode):RecordNode {
@@ -307,6 +339,11 @@ export function mergePrefab(review:PrefabReview,decisions:Record<string,Decision
         if(typeof planned!=="string") continue;
         const path=imageByUrl.get(planned);
         const meta=path && review.metadata?.images[path];
+        if (appliedImages.has(prefabImageChangeKey(n.id,key))) {
+          node[key]=meta ? "res://"+meta.uuid : planned;
+          if (path) neededUrls.add(planned);
+          continue;
+        }
         if(mode==="push" || mode==="art") {
           if(mode==="art" && !planned) continue;
           const desired=meta ? "res://"+meta.uuid : planned;
@@ -427,5 +464,5 @@ export function mergePrefab(review:PrefabReview,decisions:Record<string,Decision
   });
   const output={...batch,prefab,images,...(cells ? {cells} : {})};
   const baseChanged=baseSignature(prefabSync)!==baseSignature(page.prefabSync);
-  return {page:{...proto,prefabSync},trees,batch:output,added:[...added],baseChanged,changed:JSON.stringify(prefab)!==JSON.stringify(review.root)};
+  return {page:{...proto,prefabSync},trees,batch:output,added:[...added],appliedImages,baseChanged,changed:JSON.stringify(prefab)!==JSON.stringify(review.root)};
 }

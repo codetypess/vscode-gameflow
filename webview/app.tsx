@@ -142,10 +142,11 @@ export function App() {
   const loadedPsds = usePagePsds(canvasDocument, read, edit, observePsd, setNotice, (document, page) => composeCanvasPage(document, page, sources), sources);
   const editedPsd = psdEditor.binding?.loaded.asset;
   const livePageAssets = useMemo(() => Object.fromEntries(Object.entries(loadedPsds.assets).map(([pageId, bound]) => {
-    const editingSnapshot = editedPsd && bound.sourceUri && editedPsd.sourceUri === bound.sourceUri &&
-      editedPsd.documentId === bound.documentId && editedPsd.sourceHash === bound.sourceHash;
-    return [pageId, editingSnapshot ? editedPsd : bound];
-  })), [loadedPsds.assets, editedPsd]);
+    const draft = isBrowserPreview ? psdAssets.find(asset => asset.sourceUri === bound.sourceUri) : editedPsd;
+    const sameFile = draft && bound.sourceUri && draft.sourceUri === bound.sourceUri &&
+      draft.documentId === bound.documentId && draft.sourceHash === bound.sourceHash;
+    return [pageId, sameFile ? draft : bound];
+  })), [loadedPsds.assets, editedPsd, psdAssets]);
   const listCells = useMemo(() => {
     const pages = new Map<string,GameFlowPage>();
     return {
@@ -871,6 +872,10 @@ export function App() {
           </PopoverContent></Popover>
           <div className="direct-tools">{TOOLS.filter((item) => item.key).map(({ type, icon: Icon, key }) => <IconTool key={type} label={`${NODE_LABELS[type]} (${key})`} disabled={!editingId} onClick={() => addFromToolbar(type)}><Icon size={19} /></IconTool>)}</div>
           <Separator orientation="vertical" /><CanvasExportActions sources={sources} document={canvasDocument} page={page} sourcePage={composition?.page}
+            bindImages={(doc,target)=>{
+              const asset = doc === canvasDocument ? livePageAssets[target.id] : undefined;
+              return asset && asset.documentId === target.artPsd?.documentId ? bindPrototypePsd(target,doc.documentId,asset) : target;
+            }}
             prepare={(expected,source,updated)=>{
               const current=read(), canonical=current?.pages.find(p=>p.id===source.id);
               if(!current || JSON.stringify(current)!==JSON.stringify(expected) || !canonical || JSON.stringify(composeCanvasPage(current,canonical,sources).page)!==JSON.stringify(source)) throw new Error("原型已变化，请重新比较。");

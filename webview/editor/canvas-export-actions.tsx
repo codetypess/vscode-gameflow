@@ -9,7 +9,7 @@ import {planListPrefabExport} from "../../shared/list-prefab-export";
 import {prefabExportNameIssue} from "../../shared/prefab-export-name";
 import {composeCanvasPage} from "../../shared/canvas-instances";
 import {nodeSlots,prefabFileName,type PrefabExportBatch,type PrefabPlan,type PrefabTarget} from "../../shared/prefab-export";
-import {initialPrefabBase,inspectPrefab,prefabTarget,type PrefabReview,type PrefabSyncMode} from "../../shared/prefab-sync";
+import {initialPrefabBase,inspectPrefab,prefabImageChangeKey,prefabTarget,type PrefabReview,type PrefabSyncMode} from "../../shared/prefab-sync";
 import {PrefabSyncDialog,prefabSyncLabels,type PrefabMerge} from "./prefab-sync-dialog";
 import type {Resources} from "../runtime/resource-context";
 import {browserHash,exportImageResolver,inspectPrefabTarget,commitPrefab} from "../runtime/prefab-export";
@@ -21,6 +21,7 @@ import {Tooltip,TooltipContent,TooltipTrigger} from "../components/ui/tooltip";
 interface ExportProps {
   sources:CanvasSources;document:GameFlowDocument;page:GameFlowPage|null;sourcePage?:GameFlowPage;resources:Resources;settings:WorkbenchSettingsUI;disabled:boolean;psdDisabled:boolean;mappingError:boolean;
   prepare:(expected:GameFlowDocument,source:GameFlowPage,next:GameFlowPage)=>GameFlowDocument;
+  bindImages:(document:GameFlowDocument,page:GameFlowPage)=>GameFlowPage;
   applyBrowser:(expected:GameFlowDocument,next:GameFlowDocument)=>void;
   onNotice:(message:string)=>void;
   onPsdSync:()=>void;
@@ -67,7 +68,7 @@ function useSyncPin(action:"psd"|"prefab") {
   }
   return {pinned,setPin};
 }
-export function CanvasExportActions({document,sources,page,sourcePage,resources,settings,onNotice,disabled,psdDisabled,mappingError,prepare,applyBrowser,onPsdSync,onPushPsd,onPullPsd,importPsdItem,psdItems,renderPageMenu}:ExportProps){
+export function CanvasExportActions({document,sources,page,sourcePage,resources,settings,onNotice,disabled,psdDisabled,mappingError,prepare,bindImages,applyBrowser,onPsdSync,onPushPsd,onPullPsd,importPsdItem,psdItems,renderPageMenu}:ExportProps){
   const [busy,setBusy]=useState(false),[session,setSession]=useState<ReviewSession|null>(null);
   const [missing,setMissing]=useState<{plan:PrefabPlan;finish:()=>Promise<void>}|null>(null);
   const [targetChoice,setTargetChoice]=useState<PrefabSyncMode|null>(null);
@@ -93,7 +94,8 @@ export function CanvasExportActions({document,sources,page,sourcePage,resources,
       const canonical=document.pages.find(item=>item.id===sourcePage.id) ?? sourcePage;
       const exportPage=art?.page ?? (mode==="push"?prototypeExportPage(canonical):canonical);
       const cellPlan=await planListPrefabExport(document,exportPage,sources,
-        item=>art && item===art.page?art.resolve:exportImageResolver(resources.forPage?.(item)??resources),file=>inspectPrefabTarget(file,[]),chosen,mode==="pull"?"pull":"export");
+        item=>art && item===art.page?art.resolve:exportImageResolver(resources.forPage?.(item)??resources),file=>inspectPrefabTarget(file,[]),chosen,mode==="pull"?"pull":"export",
+        mode==="review" ? bindImages : undefined);
       const {plan}=cellPlan;
       const images=await Promise.all(plan.batch.images.map(async({path,description,base64})=>({
         path,nineGrid:description.nineGrid,sha256:art?await browserHash(Uint8Array.from(atob(base64),c=>c.charCodeAt(0))):undefined
@@ -104,7 +106,7 @@ export function CanvasExportActions({document,sources,page,sourcePage,resources,
       const operation={mode,doc:document,source:sourcePage,snapshot,art};
       if(snapshot.prefab) {
         await cellPlan.locateDiskBindings(snapshot.prefab);
-        const comparison=inspectPrefab(document,art?.page??canonical,path,snapshot.prefab,snapshot.metadata,cellPlan.refs,mode);
+        const comparison=inspectPrefab(document,art?.page??canonical,path,snapshot.prefab,snapshot.metadata,cellPlan.refs,mode,{batch:plan.batch,skins:snapshot.skins});
         setSession({...operation,cells:cellPlan.previews,plan,comparison});
       } else {
         if(mode==="pull") throw new Error("找不到来源预制体："+path);
@@ -136,7 +138,8 @@ export function CanvasExportActions({document,sources,page,sourcePage,resources,
       if(key === "_$id" && typeof value === "string") templateNodes.add(value);
       return value;
     });
-    const missing=session.plan.missing.filter(i=>session.mode==="art" || session.mode==="push" || merge.added.includes(i.nodeId) || templateNodes.has(i.nodeId));
+    const missing=session.plan.missing.filter(i=>session.mode==="art" || session.mode==="push" || merge.added.includes(i.nodeId) ||
+      merge.appliedImages.has(prefabImageChangeKey(i.nodeId,i.slot)) || templateNodes.has(i.nodeId));
     if(missing.length)setMissing({plan:{...session.plan,missing},finish:commit});else await commit();
   }
   const unavailable=disabled || busy;

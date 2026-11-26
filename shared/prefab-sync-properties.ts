@@ -16,6 +16,7 @@ const NODE_LAYOUT_KEYS = [
 ] as (keyof NodeLayout)[];
 
 export const prefabPropertyNames: Record<string,string> = {
+  skin:"图片",normalSkin:"普通图片",selectedSkin:"选中图片",disabledSkin:"禁用图片",
   "page.width":"页面宽度","page.height":"页面高度","page.exportName":"导出名称",
   cellPrefab:"渲染项","layout.scrollType":"滚动方向",
   variableName:"变量",hidden:"隐藏",

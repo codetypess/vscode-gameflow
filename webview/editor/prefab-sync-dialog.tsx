@@ -127,7 +127,9 @@ export function PrefabSyncDialog({review,cells,plan,mode,asset,skins,resourceRoo
         </PrefabSyncChange>)}
         {extra===null && selected.length>0 && m && <details className="prefab-result" key={"result-"+id}><summary>同步后属性预览</summary>
           <table><thead><tr><th>属性</th><th>{asset?"PSD":"原型"}</th><th>预制体</th></tr></thead>
-            <tbody>{selected.map(ch=><tr key={ch.key}><th scope="row">{changeTitle(ch)}</th><td>{changeValue(m.trees.proto,ch)}</td><td>{changeValue(m.trees.psd,ch)}</td></tr>)}</tbody>
+            <tbody>{selected.map(ch=><tr key={ch.key}><th scope="row">{changeTitle(ch)}</th>
+              <td>{ch.prefabImage ? ch.prefabImage.planned || "无图片" : changeValue(m.trees.proto,ch)}</td>
+              <td>{ch.prefabImage ? (m.appliedImages.has(ch.key) ? ch.prefabImage.planned : ch.prefabImage.current) || "无图片" : changeValue(m.trees.psd,ch)}</td></tr>)}</tbody>
           </table></details>}
         {nativeProps && <details key={id}><summary>预制体节点属性与挂载组件</summary><pre>{JSON.stringify(nativeProps,null,2)}</pre>{extraChildren.map((n,i)=><p key={i}>仅预制体　{n.name??n._$type??"子节点"}</p>)}</details>}
         {details && m && <fieldset><legend>本轮应用明细</legend>{c.changes.map(ch=><p key={ch.key}>{union.get(ch.id)?.name} · {changeTitle(ch)}　{describeDecision(review,ch,choices[ch.key])}</p>)}

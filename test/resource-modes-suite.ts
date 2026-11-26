@@ -7,7 +7,7 @@ import { BUILTIN_IMAGES, builtinImage, builtinPath, imageSlotRequest, nodeImageS
 import { addBackgroundImage, makeComponent, makeNode, duplicateNode, removeNode } from "../shared/editor-ops";
 import { createDefaultGameFlowDocument, parseGameFlowDocument, serializeGameFlowDocument, validateGameFlowDocument, type GameFlowPage } from "../shared/model";
 import { resolvePageLayout } from "../shared/ui-layout";
-import { planPrefabExport, isPrefabExportBatch, exportPrefabToDirectories, resourceUrl, resourceUuid, prefabFileName } from "../shared/prefab-export";
+import { planPrefabExport, isPrefabExportBatch, exportPrefabToDirectories, resourceUrl, resourceUuid, prefabFileName, nodeSlots } from "../shared/prefab-export";
 import type { ResourceDirectory } from "../shared/psd-export-directory";
 import { readExportedSlice } from "../shared/slice-resources";
 import { bindPrototypePsd } from "../shared/psd-prototype";
@@ -573,6 +573,60 @@ test("Prefab export keeps existing importer UUID and maps only image properties"
   const native=JSON.parse(new TextDecoder().decode(prefabs.files.get(plan.batch.name)));assert.equal(native._$child[0].normalSkin,"res://"+existing);assert.equal(native.description,resourceUrl(image.path));
   const meta=JSON.parse(new TextDecoder().decode(resources.files.get(image.path+".meta")));assert.equal(meta.importer.filterMode,1);assert.deepEqual(meta.importer.sizeGrid,[14,14,14,14,0]);
 });
+test("prefab review applies resliced images to existing controls and each button state", async () => {
+  const button = makeNode("button", "button", 0, 0);
+  button.disabledSkin = {builtin:"button/red"};
+  const screen = addBackgroundImage(page([button, makeNode("container","panel",0,0), makeNode("image","icon",0,0),
+    ...(["slider","progress","checkbox","radio","radioGroup"] as const).flatMap(type => makeComponent(type, type, 0, 0, id))]), "panel", id);
+  const document = doc(screen), resources = memoryDirectory(), prefabs = memoryDirectory();
+  const first = (await planPrefabExport(document, screen, missing)).batch;
+  await exportPrefabToDirectories(resources.io, prefabs.io, first, codec);
+  const sourceImage = first.images[0], newPath = "unclassified/recut.png";
+  const image = {...sourceImage, path:newPath, description:{...sourceImage.description, path:newPath,
+    source:{documentId:"art-source",psdName:"art.psd",sourceHash:"1".repeat(64)},layerId:"recut",shared:false}};
+  const uuid = "12345678-1234-4567-890a-123456789abc";
+  resources.files.set(newPath+".meta", Buffer.from(JSON.stringify({uuid})));
+  const next = {...screen, prefabSync:initialPrefabBase(document, screen, first.name), nodes:screen.nodes.map(node => {
+    const copy = {...node};
+    for (const [field] of nodeSlots(node)) copy[field] = field === "disabledSkin" ? null : {art:{path:newPath}};
+    return copy;
+  })};
+  const planned = (await planPrefabExport(document, next, async () => ({status:"ready", image}))).batch;
+  const inspect = async () => {
+    const disk = await readPrefabSnapshot(prefabs.io, planned, hash, resources.io, [image.description]);
+    return {disk, review:inspectPrefab(document, next, planned.name, disk.prefab!, disk.metadata, undefined, "review", {batch:planned, skins:disk.skins})};
+  };
+  const {review,disk} = await inspect();
+  const changes = review.comparison.changes.filter(change => change.prefabImage);
+  assert.equal(changes.length, next.nodes.flatMap(nodeSlots).length);
+  const enginePrefab = structuredClone(disk.prefab!);
+  const engineButton = (enginePrefab._$child as Record<string,unknown>[])[0];
+  engineButton.normalSkin = "res://engine-only";
+  const external = inspectPrefab(document, next, planned.name, enginePrefab, disk.metadata, undefined, "review", {batch:planned,skins:disk.skins});
+  const change = external.comparison.changes.find(item => item.property === "normalSkin")!;
+  assert.equal(change.suggested,"skip");
+  assert.equal((mergePrefab(external,{[change.key]:"skip"},planned).batch.prefab._$child as Record<string,unknown>[])[0].normalSkin,engineButton.normalSkin);
+  const decisions = Object.fromEntries(changes.map(change => [change.key,"proto" as const]));
+  const partial = mergePrefab(review, {...decisions, [changes.find(c=>c.property==="selectedSkin")!.key]:"skip"}, planned);
+  const partialButton = (partial.batch.prefab._$child as Record<string,unknown>[])[0];
+  assert.equal(partialButton.normalSkin, "res://"+uuid);
+  assert.equal(partialButton.selectedSkin, "");
+  const merged = mergePrefab(review, decisions, planned);
+  assert.deepEqual(merged.page.nodes, next.nodes);
+  assert.equal(merged.batch.images.length, 1);
+  await exportPrefabToDirectories(resources.io,prefabs.io,merged.batch,codec,{hash:disk.hash,writePrefab:merged.changed,added:merged.added});
+  const saved = JSON.parse(new TextDecoder().decode(prefabs.files.get(planned.name)));
+  function verify(node:Record<string,any>) {
+    if (node._$type === "UIImage") assert.equal(node.skin,"res://"+uuid);
+    if (node._$type === "UIButton") assert.deepEqual([node.normalSkin,node.selectedSkin,node.disabledSkin],["res://"+uuid,"res://"+uuid,""]);
+    const control = next.nodes.find(item => item.id === node._$id);
+    if (control?.widget?.skinNodeId) assert.deepEqual(node.skin,{_$ref:control.widget.skinNodeId});
+    node._$child?.forEach(verify);
+  }
+  verify(saved);
+  assert.deepEqual((await inspect()).review.comparison.changes.filter(change => change.prefabImage), []);
+});
+
 test("metadata-only prefab merge updates existing grids, keeps importer UUIDs and reaches zero differences",async()=>{
   const button=makeNode("button","button01",0,0);
   button.selectedSkin=button.normalSkin;

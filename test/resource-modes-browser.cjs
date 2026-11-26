@@ -177,8 +177,51 @@ const sharedUrl = file => "/@fs/" + path.resolve(__dirname, "../shared", file).s
     const brokenName = `broken_${ownerStem}_normal`;
     const painted = page.locator(`.page-editing canvas[data-resource-path="${normalPath}"]`);
     await painted.waitFor();
-    // Each resource export scenario creates a fresh target. Existing .lh files
-    // enter the separately exercised two-way review workflow.
+    const renameButtonSlices = async variable => {
+      await page.getByRole("button",{name:"更多",exact:true}).click();
+      await page.getByRole("menuitem",{name:"PSD 切图",exact:true}).click();
+      await page.locator(".psd-layer-tree").getByRole("button",{name:owner,exact:true}).click();
+      const input = page.getByRole("textbox",{name:"变量名称",exact:true});
+      await input.fill(variable);
+      await input.press("Enter");
+      await page.getByRole("button",{name:"导出",exact:true}).click();
+      const file = "login_" + (variable || ownerStem) + "_normal.png";
+      await page.waitForFunction(file=>window.testRoots[0].entries.get("unclassified")?.entries.has(file),file);
+      await page.getByRole("button",{name:"工作台模式：PSD 切图",exact:true}).click();
+      await page.locator(".workspace-mode-menu").getByRole("menuitem",{name:"原型",exact:true}).click();
+    };
+    await renameButtonSlices("recut");
+    await openPrefab();
+    const review = page.getByRole("dialog",{name:"预制体同步",exact:true});
+    await review.getByRole("button",{name:owner,exact:true}).click();
+    for (const [label,state] of [["普通图片","normal"],["选中图片","selected"]]) {
+      const change = review.getByRole("group",{name:label+" 图片引用不同"});
+      assert.match(await change.innerText(),new RegExp("login_recut_"+state+"\\.png"));
+      await change.getByRole("radio",{name:"更新预制体图片"}).check();
+    }
+    await review.getByRole("button",{name:"预演应用"}).click();
+    await review.getByRole("button",{name:"确认应用"}).click();
+    await review.waitFor({state:"hidden"});
+    await page.evaluate(()=>{
+      const [resources,prefabs]=window.testRoots;
+      const json=file=>JSON.parse(new TextDecoder().decode(file.bytes));
+      const uuid=state=>json(resources.entries.get("unclassified").entries.get("login_recut_"+state+".png.meta")).uuid;
+      const root=json(prefabs.entries.get("Inventory.lh"));
+      const nodes=[root];
+      while(nodes.length) {
+        const node=nodes.pop();
+        if(node.normalSkin==="res://"+uuid("normal") && node.selectedSkin==="res://"+uuid("selected")) return;
+        nodes.push(...node._$child??[]);
+      }
+      throw Error("按钮未写入本轮两张切图的 UUID");
+    });
+    await openPrefab();
+    const diskImage = review.locator('figure').nth(1).locator('canvas[data-resource-path="unclassified/login_recut_normal.png"]');
+    await diskImage.waitFor();
+    assert.deepEqual(await diskImage.evaluate(c=>Array.from(c.getContext("2d").getImageData(0,0,1,1).data)),[10,30,200,255]);
+    await review.getByRole("button",{name:"关闭同步窗"}).click();
+    console.log("PASS existing prefab review writes both renamed PSD state UUIDs");
+    await renameButtonSlices("");
     const chooseFreshOutput = async name => {
       await page.getByRole("button",{name:"工作台设置",exact:true}).click();
       await page.locator("#workbench-export-directory").fill(name);
@@ -228,7 +271,16 @@ const sharedUrl = file => "/@fs/" + path.resolve(__dirname, "../shared", file).s
     await page.screenshot({path:path.join(output,"canvas-preview.png")});
     await page.getByRole("button", {name:"工作台模式：原型",exact:true}).click();
     await page.getByRole("menuitem", {name:"PSD 切图",exact:true}).click();
-    await page.getByLabel("打开切图 PSD", {exact:true}).setInputFiles(path.join(__dirname,"../examples/star-sea-login/Star-Sea-Login-750x1334.psd"));
+    const sampleName = "Star-Sea-Login-750x1334.psd";
+    const archive = await require("yauzl").openPromise(path.join(__dirname, "../examples/Star-Sea-Login-750x1334.zip"));
+    let sampleBytes;
+    for await (const entry of archive.eachEntry()) if (entry.fileName === "star-sea-login/" + sampleName) {
+      sampleBytes = await require("node:stream/consumers").buffer(await archive.openReadStreamPromise(entry));
+    }
+    assert.ok(sampleBytes);
+    await page.getByLabel("打开切图 PSD", {exact:true}).setInputFiles({name:sampleName, mimeType:"image/vnd.adobe.photoshop", buffer:sampleBytes});
+    await page.getByRole("dialog",{name:"当前配置尚未保存"}).getByRole("button",{name:"不保存并打开"}).click();
+    await page.getByRole("tree", {name:sampleName + " 图层树", exact:true}).waitFor();
     const slicing = page.getByRole("region", {name:"PSD 切图工作区"});
     const layerTree = slicing.locator(".psd-layer-tree");
     const documentRow = slicing.locator(".psd-document-row");

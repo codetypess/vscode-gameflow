@@ -235,7 +235,7 @@ export function PsdWorkspace({ mode, active, binding, documentActions, settings,
     catch (e) { const error = e instanceof Error ? e.message : String(e); setMessage(error); if (choice) setSwitchError(error); } finally { loading.current = false; setBusy(false); }
   };
   useImperativeHandle(openBoundRef, () => source => {
-    if (asset?.documentId === source.asset.documentId && asset.sourceHash === source.asset.sourceHash && asset.name === source.asset.name) {
+    if (asset?.documentId === source.asset.documentId && asset.sourceUri === source.asset.sourceUri && asset.sourceHash === source.asset.sourceHash && asset.name === source.asset.name) {
       onReveal?.();
       return;
     }

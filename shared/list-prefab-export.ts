@@ -20,7 +20,8 @@ function targetOf(document: GameFlowDocument, page: GameFlowPage): PrefabTarget 
 
 /** Plan missing UIBox files alongside the page. Existing templates are read for preview and identity. */
 export async function planListPrefabExport(document: GameFlowDocument, page: GameFlowPage, sources: CanvasSources,
-  resolve: (page: GameFlowPage) => ExportImageResolver, inspect: Inspect, target: PrefabTarget, mode: "export" | "pull" = "export") {
+  resolve: (page: GameFlowPage) => ExportImageResolver, inspect: Inspect, target: PrefabTarget, mode: "export" | "pull" = "export",
+  bindImages: (doc:GameFlowDocument, page:GameFlowPage) => GameFlowPage = (_doc, page) => page) {
   const refs = new Map<string,CanvasReference>(), uuids = new Map<string,string>();
   const files: CellPrefabFile[] = [], previews = new Map<string,GameFlowPage>();
   const creating = new Set<string>(), owners = new Map([[prefabTarget(target).toLowerCase(), page.id]]);
@@ -72,7 +73,8 @@ export async function planListPrefabExport(document: GameFlowDocument, page: Gam
       if (node.prefab) await dependency(node.prefab,false,source.source);
     }
     const resolvers = uuidResolvers(source.source);
-    const plan = await planPrefabExport(source.document,canonical,resolve(source.page),resolvers.cell,resolvers.prefab);
+    const exportPage = bindImages(source.document, canonical);
+    const plan = await planPrefabExport(source.document,exportPage,resolve(exportPage),resolvers.cell,resolvers.prefab);
     cell.prefab = plan.batch.prefab;
     for (const image of plan.batch.images) images.set(image.path,image);
     missing.push(...plan.missing);
@@ -91,7 +93,8 @@ export async function planListPrefabExport(document: GameFlowDocument, page: Gam
     if (node.prefab) await dependency(node.prefab,false);
   }
   const resolvers = uuidResolvers("");
-  const plan = await planPrefabExport(document,page,resolve(page),resolvers.cell,resolvers.prefab);
+  const exportPage = bindImages(document, page);
+  const plan = await planPrefabExport(document,exportPage,resolve(exportPage),resolvers.cell,resolvers.prefab);
   for (const image of plan.batch.images) images.set(image.path,image);
   plan.batch.images = [...images.values()]; plan.missing.push(...missing);
   if (files.length) plan.batch.cells = files;

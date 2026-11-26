@@ -20,7 +20,7 @@ export type Decision = Side | "skip";
 export const frameFields = ["x","y","width","height"] as const;
 export type Field = "exist" | "text" | "name" | "parent" | "order" | "property" | keyof Frame;
 export type PsdVisualUpdate = "psd-list-cells" | "psd-default-image";
-export interface Change { key: string; id: string; field: Field; property?: string; kind: "add" | "delete" | "edit"; suggested?: Decision; replacement?: Side; representation?: "prefab-reference" | "component-root" | "psd-smart-object" | "psd-component-layers" | "psd-component-source" | PsdVisualUpdate; members: string[]; addedLayers?: string[]; componentSource?: { name: string; conflict: boolean; firstLink: boolean } }
+export interface Change { key: string; id: string; field: Field; property?: string; kind: "add" | "delete" | "edit"; suggested?: Decision; replacement?: Side; representation?: "prefab-reference" | "component-root" | "psd-smart-object" | "psd-component-layers" | "psd-component-source" | PsdVisualUpdate; members: string[]; addedLayers?: string[]; componentSource?: { name: string; conflict: boolean; firstLink: boolean }; prefabImage?: { current: string; planned: string } }
 export interface Comparison { proto: SyncNode[]; psd: SyncNode[]; base?: SyncBase; changes: Change[] }
 export const fieldNames: Record<Field,string> = { exist:"控件结构", name:"节点名称", text:"文字内容", parent:"父节点", order:"同级顺序", property:"属性", x:"横坐标", y:"纵坐标", width:"宽度", height:"高度" };
 
@@ -215,7 +215,7 @@ export function plannedTrees(c:Comparison, decisions:Record<string,Decision>, fi
   const trees={proto:c.proto.map(clone),psd:c.psd.map(clone)};
   for (const change of c.changes) {
     const side=decisions[change.key];
-    if (!side || side==="skip" || change.replacement && side!==change.replacement ||
+    if (!side || side==="skip" || change.prefabImage || change.replacement && side!==change.replacement ||
       change.representation?.startsWith("psd-")) continue;
     const source=c[side], target=trees[side==="proto"?"psd":"proto"];
     for (const id of change.members) {
