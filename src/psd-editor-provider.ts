@@ -158,7 +158,7 @@ export class PsdEditorProvider implements vscode.CustomEditorProvider<PsdDocumen
       const visibility = raw.type === "psdRenderVisibility";
       const type = visibility ? "psdRenderVisibilityResult" : "psdRenderSliceResult";
       try {
-        const bytes = await source(raw.sourceHash);
+        const bytes = raw.base64 ? Buffer.from(raw.base64, "base64") : await source(raw.sourceHash);
         if (!bytes || bytesHash(bytes) !== raw.sourceHash) throw new Error("PSD 快照已变化，请重新打开切图。");
         const executable = vscode.workspace.getConfiguration("gameflow").get<string>("photoCraftCliPath", "").trim();
         const image = await renderPhotoCraft(bytes, raw.keys, executable, visibility ? "visibility" : "slice");

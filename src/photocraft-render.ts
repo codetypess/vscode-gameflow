@@ -33,23 +33,21 @@ function transparentArtboard(copy: Buffer, start: number, end: number) {
 }
 
 /** Isolate on a disposable snapshot. Keep layer planes, masks, styles, order and original coordinates. */
-export function isolateSlice(bytes: Uint8Array, keys: number[]) {
+function isolateSlice(bytes: Uint8Array, key: number) {
   const doc = parsePsdBinary(bytes);
   const byKey = new Map(doc.layers.map(layer => [layer.key, layer]));
-  const roots = new Set(keys), ancestors = new Set<number>();
-  for (const key of roots) {
-    const layer = byKey.get(key);
-    if (!layer) throw new Error("切图引用的源图层已变化。");
-    let parent = layer.parentKey;
-    while (parent !== null) {
-      ancestors.add(parent);
-      parent = byKey.get(parent)!.parentKey;
-    }
+  const root = byKey.get(key);
+  if (!root) throw new Error("切图引用的源图层已变化。");
+  const ancestors = new Set<number>();
+  let parent = root.parentKey;
+  while (parent !== null) {
+    ancestors.add(parent);
+    parent = byKey.get(parent)!.parentKey;
   }
   const included = new Set<number>(), copy = Buffer.from(bytes);
   const inserts: { position: number; field: Buffer }[] = [];
   for (const layer of doc.layers) {
-    const explicit = roots.has(layer.key), ancestor = ancestors.has(layer.key);
+    const explicit = layer.key === key, ancestor = ancestors.has(layer.key);
     const child = layer.parentKey !== null && included.has(layer.parentKey) && !layer.hidden;
     if (explicit || child) included.add(layer.key);
     const flags = layer.extraLengthAt - 2;
@@ -104,7 +102,7 @@ function defaultExecutable() {
 }
 export async function renderPhotoCraft(bytes: Uint8Array, keys: number[], executable: string, mode: "slice" | "visibility" = "slice"): Promise<string> {
   if (executable && !isAbsolute(executable)) throw new Error("gameflow.photoCraftCliPath 须为可执行文件的绝对路径。");
-  const snapshot = mode === "visibility" ? togglePreviewLayers(bytes, keys) : isolateSlice(bytes, keys);
+  const snapshot = mode === "visibility" ? togglePreviewLayers(bytes, keys) : isolateSlice(bytes, keys[0]);
   const dir = await mkdtemp(join(tmpdir(), "gameflow-slice-"));
   try {
     await writeFile(join(dir, "source.psd"), snapshot);

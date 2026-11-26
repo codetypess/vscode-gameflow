@@ -1,17 +1,7 @@
-import type { PsdAsset, PsdLayer, SliceRegion } from "./psd-meta";
+import type { PsdLayer, SliceRegion } from "./psd-meta";
 
 export function needsPhotoCraft(layer: PsdLayer, nativeGroups: boolean) {
-  return !!(layer.limitation || layer.config.additionalLayerIds?.length || (layer.group && (nativeGroups || !layer.image)));
-}
-
-export function sliceSourceKeys(asset: PsdAsset, primary: PsdLayer): number[] {
-  const keys = new Set([primary.key]);
-  for (const id of primary.config.additionalLayerIds ?? []) {
-    const matches = asset.layers.filter(layer => layer.metadata.layerId === id);
-    if (matches.length !== 1) throw new Error(`合成图层 ${id} 已丢失或身份重复，请重新选择。`);
-    keys.add(matches[0].key);
-  }
-  return [...keys].sort((a, b) => a - b);
+  return !!(layer.limitation || (layer.group && (nativeGroups || !layer.image)));
 }
 
 export type SlicePixels = Pick<PsdLayer, "left" | "top" | "width" | "height"> & { image: string };

@@ -43,7 +43,12 @@ const layerIdentity = (layer: PsdLayer) => layer.metadata.documentId + ":" + lay
 
 const embeddedIcons = { group: Layers3, image: ImageIcon, text: Type, smartObject: Box };
 
-function EmbeddedLayerRow({ layer, depth }: { layer: PsdEmbeddedLayer; depth: number }) {
+// The PSD reader supplies siblings front to back. The prototype lists them in paint order.
+function treeOrder<T>(layers: T[], bottomFirst: boolean) {
+  return bottomFirst ? [...layers].reverse() : layers;
+}
+
+function EmbeddedLayerRow({ layer, depth, bottomFirst }: { layer: PsdEmbeddedLayer; depth: number; bottomFirst: boolean }) {
   const [collapsed, setCollapsed] = useState(false);
   const expandable = layer.children.length > 0;
   const Icon = embeddedIcons[layer.kind];
@@ -53,11 +58,11 @@ function EmbeddedLayerRow({ layer, depth }: { layer: PsdEmbeddedLayer; depth: nu
         onClick={() => setCollapsed(value => !value)}>{collapsed ? <ChevronRight size={13} /> : <ChevronDown size={13} />}</button> : <span className="psd-tree-spacer" />}
       <div className="psd-tree-label" title={layer.name}><Icon size={13} aria-hidden="true" /><span>{layer.name}</span></div>
     </div>
-    {expandable && !collapsed && <div role="group">{layer.children.map(child => <EmbeddedLayerRow key={child.key} layer={child} depth={depth + 1} />)}</div>}
+    {expandable && !collapsed && <div role="group">{treeOrder(layer.children, bottomFirst).map(child => <EmbeddedLayerRow key={child.key} layer={child} depth={depth + 1} bottomFirst={bottomFirst} />)}</div>}
   </div>;
 }
 
-function Tree({ asset, selected, onSelect, checked, toggle, toggleVisibility, individual = false, reveal = 0, issues = [] }: { toggleVisibility?: (key: number) => void; individual?: boolean; asset: PsdAsset; selected: number | null; onSelect: (key: number) => void; checked?: (layer: PsdLayer) => boolean; toggle?: (layer: PsdLayer, value: boolean) => void; reveal?: number; issues?: ExportIssue[] }) {
+function Tree({ asset, selected, onSelect, checked, toggle, toggleVisibility, individual = false, bottomFirst = false, reveal = 0, issues = [] }: { toggleVisibility?: (key: number) => void; individual?: boolean; bottomFirst?: boolean; asset: PsdAsset; selected: number | null; onSelect: (key: number) => void; checked?: (layer: PsdLayer) => boolean; toggle?: (layer: PsdLayer, value: boolean) => void; reveal?: number; issues?: ExportIssue[] }) {
   const [collapsed, setCollapsed] = useState(new Set<number>());
   const container = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -76,7 +81,8 @@ function Tree({ asset, selected, onSelect, checked, toggle, toggleVisibility, in
     else if (item.bottom > bounds.bottom) tree.scrollTop += item.bottom - bounds.bottom;
   }, [selected, collapsed, reveal]);
   const duplicates = identityProblems(asset);
-  const render = (parent: number | null, depth: number, parentHidden = false): ReactNode => asset.layers.filter(l => l.parentKey === parent).map(l => {
+  const orderedLayers = treeOrder(asset.layers, bottomFirst);
+  const render = (parent: number | null, depth: number, parentHidden = false): ReactNode => orderedLayers.filter(l => l.parentKey === parent).map(l => {
     const children = !individual && l.group ? getChildren(asset, l.key).filter(c => !c.group && !!c.image && !c.limitation && !duplicates.includes(c.metadata.layerId)) : [l];
     const count = checked ? children.filter(checked).length : 0;
     const mixed = count > 0 && count < children.length;
@@ -98,7 +104,7 @@ function Tree({ asset, selected, onSelect, checked, toggle, toggleVisibility, in
         {l.hidden ? <EyeOff size={14} /> : <Eye size={14} />}
       </button>}
     </div>{expanded && (l.group ? <div role="group">{render(l.key, depth + 1, l.hidden)}</div>
-      : <div role="group" aria-label="智能对象内容（只读）">{contents.map(child => <EmbeddedLayerRow key={child.key} layer={child} depth={depth + 1} />)}</div>)}</div>;
+      : <div role="group" aria-label="智能对象内容（只读）">{treeOrder(contents, bottomFirst).map(child => <EmbeddedLayerRow key={child.key} layer={child} depth={depth + 1} bottomFirst={bottomFirst} />)}</div>)}</div>;
   });
   return <ScrollArea className="psd-layer-scroll" label={`${asset.name} 图层内容`} viewportRef={container}><div className="psd-layer-tree" role="tree" aria-label={`${asset.name} 图层树`}>{render(null, 0)}</div></ScrollArea>;
 }
@@ -304,7 +310,7 @@ export function PsdWorkspace({ mode, active, binding, documentActions, settings,
           <button type="button" className="psd-tree-label psd-document-row" aria-pressed={!selected && scopeKey === null} title={asset.name} onClick={() => navigateScope(null)}>
             <FileImage size={13} /><span>{asset.name}</span>
           </button>
-          <div className="psd-hint">勾选需要切图的图层{allExportIssues.length ? <span className="psd-warning" role="status"> · {allExportIssues.length} 项导出冲突</span> : null}</div><Tree individual={nativeSlices} asset={preview} toggleVisibility={toggleVisibility} selected={selectedKey} reveal={canvasSelection} issues={allExportIssues} onSelect={selectTreeLayer} checked={l => l.config.enabled} toggle={(layer, enabled) => { if (nativeSlices) { patchConfig(layer.key, { enabled }); return; } const keys = new Set(getChildren(asset, layer.key).filter(l => !l.group && l.image && !l.limitation && !duplicates.includes(l.metadata.layerId)).map(l => l.key)); change({ ...asset, layers: asset.layers.map(l => keys.has(l.key) ? { ...l, config: { ...l.config, enabled } } : l) }); }} /></>}
+          <div className="psd-hint">勾选需要切图的图层{allExportIssues.length ? <span className="psd-warning" role="status"> · {allExportIssues.length} 项导出冲突</span> : null}</div><Tree bottomFirst individual={nativeSlices} asset={preview} toggleVisibility={toggleVisibility} selected={selectedKey} reveal={canvasSelection} issues={allExportIssues} onSelect={selectTreeLayer} checked={l => l.config.enabled} toggle={(layer, enabled) => { if (nativeSlices) { patchConfig(layer.key, { enabled }); return; } const keys = new Set(getChildren(asset, layer.key).filter(l => !l.group && l.image && !l.limitation && !duplicates.includes(l.metadata.layerId)).map(l => l.key)); change({ ...asset, layers: asset.layers.map(l => keys.has(l.key) ? { ...l, config: { ...l.config, enabled } } : l) }); }} /></>}
         properties={<><div className="floating-heading"><Scissors size={14} /><strong>{selected ? "切图属性" : "文档配置"}</strong></div><ScrollArea className="psd-properties-scroll" label="切图属性内容"><div className="psd-properties-content">
           <section className="psd-property-section" aria-label="文档配置" hidden={!!selected}>
           <label className="psd-property"><span>图集名</span><AtlasNameInput key={asset.sourceHash + asset.documentId} name={asset.name} value={asset.atlasName} disabled={busy} onErrorChange={setAtlasInputError} onChange={atlasName => change({ ...asset, atlasName })} /></label>
@@ -326,18 +332,6 @@ export function PsdWorkspace({ mode, active, binding, documentActions, settings,
           {selected.limitation && !nativeSlices ? <p className="psd-warning">{selected.limitation}</p> : null}
           {allExportIssues.filter(issue => issue.keys.some(key => getChildren(asset, selected.key).some(l => l.key === key))).map((issue, i) => <p key={i} className="psd-warning" role="alert">{issue.message}</p>)}
           <label className="psd-check"><input type="checkbox" checked={selected.config.enabled} disabled={!selected.config.enabled && !(needsPhotoCraft(selected, nativeSlices) ? nativeSlices : selected.image)} onChange={e => patchConfig(selected.key, { enabled: e.target.checked })} />标记为切图</label>
-          {nativeSlices && <details key={selected.key} className="psd-slice-sources"><summary>合成来源{selected.config.additionalLayerIds?.length ? `（另含 ${selected.config.additionalLayerIds.length} 层）` : ""}</summary>
-            <label className="psd-property"><span>加入图层</span><select aria-label="加入合成图层" value="" onChange={event => {
-              const id = event.target.value;
-              if (id) patchConfig(selected.key, { additionalLayerIds: [...selected.config.additionalLayerIds ?? [], id] });
-            }}><option value="">选择图层…</option>{asset.layers.filter(l => l.key !== selected.key && !duplicates.includes(l.metadata.layerId) &&
-              !selected.config.additionalLayerIds?.includes(l.metadata.layerId)).map(l => <option key={l.key} value={l.metadata.layerId}>{l.name}（{l.nativeId ?? l.key}）</option>)}</select></label>
-            {selected.config.additionalLayerIds?.map(id => <div className="psd-property" key={id}><span>{asset.layers.find(l => l.metadata.layerId === id)?.name ?? id}</span>
-              <Button size="sm" variant="ghost" onClick={() => {
-                const ids = selected.config.additionalLayerIds!.filter(value => value !== id);
-                patchConfig(selected.key, { additionalLayerIds: ids.length ? ids : undefined });
-              }}>移除</Button></div>)}
-          </details>}
           <label className="psd-check"><input type="checkbox" aria-label="共享资源" checked={selected.config.shared === true} onChange={e => patchConfig(selected.key, { shared: e.target.checked })} />共享资源</label>
           {selected.config.shared ? <p className="psd-hint">导出到 shared/，覆盖同名共享资源并更新来源 PSD。</p> : null}
           </section><Separator /><section className="psd-property-section" aria-label="九宫格"><div className="psd-section-heading property-section-title"><strong>九宫格</strong><Button size="sm" variant="ghost" disabled={!selected.config.nineGrid} onClick={() => patchConfig(selected.key, { nineGrid: null })}>清除</Button></div>

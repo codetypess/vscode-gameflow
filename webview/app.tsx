@@ -45,6 +45,7 @@ import { cn } from "./lib/utils";
 import { PsdWorkspace, type OpenBoundSlice, type WorkspaceMode } from "./psd/workspace";
 import { usePsdEditor } from "./psd/use-psd-editor";
 import { importedNodes } from "./psd/import-signature";
+import { PaintedNodes } from "./editor/psd-paint";
 import { ImportedPageSurface } from "./editor/imported-page-surface";
 import { importPsdPrototype } from "./psd/io";
 import { useWorkbenchSettings, WorkbenchSettingsButton, WorkbenchSettingsPanel } from "./workbench-settings";
@@ -672,7 +673,7 @@ export function App() {
           const nodes = importedNodes(layers, ids);
           const x = current.pages.reduce((right, { frame }) => Math.max(right, frame.x + frame.width + 80), 0);
           const imported: GameFlowPage = { id, name: file.name.slice(0, -4).trim() || "PSD 原型", kind: "screen", rootType: "UIStack",
-            frame: { x: Math.ceil(x), y: 0, width, height }, nodes, ...(signature && composite && { psdImportPreview: { signature, image: composite } }) };
+            frame: { x: Math.ceil(x), y: 0, width, height }, nodes, ...(signature && composite && { psdImportPreview: { signature, image: composite, filename: file.name } }) };
           const candidate = { ...current, schemaVersion: GAMEFLOW_SCHEMA_VERSION, pages: [...current.pages, imported] };
           const valid = validateGameFlowDocument(candidate);
           if (!valid.ok) throw new Error(valid.errors.join("；"));
@@ -815,15 +816,17 @@ export function App() {
             const visualPage = item, projection = compositions.get(item.id);
             const geometry = pageLayout(visualPage), artBlocked = pagePreviewBlocked(visualPage, pagePsds, resourceMode);
             const nodes = orderedNodes(visualPage), activeNodes = editingId && scopeId && !directSelection ? descendants(visualPage, scopeId) : null;
+            const paintedScope = activeNodes && scopeId && resourceMode !== "prefab" && (visualPage.psdImportPreview || loadedPsds.assets[item.id]?.importSignature)
+              ? geometry.nodes.get(scopeId)?.corners : undefined;
             const backgroundNodes = nodes.filter(node => !activeNodes?.has(node.id));
             const foregroundNodes = activeNodes ? nodes.filter(node => activeNodes.has(node.id)) : [];
             return <article key={item.id} className={cn("page-group", !editingId && selectedPageId === item.id && "page-selected", editingId && "page-editing")} data-page-id={item.id} style={{ left: editingId ? 0 : frame.x, top: editingId ? 0 : frame.y, width: frame.width, height: frame.height }}>
               <div className="page-caption"><LayoutPanelTop size={14} /><span>{item.name}</span><small>{Math.round(frame.width)} × {Math.round(frame.height)}</small></div>
-              <SliceResourcesProvider value={{...(runtimeResources.forPage?.(visualPage) ?? runtimeResources),forPage:runtimeResources.forPage}}><ImportedPageSurface page={visualPage} mode={resourceMode} source={loadedPsds.assets[item.id]} blocked={artBlocked} scopeCorners={activeNodes && scopeId ? geometry.nodes.get(scopeId)?.corners : undefined}>
-                {backgroundNodes.map(node => <NodeView key={node.id} page={visualPage} node={node} referenceError={(projection ?? composition)?.errors.get(node.id)} geometry={geometry.nodes.get(node.id)} />)}
+              <SliceResourcesProvider value={{...(runtimeResources.forPage?.(visualPage) ?? runtimeResources),forPage:runtimeResources.forPage}}><ImportedPageSurface page={visualPage} mode={resourceMode} source={loadedPsds.assets[item.id]} blocked={artBlocked}>
+                <PaintedNodes nodes={paintedScope ? nodes : backgroundNodes} usesArt={resourceMode === "art"} draw={node => <NodeView key={node.id} page={visualPage} node={node} referenceError={(projection ?? composition)?.errors.get(node.id)} geometry={geometry.nodes.get(node.id)} />} />
                 {showContainerOutlines ? <ContainerOutlines page={visualPage} nodes={backgroundNodes} geometry={geometry} /> : null}
-                {activeNodes ? <div className="canvas-scope-dimmer" aria-hidden="true" /> : null}
-                {foregroundNodes.map(node => <NodeView key={node.id} page={visualPage} node={node} referenceError={(projection ?? composition)?.errors.get(node.id)} geometry={geometry.nodes.get(node.id)} />)}
+                {activeNodes ? <div className="canvas-scope-dimmer" aria-hidden="true" style={paintedScope && { clipPath: `polygon(evenodd, 0 0, 100% 0, 100% 100%, 0 100%, 0 0, ${[...paintedScope, paintedScope[0]].map(p => `${p.x}px ${p.y}px`).join(", ")})` }} /> : null}
+                {!paintedScope && <PaintedNodes nodes={foregroundNodes} usesArt={resourceMode === "art"} draw={node => <NodeView key={node.id} page={visualPage} node={node} referenceError={(projection ?? composition)?.errors.get(node.id)} geometry={geometry.nodes.get(node.id)} />} />}
                 {showContainerOutlines && activeNodes ? <ContainerOutlines page={visualPage} nodes={foregroundNodes} geometry={geometry} /> : null}
                 {artBlocked ? <PageArtState page={visualPage} actions={pagePsds} zoom={visibleCamera.zoom}/> : null}
               </ImportedPageSurface></SliceResourcesProvider>

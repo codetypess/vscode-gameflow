@@ -1,4 +1,4 @@
-import { needsPhotoCraft, sliceSourceKeys } from "./psd-slice-source";
+import { needsPhotoCraft } from "./psd-slice-source";
 import { defaultAtlasName, identityProblems, sliceRegion, validConfig, validGrid, type NineGrid, type PsdAsset, type PsdLayer } from "./psd-meta";
 import { psdSlotField } from "./psd-slot-markers";
 import { atlasNameError, normalizeAtlasName, psdNameInitials } from "./psd-naming";
@@ -119,7 +119,6 @@ export function sliceExportIssues(asset: PsdAsset, nativeSlices = false): Export
     if (error) issues.push({ keys: [l.key], message: `${l.name}：${error}` });
     if (needsPhotoCraft(l, nativeSlices)) {
       if (!nativeSlices) issues.push({ keys: [l.key], message: `${l.name}：合成切图需要在 VS Code 中使用 PhotoCraft CLI。` });
-      try { sliceSourceKeys(asset, l); } catch (error) { issues.push({ keys: [l.key], message: String(error) }); }
     } else if (!l.image) issues.push({ keys: [l.key], message: `${l.name}：当前图层无法独立导出。` });
     if (identities.includes(l.metadata.layerId)) issues.push({ keys: [l.key], message: `${l.name}：图层 ID 重复，请先分配新身份。` });
     if (!validConfig(l.config, l.width, l.height)) issues.push({ keys: [l.key], message: `${l.name}：切图区域或九宫格范围无效。` });

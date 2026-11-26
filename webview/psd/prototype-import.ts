@@ -1,13 +1,16 @@
 import { importedNodes, importSignature } from "./import-signature";
 import { importPixels } from "./import-clipping";
 import { stringFingerprint } from "../../shared/string-fingerprint";
-import type { ImportedPixelCorrection } from "../../shared/psd-meta";
+import { PSD_BLEND_MODES, type PsdPaintEffect, type PsdPaint } from "../../shared/psd-paint";
+import { paintContent } from "./import-signature";
+import type { Color } from "ag-psd";
+import type { ImportedPixelCorrection, ImportLayerFlag } from "../../shared/psd-meta";
 import type { Layer, LayerTextData, PixelData, Psd } from "ag-psd";
 import { isImageData, type Frame, type GameFlowNode, type NodeStyle } from "../../shared/model";
 
 type ImportedNode = Omit<GameFlowNode, "id" | "parentId">;
-export type ImportedLayer = { node: ImportedNode; parent: number | null };
-export type PsdPrototype = { width: number; height: number; layers: ImportedLayer[]; omitted: number; approximate: boolean; signature?: string; legacySignature?: string; corrections?: ImportedPixelCorrection[]; composite?: string };
+export type ImportedLayer = { node: ImportedNode; parent: number | null; rasterEffect?: boolean };
+export type PsdPrototype = { width: number; height: number; layers: ImportedLayer[]; omitted: number; approximate: boolean; signature?: string; legacySignature?: string; flags: ImportLayerFlag[]; corrections?: ImportedPixelCorrection[]; composite?: string };
 
 export function needsImportComposite(layer: Layer): boolean {
   const text = layer.text;
@@ -79,15 +82,27 @@ async function encodeImage(pixels: PixelData): Promise<{ imageData: string; appr
   }
 }
 
-export async function readPrototypeLayers(psd: Psd, includeComposite = true): Promise<PsdPrototype> {
+export async function readPrototypeLayers(psd: Psd, records: readonly { key: number; name: string; nativeId: number | null }[], includeComposite = true): Promise<PsdPrototype> {
   const layers: ImportedLayer[] = [];
   const originals = new Map<number, string>();
   const corrections: ImportedPixelCorrection[] = [];
+  const keys = new Map<Layer, number>();
+  const indexSource = (siblings: Layer[]) => {
+    for (const layer of [...siblings].reverse()) {
+      const record = records[keys.size];
+      if (!record || record.name !== layer.name || record.nativeId !== (layer.id ?? null)) throw new Error("无法确认 PSD 图层顺序。");
+      keys.set(layer, record.key);
+      if (layer.children) indexSource(layer.children);
+    }
+  };
+  indexSource(psd.children ?? []);
+  const flags: ImportLayerFlag[] = [];
   let omitted = 0, approximate = false;
 
   async function visit(layer: Layer, parent: number | null, clipBase?: Layer): Promise<Frame | undefined> {
+    const index = layers.length;
     const name = layer.name?.trim() || "未命名图层";
-    const frame = pixelFrame(layer);
+    const frame = pixelFrame(layer), originalFrame = { ...frame };
     const opacity = (layer.opacity ?? 1) * (layer.fillOpacity ?? 1);
     const style = opacity < 1 ? { opacity } : undefined;
     const base = { name, frame, ...(layer.hidden && { hidden: true }), ...(style && { style }) };
@@ -134,6 +149,25 @@ export async function readPrototypeLayers(psd: Psd, includeComposite = true): Pr
     }
     frame.width = Math.max(1, frame.width);
     frame.height = Math.max(1, frame.height);
+    const paint: PsdPaint = { key: keys.get(layer)! };
+    const blend = layer.blendMode?.replaceAll(" ", "-");
+    if (blend && PSD_BLEND_MODES.includes(blend)) paint.blend = blend;
+    if (layer.clipping && clipBase) paint.clipBase = keys.get(clipBase);
+    const effects = paintEffects(layer, psd.imageResources?.globalAngle ?? 120);
+    if (effects.length) paint.effects = effects;
+    if (!layer.children && !layer.clipping && layer.effects && !layer.effects.disabled) {
+      layers[index].rasterEffect = Object.entries(layer.effects).some(([kind, value]) =>
+        !["stroke", "innerShadow", "dropShadow"].includes(kind) && [value].flat().some(fx => fx?.enabled) ||
+        kind === "stroke" && [value].flat().some(fx => fx?.enabled && fx.fillType !== "color"));
+    }
+    if (layer.text && layer.imageData?.width && layer.imageData.height && originalFrame.width > 0 && originalFrame.height > 0) {
+      const image = await encodeImage(importPixels(layer, clipBase));
+      paint.bitmap = { image: image.imageData, content: paintContent(layers[index].node),
+        frame: { x: (originalFrame.x - frame.x) / frame.width, y: (originalFrame.y - frame.y) / frame.height,
+          width: originalFrame.width / frame.width, height: originalFrame.height / frame.height } };
+    }
+    layers[index].node.psdPaint = paint;
+    flags[index] = { key: paint.key, hidden: !!layer.hidden, name, paint };
     return frame;
   }
 
@@ -157,5 +191,24 @@ export async function readPrototypeLayers(psd: Psd, includeComposite = true): Pr
   const legacySignature = hasComposite && originals.size ? importSignature({ frame, nodes: nodes.map((node, i) =>
     originals.has(i) ? { ...node, imageData: originals.get(i) } : node) }) : undefined;
   const composite = includeComposite && hasComposite ? (await encodeImage(merged)).imageData : undefined;
-  return { width, height, layers, omitted, approximate, signature, legacySignature, corrections, composite };
+  if (!hasComposite && !approximate) for (const entry of layers) delete entry.node.psdPaint;
+  return { width, height, layers, flags, omitted, approximate, signature, legacySignature, corrections, composite };
+}
+
+function paintEffects(layer: Layer, globalAngle: number): PsdPaintEffect[] {
+  const fx = layer.effects, result: PsdPaintEffect[] = [];
+  if (!fx || fx.disabled) return result;
+  const color = (c?: Color) => c && "r" in c ? "#" + [c.r,c.g,c.b].map(v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2,"0")).join("") : "#000000";
+  for (const stroke of fx.stroke ?? []) if (stroke.enabled && stroke.fillType === "color") {
+    result.push({ kind: stroke.position ?? "outside", color: color(stroke.color), radius: Math.min(250, stroke.size?.value ?? 1), x: 0, y: 0, opacity: stroke.opacity ?? 1 });
+  }
+  for (const kind of ["innerShadow", "shadow"] as const) {
+    for (const shadow of (kind === "shadow" ? fx.dropShadow : fx.innerShadow) ?? []) if (shadow.enabled) {
+      const angle = (shadow.useGlobalLight ? globalAngle : shadow.angle ?? 120) * Math.PI / 180;
+      const d = shadow.distance?.value ?? 0;
+      result.push({ kind, color: color(shadow.color), radius: Math.min(250, (shadow.size?.value ?? 0) / 2),
+        x: -Math.cos(angle) * d, y: Math.sin(angle) * d, opacity: shadow.opacity ?? 1 });
+    }
+  }
+  return result;
 }

@@ -197,6 +197,9 @@ export class GameFlowEditorProvider implements vscode.CustomEditorProvider<Workb
             this.changes.fire({ document: doc, label: "恢复工作台草稿", undo: () => restore(doc.baseline), redo: () => restore(recovered) }); this.checkpoint(doc);
           }
           for (const psd of doc.psds.values()) if (psd !== doc.currentPsd) this.psd.announce(psd);
+        } else if (raw.type === "psdImportSource") {
+          const source = await this.pagePsds.importSource(doc, raw.pageId);
+          await panel.webview.postMessage({ type: "psdImportSourceResult", requestId: raw.requestId, ...source } satisfies HostToWebviewMessage);
         } else if (raw.type === "pagePsd") {
           const result = await this.pagePsds.handle(doc, raw, references.componentPsdAccess());
           if (raw.action === "syncCopy" && result.draft && result.source === raw.expected?.source) {

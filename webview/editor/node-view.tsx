@@ -1,10 +1,12 @@
-import { useContext, type CSSProperties } from "react";
+import { useContext, useId, useMemo, type CSSProperties } from "react";
 import { cellKey, listCellOffset, listCellPositions, listScrollType } from "../../shared/list-cell";
 import { orderedNodes } from "../../shared/editor-ops";
 import { ListCells } from "./list-cell-context";
 import { nodeImageSlot, progressRatio } from "../../shared/image-slots";
 import { SlotImage } from "../runtime/slot-image";
-import { ImportedImageCorrections } from "./imported-page-surface";
+import { EffectFilter, ImportedImageCorrections, ImportedPaint } from "./psd-paint";
+import { paintContent } from "../psd/import-signature";
+import { stringFingerprint } from "../../shared/string-fingerprint";
 import type { GameFlowNode, GameFlowPage } from "../../shared/model";
 import { defaultStyle, inheritedFlag } from "../../shared/editor-ops";
 import { resolvePageLayout, type ResolvedNode } from "../../shared/ui-layout";
@@ -17,12 +19,22 @@ export { orderedNodes } from "../../shared/editor-ops";
 
 export function NodeView({ page, node, geometry, hitId, referenceError, cellTrail = [], previewBudget = 5000 }: { page: GameFlowPage; node: GameFlowNode; geometry?: ResolvedNode; hitId?: string; referenceError?: string; cellTrail?: string[]; previewBudget?: number }) {
   const importedImage = useContext(ImportedImageCorrections).get(node.id) ?? node.imageData;
+  const part = useContext(ImportedPaint).get(node.id);
+  const bitmap = part?.bitmap;
+  const filterId = "psd-leaf-" + useId().replace(/[^a-z0-9_-]/gi, "");
+  const imageFingerprint = useMemo(() => bitmap && node.imageData ? stringFingerprint(node.imageData) : undefined, [bitmap, node.imageData]);
   const resources = useSliceResources();
+  const paintLeaf = node.type !== "container" && !(resources.mode === "art" && (node.image?.art || node.sliceResource));
+  const effects = paintLeaf && part?.effects;
+  const useImportedImage = !!importedImage && resources.mode === "prototype" && !!node.image?.art && !node.image.builtin;
   const resource = node.sliceResource && resources.mode !== "prototype" ? resources.resolve(node.sliceResource) : undefined;
   if (inheritedFlag(page, node, "hidden")) return null;
   const appearance = { ...defaultStyle(node.type), ...node.style };
   const resolved = geometry ?? resolvePageLayout(page, resources.sizes).nodes.get(node.id)!;
   const bounds = resolved.local;
+  const paintedImage = bitmap && <img alt={node.text ?? node.name} draggable={false} className={node.type === "text" ? "psd-text-pixels" : "psd-layer-pixels"}
+    style={{ position: "absolute", left: bitmap.frame.x * bounds.width, top: bitmap.frame.y * bounds.height,
+      width: bitmap.frame.width * bounds.width, height: bitmap.frame.height * bounds.height, pointerEvents: "none" }} src={bitmap.image}/>;
   const clipped = resolved.clipPolygon ? intersectPolygons(resolved.corners, resolved.clipPolygon) : undefined;
   const clipLocal = clipped && resolved.inverse ? clipped.map(p => mapPoint(resolved.inverse!, p)) : undefined;
   const widget = node.widget ?? {};
@@ -40,6 +52,8 @@ export function NodeView({ page, node, geometry, hitId, referenceError, cellTrai
     parentId = parent.parentId;
   }
   const style: CSSProperties = {
+    filter: effects && effects.length ? `url(#${filterId})` : undefined,
+    mixBlendMode: paintLeaf ? part?.blend as CSSProperties["mixBlendMode"] : undefined,
     left: 0, top: 0, width: bounds.width, height: bounds.height,
     transformOrigin: "0 0", transform: `matrix(${resolved.matrix.join(",")})`,
     backgroundColor: "transparent", color: appearance.color,
@@ -54,20 +68,24 @@ export function NodeView({ page, node, geometry, hitId, referenceError, cellTrai
     ...(clipLocal?.length ? { clipPath: `polygon(${clipLocal.map(p => `${p.x}px ${p.y}px`).join(",")})` } : {}),
     ...(!resolved.inverse || (clipped && clipped.length < 3) ? { visibility: "hidden" } : {})
   };
-  return <div className={`node-body node-${node.type}${referenceError ? " reference-broken" : ""}`} data-node-id={hitId ?? node.id} data-reference-error={referenceError} data-locked={inheritedFlag(page, node, "locked")} style={style}>
+  return <>{effects && effects.length > 0 && <EffectFilter id={filterId} effects={effects}/>}
+  <div className={`node-body node-${node.type}${referenceError ? " reference-broken" : ""}`} data-node-id={hitId ?? node.id} data-reference-error={referenceError} data-locked={inheritedFlag(page, node, "locked")} style={style}>
     {referenceError ? <span className="reference-error-label" role="status">组件引用失效<br />{referenceError}</span> : null}
     {node.type === "list" && node.cellPrefab && <ListCellPreview list={node} bounds={bounds} trail={cellTrail} budget={previewBudget} />}
-    {node.type === "image" || node.type === "button" ? node.type === "button" || node.image !== undefined
+    {node.type === "image" || node.type === "button" ? node.type === "button" || node.image !== undefined && !useImportedImage
       ? <SlotImage slot={nodeImageSlot(node, resources.mode)} width={bounds.width} height={bounds.height} label={node.name} fit={widget.imageFit ?? "fill"} progress={progress} />
       : resource ? resource.status === "ready" ? <ResourceCanvas resource={resource} width={bounds.width} height={bounds.height} fit={widget.imageFit ?? "fill"} label={node.name} progress={progress} />
         : <span className="slice-resource-placeholder" role="status" data-resource-status={resource.status}>{resource.status === "error" ? "切图异常\n" + resource.error : "装载中…"}</span>
-      : importedImage && (!node.sliceResource || resources.mode !== "prototype") ? <img src={importedImage} alt={node.name} draggable={false} style={{ objectFit: widget.imageFit ?? "fill" }} />
+      : bitmap && imageFingerprint === bitmap.content ? paintedImage
+      : importedImage && (!node.sliceResource || resources.mode !== "prototype" || page.psdImportPreview) ? <img src={importedImage} alt={node.name} draggable={false} style={{ objectFit: widget.imageFit ?? "fill" }} />
       : <SlotImage slot={{ builtin: "image/default" }} width={bounds.width} height={bounds.height} label={node.name} progress={progress} />
       : node.type === "input" ? <span className="widget-input" style={{ opacity: node.text ? 1 : 0.55 }}>{node.text ? widget.password ? "•".repeat(Math.min(node.text.length, widget.maxChars || Infinity)) : node.text.slice(0, widget.maxChars || undefined) : widget.placeholder ?? "请输入内容"}</span>
-      : node.type === "text" ? <LabelView node={displayNode} width={bounds.width} height={bounds.height} />
+      : node.type === "text" ? bitmap && paintContent(displayNode) === bitmap.content
+        ? paintedImage
+        : <LabelView node={displayNode} width={bounds.width} height={bounds.height} />
       : null}
 
-  </div>;
+  </div></>;
 }
 
 function ListCellPreview({ list, bounds, trail, budget }: { list: GameFlowNode; bounds: GameFlowNode["frame"]; trail: string[]; budget: number }) {

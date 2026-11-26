@@ -1,45 +1,49 @@
-import { createContext, useMemo, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { ResourceMode } from "../../shared/image-slots";
 import type { GameFlowPage } from "../../shared/model";
 import type { PsdAsset } from "../../shared/psd-meta";
-import { importSignature } from "../psd/import-signature";
+import type { PsdPaint } from "../../shared/psd-paint";
+import { stringFingerprint } from "../../shared/string-fingerprint";
+import { readImportSource } from "../psd/import-source";
+import { isBrowserPreview } from "../vscode-api";
+import { ImportedImageCorrections, ImportedPaint } from "./psd-paint";
 
-export const ImportedImageCorrections = createContext<ReadonlyMap<string, string>>(new Map());
-
-export function ImportedPageSurface({ page, source, mode, blocked, scopeCorners, children }: {
-  page: GameFlowPage; source?: PsdAsset; mode: ResourceMode; blocked: boolean; scopeCorners?: readonly { x: number; y: number }[]; children: ReactNode;
+export function ImportedPageSurface({ page, source, mode, blocked, children }: {
+  page: GameFlowPage; source?: PsdAsset; mode: ResourceMode; blocked: boolean; children: ReactNode;
 }) {
   const embedded = page.psdImportPreview;
-  const eligible = !blocked && mode !== "prefab" && !!(embedded || source?.importSignature || source?.importCorrections?.length);
-  const images = useMemo(() => new Map<string, string>(), [page.id, source?.sourceHash, embedded?.signature]);
-  const signature = useMemo(() => {
-    if (!eligible) return;
-    // Keep only the current page's bitmaps across visual edits.
-    const used = new Set(page.nodes.map(n => n.imageData));
-    for (const image of images.keys()) if (!used.has(image)) images.delete(image);
-    return importSignature(page, images);
-  }, [eligible, page.nodes, page.frame.width, page.frame.height, page.layout, images]);
-  const composite = signature && (source && (source.importSignature === signature || source.legacyImportSignature === signature) ? source.preview
-    : embedded?.signature === signature && (mode === "prototype" || !source) ? embedded.image : undefined);
-  const corrections = useMemo(() => {
-    const result = new Map<string, string>();
-    if (mode === "prefab") return result;
-    for (const correction of source?.importCorrections ?? []) {
-      const node = page.nodes[correction.index];
-      if (node?.name === correction.name && node.imageData && images.get(node.imageData) === correction.original)
-        result.set(node.id, correction.image);
+  const legacy = !!embedded && !page.nodes.some(n => n.psdPaint);
+  const key = JSON.stringify([page.id, embedded?.signature, embedded?.filename ?? page.name]);
+  const [sibling, setSibling] = useState<{ key: string; asset?: PsdAsset }>();
+  useEffect(() => {
+    if (source || !legacy || isBrowserPreview || mode === "prefab") return;
+    let active = true;
+    void readImportSource(page.id).then(asset => { if (active) setSibling({ key, asset }); }, () => {});
+    return () => { active = false; };
+  }, [key, source, legacy, mode]);
+  const candidate = source ?? (sibling?.key === key ? sibling.asset : undefined);
+  const asset = !embedded || candidate?.importSignature === embedded.signature || candidate?.legacyImportSignature === embedded.signature ? candidate : undefined;
+  const art = useMemo(() => {
+    const parts = new Map<string, PsdPaint>(), corrections = new Map<string, string>();
+    if (mode === "prefab") return { parts, corrections };
+    const flags = asset?.importFlags;
+    // Legacy files have no per-node PSD keys. Require the original tree, including sibling order.
+    const aligned = flags?.length === page.nodes.length && flags.every((f,i) => f.name === page.nodes[i].name);
+    for (const [i, node] of page.nodes.entries()) {
+      const part = node.psdPaint ?? (aligned ? flags[i].paint : undefined);
+      if (part) parts.set(node.id, part);
     }
-    return result;
-  }, [source, page.nodes, mode, images, signature]);
-  const checkerboard = !!(composite || embedded) && (!page.background || page.background === "transparent");
-  const style: CSSProperties & { "--psd-scope-mask"?: string } = checkerboard ? {} : { background: page.background ?? "#ffffff" };
-  if (composite && scopeCorners?.length) {
-    const points = [...scopeCorners, scopeCorners[0]].map(p => `${p.x}px ${p.y}px`).join(", ");
-    style["--psd-scope-mask"] = `polygon(evenodd, 0 0, 100% 0, 100% 100%, 0 100%, 0 0, ${points})`;
-  }
+    for (const c of asset?.importCorrections ?? []) {
+      const n = page.nodes[c.index];
+      if (n?.name === c.name && n.imageData && stringFingerprint(n.imageData) === c.original) corrections.set(n.id, c.image);
+    }
+    return { parts, corrections };
+  }, [page.nodes, asset, mode]);
+  const checkerboard = (!!embedded || !!asset?.importSignature) && (!page.background || page.background === "transparent") && mode !== "prefab";
   return <div className={`page-surface${blocked ? " page-art-blocked" : ""}${checkerboard ? " checkerboard" : ""}`}
-    data-psd-composite={composite ? true : undefined} style={style}>
-    {composite && <img className="imported-psd-composite" src={composite} alt="导入 PSD 合成图" draggable={false} />}
-    <ImportedImageCorrections.Provider value={corrections}>{children}</ImportedImageCorrections.Provider>
+    data-psd-components={art.parts.size || undefined} style={checkerboard ? undefined : {background: page.background ?? "#ffffff"}}>
+    <ImportedPaint.Provider value={art.parts}><ImportedImageCorrections.Provider value={art.corrections}>
+      {children}
+    </ImportedImageCorrections.Provider></ImportedPaint.Provider>
   </div>;
 }

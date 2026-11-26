@@ -9,8 +9,7 @@ export function useRenderedSlice(asset: PsdAsset | undefined, layer: PsdLayer | 
   const [result, setResult] = useState<{ key: string; pixels?: SlicePixels; error?: string }>();
   const needsRender = !!layer && needsPhotoCraft(layer, !isBrowserPreview);
   const native = active && !!asset && !!layer && needsRender && !isBrowserPreview;
-  const key = native ? JSON.stringify([asset.sourceHash, layer.key, layer.config.additionalLayerIds,
-    layer.config.additionalLayerIds?.length ? asset.layers.map(l => l.metadata.layerId) : null, attempt]) : "";
+  const key = native ? JSON.stringify([asset.sourceHash, layer.key, attempt]) : "";
   useEffect(() => {
     if (!key || !asset || !layer) return;
     let alive = true;

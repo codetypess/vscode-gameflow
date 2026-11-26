@@ -1,11 +1,25 @@
 import type { GameFlowNode, GameFlowPage } from "../../shared/model";
 import { stringFingerprint } from "../../shared/string-fingerprint";
 
+export function paintContent(node: Pick<GameFlowNode, "text" | "style" | "widget">) {
+  const { opacity, ...style } = node.style ?? {};
+  return stringFingerprint(JSON.stringify([node.text, Object.entries(style).filter(([, v]) => v !== undefined).sort(), Object.entries(node.widget ?? {}).filter(([, v]) => v !== undefined).sort()]));
+}
+
 /** Compare visual properties across import, save/reopen and ID remapping. */
 export function importSignature(page: Pick<GameFlowPage, "frame" | "nodes" | "layout">, images = new Map<string, string>()) {
   const indices = new Map(page.nodes.map((node, index) => [node.id, index]));
   const nodes = page.nodes.map(node => {
-    const { id, parentId, name, locked, variableName, exportEnabled, imageData, ...appearance } = node;
+    const { id, parentId, name, locked, variableName, exportEnabled, imageData, psdPaint, ...appearance } = node;
+    if (appearance.hidden === false) delete appearance.hidden;
+    // Import baselines describe the prototype image. Binding a slice adds an art-mode resource.
+    if (imageData) {
+      delete appearance.sliceResource;
+      if (appearance.image?.art) {
+        if (appearance.image.builtin) appearance.image = { builtin: appearance.image.builtin };
+        else delete appearance.image;
+      }
+    }
     let pixels;
     if (imageData) {
       pixels = images.get(imageData);

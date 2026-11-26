@@ -9,6 +9,7 @@ import { applySidecar, makeSidecar, sidecarName, type PsdAsset, type PsdSidecar 
 import type { ComponentPage, ComponentPsdBinding, PagePsdRequest, PagePsdResult } from "../shared/page-psd-protocol";
 import type { CanvasDocumentAccess, CanvasText } from "./canvas-reference-controller";
 import { bytesHash } from "./psd-document-model";
+import { validPsdFilename } from "../shared/page-psd-protocol";
 import type { WorkbenchDocument } from "./workbench-document";
 import { atomicWrite } from "./psd-file-io";
 import type { PsdDocument, PsdEditorProvider } from "./psd-editor-provider";
@@ -44,6 +45,20 @@ export class PagePsdController {
     return uri && vscode.workspace.fs.readFile(uri);
   }
   private pending = new Map<string, Promise<PsdDocument>>();
+  async importSource(doc: WorkbenchDocument, pageId: string) {
+    const page = parseGameFlowDocument(doc.getText()).pages.find(item => item.id === pageId);
+    if (!page?.psdImportPreview) return;
+    const name = page.psdImportPreview.filename ?? page.name + ".psd";
+    if (!validPsdFilename(name)) return;
+    const uri = vscode.Uri.joinPath(doc.uri, "..", name);
+    try {
+      if ((await vscode.workspace.fs.stat(uri)).size > 32 * 1024 * 1024) return;
+      const bytes = await vscode.workspace.fs.readFile(uri);
+      if (bytes.length > 32 * 1024 * 1024) return;
+      this.rememberRenderSource(doc, bytesHash(bytes), uri);
+      return { name, base64: Buffer.from(bytes).toString("base64") };
+    } catch { return; }
+  }
   private snapshots = new WeakMap<WorkbenchDocument, Map<string,{stamp:string;draft:ReturnType<typeof makePsdDraft>}>>();
   private overwriting = new Set<string>();
   constructor(

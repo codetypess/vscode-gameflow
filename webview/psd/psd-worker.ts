@@ -48,7 +48,7 @@ scope.onmessage = async ({ data }: MessageEvent<{ id: number; type: "read" | "re
     if (data.type === "importPrototype") {
       const decoded = readPsd(bytes, { useImageData: true, skipThumbnail: true, useRawThumbnail: true,
         skipLinkedFilesData: true, totalMemoryLimit: 384 * 1024 * 1024 });
-      scope.postMessage({ id: data.id, result: await readPrototypeLayers(decoded) });
+      scope.postMessage({ id: data.id, result: await readPrototypeLayers(decoded, raw.layers) });
       return;
     }
     const sourceHash = [...new Uint8Array(await crypto.subtle.digest("SHA-256", data.bytes))].map(b => b.toString(16).padStart(2, "0")).join("");
@@ -81,14 +81,15 @@ scope.onmessage = async ({ data }: MessageEvent<{ id: number; type: "read" | "re
     } };
     walk(decoded.children ?? []);
     if (ordered.length !== raw.layers.length) throw new Error("PSD 图层结构解析不一致，已停止读取。");
-    const importPreview: Pick<PsdAsset, "importSignature" | "legacyImportSignature" | "importCorrections"> = {};
+    const importPreview: Pick<PsdAsset, "importSignature" | "legacyImportSignature" | "importCorrections" | "importFlags"> = {};
     if (data.type === "readPage" && ordered.some(({ layer }) => needsImportComposite(layer))) {
       // Use the same unmodified layer planes as the standalone import.
       try {
-        const imported = await readPrototypeLayers(decoded, false);
+        const imported = await readPrototypeLayers(decoded, raw.layers, false);
         importPreview.importSignature = imported.signature;
         importPreview.legacyImportSignature = imported.legacySignature;
         importPreview.importCorrections = imported.corrections;
+        importPreview.importFlags = imported.flags;
       }
       catch { /* An otherwise readable PSD may contain no importable controls. */ }
     }

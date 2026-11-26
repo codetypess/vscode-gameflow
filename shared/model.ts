@@ -56,6 +56,7 @@ export interface GameFlowRequirement {
 }
 
 export interface GameFlowNode {
+  psdPaint?: import("./psd-paint").PsdPaint;
   id: string;
   name: string;
   variableName?: string;
@@ -105,7 +106,7 @@ export function isPagePsdBinding(value: unknown): value is PagePsdBinding {
 }
 
 export interface GameFlowPage {
-  psdImportPreview?: { signature: string; image: string };
+  psdImportPreview?: { signature: string; image: string; filename?: string };
   /** Explicit art source, relative to this GameFlow file. */
   artPsd?: PagePsdBinding;
   psdSync?: SyncBase;
@@ -244,6 +245,19 @@ function validateNode(
   }
   const frameValid = validateFrame(value.frame, `${path}.frame`, errors);
   let optionalValid = true;
+  if (value.psdPaint !== undefined) {
+    const p = value.psdPaint;
+    const finite = (n: unknown): n is number => typeof n === "number" && Number.isFinite(n);
+    const valid = isRecord(p) && Number.isInteger(p.key) && (p.clipBase === undefined || Number.isInteger(p.clipBase)) &&
+      (p.blend === undefined || typeof p.blend === "string" && /^[a-z-]{1,20}$/.test(p.blend)) &&
+      (p.bitmap === undefined || isRecord(p.bitmap) && isImageData(p.bitmap.image) && typeof p.bitmap.content === "string" &&
+        validateFrame(p.bitmap.frame, path + ".psdPaint.bitmap.frame", errors)) &&
+      (p.effects === undefined || Array.isArray(p.effects) && p.effects.length <= 64 && p.effects.every(e =>
+        isRecord(e) && ["inside","outside","center","shadow","innerShadow"].includes(String(e.kind)) &&
+        finite(e.radius) && e.radius >= 0 && e.radius <= 250 && finite(e.x) && finite(e.y) &&
+        finite(e.opacity) && e.opacity >= 0 && e.opacity <= 1 && typeof e.color === "string" && /^#[a-f0-9]{6}$/i.test(e.color)));
+    if (!valid) { errors.push(path + ".psdPaint contains invalid PSD artwork"); optionalValid = false; }
+  }
   if (value.instanceEdits !== undefined) {
     const edits = value.instanceEdits;
     if (!value.prefab || !isRecord(edits) || Object.keys(edits).some(k => !["overrides", "additions"].includes(k)) || !Array.isArray(edits.overrides) || !Array.isArray(edits.additions) || edits.overrides.length > 5000 || edits.additions.length > 5000) {
@@ -408,6 +422,7 @@ function validatePage(
   const artPsdValid = value.artPsd === undefined || isPagePsdBinding(value.artPsd);
   if (value.psdImportPreview !== undefined && !(isRecord(value.psdImportPreview) &&
     typeof value.psdImportPreview.signature === "string" && /^\d{1,10}:\d{1,10}:\d{1,10}$/.test(value.psdImportPreview.signature) &&
+    (value.psdImportPreview.filename === undefined || typeof value.psdImportPreview.filename === "string" && value.psdImportPreview.filename.length <= 255) &&
     isImageData(value.psdImportPreview.image))) {
     errors.push(`${path}.psdImportPreview contains an invalid composite or signature`); return false;
   }

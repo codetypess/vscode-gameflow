@@ -124,9 +124,9 @@ button svg { flex-shrink: 0; }
 .page-caption span { overflow: hidden; text-overflow: ellipsis; }
 .page-caption small { margin-left: auto; color: var(--muted-foreground); }
 .page-surface { position: absolute; inset: 0; overflow: hidden; }
-.imported-psd-composite { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
-.page-surface[data-psd-composite] > .canvas-scope-dimmer { clip-path: var(--psd-scope-mask, none); }
-.page-surface[data-psd-composite] > .node-body { opacity: 0 !important; }
+.page-surface[data-psd-components] { isolation: isolate; }
+.psd-paint-group { position: absolute; inset: 0; pointer-events: none; }
+.page-editing .psd-paint-group .node-body { pointer-events: auto; }
 .container-outlines { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; color: var(--selection); }
 .node-body { position: absolute; display: flex; align-items: center; overflow: hidden; line-height: 1.35; cursor: default; font-family: "Segoe UI", "Microsoft YaHei", sans-serif; }
 .page-group:not(.page-editing) .node-body { pointer-events: none; }

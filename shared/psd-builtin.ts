@@ -60,7 +60,7 @@ export function builtinLayerGrid(grid: NineGrid | null, width: number, height: n
 
 export function builtinSlice(layer: PsdLayer) {
   const ref = layer.verifiedBuiltin;
-  if (!ref || layer.group || layer.text || layer.limitation || layer.config.additionalLayerIds?.length) return;
+  if (!ref || layer.group || layer.text || layer.limitation) return;
   const region = layer.config.region;
   if (region && (region.x !== 0 || region.y !== 0 || region.width !== layer.width || region.height !== layer.height)) return;
   const origin = layer.metadata.builtinOrigin as { catalog?: string } | undefined;

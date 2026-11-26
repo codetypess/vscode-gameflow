@@ -19,6 +19,7 @@ export function pageArtReady(page: GameFlowPage, actions: PagePsdActions) {
   return !!page.artPsd && state?.key === pagePsdKey(page.artPsd) && state.status === "ready";
 }
 export function pagePreviewBlocked(page: GameFlowPage, actions: PagePsdActions, mode: ResourceMode) {
+  if (mode === "art" && !page.artPsd && page.psdImportPreview) return false;
   return mode !== "prototype" && !pageArtReady(page, actions);
 }
 export function PageArtState({ page, actions, zoom = 1 }: { page: GameFlowPage; actions: PagePsdActions; zoom?: number }) {
