@@ -2,7 +2,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const crypto = require("node:crypto");
-const { assert, ID_PATTERN, sha256, readVsix, signCatalog, verifyCatalog, releasePath } = require("./lib.cjs");
+const { assert, ID_PATTERN, sha256, readVsix, signCatalog, verifyCatalog, signMetadata, releasePath } = require("./lib.cjs");
 function option(name, fallback) { const index = process.argv.indexOf(`--${name}`); return index < 0 ? fallback : process.argv[index + 1]; }
 function atomicWrite(file, bytes, mode) {
   const temporary = `${file}.${crypto.randomUUID()}.tmp`;
@@ -23,6 +23,22 @@ function initialize(root) {
   if (!fs.existsSync(path.join(root, "public/catalog.json"))) atomicWrite(path.join(root, "public/catalog.json"), signCatalog({ schemaVersion: 1, revision: 1, generatedAt: new Date().toISOString(), extensions: {} }, fs.readFileSync(privatePath)));
   console.log(fs.readFileSync(publicPath, "utf8").trim());
 }
+function writeMetadata(root, catalog, id, privateKey) {
+  const name = id.split(".")[1];
+  assert(!Object.keys(catalog.extensions).some((other) => other !== id && other.split(".")[1] === name), `Metadata directory already belongs to another publisher: ${name}`);
+  const entry = catalog.extensions[id];
+  const directory = path.join(root, "public", name);
+  const file = path.join(directory, "metadata.json");
+  if (!entry.channels.stable) { if (fs.existsSync(file)) fs.unlinkSync(file); return; }
+  const release = entry.releases.find((candidate) => candidate.version === entry.channels.stable);
+  const original = path.join(root, "public", release.path);
+  assert(sha256(fs.readFileSync(original)) === release.sha256, "Release digest mismatch");
+  fs.mkdirSync(directory, { recursive: true });
+  const alias = path.join(directory, `${release.version}.vsix`);
+  if (fs.existsSync(alias)) assert(sha256(fs.readFileSync(alias)) === release.sha256, "Immutable metadata package differs");
+  else fs.copyFileSync(original, alias, fs.constants.COPYFILE_EXCL);
+  atomicWrite(file, signMetadata({ schemaVersion: 1, id, displayName: entry.displayName, version: release.version, engines: release.engines, url: `${release.version}.vsix`, size: release.size, sha256: release.sha256, revision: catalog.revision }, privateKey));
+}
 async function transaction(root, mutate) {
   const lock = path.join(root, ".publish-lock");
   const deadline = Date.now() + 30000;
@@ -38,8 +54,10 @@ async function transaction(root, mutate) {
     const result = await mutate(catalog);
     catalog.revision += 1;
     catalog.generatedAt = new Date().toISOString();
-    const signed = signCatalog(catalog, fs.readFileSync(path.join(root, "keys/signing-private.pem")));
+    const privateKey = fs.readFileSync(path.join(root, "keys/signing-private.pem"));
+    const signed = signCatalog(catalog, privateKey);
     fs.writeFileSync(path.join(root, "backups", `catalog-${catalog.revision - 1}-${crypto.randomUUID()}.json`), old, { flag: "wx" });
+    writeMetadata(root, catalog, result.id, privateKey);
     atomicWrite(catalogPath, signed);
     console.log(JSON.stringify({ ...result, revision: catalog.revision }));
     return result;
@@ -63,7 +81,7 @@ async function publish(root, file, channel, hidden) {
     // An identical, unreferenced file can remain after an interrupted catalog commit.
     if (fs.existsSync(target)) assert(sha256(fs.readFileSync(target)) === metadata.sha256, "Existing orphan release has different content; refusing overwrite");
     else fs.copyFileSync(file, target, fs.constants.COPYFILE_EXCL);
-    return { id: metadata.id, version: release.version, sha256: metadata.sha256, path: relative };
+    return { id: metadata.id, version: release.version, sha256: metadata.sha256, path: relative, metadata: `${metadata.manifest.name}/metadata.json` };
   });
 }
 async function promote(root, id, version, channel = "stable") {

@@ -5,8 +5,12 @@ import {
   GAMEFLOW_EDITOR_VIEW_TYPE,
   GameFlowEditorProvider
 } from "./gameflow-editor-provider";
+const { activateSelfUpdate } = require("../tools/internal-extensions/self-update.cjs") as {
+  activateSelfUpdate(context: vscode.ExtensionContext, namespace: string): { check(options?: { silent?: boolean }): Promise<unknown> };
+};
 
 export function activate(context: vscode.ExtensionContext) {
+  const updates = activateSelfUpdate(context, "gameflow");
   const psd = new PsdEditorProvider(context);
   const workbench = new GameFlowEditorProvider(context, psd);
   context.subscriptions.push(
@@ -24,7 +28,7 @@ export function activate(context: vscode.ExtensionContext) {
       createGameFlowDocument()
     )
   );
-  return { psd, workbench };
+  return { psd, workbench, updates };
 }
 
 export function deactivate(): void {

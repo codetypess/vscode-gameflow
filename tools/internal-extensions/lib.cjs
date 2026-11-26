@@ -67,6 +67,35 @@ function verifyCatalog(bytes, publicKey, minimumRevision = 0) {
   return catalog;
 }
 
+function metadataPayload(value) {
+  assert(value && value.schemaVersion === 1, "Unsupported metadata schema");
+  assert(ID_PATTERN.test(value.id), "Invalid metadata extension ID");
+  assert(typeof value.displayName === "string" && value.displayName.length <= 160, "Invalid metadata display name");
+  assert(typeof value.version === "string" && semver.valid(value.version) === value.version && !semver.prerelease(value.version), "Invalid metadata version");
+  assert(semver.validRange(value.engines?.vscode), "Invalid metadata VS Code engine");
+  assert(value.url === `${value.version}.vsix`, "Unsafe metadata package URL");
+  assert(Number.isSafeInteger(value.size) && value.size > 0 && value.size <= MAX_VSIX, "Invalid metadata package size");
+  assert(typeof value.sha256 === "string" && /^[a-f0-9]{64}$/.test(value.sha256), "Invalid metadata digest");
+  assert(Number.isSafeInteger(value.revision) && value.revision >= 1, "Invalid metadata revision");
+  return { schemaVersion: 1, id: value.id, displayName: value.displayName, version: value.version, engines: { vscode: value.engines.vscode }, url: value.url, size: value.size, sha256: value.sha256, revision: value.revision };
+}
+function signMetadata(value, privateKey) {
+  const payload = metadataPayload(value);
+  const signature = crypto.sign(null, Buffer.from(JSON.stringify(payload)), privateKey).toString("base64");
+  return JSON.stringify({ ...payload, signature }, null, 2) + "\n";
+}
+function verifyMetadata(bytes, publicKey, expectedId, minimumRevision = 0) {
+  assert(bytes.length <= 64 * 1024, "Metadata exceeds size limit");
+  const value = JSON.parse(bytes.toString("utf8"));
+  const payload = metadataPayload(value);
+  assert(payload.id === expectedId, "Metadata identity mismatch");
+  assert(typeof value.signature === "string", "Missing metadata signature");
+  const signature = Buffer.from(value.signature, "base64");
+  assert(signature.length === 64 && crypto.verify(null, Buffer.from(JSON.stringify(payload)), publicKey, signature), "Metadata signature verification failed");
+  assert(payload.revision >= minimumRevision, "Metadata rollback/replay rejected");
+  return payload;
+}
+
 function readVsix(file) {
   return new Promise((resolve, reject) => {
     const size = fs.statSync(file).size;
@@ -157,4 +186,4 @@ function requestBuffer(value, maxBytes, timeoutMs) {
   });
 }
 
-module.exports = { MAX_VSIX, ID_PATTERN, assert, sameExtensionRoot, sha256, releasePath, validateCatalog, signCatalog, verifyCatalog, readVsix, selectRelease, sourceUrl, resolveReleaseUrl, requestBuffer };
+module.exports = { MAX_VSIX, ID_PATTERN, assert, sameExtensionRoot, sha256, releasePath, validateCatalog, signCatalog, verifyCatalog, signMetadata, verifyMetadata, readVsix, selectRelease, sourceUrl, resolveReleaseUrl, requestBuffer };

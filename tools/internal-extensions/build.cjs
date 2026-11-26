@@ -9,7 +9,7 @@ async function main() {
   await esbuild.build({ entryPoints: [path.join(__dirname, "publisher.cjs")], outfile: path.join(out, "publisher.cjs"), bundle: true, platform: "node", target: "node20", format: "cjs" });
   fs.cpSync(path.join(__dirname, "site"), path.join(out, "site"), { recursive: true });
   fs.cpSync(path.join(__dirname, "deploy"), path.join(out, "deploy"), { recursive: true });
-  if (process.argv.includes("--server-only")) return;
+  if (!process.argv.includes("--legacy-updater")) return;
   const trustPath = path.join(__dirname, "trust.json");
   if (!fs.existsSync(trustPath)) throw new Error("Missing trust.json; initialize the server and pin its public key before building the updater");
   const trust = JSON.parse(fs.readFileSync(trustPath, "utf8"));

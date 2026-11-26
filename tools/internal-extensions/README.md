@@ -1,93 +1,90 @@
 # Internal extension distribution
 
-部署主机：`bit@macmini.bitserver.wang`。暂定入口：`http://vsix.bitserver.wang/`（内网）。服务目录：`/Users/bit/services/vscode-extensions`。
+部署主机：`bit@macmini.bitserver.wang`。入口：`http://vsix.bitserver.wang/`。服务目录：`/Users/bit/services/vscode-extensions`。
 
-## Install
+## 用户安装
 
-从站点下载统一更新器，使用 VS Code 扩展面板菜单中的“从 VSIX 安装”。随后运行“Bit 内部插件: 浏览与安装插件”。已有 GameFlow 可选择“加入更新检查”；新插件选择“安装并托管”。仅检查明确托管的插件，更新器本身默认托管。
+只安装业务插件的 VSIX。原型工作台启动约 30 秒后、之后每六小时读取：
 
-启动约 30 秒后、之后每六小时自动检查新版；发现更新时列出插件和版本，用户点击“安装更新”后才下载并安装，选择“稍后”或关闭提示均不安装。更新器自身遵循相同规则，旧自动安装设置也会迁移为确认后安装。已经暂停的检查保持暂停，手动“立即检查更新”仍可使用。
+```text
+http://vsix.bitserver.wang/vscode-gameflow/metadata.json
+```
 
-首版仅支持本地桌面窗口和 universal、独立的插件。不安装远端窗口中的插件或依赖包，不主动重载窗口。请保存文档后使用 VS Code 的生效提示。可以在“管理插件”中暂停自动检查，在插件列表中固定版本或回退。
+发现新版提示“安装更新 / 稍后”，确认后才下载安装。命令面板提供“原型工作台: 检查更新”和“查看更新日志”，用户设置 `gameflow.checkForUpdates` 可关闭自动检查。插件不主动重载窗口，保存文件后按 VS Code 提示操作。
 
-## Publish GameFlow
+0.1.0～0.1.2 需要手动安装一次 0.1.3 或更新版本。旧的独立“Bit 内部插件更新器”可以卸载；它不再是依赖，同时保留可能仍会看到它的旧提示。
 
-安装开发依赖后，先增加 package.json 中的版本号，同版本安装包不可覆盖：
+## 每个插件一个目录
+
+```text
+public/
+  vscode-gameflow/
+    metadata.json
+    0.1.3.vsix
+    0.1.4.vsix
+  another-plugin/
+    metadata.json
+    1.0.0.vsix
+```
+
+metadata 是可读 JSON，主要字段为 id、version、engines.vscode、url、size、sha256。例如 url 为 `0.1.4.vsix`，相对于 metadata 所在目录。发布器还生成 schemaVersion、displayName、revision 和 Ed25519 signature，无需人工维护摘要与签名。
+
+插件只读自己的 metadata，不枚举其他插件、不请求中央 catalog、不依赖另一个插件。目录名取 package.json 的 name，不同发布者不能使用相同目录名。旧 catalog 和 releases 路径仅保留下载列表及历史兼容。
+
+## 发布
+
+增加版本，执行测试、生产打包和发布：
 
 ```powershell
 npm version patch --no-git-tag-version
 npm test
 npm run package:vsix
-npm run publish:internal -- --file dist/packages/codetypes.vscode-gameflow-0.1.1.vsix
+$releaseVersion = node -p "require('./package.json').version"
+npm run publish:internal -- --file "dist/packages/codetypes.vscode-gameflow-$releaseVersion.vsix"
 ```
 
-示例文件名应与实际版本一致。`package:vsix` 使用 vsce，并通过现有 prepublish 执行生产构建。发行包使用 `.vscodeignore` 白名单，只包含 manifest、README、LICENSE、schema、dist/extension.js 和 dist/webview；其他 dist 调试产物不会进入 VSIX。禁止跳过 vsce 的敏感信息检查。
-
-## Publish another extension
-
-任何仓库生成的标准 universal VSIX 都可以交给同一个工具：
+发布工具从 VSIX 提取身份、版本、引擎和摘要，通过 SSH 上传。先落盘不可覆盖的 VSIX，再原子替换对应 metadata。新增插件只需：
 
 ```powershell
-npm run publish:internal -- --file D:/path/to/another-extension.vsix
+npm run publish:internal -- --file D:/path/to/another-plugin.vsix
 ```
 
-ID、版本、引擎范围、摘要与尺寸从 VSIX 自动提取。工具通过 SSH 上传并调用远端发布器，不需要给客户端写权限，也不需要在每个业务插件里加入更新代码。
+支持 --host、--root、--channel stable|beta。客户端跟随 stable，beta 不成为升级目标。历史版本不可覆盖。发行包沿用 .vscodeignore 运行文件白名单，不能跳过 vsce 的敏感信息检查。
 
-支持 `--host bit@macmini.bitserver.wang`、`--root /Users/bit/services/vscode-extensions`、`--channel stable|beta`。首版客户端仅跟随 stable。`--hidden` 用于验证探针，不在下载页显示；不会自动装给用户。
+## 其他插件照这个模式接入
 
-## Build the updater
+1. 复用 self-update.cjs、lib.cjs 和同一公开 trust.json；semver/yauzl 通过 esbuild 打入自己的 VSIX。
+2. manifest 增加 onStartupFinished，activate 中调用 `activateSelfUpdate(context, "自己的命令前缀")`。对应命令为 `<前缀>.checkForUpdates` 和 `<前缀>.showUpdateLog`，可声明命令和 application 范围的 `<前缀>.checkForUpdates` 设置。
+3. 构建参考根目录 esbuild.js，将 trust 通过 define.__UPDATER_TRUST__ 固定到产物。发布后自动使用 `<package.name>/metadata.json`。
 
-```powershell
-npm run test:distribution
-npm run package:updater
-npm run publish:internal -- --file dist/packages/codetypes.internal-updater-0.1.2.vsix
-```
+实际接入见 src/extension.ts、package.json 和 esbuild.js。无需数据库、上传 API、新建虚拟主机或独立更新器。
 
-正式发布新版本前修改 `internal-updater/package.json` 的版本号。构建使用 `tools/internal-extensions/trust.json` 中的已固定公钥，不能通过 HTTP 下载一个新公钥并自动信任。该文件只含公钥，不含私钥。
-
-## Server operations
+## 服务与回退
 
 ```sh
 cd /Users/bit/services/vscode-extensions
 /usr/local/bin/docker compose -p bit-vsix -f deploy/compose.yml ps
 curl -f http://127.0.0.1:18081/healthz
-/usr/local/bin/docker compose -p bit-vsix -f deploy/compose.yml logs --tail 50
 ```
 
-容器只监听 127.0.0.1:18081，发布目录只读挂载。主机 Nginx 的虚拟主机配置位于 `/opt/homebrew/etc/nginx/servers/vsix.bitserver.wang.conf`，转发到此端口。首次生效需要具有远端 sudo 权限的用户执行：
+服务仅监听本机 18081，由主机 Nginx 转发。正常发布只写静态文件，不需要 reload Nginx。回退 stable 或撤下升级目标：
 
 ```sh
-sudo /opt/homebrew/bin/nginx -c /opt/homebrew/etc/nginx/nginx.conf -g 'pid /var/run/nginx.pid;' -t
-sudo /opt/homebrew/bin/nginx -c /opt/homebrew/etc/nginx/nginx.conf -g 'pid /var/run/nginx.pid;' -s reload
-```
-
-该实例的 root 主进程使用 `/var/run/nginx.pid`，不能误用 Homebrew 用户服务的默认 pid 文件。不要重建另一个项目的 gpt-load 容器，也不要启动第二个主机 Nginx 争抢 80 端口。
-
-将 stable 指针移回已有版本或暂时撤下，可在 SSH 会话中执行；目录仍会签名并增加序号，客户端不会自动降级：
-
-```sh
-/opt/homebrew/bin/node tools/publisher.cjs promote --id codetypes.vscode-gameflow --version 0.1.0
+/opt/homebrew/bin/node tools/publisher.cjs promote --id codetypes.vscode-gameflow --version 0.1.3
 /opt/homebrew/bin/node tools/publisher.cjs promote --id codetypes.vscode-gameflow --version none
 ```
 
-已升级用户通过更新器的“固定版本 / 手动回退”明确安装旧版。通常优先发布更高版本的修复包。
+回退产生更高 revision；客户端只提示更高版本，不自动降级。撤下 stable 会移除 metadata，历史 VSIX 保留。
 
-## Trust, backup and recovery
+私钥保存在 keys/signing-private.pem，不进入 Git 或公开站点。备份整个服务目录和主机 Nginx 配置；恢复旧内容后通过发布器产生新 revision，不能覆盖成旧签名文件。异常锁需先核实 owner PID 已退出，不能强拆活跃锁。
 
-目录格式是 `{payload: string, signature: base64}`；Ed25519 签名覆盖 payload 的精确 UTF-8 字节。更新器先验签，再解析、检查单调序号、验证安装包 SHA-256 和包内身份。HTTP 阶段不提供内容保密性；首次安装包通过可信工作区或 SSH 交付。以后加 HTTPS 不取消签名验证。
+## 验证
 
-私钥位于服务端 `keys/signing-private.pem`，目录权限 0700、文件权限 0600，从不挂载到公开站点。完整备份服务目录（包括私钥）和主机 Nginx 配置；备份本身也应保持私有。若丢失私钥，需要通过可信渠道重新交付包含新公钥的更新器，不能自动轮换信任。
+- `npm test`：业务共享测试。
+- `npm run test:distribution`：元信息、VSIX、发布、内置检查、确认/取消、失败恢复及 Profile/远端/多窗口边界，兼顾旧目录兼容。
+- `npm run build:distribution`：构建服务端发布器和下载页；内置客户端由正常 package:vsix 打包。
+- `npm run verify:distribution -- --count 50`：对真实 metadata 和安装包重复验签、大小及摘要校验。通过 --name 和 --id 指定其他插件，--failure-dir 保留失败文件。
 
-所有历史安装包保留，backups 中保留每次目录提交前的已签名版本。客户端拒绝低于已见序号的目录，因此恢复旧目录内容时应通过 promote/新的发布事务产生更高序号，不能只覆盖成旧签名文件。
+容器 Nginx 为静态响应发送 X-Accel-Buffering: no，让主机代理流式传输。该设置修复了大包经代理缓冲路径时偶发片段错位；不要在迁移配置时丢失。客户端始终严格验证摘要，不靠重试隐藏错误。
 
-发布使用 `.publish-lock/owner.json` 串行化目录提交，等锁最多 30 秒。遇到进程中断遗留锁，先核实 owner 中的 PID 已退出，再仅删除该锁目录；不要在仍有发布进程时强拆。包先落盘、目录后提交，中断后遗留的同摘要未引用包允许重试提交。
-
-`restart: unless-stopped` 只保证 Docker 已运行时容器恢复。Mac 断电后能否自动开机、登录和启动 OrbStack，需要按实际无人值守要求单独验收。
-
-## Verification
-
-- `npm test`：GameFlow 原有测试。
-- `npm run test:distribution`：签名、路径、平台与包身份、版本兼容、并发发布、重复安装、Profile/远端边界与发行包白名单。
-- `tools/internal-extensions/smoke.cjs prepare|install`：在 dist/distribution-smoke 建立隔离的真实 VS Code 验证环境。prepare 生成 0.1.0/0.1.1 探针和测试 runner，install 安装当前打包的更新器与旧版探针，仅修改该隔离 Profile。运行 runner 时需在隔离窗口人工点击“安装更新”，再验证探针升级及 pending 防重复；端到端结果记录在 result.json。更新器自身的确认行为由分发测试覆盖。
-
-部署实际状态、测试版本和待办项见 `docs/spec/internal-extension-updates.md`。
+旧 internal-updater/ 和 smoke.cjs 仅保留历史兼容。当前规则和验收见 docs/spec/embedded-extension-updates.md。

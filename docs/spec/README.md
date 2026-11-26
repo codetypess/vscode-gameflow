@@ -30,9 +30,15 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 | [01-product-workspace.md](01-product-workspace.md) | Planning workspace, infinite canvas, page groups and editing scope |
 | [10-extension-architecture.md](10-extension-architecture.md) | Extension host, Webview, shared contracts, document authority and evolution boundary |
 | [11-prototype-ui-layout.md](11-prototype-ui-layout.md) | Prototype UI components, shared layout geometry, control references and v1/v2/v3/v4/v5 persistence |
-| [12-internal-extension-distribution.md](12-internal-extension-distribution.md) | Internal VSIX publication, signed catalogs and standalone updater |
+| [12-internal-extension-distribution.md](12-internal-extension-distribution.md) | Internal VSIX publication, per-plugin metadata and embedded self-updates |
 
 ## Active Work Items
+
+- [embedded-extension-updates.md](embedded-extension-updates.md) — Verifying：只安装一个 VSIX，插件自查 metadata.json；0.1.3/0.1.4 已发布，403 项共享测试、25 项分发测试及两个运行时各 50 次下载校验通过，待用户点击升级验收。
+
+- [internal-extension-auto-discovery.md](internal-extension-auto-discovery.md) — Superseded：原型工作台更名与独立更新器历史记录；现行单插件元信息与内置更新见 embedded-extension-updates。
+
+- [internal-extension-first-release-test.md](internal-extension-first-release-test.md) — Superseded：旧轮次安装和下载证据；当前只安装 0.1.3 后提示 0.1.4，下载传输修复及验收见 embedded-extension-updates。
 
 - [工作台撤销与重做快捷键](workbench-history-shortcuts.md) — 原型和 PSD 切图每次按键只触发一次历史命令。
 

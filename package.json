@@ -1,9 +1,9 @@
 {
   "name": "vscode-gameflow",
-  "displayName": "GameFlow",
+  "displayName": "原型工作台",
   "description": "在 VS Code 中分析策划需求并组织游戏 UI 页面画布。",
-  "version": "0.1.0",
-  "publisher": "codetypes",
+  "version": "0.1.4",
+  "publisher": "codetypess",
   "license": "MIT",
   "engines": {
     "node": ">=20.19",
@@ -20,6 +20,7 @@
     "canvas"
   ],
   "activationEvents": [
+    "onStartupFinished",
     "onCustomEditor:gameflow.psdEditor",
     "onCommand:gameflow.openPsd",
     "onCustomEditor:gameflow.canvasEditor",
@@ -28,8 +29,14 @@
   "main": "./dist/extension.js",
   "contributes": {
     "configuration": {
-      "title": "GameFlow",
+      "title": "原型工作台",
       "properties": {
+        "gameflow.checkForUpdates": {
+          "type": "boolean",
+          "default": true,
+          "scope": "application",
+          "description": "启动后及每六小时检查新版，确认后下载安装。"
+        },
         "gameflow.photoCraftCliPath": {
           "type": "string",
           "default": "",
@@ -40,22 +47,32 @@
     },
     "commands": [
       {
+        "command": "gameflow.checkForUpdates",
+        "title": "检查更新",
+        "category": "原型工作台"
+      },
+      {
+        "command": "gameflow.showUpdateLog",
+        "title": "查看更新日志",
+        "category": "原型工作台"
+      },
+      {
         "command": "gameflow.openPsd",
         "title": "打开 PSD 切图配置",
-        "category": "GameFlow",
+        "category": "原型工作台",
         "icon": "$(file-media)"
       },
       {
         "command": "gameflow.createCanvas",
         "title": "新建策划画布",
-        "category": "GameFlow",
+        "category": "原型工作台",
         "icon": "$(new-file)"
       }
     ],
     "customEditors": [
       {
         "viewType": "gameflow.psdEditor",
-        "displayName": "GameFlow PSD 切图配置",
+        "displayName": "原型工作台 PSD 切图配置",
         "selector": [
           {
             "filenamePattern": "*.psd"
@@ -68,7 +85,7 @@
       },
       {
         "viewType": "gameflow.canvasEditor",
-        "displayName": "GameFlow 策划画布",
+        "displayName": "原型工作台 画布",
         "selector": [
           {
             "filenamePattern": "*.gameflow.json"
@@ -97,9 +114,10 @@
     "watch:webview": "vite build --watch --mode development",
     "build:distribution": "node tools/internal-extensions/build.cjs",
     "package:vsix": "node tools/internal-extensions/package.cjs gameflow",
-    "package:updater": "npm run build:distribution && node tools/internal-extensions/package.cjs updater",
+    "package:updater": "npm run build:distribution -- --legacy-updater && node tools/internal-extensions/package.cjs updater",
     "publish:internal": "node tools/internal-extensions/publish.cjs",
-    "test:distribution": "node --test tools/internal-extensions/test.cjs"
+    "test:distribution": "node --test tools/internal-extensions/test.cjs tools/internal-extensions/self-update.test.cjs",
+    "verify:distribution": "node tools/internal-extensions/verify.cjs"
   },
   "dependencies": {
     "@radix-ui/react-dropdown-menu": "^2.2.1",

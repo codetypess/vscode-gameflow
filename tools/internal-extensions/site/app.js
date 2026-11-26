@@ -13,12 +13,12 @@ async function load() {
   if (data.schemaVersion !== 1) throw new Error("版本目录格式不支持");
   document.getElementById("revision").textContent = `更新于 ${new Date(data.generatedAt).toLocaleString("zh-CN")} · #${data.revision}`;
   for (const [id, entry] of Object.entries(data.extensions)) {
-    if (entry.hidden) continue;
+    if (entry.hidden || id === "codetypes.internal-updater") continue;
     const latest = entry.releases.find((release) => release.version === entry.channels.stable);
     if (!latest) continue;
-    if (id === "codetypes.internal-updater") {
-      const button = document.getElementById("updater");
-      button.href = download(latest, "").href; button.textContent = `下载统一更新器 v${latest.version}`; button.removeAttribute("aria-disabled"); button.setAttribute("download", "");
+    if (id === "codetypes.vscode-gameflow") {
+      const button = document.getElementById("extension-download");
+      button.href = download(latest, "").href; button.textContent = `下载${entry.displayName} v${latest.version}`; button.removeAttribute("aria-disabled"); button.setAttribute("download", "");
     }
     const card = text("article", "", "card");
     card.append(text("h3", entry.displayName), text("div", id, "id"), text("p", `v${latest.version} · ${sizeLabel(latest.size)} · VS Code ${latest.engines.vscode}`, "version"), download(latest, "下载 VSIX ↗"));

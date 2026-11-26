@@ -16,12 +16,14 @@ function activate(context) {
   const lockFile = path.join(context.globalStorageUri.fsPath, "install.lock");
   let running = false;
   function log(message) { output.appendLine(`[${new Date().toISOString()}] ${message}`); }
-  function initialState() { return { managed: { [SELF]: {} }, pending: {}, mode: "prompt", revision: 0 }; }
+  function initialState() { return { managed: { [SELF]: {} }, excluded: {}, pending: {}, mode: "prompt", revision: 0 }; }
   function state() {
     if (!fs.existsSync(stateFile)) return initialState();
     const value = JSON.parse(fs.readFileSync(stateFile, "utf8"));
     lib.assert(value && value.managed && value.pending && Number.isSafeInteger(value.revision), "更新器状态损坏，请查看日志并恢复备份");
     value.mode = value.mode === "off" ? "off" : "prompt";
+    value.excluded ||= {};
+    lib.assert(typeof value.excluded === "object" && !Array.isArray(value.excluded), "更新检查暂停设置损坏，请查看日志并恢复备份");
     delete value.independentAutoUpdate;
     return value;
   }
@@ -61,7 +63,15 @@ function activate(context) {
   }
   async function catalog() {
     const result = lib.verifyCatalog(await lib.requestBuffer(new URL("catalog.json", server()), 2 * 1024 * 1024, 15000), TRUST.publicKey, state().revision);
-    await locked(() => { const current = state(); lib.assert(result.revision >= current.revision, "拒绝旧版本目录"); current.revision = result.revision; save(current); });
+    await locked(() => {
+      const current = state();
+      lib.assert(result.revision >= current.revision, "拒绝旧版本目录");
+      current.revision = result.revision;
+      for (const [id, entry] of Object.entries(result.extensions)) {
+        if (!entry.hidden && !current.excluded[id] && installedHere(vscode.extensions.getExtension(id))) current.managed[id] ||= {};
+      }
+      save(current);
+    });
     return result;
   }
   function installedHere(extension) {
@@ -103,7 +113,7 @@ function activate(context) {
     localOnly();
     const data = await catalog();
     lib.assert(data.extensions[id] && installedHere(vscode.extensions.getExtension(id)), "只能将已安装的目录插件加入托管");
-    await locked(() => { const current = state(); current.managed[id] ||= {}; save(current); });
+    await locked(() => { const current = state(); delete current.excluded[id]; current.managed[id] ||= {}; save(current); });
     return id;
   }
   async function check(options) {
@@ -118,6 +128,7 @@ function activate(context) {
       const current = state();
       const updates = [];
       for (const [id, managed] of Object.entries(current.managed)) {
+        if (current.excluded[id]) continue;
         const extension = vscode.extensions.getExtension(id);
         if (!installedHere(extension)) { result.skipped.push(id); continue; }
         const pending = current.pending[id];
@@ -151,33 +162,33 @@ function activate(context) {
     const current = state();
     const items = Object.entries(data.extensions).filter(([, entry]) => !entry.hidden).map(([id, entry]) => ({
       label: entry.displayName, description: id,
-      detail: `已安装 ${vscode.extensions.getExtension(id)?.packageJSON.version || "无"} · stable ${entry.channels.stable || "无"} · ${current.managed[id] ? current.managed[id].pin ? `固定 ${current.managed[id].pin}` : "新版提示安装" : "未托管"}`,
+      detail: `已安装 ${vscode.extensions.getExtension(id)?.packageJSON.version || "无"} · stable ${entry.channels.stable || "无"} · ${current.excluded[id] ? "已暂停检查" : current.managed[id]?.pin ? `固定 ${current.managed[id].pin}` : "新版提示安装"}`,
       id, entry
     }));
-    const item = await vscode.window.showQuickPick(items, { title: "Bit 内部插件", placeHolder: "选择插件进行安装、托管或回退" });
+    const item = await vscode.window.showQuickPick(items, { title: "Bit 内部插件", placeHolder: "选择插件进行安装、检查设置或回退" });
     if (!item) return;
     const installed = vscode.extensions.getExtension(item.id);
-    const actions = [installed ? "安装最新兼容版本" : "安装并托管", ...(installed ? [current.managed[item.id] ? "停止托管" : "加入更新检查", "固定版本 / 手动回退"] : [])];
+    const actions = [installed ? "安装最新兼容版本" : "安装插件", ...(installed ? [current.excluded[item.id] ? "恢复更新检查" : "暂停更新检查", "固定版本 / 手动回退"] : [])];
     const action = await vscode.window.showQuickPick(actions, { title: item.label });
     if (!action) return;
-    if (action === "停止托管") { await locked(() => { const latest = state(); delete latest.managed[item.id]; save(latest); }); return; }
-    if (action === "加入更新检查") { await enroll(item.id); vscode.window.showInformationMessage(`${item.label} 已加入更新检查，发现新版时将提示安装。`); return; }
+    if (action === "暂停更新检查") { await locked(() => { const latest = state(); latest.excluded[item.id] = true; save(latest); }); return; }
+    if (action === "恢复更新检查") { await enroll(item.id); return check(); }
     if (action === "固定版本 / 手动回退") {
       const versions = item.entry.releases.filter((release) => semver.satisfies(vscode.version, release.engines.vscode)).sort((a, b) => semver.rcompare(a.version, b.version));
       const choice = await vscode.window.showQuickPick([{ label: "跟随 stable", release: undefined }, ...versions.map((release) => ({ label: release.version, release }))], { title: "固定版本；选择旧版本将执行回退" });
       if (!choice) return;
-      if (!choice.release) { await locked(() => { const latest = state(); latest.managed[item.id] = {}; save(latest); }); return; }
+      if (!choice.release) { await locked(() => { const latest = state(); delete latest.excluded[item.id]; latest.managed[item.id] = {}; save(latest); }); return; }
       const accepted = await vscode.window.showWarningMessage(`将 ${item.label} 固定并安装为 ${choice.release.version}。`, { modal: true }, "继续安装");
       if (accepted !== "继续安装") return;
-      await locked(() => { const latest = state(); latest.managed[item.id] = { pin: choice.release.version }; delete latest.pending[item.id]; save(latest); });
+      await locked(() => { const latest = state(); delete latest.excluded[item.id]; latest.managed[item.id] = { pin: choice.release.version }; delete latest.pending[item.id]; save(latest); });
       await install(item.id, choice.release, true);
       return;
     }
     const release = lib.selectRelease(item.entry, vscode.version);
     lib.assert(release, "没有兼容当前 VS Code 的 stable 版本");
-    await locked(() => { const latest = state(); latest.managed[item.id] = {}; save(latest); });
+    await locked(() => { const latest = state(); delete latest.excluded[item.id]; latest.managed[item.id] = {}; save(latest); });
     await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: `安装 ${item.label}` }, () => install(item.id, release));
-    vscode.window.showInformationMessage(`${item.label} 已安装并加入托管；如需重载，请先保存文档。`);
+    vscode.window.showInformationMessage(`${item.label} 已安装，后续新版会自动提示；如需重载，请先保存文档。`);
   }
   async function manage() {
     const action = await vscode.window.showQuickPick(["浏览与安装插件", "立即检查更新", "更新模式", "查看日志"], { title: "Bit 内部插件" });
@@ -200,6 +211,7 @@ function activate(context) {
   register("internalUpdater.checkNow", check);
   register("internalUpdater.enroll", enroll);
   register("internalUpdater.showLog", () => output.show());
+  context.subscriptions.push(vscode.extensions.onDidChange(() => check({ silent: true })));
   const startup = setTimeout(() => check({ silent: true }), 30000);
   const polling = setInterval(() => check({ silent: true }), 6 * 60 * 60 * 1000);
   context.subscriptions.push({ dispose() { clearTimeout(startup); clearInterval(polling); } });

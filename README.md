@@ -1,11 +1,13 @@
-# GameFlow
+# 原型工作台
 
-GameFlow 是一个面向游戏策划的 VS Code 扩展骨架，用同一份结构化文档组织策划需求、UI 页面组、页面内节点和页面跳转。
+原型工作台是一个面向游戏策划的 VS Code 扩展，用同一份结构化文档组织策划需求、UI 页面组、页面内节点和页面跳转。插件 ID 为 `codetypes.vscode-gameflow`，文档继续使用 `*.gameflow.json` 格式。
+
+安装一个 VSIX 即可。插件启动约 30 秒后、之后每六小时读取 [metadata.json](http://vsix.bitserver.wang/vscode-gameflow/metadata.json)，发现新版先提示，点击“安装更新”后才下载和安装。可执行“原型工作台: 检查更新”或“查看更新日志”；用户设置 `gameflow.checkForUpdates` 可关闭自动检查。0.1.0～0.1.2 需要一次手动升级到内置检查的新版本。之前安装的独立“Bit 内部插件更新器”可以卸载。
 
 当前版本提供：
 
 - `*.gameflow.json` 自定义编辑器。
-- `GameFlow: 新建策划画布` 命令。
+- `原型工作台: 新建策划画布` 命令。
 - React + shadcn/ui Webview 工作台。
 - 页面总览、页面组拖动、滚轮定点缩放、空白画布抓手平移、双击进入页面内部视图；总览没有固定侧栏。
 - 页面内部显示可折叠层级树和 VS Code 风格悬浮属性面板；添加菜单提供容器、横排/竖排/网格、面板、文字/图片/按钮、输入框/列表、复选框/单选框、进度条/滑块/下拉框等 15 种节点，兼容旧矩形节点。
@@ -25,9 +27,9 @@ GameFlow 是一个面向游戏策划的 VS Code 扩展骨架，用同一份结�
 
 把策划文档和可选的手绘草图交给 Codex 等外部 Agent，使用仓库内的[原型设计技能](.agents/skills/gameflow-prototype-design/SKILL.md)。在独立策划项目中使用 Codex 时，将整个 `gameflow-prototype-design` 目录复制到该项目的 `.agents/skills/` 下即可。
 
-> 请用 $gameflow-prototype-design，结合《公会物资征集》策划案和附图，梳理页面、弹窗与状态，生成 GameFlow 原型，并列出需要我确认的图文差异。
+> 请用 $gameflow-prototype-design，结合《公会物资征集》策划案和附图，梳理页面、弹窗与状态，生成原型工作台原型，并列出需要我确认的图文差异。
 
-Agent 生成的 `*.gameflow.json` 可直接用 GameFlow 打开并继续编辑。[公会物资征集示例](.agents/skills/gameflow-prototype-design/references/guild-supplies.gameflow.json)包含可复用的列表项画板、互斥筛选、征集进度条和数量滑块。
+Agent 生成的 `*.gameflow.json` 可直接用原型工作台打开并继续编辑。[公会物资征集示例](.agents/skills/gameflow-prototype-design/references/guild-supplies.gameflow.json)包含可复用的列表项画板、互斥筛选、征集进度条和数量滑块。
 
 ## PSD 预览和切图
 
@@ -46,7 +48,7 @@ npm test
 npm run build
 ```
 
-在 VS Code 中打开本仓库后按 `F5`，会先执行开发构建并启动 Extension Host。随后运行 `GameFlow: 新建策划画布`，或打开 [sample/backpack.gameflow.json](sample/backpack.gameflow.json)。
+在 VS Code 中打开本仓库后按 `F5`，会先执行开发构建并启动 Extension Host。随后运行 `原型工作台: 新建策划画布`，或打开 [sample/backpack.gameflow.json](sample/backpack.gameflow.json)。
 
 只调试 Webview 布局时可运行 `npm run dev:webview`。浏览器预览使用示例文档模拟同一套消息协议，编辑内容保存在浏览器本地存储；图片和 Prefab 导出写入用户明确选择的目录。
 

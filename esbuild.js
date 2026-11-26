@@ -1,4 +1,6 @@
 const esbuild = require("esbuild");
+const updateTrust = require("./tools/internal-extensions/trust.json");
+require("node:crypto").createPublicKey(updateTrust.publicKey);
 
 const isWatch = process.argv.includes("--watch");
 const isDev = isWatch || process.argv.includes("--dev");
@@ -11,6 +13,7 @@ const options = {
   platform: "node",
   target: "node20",
   external: ["vscode"],
+  define: { __UPDATER_TRUST__: JSON.stringify(updateTrust) },
   sourcemap: isDev,
   minify: false,
   logLevel: "info"

@@ -14,7 +14,7 @@ Scope: 内部更新器在发现新版后提示安装，由用户确认；覆盖�
 - 用户确认前只获取并验证版本目录，不下载或安装 VSIX。取消或稍后均保留现有版本。
 - 更新器自身执行相同确认流程。旧 `auto` 和 independentAutoUpdate 设置不再绕过确认；已暂停的检查保持暂停。
 - 保留签名验证、版本固定、显式回退、Profile 隔离及本地窗口限制。
-- 不把所有手动安装的插件自动加入托管；业务插件仍通过统一更新器选择“加入更新检查”。不修改业务编辑器。
+- 现行流程由 [embedded-extension-updates.md](embedded-extension-updates.md) 更新：业务插件内置自身检查，仅请求自己的 metadata.json，用户确认后安装；不依赖独立更新器，不修改业务编辑器。
 
 ## 3. Proposed Behavior and Design
 
