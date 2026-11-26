@@ -11,7 +11,7 @@ import { bytesHash } from "./psd-document-model";
 import { WorkbenchDocument } from "./workbench-document";
 import { readWorkbenchSlices } from "./slice-resource-controller";
 
-import { PagePsdController, rebasePagePsds } from "./page-psd-controller";
+import { PagePsdController, PagePsdWatcher, rebasePagePsds } from "./page-psd-controller";
 import { exportPrefab, inspectPrefabFile } from "./prefab-export-controller";
 import { prefabExportNameIssue } from "../shared/prefab-export-name";
 
@@ -187,6 +187,18 @@ export class GameFlowEditorProvider implements vscode.CustomEditorProvider<Workb
     const settings = this.psd.settings.attach(panel, doc.uri);
     const updates = attachExtensionUpdates(panel, this.psd.updates);
     const references = new CanvasReferenceController(doc, panel.webview, this.access(doc));
+    const boundPsds = new PagePsdWatcher(doc.uri, panel);
+    const exportedDirectories = new Set<string>();
+    const notifyExports = () => {
+      if (!panel.visible) return;
+      for (const directory of exportedDirectories)
+        void panel.webview.postMessage({ type: "sliceResourcesChanged", directory } satisfies HostToWebviewMessage);
+      exportedDirectories.clear();
+    };
+    const exports = vscode.Disposable.from(this.psd.onDidExportSlices(directory => {
+      exportedDirectories.add(directory);
+      notifyExports();
+    }), panel.onDidChangeViewState(notifyExports));
     const checkPrefabExportNames = (pageId: unknown, fromPsd = false) => {
       const current = parseGameFlowDocument(doc.getText());
       const page = current.pages.find(item => item.id === pageId);
@@ -197,6 +209,7 @@ export class GameFlowEditorProvider implements vscode.CustomEditorProvider<Workb
     const snapshot = async (kind: "init" | "documentChanged" = "documentChanged") => {
       try {
         const document = parseGameFlowDocument(doc.getText());
+        boundPsds.update(document.pages);
         await panel.webview.postMessage({ type: kind, document, documentVersion: doc.version, dirty: doc.dirty, ...(kind === "init" ? { resourceName: doc.uri.path.split("/").pop()! } : {}) } as HostToWebviewMessage);
         void references.refresh(document);
       } catch (error) { await panel.webview.postMessage({ type: "documentError", message: "当前文档不是有效的 GameFlow 文档。", details: [explain(error)] } satisfies HostToWebviewMessage); }
@@ -285,7 +298,7 @@ export class GameFlowEditorProvider implements vscode.CustomEditorProvider<Workb
         if (!doc.canvasDirty) { doc.replace(text); doc.baseline = text; doc.diskHash = hash; this.uriChanges.fire(doc.uri); await doc.refresh(); }
       } catch { /* Save reports conflicts without replacing the in-memory draft. */ }
     });
-    panel.onDidDispose(() => { updates.dispose(); settings.dispose(); subscription.dispose(); watcher.dispose(); changed.dispose(); references.dispose(); doc.refreshers.delete(snapshot); doc.panels.delete(panel); });
+    panel.onDidDispose(() => { exports.dispose(); boundPsds.dispose(); updates.dispose(); settings.dispose(); subscription.dispose(); watcher.dispose(); changed.dispose(); references.dispose(); doc.refreshers.delete(snapshot); doc.panels.delete(panel); });
   }
   private async flush(doc: WorkbenchDocument) {
     if (doc.panels.size) {

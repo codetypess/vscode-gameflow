@@ -134,7 +134,15 @@ export function usePagePsds(document: GameFlowDocument | null, read: () => GameF
   }, [bindingStamp, revision]);
   const retry = (pageId: string) => { loads.current.delete(pageId); bump(n => n + 1); };
   useEffect(() => {
-    const changed = ({ data }: MessageEvent) => { if (data?.type !== "pagePsdChanged") return; for (const page of latest.current.read()?.pages ?? []) if (page.artPsd?.documentId === data.documentId) loads.current.delete(page.id); bump(n => n + 1); };
+    const changed = ({ data }: MessageEvent<import("../../shared/protocol").HostToWebviewMessage>) => {
+      if (data?.type !== "pagePsdChanged") return;
+      for (const page of latest.current.read()?.pages ?? []) {
+        const binding = page.artPsd;
+        if (binding && ("sources" in data ? data.sources.includes(binding.source) : binding.documentId === data.documentId))
+          loads.current.delete(page.id);
+      }
+      bump(n => n + 1);
+    };
     window.addEventListener("message", changed); return () => window.removeEventListener("message", changed);
   }, []);
   const run = async (pageId: string, action: "choose" | "generate") => {

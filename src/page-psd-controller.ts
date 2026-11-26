@@ -5,12 +5,13 @@ import { pagePsdKey } from "../shared/page-psd";
 import { makePsdDraft } from "../shared/psd-draft";
 import { parsePsdBinary } from "../shared/psd-binary";
 import { createPsdStructure } from "../shared/psd-structure";
-import { applySidecar, makeSidecar, sidecarName, type PsdAsset, type PsdSidecar } from "../shared/psd-meta";
+import { applyBoundPsdSidecar, makeSidecar, sidecarName, type PsdAsset, type PsdSidecar } from "../shared/psd-meta";
 import type { ComponentPage, ComponentPsdBinding, PagePsdRequest, PagePsdResult } from "../shared/page-psd-protocol";
 import type { CanvasDocumentAccess, CanvasText } from "./canvas-reference-controller";
 import { bytesHash } from "./psd-document-model";
 import { validPsdFilename } from "../shared/page-psd-protocol";
 import type { WorkbenchDocument } from "./workbench-document";
+import type { HostToWebviewMessage } from "../shared/protocol";
 import { atomicWrite } from "./psd-file-io";
 import type { PsdDocument, PsdEditorProvider } from "./psd-editor-provider";
 type ComponentAccess = CanvasDocumentAccess & { openSource(source: string): Promise<CanvasText> };
@@ -42,6 +43,63 @@ function relativeSource(owner: vscode.Uri, target: vscode.Uri) {
 }
 export function rebasePagePsds(document: GameFlowDocument, from: vscode.Uri, to: vscode.Uri): GameFlowDocument {
   return { ...document, pages: document.pages.map(page => page.artPsd ? { ...page, artPsd: { ...page.artPsd, source: relativeSource(to, vscode.Uri.joinPath(from, "..", page.artPsd.source)) } } : page) };
+}
+export class PagePsdWatcher implements vscode.Disposable {
+  private folders = new Map<string, vscode.Disposable>();
+  private sources = new Map<string, Set<string>>();
+  private pending = new Set<string>();
+  private timer?: ReturnType<typeof setTimeout>;
+  private view: vscode.Disposable;
+
+  constructor(private owner: vscode.Uri, private panel: vscode.WebviewPanel) {
+    this.view = panel.onDidChangeViewState(() => this.flush());
+  }
+
+  update(pages: GameFlowDocument["pages"]) {
+    const folders = new Map<string, vscode.Uri>();
+    this.sources.clear();
+    for (const { artPsd } of pages) {
+      if (!artPsd) continue;
+      const uri = vscode.Uri.joinPath(this.owner, "..", artPsd.source);
+      const folder = vscode.Uri.joinPath(uri, "..");
+      folders.set(fileKey(folder), folder);
+      const key = fileKey(uri), sources = this.sources.get(key) ?? new Set<string>();
+      sources.add(artPsd.source);
+      this.sources.set(key, sources);
+    }
+    for (const [key, watcher] of this.folders) if (!folders.has(key)) {
+      watcher.dispose();
+      this.folders.delete(key);
+    }
+    for (const [key, folder] of folders) if (!this.folders.has(key)) {
+      const watcher = vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(folder, "*"));
+      this.folders.set(key, vscode.Disposable.from(watcher.onDidChange(this.changed),
+        watcher.onDidCreate(this.changed), watcher.onDidDelete(this.changed), watcher));
+    }
+  }
+
+  private changed = (uri: vscode.Uri) => {
+    const key = fileKey(uri);
+    if (!this.sources.has(key)) return;
+    this.pending.add(key);
+    clearTimeout(this.timer);
+    this.timer = setTimeout(() => this.flush(), 100);
+  };
+
+  private flush() {
+    if (!this.panel.visible) return;
+    const sources = new Set<string>();
+    for (const key of this.pending) for (const source of this.sources.get(key) ?? []) sources.add(source);
+    this.pending.clear();
+    if (sources.size) void this.panel.webview.postMessage({ type: "pagePsdChanged", sources: [...sources] } satisfies HostToWebviewMessage);
+  }
+
+  dispose() {
+    clearTimeout(this.timer);
+    this.view.dispose();
+    for (const watcher of this.folders.values()) watcher.dispose();
+    this.pending.clear();
+  }
 }
 export class PagePsdController {
   private reviewedSources = new WeakMap<WorkbenchDocument, Map<string, vscode.Uri>>();
@@ -131,16 +189,13 @@ export class PagePsdController {
     let asset=createPsdStructure(parsePsdBinary(bytes),name,hash);
     if(config) {
       const sidecar=JSON.parse(new TextDecoder().decode(config)) as PsdSidecar;
-      if(asset.hasEmbeddedIdentity && sidecar.documentId===expected && sidecar.source?.sha256!==hash && Array.isArray(sidecar.layers)) {
-        const surviving=new Set(asset.layers.map(l=>l.metadata.layerId));
-        asset=applySidecar(asset,{...sidecar,layers:sidecar.layers.filter(l=>surviving.has(l.id))});
-      } else asset=applySidecar(asset,sidecar);
+      asset = applyBoundPsdSidecar(asset, sidecar, expected);
     }
     if(asset.documentId!==expected) throw new Error("PSD 身份已变化，请重新绑定页面。");
     const draft=makePsdDraft(asset); cache.set(uri.toString(),{stamp,draft});
     return {bytes,name,config,draft};
   }
-  private async ensure(doc: WorkbenchDocument, uri: vscode.Uri, action: PagePsdRequest["action"]): Promise<PsdDocument> {
+  private async ensure(doc: WorkbenchDocument, uri: vscode.Uri, action: PagePsdRequest["action"], previewId?: string): Promise<PsdDocument> {
     const source = uri.toString(), key = doc.uri.toString() + "|" + source;
     const existing = doc.psds.get(source);
     if (existing) return existing;
@@ -151,7 +206,7 @@ export class PagePsdController {
       try {
         if (doc.psds.size >= 32) throw new Error("本工作台已载入 32 份 PSD，请保存并重新打开工作台。");
         const model = await this.psd.openCustomDocument(uri, { backupId: undefined, untitledDocumentData: undefined }, cancellation.token,
-          { preview: true, acceptChangedSource: action !== "load", pageSlice: action === "slice" });
+          { preview: true, acceptChangedSource: action !== "load", pageSlice: action === "slice", previewId });
         if (doc.disposed) { model.dispose(); throw new Error("工作台已关闭。"); }
         doc.psds.set(source, model);
         return model;
@@ -392,17 +447,19 @@ export class PagePsdController {
         if (created.size) replaced = { uri, hash: bytesHash(bytes), previous };
       }
       const existing = doc.psds.get(uri.toString());
-      const psd = await this.ensure(doc, uri, request.action);
+      const previewId = request.action === "load" ? page.artPsd!.documentId : undefined;
+      const joinedLoad = this.pending.has(useKey);
+      const psd = await this.ensure(doc, uri, request.action, previewId);
       if (request.action === "slice") {
         currentPage();
         await this.openSlice(doc, uri, currentPage);
         return result;
       }
-      if (existing && bytesHash(await vscode.workspace.fs.readFile(uri)) !== psd.model.asset.sourceHash) {
+      if ((existing || joinedLoad) && bytesHash(await vscode.workspace.fs.readFile(uri)) !== psd.model.asset.sourceHash) {
         await this.psd.flush(psd);
         if (psd.model.dirty) throw new Error("PSD 文件已变化且有未保存配置，请先处理 PSD 修改再重新绑定。");
         const cancellation = new vscode.CancellationTokenSource();
-        try { await this.psd.reloadFromDisk(psd, cancellation.token); }
+        try { await this.psd.reloadFromDisk(psd, cancellation.token, previewId); }
         finally { cancellation.dispose(); }
       }
       if (psd.configReadIssue) throw new Error("PSD 配置无法读取：" + psd.configReadIssue);

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { nodeArtRefs, IMAGE_SLOT_FIELDS, builtinPath, builtinImage, nodeImageSlot, imageSlotRequest, type ResourceMode } from "../../shared/image-slots";
 import type { GameFlowPage } from "../../shared/model";
+import type { HostToWebviewMessage } from "../../shared/protocol";
 import { legacyDefaultPath } from "../../shared/builtin-image";
 import { exportLayerName, psdLayerPath } from "../../shared/psd-export";
 import { builtinSlice, builtinSliceDescription } from "../../shared/psd-builtin";
@@ -24,6 +25,14 @@ function merge(entries: Map<string, RuntimeResource>, entry: RuntimeResource, ow
 export function useRuntimeResources(observedAssets: PsdAsset[], pages: GameFlowPage[], root?: string, mode: ResourceMode = "art", pageAssets: Record<string, PsdAsset> = {}) {
   const assets = useMemo(() => Array.from(new Set([...observedAssets, ...Object.values(pageAssets)])), [observedAssets, pageAssets]);
   const [revision, setRevision] = useState(0);
+  const [exportRevision, setExportRevision] = useState(0);
+  useEffect(() => {
+    const changed = ({ data }: MessageEvent<HostToWebviewMessage>) => {
+      if (data?.type === "sliceResourcesChanged" && data.directory === root) setExportRevision(n => n + 1);
+    };
+    window.addEventListener("message", changed);
+    return () => window.removeEventListener("message", changed);
+  }, [root]);
   const stamp = useMemo(() => JSON.stringify(assets.map(sliceGenerationStamp)), [assets]);
   const pending = useMemo(() => {
     const entries = new Map<string, RuntimeResource>();
@@ -56,7 +65,7 @@ export function useRuntimeResources(observedAssets: PsdAsset[], pages: GameFlowP
       return page.nodes.flatMap(node => [...nodeArtRefs(node).map(ref => ref.path), ...IMAGE_SLOT_FIELDS.flatMap(field => node[field]?.builtin ? [builtinPath(node[field]!.builtin!)] : [])]);
     })])].sort();
   }, [memory, pages]);
-  const pathsKey = JSON.stringify(paths), diskStamp = JSON.stringify([pathsKey, root, revision]);
+  const pathsKey = JSON.stringify(paths), diskStamp = JSON.stringify([pathsKey, root, revision, exportRevision]);
   useEffect(() => {
     const controller = new AbortController();
     void (async () => {

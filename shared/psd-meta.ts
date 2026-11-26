@@ -141,6 +141,30 @@ export function makeSidecar(asset: PsdAsset): PsdSidecar {
   const atlasName = normalizeAtlasName(asset.atlasName);
   return { schema: "gameflow.psd-meta", version: 1, documentId: asset.documentId, ...(atlasName === undefined ? {} : { atlasName }), ...(asset.independentDirectory ? { independentDirectory: true } : {}), source: { name: asset.name, sha256: asset.sourceHash, width: asset.width, height: asset.height }, layers: asset.layers.map(l => ({ id: l.metadata.layerId, sourceKey: l.key, nativeId: l.nativeId, name: l.name, config: l.config, metadata: sliceLayerMetadata(asset, l) })) };
 }
+/** Project a saved configuration onto the current artwork for an explicitly bound page. */
+export function applyBoundPsdSidecar(asset: PsdAsset, raw: PsdSidecar, expectedId: string): PsdAsset {
+  if (raw?.documentId !== expectedId || raw.source?.sha256 === asset.sourceHash || !Array.isArray(raw.layers))
+    return applySidecar(asset, raw);
+  if (!asset.hasEmbeddedIdentity) {
+    // Photoshop retains native layer IDs across saves and reordering. Array positions can change.
+    const ids = new Map<number, string | undefined>();
+    for (const saved of raw.layers) if (saved.nativeId !== null) {
+      ids.set(saved.nativeId, ids.has(saved.nativeId) ? undefined : saved.id);
+    }
+    const seen = new Set<number>();
+    for (const layer of asset.layers) if (layer.nativeId !== null) {
+      if (seen.has(layer.nativeId)) ids.delete(layer.nativeId);
+      seen.add(layer.nativeId);
+    }
+    asset = { ...asset, documentId: expectedId, layers: asset.layers.map(layer => ({
+      ...layer, metadata: { ...layer.metadata, documentId: expectedId,
+        layerId: (layer.nativeId !== null && ids.get(layer.nativeId)) || layer.metadata.layerId }
+    })) };
+  }
+  const surviving = new Set(asset.layers.map(layer => layer.metadata.layerId));
+  return applySidecar(asset, { ...raw, layers: raw.layers.filter(layer => surviving.has(layer.id)) });
+}
+
 export function applySidecar(asset: PsdAsset, raw: unknown): PsdAsset {
   if (!record(raw) || raw.schema !== "gameflow.psd-meta" || raw.version !== 1 || !record(raw.source) || !Array.isArray(raw.layers)) throw new Error("不是支持的 GameFlow PSD 配置（版本 1）。");
   if (!validAtlasName(raw.atlasName)) throw new Error("配置中的图集名无效。");

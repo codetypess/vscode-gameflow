@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { writePsdUint8Array } from "ag-psd";
 import type { GameFlowEditorProvider } from "../src/gameflow-editor-provider";
 import type { PsdEditorProvider } from "../src/psd-editor-provider";
-import { rebasePagePsds, type PagePsdController } from "../src/page-psd-controller";
+import { PagePsdWatcher, rebasePagePsds, type PagePsdController } from "../src/page-psd-controller";
 import { parseGameFlowDocument, serializeGameFlowDocument } from "../shared/model";
 import { pagePsdFixture } from "./page-psd-fixture";
 export async function pagePsdChecks(api: { workbench: GameFlowEditorProvider; psd: PsdEditorProvider }, root: string, directory: string): Promise<string[]> {
@@ -78,6 +78,34 @@ export async function pagePsdChecks(api: { workbench: GameFlowEditorProvider; ps
     const plainReload = await load(); assert.equal(plainReload.error, undefined); assert.equal(plainReload.draft?.documentId, document.pages[0].artPsd.documentId);
     checks.push("untagged PSD identity is saved in sidecar and reloads through its page binding");
     const beforeSlice = doc.getText();
+    const editedPlain = writePsdUint8Array({ width: 2, height: 2, imageData: { ...pixels, data: new Uint8ClampedArray(16).fill(100) },
+      children: [{ name: "art", imageData: pixels }] }, { generateThumbnail: false });
+    const savedPlainConfig = readFileSync(join(directory, "plain-art.meta.json"));
+    let notifyChange: () => void;
+    const changed = new Promise<void>(resolve => { notifyChange = resolve; });
+    const watcher = new PagePsdWatcher(uri, { visible: true, onDidChangeViewState: () => new vscode.Disposable(() => {}),
+      webview: { postMessage: (message: { sources: string[] }) => {
+        if (message.sources.includes("plain-art.psd")) notifyChange();
+      } } } as unknown as vscode.WebviewPanel);
+    watcher.update(document.pages);
+    // VS Code installs native watches asynchronously, including those outside workspace folders.
+    const write = () => writeFileSync(plainUri.fsPath, editedPlain);
+    const repeat = setInterval(write, 350);
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    try {
+      write();
+      await Promise.race([changed, new Promise((_, reject) => {
+        timeout = setTimeout(() => reject(new Error("No external PSD save notification")), 10000);
+      })]);
+    } finally { clearInterval(repeat); clearTimeout(timeout); watcher.dispose(); }
+    const refreshedPlain = await load();
+    assert.equal(refreshedPlain.error, undefined);
+    assert.equal(refreshedPlain.draft?.documentId, document.pages[0].artPsd.documentId);
+    assert.deepEqual(Buffer.from(refreshedPlain.base64!, "base64"), Buffer.from(editedPlain));
+    assert.deepEqual(readFileSync(join(directory, "plain-art.meta.json")), savedPlainConfig);
+    assert.equal(doc.dirty, false);
+    writeFileSync(plainUri.fsPath, Buffer.from(plainReload.base64!, "base64"));
+    checks.push("bound Photoshop preview reads externally changed pixels without rewriting the slice configuration");
     const slice = () => controller.handle(doc, { type: "pagePsd", requestId: "open-slice", pageId: document.pages[0].id, action: "slice", expected: document.pages[0].artPsd });
     assert.equal((await slice()).error, undefined);
     const existing = doc.psds.get(plainUri.toString());

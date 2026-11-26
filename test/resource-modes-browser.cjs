@@ -177,6 +177,44 @@ const sharedUrl = file => "/@fs/" + path.resolve(__dirname, "../shared", file).s
     const brokenName = `broken_${ownerStem}_normal`;
     const painted = page.locator(`.page-editing canvas[data-resource-path="${normalPath}"]`);
     await painted.waitFor();
+    await page.getByRole("button", { name: "预制体资源", exact: true }).click();
+    await page.locator('.page-editing [data-resource-status="error"]').first().waitFor();
+    assert.equal(await painted.count(), 0);
+    await page.getByRole("button", { name: "更多", exact: true }).click();
+    await page.getByRole("menuitem", { name: "PSD 切图", exact: true }).click();
+    await page.getByRole("button", { name: "导出", exact: true }).click();
+    await page.waitForFunction(name => window.testRoots[0].entries.get("unclassified")?.entries.has(name), normalName + ".png");
+    await page.getByRole("button", { name: "工作台模式：PSD 切图", exact: true }).click();
+    await page.locator(".workspace-mode-menu").getByRole("menuitem", { name: "原型", exact: true }).click();
+    await painted.waitFor();
+    assert.equal(await page.getByRole("button", { name: "预制体资源", exact: true }).getAttribute("aria-pressed"), "true");
+    console.log("PASS missing prefab image appears on return from PSD slice export");
+    const firstPixels = await painted.evaluate(c => c.toDataURL());
+    const reexport = modified => page.evaluate(async ({ normalName, modified }) => {
+      const { requestPsd } = await import("/runtime/page-psd.ts");
+      const { renderSliceExportBatch } = await import("/psd/slice-render.ts");
+      const { resourceExport } = await import("/psd/export.ts");
+      const page = JSON.parse(localStorage.getItem("gameflow.prototype.ui-components.v2")).pages.find(p => p.artPsd?.source === "login.psd");
+      const { asset } = await requestPsd({ action: "load", expected: page.artPsd, pageId: page.id });
+      const batch = await renderSliceExportBatch(asset);
+      const item = batch.items.find(item => item.name === normalName);
+      if (modified) {
+        const canvas = document.createElement("canvas");
+        canvas.width = item.width; canvas.height = item.height;
+        const ctx = canvas.getContext("2d");
+        ctx.fillStyle = "#762eda"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        item.base64 = canvas.toDataURL().split(",")[1];
+      }
+      await resourceExport("export", batch);
+    }, { normalName, modified });
+    await reexport(true);
+    const selector = `.page-editing canvas[data-resource-path="${normalPath}"]`;
+    await page.waitForFunction(({ selector, firstPixels }) => {
+      const canvas = document.querySelector(selector);
+      return canvas && canvas.getContext("2d").getImageData(0, 0, 1, 1).data[0] === 118 && canvas.toDataURL() !== firstPixels;
+    }, { selector, firstPixels });
+    await reexport(false);
+    await page.waitForFunction(({ selector, firstPixels }) => document.querySelector(selector)?.toDataURL() === firstPixels, { selector, firstPixels });
     const renameButtonSlices = async variable => {
       await page.getByRole("button",{name:"更多",exact:true}).click();
       await page.getByRole("menuitem",{name:"PSD 切图",exact:true}).click();

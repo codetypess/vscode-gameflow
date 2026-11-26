@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 import { attachExtensionUpdates, type SelfUpdateClient } from "./extension-updates";
 import { parsePsdBinary, patchPsdMetadata } from "../shared/psd-binary";
 import { createPsdStructure } from "../shared/psd-structure";
-import { applySidecar, makeSidecar, sidecarName, type PsdAsset } from "../shared/psd-meta";
+import { applyBoundPsdSidecar, applySidecar, makeSidecar, sidecarName, type PsdAsset } from "../shared/psd-meta";
 import { applyPsdDraft, draftStamp, isPsdDraft, makePsdDraft, type PsdDraft } from "../shared/psd-draft";
 import { isPsdEditorRequest, type PsdEditorMessage, type PsdEditorState } from "../shared/psd-editor-protocol";
 import { isWebviewToHostMessage, type HostToWebviewMessage } from "../shared/protocol";
@@ -27,10 +27,10 @@ async function readOptional(uri: vscode.Uri, limit: number): Promise<Uint8Array 
   } catch (e) { if (e instanceof vscode.FileSystemError && e.code === "FileNotFound") return null; throw e; }
 }
 async function removeIfPresent(uri: vscode.Uri) { try { await vscode.workspace.fs.delete(uri); } catch (e) { if (!(e instanceof vscode.FileSystemError && e.code === "FileNotFound")) throw e; } }
-function loadConfig(asset: PsdAsset, config: Uint8Array) {
+function loadConfig(asset: PsdAsset, config: Uint8Array, previewId?: string) {
   try {
     const raw = JSON.parse(new TextDecoder().decode(config));
-    return { asset: applySidecar(asset, raw), changedSource: raw.source.sha256 !== asset.sourceHash };
+    return { asset: previewId ? applyBoundPsdSidecar(asset, raw, previewId) : applySidecar(asset, raw), changedSource: raw.source.sha256 !== asset.sourceHash };
   } catch (error) {
     return { asset, configReadIssue: message(error) };
   }
@@ -65,15 +65,17 @@ export class PsdEditorProvider implements vscode.CustomEditorProvider<PsdDocumen
   readonly settings: WorkbenchSettingsController;
   readonly documents = new Map<string, PsdDocument>();
   private readonly changes = new vscode.EventEmitter<vscode.CustomDocumentEditEvent<PsdDocument>>();
+  private readonly sliceExports = new vscode.EventEmitter<string>();
+  readonly onDidExportSlices = this.sliceExports.event;
   readonly onDidChangeCustomDocument = this.changes.event;
-  constructor(private readonly context: vscode.ExtensionContext, readonly updates?: SelfUpdateClient) { this.settings = new WorkbenchSettingsController(context); context.subscriptions.push(this.changes, this.settings); }
+  constructor(private readonly context: vscode.ExtensionContext, readonly updates?: SelfUpdateClient) { this.settings = new WorkbenchSettingsController(context); context.subscriptions.push(this.changes, this.sliceExports, this.settings); }
   async open(uri?: vscode.Uri) {
     if (!uri) uri = (await vscode.window.showOpenDialog({ canSelectMany: false, filters: { Photoshop: ["psd"] }, openLabel: "打开 PSD 配置" }))?.[0];
     if (!uri) return;
     if (!/\.psd$/i.test(uri.path)) throw new Error("请选择 PSD 文件。");
     await vscode.commands.executeCommand("vscode.openWith", uri, PSD_EDITOR_VIEW_TYPE, { preview: false });
   }
-  async openCustomDocument(uri: vscode.Uri, context: vscode.CustomDocumentOpenContext, token: vscode.CancellationToken, options?: { preview?: boolean; acceptChangedSource?: boolean; pageSlice?: boolean }): Promise<PsdDocument> {
+  async openCustomDocument(uri: vscode.Uri, context: vscode.CustomDocumentOpenContext, token: vscode.CancellationToken, options?: { preview?: boolean; acceptChangedSource?: boolean; pageSlice?: boolean; previewId?: string }): Promise<PsdDocument> {
     if (this.documents.has(uri.toString())) throw new Error("此 PSD 已在工作台或配置编辑器中打开，请先关闭原会话。");
     const cache = vscode.Uri.joinPath(this.context.globalStorageUri, "psd-drafts", bytesHash(new TextEncoder().encode(uri.toString())));
     let backup: Backup | undefined;
@@ -98,11 +100,11 @@ export class PsdEditorProvider implements vscode.CustomEditorProvider<PsdDocumen
     const savedBytes = await readOptional(configUri(uri), 1024 * 1024);
     let notice: string | undefined, configReadIssue: string | undefined;
     if (savedBytes && !backup) {
-      const loaded = loadConfig(asset, savedBytes);
+      const loaded = loadConfig(asset, savedBytes, options?.previewId);
       configReadIssue = loaded.configReadIssue;
       if (configReadIssue) notice = `已有配置未能自动读取：${configReadIssue} 原文件已保留。可修复身份后读取配置，或另存为 PSD 副本。`;
       else {
-        if (loaded.changedSource && !options?.pageSlice) {
+        if (loaded.changedSource && !options?.pageSlice && !options?.previewId) {
           if (options?.preview && !options.acceptChangedSource) throw new Error("PSD 已变化，请重新绑定并确认采用已有配置。");
           const answer = await vscode.window.showWarningMessage("PSD 已变化，是否按图层身份采用已有配置？", { modal: true }, "采用配置");
           if (answer !== "采用配置") throw new vscode.CancellationError();
@@ -208,7 +210,9 @@ export class PsdEditorProvider implements vscode.CustomEditorProvider<PsdDocumen
       } else if (isWebviewToHostMessage(raw) && raw.type === "openPsdEditor") { try { await open(); } catch (error) { void vscode.window.showErrorMessage(message(error)); } }
       else if (isWebviewToHostMessage(raw) && raw.type === "psdResourceExport") {
         try {
+          const directory = exports.directoryLabel;
           const count = raw.action === "export" ? await exports.export(raw.batch!) : undefined;
+          if (directory && typeof count === "number") this.sliceExports.fire(directory);
           const wasCancelled = raw.action === "choose" ? !await exports.choose() : count === null;
           await panel.webview.postMessage({ type: "psdResourceExportResult", requestId: raw.requestId, directory: exports.directoryLabel, ...(typeof count === "number" ? { count } : {}), cancelled: wasCancelled } satisfies HostToWebviewMessage);
         } catch (error) { await panel.webview.postMessage({ type: "psdResourceExportResult", requestId: raw.requestId, error: message(error), ...(error instanceof SliceExportConflict ? { conflicts: error.conflicts } : {}) } satisfies HostToWebviewMessage); }
@@ -267,13 +271,13 @@ export class PsdEditorProvider implements vscode.CustomEditorProvider<PsdDocumen
       await this.clearDraft(doc);
     });
   }
-  async reloadFromDisk(doc: PsdDocument, token: vscode.CancellationToken): Promise<void> {
-    return this.resetDocument(doc, token, false);
+  async reloadFromDisk(doc: PsdDocument, token: vscode.CancellationToken, previewId?: string): Promise<void> {
+    return this.resetDocument(doc, token, false, previewId);
   }
   async revertCustomDocument(doc: PsdDocument, token: vscode.CancellationToken): Promise<void> {
     return this.resetDocument(doc, token, true);
   }
-  private async resetDocument(doc: PsdDocument, token: vscode.CancellationToken, allowBaselineFallback: boolean): Promise<void> {
+  private async resetDocument(doc: PsdDocument, token: vscode.CancellationToken, allowBaselineFallback: boolean, previewId?: string): Promise<void> {
     const version = doc.model.version;
     await doc.enqueue(async () => {
       cancelled(token);
@@ -283,7 +287,7 @@ export class PsdEditorProvider implements vscode.CustomEditorProvider<PsdDocumen
         let asset = createPsdStructure(parsePsdBinary(bytes), nameOf(doc.uri), bytesHash(bytes));
         let configReadIssue: string | undefined;
         if (config) {
-          const loaded = loadConfig(asset, config);
+          const loaded = loadConfig(asset, config, previewId);
           asset = loaded.asset; configReadIssue = loaded.configReadIssue;
         }
         else if (asset.sourceHash === doc.model.asset.sourceHash && doc.model.configHash === null) asset = applyPsdDraft(asset, doc.model.baseline, true);

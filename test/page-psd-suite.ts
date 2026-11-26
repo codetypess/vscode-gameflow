@@ -7,7 +7,7 @@ import { effectiveExportName, makeSliceExportBatch } from "../shared/psd-export"
 import type { PsdAsset, PsdLayer } from "../shared/psd-meta";
 import { makeNode } from "../shared/editor-ops";
 import { prototypeTree, psdTree, compareTrees, coordinatedBase, plannedTrees } from "../shared/page-sync";
-import { PagePsdController, rebasePagePsds } from "../src/page-psd-controller";
+import { PagePsdController, PagePsdWatcher, rebasePagePsds } from "../src/page-psd-controller";
 import type { PsdEditorProvider } from "../src/psd-editor-provider";
 import type { WorkbenchDocument } from "../src/workbench-document";
 import { FileSystemError, referenceHost, Uri, workspace, TestTextDocument } from "./vscode-reference-host";
@@ -18,6 +18,34 @@ import { pagePsdFixture } from "./page-psd-fixture";
 const tests: { name: string; run: () => void | Promise<void> }[] = [];
 const test = (name: string, run: () => void | Promise<void>) => tests.push({ name, run });
 export const pagePsdTests = tests;
+test("bound artwork notifications follow files through replacement, rebinding and hidden panels", () => {
+  referenceHost.reset();
+  const { page } = fixture();
+  const messages: unknown[] = [];
+  let viewChanged = () => {};
+  const panel = { visible: false, webview: { postMessage: (message: unknown) => messages.push(message) },
+    onDidChangeViewState(fn: () => void) { viewChanged = fn; return { dispose() { viewChanged = () => {}; } }; } };
+  const watch = new PagePsdWatcher(new Uri("/layouts/main.gameflow.json") as unknown as vscode.Uri, panel as unknown as vscode.WebviewPanel);
+  const bind = (source: string) => ({ ...page, artPsd: { source, documentId: "same-id" } });
+  watch.update([bind("../art/a[2].psd"), bind("../art/b.psd")]);
+  assert.equal(referenceHost.watchers.length, 1);
+  const folder = referenceHost.watchers[0], a = new Uri("/art/a[2].psd");
+  folder.change.fire(a); folder.delete.fire(a); folder.create.fire(a);
+  folder.change.fire(new Uri("/art/unrelated.psd"));
+  viewChanged();
+  assert.deepEqual(messages, []);
+  panel.visible = true; viewChanged();
+  assert.deepEqual(messages, [{ type: "pagePsdChanged", sources: ["../art/a[2].psd"] }]);
+  folder.change.fire(a);
+  watch.update([bind("new.psd")]);
+  assert.ok(folder.disposed); viewChanged();
+  assert.equal(messages.length, 1);
+  const current = referenceHost.watchers[1];
+  current.create.fire(new Uri("/layouts/new.psd")); viewChanged();
+  assert.deepEqual(messages[1], { type: "pagePsdChanged", sources: ["new.psd"] });
+  watch.dispose();
+  assert.ok(current.disposed);
+});
 test("property sync suggests a source only for an agreed, recorded value",()=>{
   const {page}=fixture();
   const [node]=prototypeTree(page);

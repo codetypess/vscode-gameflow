@@ -57,6 +57,7 @@ export async function resourceExport(action: "choose" | "export", batch?: SliceE
       decode: value => Uint8Array.from(atob(value), c => c.charCodeAt(0)),
       hash: async bytes => [...new Uint8Array(await crypto.subtle.digest("SHA-256", new Uint8Array(bytes)))].map(b => b.toString(16).padStart(2, "0")).join("")
     });
+    window.postMessage({ type: "sliceResourcesChanged", directory } satisfies HostToWebviewMessage, window.location.origin);
     return { type: "psdResourceExportResult", requestId, directory, count };
   } finally { exporting = false; }
 }

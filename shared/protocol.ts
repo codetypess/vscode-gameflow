@@ -49,9 +49,11 @@ export type HostToWebviewMessage =
   | PagePsdResult
   | {type:"prefabInspectResult";requestId:string;snapshot?:PrefabSnapshot;error?:string}
   | { type: "pagePsdChanged"; documentId: string }
+  | { type: "pagePsdChanged"; sources: string[] }
   | { type: "prefabExportResult"; requestId: string; count?: number; error?: string }
   | WorkbenchSettingsResult
   | { type: "sliceResourcesResult"; requestId: string; resources: ExportedSliceResult[] }
+  | { type: "sliceResourcesChanged"; directory: string }
   | { type: "workbenchFlush"; requestId: string }
   | { type: "psdResourceExportResult"; requestId: string; directory?: string; count?: number; cancelled?: boolean; error?: string; conflicts?: ResourceConflict[] }
   | { type: "canvasSources"; sources: CanvasSources; pickedSource?: string; error?: string }
