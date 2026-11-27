@@ -15,7 +15,7 @@ function syncPath(tree: SyncNode[], id: string, pageName: string) {
 export function changeValue(tree: SyncNode[], change: Change, pageName?: string): string {
   const node = tree.find(item => item.id === change.id);
   if (!node) return "不存在";
-  if (change.replacement) {
+  if (change.replacement && change.field === "exist") {
     if (change.representation === "psd-list-cells") return node.layer ? "空列表组" : "引用的列表项模板";
     if (change.representation === "psd-default-image") return node.layer ? "旧版默认图片" : "左上角山景图标";
     if (change.representation === "psd-smart-object") return node.layer ? "普通图层组" : "组件实例";
@@ -50,7 +50,7 @@ export function describeDecision(comparison: Comparison, change: Change, decisio
   if (decision === "skip") return "本轮跳过";
   if (change.prefabImage) return change.prefabImage.planned ? "更新预制体图片" : "清空预制体图片";
   if (change.componentSource) return decision === "proto" ? "更新智能对象" : "保留当前内嵌内容";
-  if (change.replacement) {
+  if (change.replacement && change.field === "exist") {
     if (decision !== change.replacement) return "本轮跳过";
     if (change.representation === "psd-list-cells") return "按引用原型补齐列表项";
     if (change.representation === "psd-default-image") return "更新默认图片";
@@ -95,7 +95,7 @@ export function SyncChange({ comparison, change, title, decision, disabled, onCh
   if (change.prefabImage) status = "图片引用不同";
   else if (change.componentSource) status = change.componentSource.firstLink ? "首次关联" : change.componentSource.conflict ? "源和内嵌内容均有修改" : "组件源已更新";
   else if (change.representation === "psd-component-layers") status = "原型新增图层";
-  else if (change.replacement) status = "生成方式已变更";
+  else if (change.replacement && structure) status = "生成方式已变更";
   else if (structure) {
     const onPrototype = comparison.proto.some(node => node.id === change.id);
     const present = sides[onPrototype ? "proto" : "psd"];

@@ -6,7 +6,7 @@ import { applyPsdDraft } from "../../shared/psd-draft";
 import { validComponentPsdFields, validPsdBase64, type ComponentPsdBinding, type PagePsdRequest, type PagePsdResult } from "../../shared/page-psd-protocol";
 import { openPsd, psdTask, saveOutput } from "../psd/io";
 import { isBrowserPreview, postHostMessage } from "../vscode-api";
-import { compareTrees, coordinatedBase, prototypeTree, psdComponentInstances, psdTree } from "../../shared/page-sync";
+import { comparePagePsd, coordinatedBase, prototypeTree, psdComponentInstances, psdTree } from "../../shared/page-sync";
 import type { CanvasComposition } from "../../shared/canvas-instances";
 import type { CanvasSources } from "../../shared/canvas-references";
 import { allocateElementId, reserveDocumentElementIds } from "../../shared/element-id";
@@ -176,7 +176,8 @@ export function usePagePsds(document: GameFlowDocument | null, read: () => GameF
         const reserved = new Set(projected.nodes.map(node=>node.id));
         reserveDocumentElementIds(current,reserved);
         const proto=prototypeTree(projected,components), psd=psdTree(current.documentId,projected,result.asset,()=>allocateElementId(reserved),undefined,false,components);
-        generatedBase=coordinatedBase(current.documentId,page.id,result.asset.documentId,compareTrees(proto,psd),{proto,psd});
+        const comparison = comparePagePsd(projected, proto, psd, result.asset);
+        generatedBase=coordinatedBase(current.documentId,page.id,result.asset.documentId,comparison,comparison);
       }
       const base=generatedBase;
       const componentBindings = new Map(result.componentBindings?.filter(item => !item.canvas).map(item => [item.pageId, item.binding]));

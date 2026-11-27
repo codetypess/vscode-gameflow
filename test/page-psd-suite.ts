@@ -6,7 +6,7 @@ import { isWebviewToHostMessage } from "../shared/protocol";
 import { effectiveExportName, makeSliceExportBatch } from "../shared/psd-export";
 import type { PsdAsset, PsdLayer } from "../shared/psd-meta";
 import { makeNode } from "../shared/editor-ops";
-import { applyPrototypeTree, prototypeTree, psdTree, compareTrees, coordinatedBase, plannedTrees } from "../shared/page-sync";
+import { applyPrototypeTree, prototypeTree, psdTree, comparePagePsd, compareTrees, coordinatedBase, plannedTrees } from "../shared/page-sync";
 import { PagePsdController, PagePsdWatcher, rebasePagePsds } from "../src/page-psd-controller";
 import type { PsdEditorProvider } from "../src/psd-editor-provider";
 import type { WorkbenchDocument } from "../src/workbench-document";
@@ -111,6 +111,38 @@ test("PSD sync adopts untagged root and container text while excluding decorativ
   asset.layers[1].textContent = "改过的文案";
   assert.deepEqual(compareTrees(prototypeTree(next), reread(), next.psdSync).changes.map(ch => [ch.id, ch.field, ch.suggested]),
     [["label-2", "text", "psd"]]);
+});
+
+test("PSD pull detects a font-size-only edit and imports new text in the scaled parent's local units", () => {
+  const { page, asset, document } = fixture();
+  const box = { ...makeNode("container", "box", 0, 0), transform: { scaleX: 2, scaleY: 2 } };
+  const input = { ...makeNode("input", "input", 0, 0), parentId: box.id, text: "相同文案",
+    style: { fontSize: 12, color: "#336699", italic: true } };
+  page.nodes = [box, input];
+  const layer = (key: number, nodeId: string, name: string, textFontSize?: number): PsdLayer => ({
+    ...asset.layers[0], key, parentKey: key ? 0 : null, group: !key, name, text: !!key,
+    textContent: key ? input.text : undefined, textFontSize,
+    metadata: { ...asset.layers[0].metadata, layerId: "layer-" + key, prototype: { documentId: document.documentId, pageId: page.id, nodeId } }
+  });
+  asset.layers = [layer(0, box.id, box.name), layer(1, input.id, input.name, 68)];
+  const compare = (current: GameFlowPage, source?: "proto" | "psd") => comparePagePsd(current, prototypeTree(current),
+    psdTree(document.documentId, current, asset, () => "newlabel"), asset, current.psdSync, source);
+  const comparison = compare(page);
+  assert.deepEqual(comparison.changes.map(ch => [ch.id, ch.property]), [[input.id, "style.fontSize"]]);
+  assert.deepEqual(compare(page, "psd").changes, comparison.changes);
+  assert.deepEqual(compare(page, "proto").changes, []);
+  const added = layer(2, "newlabel", "版本号", 54);
+  delete added.metadata.prototype;
+  asset.layers.push(added);
+  const all = compare(page);
+  const plan = plannedTrees(all, Object.fromEntries(all.changes.map(ch => [ch.key, "psd"])), "psd");
+  const next = applyPrototypeTree(page, plan.proto, undefined, "psd");
+  assert.deepEqual(next.nodes.find(n => n.id === input.id)?.style, { ...input.style, fontSize: 34 });
+  assert.equal(next.nodes.find(n => n.id === "newlabel")?.style?.fontSize, 27);
+  next.psdSync = coordinatedBase(document.documentId, page.id, asset.documentId, all, plan);
+  assert.deepEqual(compare(next).changes, []);
+  asset.layers[1].textFontSize = undefined;
+  assert.deepEqual(compare(next).changes, []);
 });
 
 test("anonymous text without a unique native ID is only paired by position for identical PSD bytes", () => {

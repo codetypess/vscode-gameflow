@@ -1,4 +1,5 @@
 import type { GameFlowNode } from "./model";
+import { DEFAULT_LABEL_OVERFLOW } from "./ui-config";
 import { layoutText, type TextMeasure } from "./label-layout";
 import { labelTextStyle, parseLabelRuns } from "./label-syntax";
 
@@ -11,6 +12,6 @@ export const estimateLabelText: TextMeasure = (text, style, scale) => ({
 export function layoutLabel(node: GameFlowNode, width: number | null, height: number | null, measure: TextMeasure = estimateLabelText) {
   const widget = node.widget ?? {};
   return layoutText(parseLabelRuns(node), { width, height, style: labelTextStyle(node), measure,
-    wordWrap: widget.wordWrap ?? true, overflow: widget.overflow ?? "hidden",
+    wordWrap: widget.wordWrap ?? true, overflow: widget.overflow ?? DEFAULT_LABEL_OVERFLOW,
     leading: widget.leading ?? 0, letterSpacing: widget.letterSpacing ?? 0, singleCharRender: false });
 }

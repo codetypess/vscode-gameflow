@@ -11,7 +11,7 @@ import { Field, NumericPropertyRow, ReadOnlyPropertyRow } from "./fields";
 import { ConstraintControl, ContainerAlignment, PaddingControl } from "./layout-controls";
 import { sliderOwner } from "../../shared/ui-parts";
 import { useOverrideAttributes } from "./override-properties";
-import { isTemplateVars } from "../../shared/ui-config";
+import { DEFAULT_LABEL_OVERFLOW, isTemplateVars } from "../../shared/ui-config";
 
 function Select({ label, value, options, disabled, compact, onChange }: { label: string; value: string; options: readonly (readonly [string, string])[]; disabled?: boolean; compact?: boolean; onChange: (value: string) => void }) {
   const override=useOverrideAttributes(label);
@@ -128,7 +128,7 @@ export function LabelProperties({ node, locked, onNode }: { node: GameFlowNode; 
     <Field label="行距" type="number" step={1} value={w.leading ?? 0} disabled={locked} onCommit={value => set({ leading: Number(value) })} />
     <Field label="字距" type="number" step={1} value={w.letterSpacing ?? 0} disabled={locked} onCommit={value => set({ letterSpacing: Number(value) })} />
     <Toggle label="自动换行" value={w.wordWrap ?? true} disabled={locked} onChange={wordWrap => set({ wordWrap })} />
-    <Select label="文字溢出" value={w.overflow ?? "hidden"} disabled={locked} options={[["visible", "显示溢出"], ["hidden", "裁剪"], ["scroll", "滚动"], ["shrink", "缩小字体"], ["ellipsis", "省略号"]]} onChange={overflow => set({ overflow: overflow as WidgetProps["overflow"] })} />
+    <Select label="文字溢出" value={w.overflow ?? DEFAULT_LABEL_OVERFLOW} disabled={locked} options={[["visible", "显示溢出"], ["hidden", "裁剪"], ["scroll", "滚动"], ["shrink", "缩小字体"], ["ellipsis", "省略号"]]} onChange={overflow => set({ overflow: overflow as WidgetProps["overflow"] })} />
     {w.overflow === "scroll" ? <NumericPropertyRow label="文字滚动" disabled={locked} fields={[{ axis: "X", ariaLabel: "文字滚动 X", min: 0, value: w.scrollX ?? 0, onCommit: scrollX => set({ scrollX }) }, { axis: "Y", ariaLabel: "文字滚动 Y", min: 0, value: w.scrollY ?? 0, onCommit: scrollY => set({ scrollY }) }]} /> : null}
     <div className="label-syntax-row" {...syntaxOverride}><span>语法</span><div>
       <Toggle label="HTML" value={w.html ?? false} disabled={locked} onChange={html => set({ html })} />

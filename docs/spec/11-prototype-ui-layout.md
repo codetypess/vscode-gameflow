@@ -39,7 +39,7 @@ RadioGroup 为可含子节点的容器，`widget.optionNodeIds` 保存同页 Rad
 
 布尔属性 label 仅占文字列、间距与复选框所需宽度，右侧空白点击不切换属性；文字、复选框点击与键盘空格继续使用原生激活语义，锁定保护保持有效。该规则同样适用于控件部件的选中状态和文字换行，语法组保留紧凑排列。详见 [复选框点击范围](inspector-checkbox-hit-area.md)。
 
-UILabel 的文字区支持可选 `widget.leading/letterSpacing`（有限正负数，默认 0）、wordWrap、五种 overflow（visible/hidden/scroll/shrink/ellipsis）及 HTML/UBB/模板开关。保留已有原型缺省 wordWrap=true、overflow=hidden。语法按项目 UILabel 源码顺序处理：模板变量替换，再 UBB 转 HTML，再解析文本段；UBB 单独开启即解释 HTML。模板变量为 JSON 标量映射，null/缺省关闭；`{name=default}`、缺失值及反斜杠转义与目标一致。行距、字距、富文本换行和溢出共用目标纯排版算法；shrink/ellipsis 同时考虑宽高，scroll 通过 widget.scrollX/Y 静态偏移。普通文字可多行编辑，Enter 换行、失焦或 Ctrl/Cmd+Enter 一次提交、Escape 恢复。新增字段支持保存、历史与引用实例覆盖/还原。HTML 只生成受控绘制元素，链接不跳转，内联图片在资产路径解析接入前使用尺寸占位。详见 [UILabel 文字属性与语法](label-text-properties.md)。
+UILabel 的文字区支持可选 `widget.leading/letterSpacing`（有限正负数，默认 0）、wordWrap、五种 overflow（visible/hidden/scroll/shrink/ellipsis）及 HTML/UBB/模板开关。缺省 wordWrap=true、overflow=visible。新建及 PSD 同步的文字默认可以超出文本框绘制，显式溢出设置和祖先的裁剪边界生效。语法按项目 UILabel 源码顺序处理：模板变量替换，再 UBB 转 HTML，再解析文本段；UBB 单独开启即解释 HTML。模板变量为 JSON 标量映射，null/缺省关闭；`{name=default}`、缺失值及反斜杠转义与目标一致。行距、字距、富文本换行和溢出共用目标纯排版算法；shrink/ellipsis 同时考虑宽高，scroll 通过 widget.scrollX/Y 静态偏移。普通文字可多行编辑，Enter 换行、失焦或 Ctrl/Cmd+Enter 一次提交、Escape 恢复。新增字段支持保存、历史与引用实例覆盖/还原。HTML 只生成受控绘制元素，链接不跳转，内联图片在资产路径解析接入前使用尺寸占位。详见 [UILabel 文字属性与语法](label-text-properties.md)。
 
 所有支持子节点的控件，其属性面板“容器布局”分区默认展开，并允许手动收起；复合控件与普通容器采用相同默认状态。
 

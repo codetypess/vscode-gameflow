@@ -3,7 +3,7 @@ import { Button } from "../components/ui/button";
 import { DialogHeading } from "../components/dialog-heading";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Frame, GameFlowDocument, GameFlowPage } from "../../shared/model";
-import { compareTrees, plannedTrees, coordinatedBase, currentSyncBase, prototypeTree, psdTree, applyPrototypeTree, fieldNames, type Change, type Decision, type PsdComponentInstance, type Side, type SyncNode } from "../../shared/page-sync";
+import { comparePagePsd, plannedTrees, coordinatedBase, currentSyncBase, prototypeTree, psdTree, psdTreeWithFontSizes, applyPrototypeTree, fieldNames, type Change, type Decision, type PsdComponentInstance, type Side, type SyncNode } from "../../shared/page-sync";
 import { draftStamp } from "../../shared/psd-draft";
 import type { PsdAsset } from "../../shared/psd-meta";
 import { requestPsd, sourceBytes } from "../runtime/page-psd";
@@ -72,6 +72,7 @@ export function SyncPreview({page,asset,nodes,selected,changes,old,resourceMode=
 }
 export interface SyncSession { document:GameFlowDocument; page:GameFlowPage; components:ReadonlyMap<string,PsdComponentInstance>; componentTargets:ReadonlyMap<string,ComponentPsdTarget>; sources:CanvasSources; makeId:()=>string; source?:Side }
 function changeTitle(change: Change) {
+  if (change.property === "style.fontSize") return "字号";
   if (change.representation === "psd-list-cells") return "列表项智能对象";
   if (change.representation === "psd-default-image") return "内置默认图片";
   if (change.representation === "psd-smart-object") return "PSD 图层类型";
@@ -113,7 +114,8 @@ export function PageSyncDialog({session,loadedAsset,close,apply}:Props) {
       const art=psdTree(doc.documentId,page,asset,layer=>{
         const key=layer.metadata.layerId;if(!ids.current.has(key))ids.current.set(key,session.makeId());return ids.current.get(key)!;
       },pairs,false,components);
-      const comparison = compareTrees(prototypeTree(page,components),art,currentSyncBase(doc.documentId,page,asset),false,!!fixedSource);
+      const proto = prototypeTree(page, components), base = currentSyncBase(doc.documentId, page, asset);
+      const comparison = comparePagePsd(page, proto, art, asset, base, fixedSource);
       if (fixedSource !== "psd") for (const [id, representation] of psdVisualUpdates(doc,page,asset,art,session.sources)) {
         comparison.changes.push({ id, key: id + "/" + representation, representation, field: "exist", kind: "edit",
           replacement: "proto", members: [id], suggested: "proto" });
@@ -166,7 +168,8 @@ export function PageSyncDialog({session,loadedAsset,close,apply}:Props) {
   const decisions:Record<string,Decision>={...choices};
   for(const ch of changes) {
     if(fixedSource && ch.representation !== "psd-component-source") decisions[ch.key]=fixedSource;
-    else if(!decisions[ch.key] && ch.suggested) decisions[ch.key]=ch.suggested;
+    else if(!decisions[ch.key] && ch.suggested && (!ch.replacement || ch.suggested === ch.replacement || ch.suggested === "skip"))
+      decisions[ch.key]=ch.suggested;
   }
   const stamp=JSON.stringify(decisions);
   const plan=useMemo(()=>{
@@ -180,7 +183,7 @@ export function PageSyncDialog({session,loadedAsset,close,apply}:Props) {
       }
       const blocked = trees.psd.find(node => !c.psd.some(current => current.id === node.id) && componentPsds?.errors.has(node.id));
       if (blocked) return { issue: componentPsds?.errors.get(blocked.id) };
-      const proto=fixedSource==="proto" ? page : applyPrototypeTree(page,trees.proto,components);
+      const proto=fixedSource==="proto" ? page : applyPrototypeTree(page,trees.proto,components,"psd");
       const sourceUpdates = new Map<string, Side>();
       for (const change of c.changes) {
         const decision = decisions[change.key];
@@ -192,7 +195,7 @@ export function PageSyncDialog({session,loadedAsset,close,apply}:Props) {
       const componentUpdates = new Set(c.changes.filter(change => change.representation === "psd-component-layers" &&
         decisions[change.key] === "proto" && trees.psd.some(node => node.id === change.id)).map(change => change.id));
       const base=coordinatedBase(doc.documentId,page.id,asset!.documentId,c,trees);
-      const signature=(nodes:SyncNode[])=>JSON.stringify(nodes.map(n=>[n.id,n.parent,n.name,n.type,n.text,n.psdTextSource??n.layer,n.undecided]));
+      const signature=(nodes:SyncNode[])=>JSON.stringify(nodes.map(n=>[n.id,n.parent,n.name,n.type,n.text,n.psdTextSource??n.layer,n.properties?.["style.fontSize"],n.undecided]));
       const baselineChanged=!c.base || signature(c.base.nodes)!==signature(base.nodes);
       return {trees,proto,push,base,baselineChanged,conversions,componentUpdates,sourceUpdates,visualUpdates};
     }catch(e){return {issue:String(e)};}
@@ -229,7 +232,7 @@ export function PageSyncDialog({session,loadedAsset,close,apply}:Props) {
             psdComponentSource(layer.metadata.componentSource)?.sourceHash !== sourceHash)
             throw new Error("智能对象的内嵌 PSD 与同步计划不符。");
         }
-        if(active)setCopy({key:stamp,asset:output,bytes,nodes:verified});
+        if(active)setCopy({key:stamp,asset:output,bytes,nodes:psdTreeWithFontSizes(expectedPage, verified, output)});
       }catch(e){if(active)setCopyIssue(String(e));}
     },120);
     return ()=>{active=false;clearTimeout(timer);};
@@ -306,7 +309,7 @@ export function PageSyncDialog({session,loadedAsset,close,apply}:Props) {
         {message && <p role="alert">{message} {canReview && <button disabled={busy} onClick={()=>setReload(n=>n+1)}>重新比较</button>}</p>}
       </aside></div>
     <footer><span>待决定 {pending} 项　·　已选 {count} 项</span><Button size="sm" disabled={!canReview || busy || !c || pending>0 || (!count && !plan.baselineChanged) || !!plan.issue || !!(review && plan.push && !copy)}
-      onClick={()=>{if(review)void commit();else {setError("");setReview(true);setResult(true);}}}>{busy?"正在应用…":review?"确认应用":!count && plan.baselineChanged?(needBase?"建立基线":"记录一致变更"):"预演应用"}</Button></footer>
+      onClick={()=>{if(review)void commit();else {setError("");setReview(true);setResult(true);}}}>{busy?"正在应用…":review?"确认应用":!count && !pending && plan.baselineChanged?(needBase?"建立基线":"记录一致变更"):"预演应用"}</Button></footer>
     {syncDialogResizeEdges.map(edge=><span key={edge} className="sync-resize-edge" data-edge={edge} aria-hidden="true" {...resizeEdgeProps(edge)}/>)}
   </dialog>;
 }

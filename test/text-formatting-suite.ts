@@ -5,6 +5,7 @@ import type { GameFlowNode, WidgetProps } from "../shared/model";
 import { layoutLabel } from "../shared/label-text";
 import { parseLabelRuns, parseLabelTemplate, ubbToHtml } from "../shared/label-syntax";
 import { resolvePageLayout } from "../shared/ui-layout";
+import { prototypeNodeProperties, recordNodeProperties } from "../shared/prefab-sync-properties";
 import { isCanvasProperty, writeProperty, nodeProperties } from "../shared/canvas-instance-data";
 import type { TextLayout, TextMeasure } from "../shared/label-layout";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -135,6 +136,33 @@ test("UILabel instance overrides compose independently and can restore source pr
   const reverted = revertCanvasProperties(saved, "demoref1", meta.target, ["widget.ubb", "widget.templateVars"]);
   const projected = composeCanvasPage(reverted, reverted.pages[0], sources).page.nodes.find(n => n.id === id)!;
   assert.equal(projected.widget?.ubb, undefined); assert.equal(projected.widget?.templateVars, undefined); assert.equal(projected.widget?.leading, 4);
+});
+
+test("a short UILabel shows overflow by default and respects an explicit crop", () => {
+  const node = label("v1.0");
+  node.frame = { x: 0, y: 0, width: 116, height: 27 };
+  node.style = { fontSize: 34 };
+  const page = { id: "p", name: "page", kind: "screen" as const, frame: node.frame, nodes: [node] };
+  for (const overflow of [undefined, "hidden"] as const) {
+    node.widget = overflow ? { overflow } : undefined;
+    const expected = overflow ?? "visible";
+    const html = renderToStaticMarkup(createElement(NodeView, { page, node }));
+    assert.ok(html.includes("overflow:" + expected), "canvas overflow " + expected);
+    const inspector = renderToStaticMarkup(createElement(LabelProperties, { node, locked: false, onNode: () => {} }));
+    assert.ok(inspector.includes(`<option value="${expected}" selected=""`), "inspector selection " + expected);
+    assert.equal(prototypeNodeProperties(node)["widget.overflow"], expected);
+    assert.equal(recordNodeProperties("text", { overflow }, () => null)["widget.overflow"], expected);
+  }
+});
+
+test("overflowing UILabel text is clipped at the panel boundary", () => {
+  const node = label("version");
+  const panel: GameFlowNode = { id: "panel", name: "panel", type: "panel", frame: { x: 0, y: 0, width: 200, height: 120 } };
+  node.parentId = panel.id;
+  node.frame = { x: 10, y: 20, width: 116, height: 27 };
+  const page = { id: "p", name: "page", kind: "screen" as const, frame: panel.frame, nodes: [panel, node] };
+  const html = renderToStaticMarkup(createElement(NodeView, { page, node }));
+  assert.match(html, /clip-path:polygon\(-10px -20px,190px -20px,190px 100px,-10px 100px\)/);
 });
 
 test("UILabel view renders controlled rich text scroll offsets and recoverable errors", () => {

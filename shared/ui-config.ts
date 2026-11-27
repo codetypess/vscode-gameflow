@@ -30,6 +30,8 @@ export function validateRootLayout(raw: unknown, path: string, errors: string[])
   }
   return errors.length === before;
 }
+export const DEFAULT_LABEL_OVERFLOW = "visible";
+
 export interface WidgetProps {
   skinNodeId?: string | null;
   textLabelNodeId?: string | null;

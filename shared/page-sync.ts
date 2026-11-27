@@ -1,4 +1,4 @@
-import { absoluteFrame, descendants, inheritedFlag, makeNode, orderedNodes, removeNode, reparentNode } from "./editor-ops";
+import { absoluteFrame, defaultStyle, descendants, inheritedFlag, makeNode, orderedNodes, removeNode, reparentNode } from "./editor-ops";
 import type { CanvasComposition } from "./canvas-instances";
 import type { Frame, GameFlowPage, NodeType } from "./model";
 import { resolvePageLayout } from "./ui-layout";
@@ -169,6 +169,45 @@ export function syncSubtree(tree:SyncNode[], id:string): string[] {
   }
   return [...result];
 }
+
+/** Project PSD canvas pixels into the destination control's local font-size units. */
+export function psdTreeWithFontSizes(page: GameFlowPage, art: SyncNode[], asset: PsdAsset): SyncNode[] {
+  const layout = resolvePageLayout(page);
+  const layers = new Map(asset.layers.map(layer => [layer.metadata.layerId, layer]));
+  const controls = new Map(page.nodes.map(node => [node.id, node]));
+  const scales = new Map<string, number>();
+  return art.map(node => {
+    const matrix = layout.nodes.get(node.id)?.matrix;
+    // New controls have no local transform and inherit the scale of their planned parent.
+    const scale = matrix ? Math.hypot(matrix[0], matrix[1]) : scales.get(node.parent) ?? 1;
+    scales.set(node.id, scale);
+    const pixels = node.layer ? layers.get(node.layer)?.textFontSize : undefined;
+    if ((node.type !== "text" && node.type !== "input") || typeof pixels !== "number" || !scale) return node;
+    const local = pixels / scale;
+    if (!Number.isFinite(local) || local <= 0) return node;
+    const current = controls.get(node.id)?.style?.fontSize;
+    const size = current !== undefined && Math.abs(current - local) < 0.0001 ? current : Math.max(1, Number(local.toFixed(4)));
+    return { ...node, properties: { "style.fontSize": size } };
+  });
+}
+
+export function comparePagePsd(page: GameFlowPage, proto: SyncNode[], art: SyncNode[], asset: PsdAsset, base?: SyncBase, source?: Side): Comparison {
+  const psd = psdTreeWithFontSizes(page, art, asset);
+  const comparable = new Set(psd.filter(node => node.properties?.["style.fontSize"] !== undefined).map(node => node.id));
+  const controls = new Map(page.nodes.map(node => [node.id, node]));
+  const prototype = proto.map(node => {
+    if (!comparable.has(node.id)) return node;
+    const size = controls.get(node.id)?.style?.fontSize ?? defaultStyle(node.type).fontSize;
+    return { ...node, properties: { "style.fontSize": size } };
+  });
+  const comparison = compareTrees(prototype, psd, base, false, !!source);
+  comparison.changes = comparison.changes.filter(change => {
+    if (change.property !== "style.fontSize") return true;
+    change.replacement = "psd";
+    return source !== "proto";
+  });
+  return comparison;
+}
 export function compareTrees(proto:SyncNode[], psd:SyncNode[], base?:SyncBase, compareInitialOrder=false, fixedDirection=false): Comparison {
   const changes:Change[] = [], bundled = new Set<string>();
   const maps = [proto,psd,base?.nodes ?? []].map(tree=>new Map(tree.map(n=>[n.id,n])));
@@ -277,7 +316,7 @@ export function plannedTrees(c:Comparison, decisions:Record<string,Decision>, fi
   }
   return trees;
 }
-export function applyPrototypeTree(page:GameFlowPage, tree:SyncNode[], components?: ReadonlyMap<string, PsdComponentInstance>):GameFlowPage {
+export function applyPrototypeTree(page:GameFlowPage, tree:SyncNode[], components?: ReadonlyMap<string, PsdComponentInstance>, source?: Side):GameFlowPage {
   tree=tree.filter(n=>!n.root);
   let next=page;
   const ids=new Set(tree.map(n=>n.id));
@@ -303,9 +342,12 @@ export function applyPrototypeTree(page:GameFlowPage, tree:SyncNode[], component
       if ((node.parentId??"")!==n.parent) throw new Error("无法移动控件："+n.name);
     }
     const hasText=n.type==="text" || n.type==="input";
-    if (node.name===n.name && (!hasText || (node.text??"")===n.text)) return;
+    const size = source === "psd" && hasText ? n.properties?.["style.fontSize"] : undefined;
+    const resizeText = typeof size === "number" && size !== (node.style?.fontSize ?? defaultStyle(n.type).fontSize);
+    if (node.name===n.name && (!hasText || (node.text??"")===n.text) && !resizeText) return;
     if (inheritedFlag(next,node,"locked")) throw new Error("控件已锁定："+n.name);
-    next={...next,nodes:next.nodes.map(item=>item.id===n.id?{...item,name:n.name,...(hasText?{text:n.text}:{})}:item)};
+    next={...next,nodes:next.nodes.map(item=>item.id===n.id?{...item,name:n.name,...(hasText?{text:n.text}:{}),
+      ...(resizeText && { style: { ...item.style, fontSize: size } })}:item)};
   }
   tree.forEach(write);
   for (const n of next.nodes) if (!ids.has(n.id)) {

@@ -25,16 +25,22 @@ function pixelFrame(layer: Layer): Frame {
   return { x, y, width: (layer.right ?? x) - x, height: (layer.bottom ?? y) - y };
 }
 
+export function psdTextFontSize(text: LayerTextData, fallback?: number): number | undefined {
+  const size = text.styleRuns?.[0]?.style.fontSize ?? text.style?.fontSize ?? fallback;
+  const [x, y] = text.transform ?? [1, 0];
+  const pixels = size === undefined ? undefined : size * Math.hypot(x, y);
+  return pixels !== undefined && Number.isFinite(pixels) ? pixels : undefined;
+}
+
 function textStyle(text: LayerTextData): NodeStyle {
   const style = { ...text.style, ...text.styleRuns?.[0]?.style };
   const color = style.fillColor;
   const hex = (value: number) => Math.max(0, Math.min(255, Math.round(value))).toString(16).padStart(2, "0");
   const align = text.paragraphStyleRuns?.[0]?.style.justification ?? text.paragraphStyle?.justification;
-  const [x, y] = text.transform ?? [1, 0];
-  const fontSize = (style.fontSize ?? 16) * Math.hypot(x, y);
+  const fontSize = psdTextFontSize(text, 16);
   return {
     ...(color && "r" in color ? { color: "#" + [color.r, color.g, color.b].map(hex).join("") } : {}),
-    ...(Number.isFinite(fontSize) ? { fontSize: Math.max(1, fontSize) } : {}),
+    ...(fontSize !== undefined ? { fontSize: Math.max(1, fontSize) } : {}),
     ...((style.fauxBold || /bold|black|heavy/i.test(style.font?.name ?? "")) ? { fontWeight: 700 } : {}),
     italic: style.fauxItalic || /italic|oblique/i.test(style.font?.name ?? ""),
     underline: style.underline,

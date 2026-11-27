@@ -23,7 +23,7 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
       const frame = {x:30,y:80,width:100,height:40};
       const added = (id,name,y) => ({id,name,type:"button",frame:{...frame,y},normalSkin:{builtin:"button/gray"}});
       const pairedLabel = { ...base.nodes[1], id:"pairart1", name:"已有文案", text:"共同文案", frame:{...base.nodes[1].frame,y:20,height:20} };
-      const art = {...base,nodes:[base.nodes[0],{...base.nodes[1],text:"美术"},pairedLabel,added("notice01","公告 (UIButton)",140)]};
+      const art = {...base,nodes:[base.nodes[0],{...base.nodes[1],text:"美术"},{...pairedLabel,style:{fontSize:34}},added("notice01","公告 (UIButton)",140)]};
       const artBytes = await generatePrototypePsd(doc,art);
       const baseNodes = base.nodes.map(n=>({id:n.id,name:n.name,type:n.type,parent:n.parentId||"",text:n.text||"",frame:n.frame,
         layer:asset.layers.find(l=>l.metadata.prototype?.nodeId===n.id && !l.metadata.prototype.slot).metadata.layerId}));
@@ -64,7 +64,13 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
     assert(await button("确认关联").isDisabled());
     await paired.click();
     await button("确认关联").click();
-    await tree.getByText("4 项差异",{exact:false}).waitFor();
+    await tree.getByText("5 项差异",{exact:false}).waitFor();
+    const size=dialog.getByRole("radiogroup",{name:"字号的同步方向"});
+    await size.getByRole("radio",{name:"本轮跳过"}).check();
+    const pairedPreview=dialog.locator('.sync-preview [data-node-id="pairui01"]').first();
+    assert.equal(await pairedPreview.evaluate(el=>getComputedStyle(el).fontSize),"16px");
+    await size.getByRole("radio",{name:"把原型改为「34 px」"}).check();
+    assert.equal(await pairedPreview.evaluate(el=>getComputedStyle(el).fontSize),"34px");
     const startRow=tree.locator('.layer-name[title="开始"]');
     assert.equal(await startRow.locator(".sync-change-slot").textContent(),"","unchanged node keeps an empty marker slot");
     const startParts=await startRow.evaluate(row=>[...row.children].map(child=>child.matches("span")?"name":child.matches(".sync-change-slot")?"marker":child.matches(".layer-variable")?"variable":"icon"));
@@ -121,6 +127,9 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
     const output=await download;
     if(process.env.GAMEFLOW_SYNC_TEST_OUTPUT) await output.saveAs(process.env.GAMEFLOW_SYNC_TEST_OUTPUT);
     await dialog.waitFor({state:"hidden"});
+    const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem("gameflow.prototype.v1")).pages[0]);
+    assert.equal(saved.nodes.find(n=>n.id==="pairui01").style.fontSize,34);
+    assert.equal(saved.psdSync.nodes.find(n=>n.id==="pairui01").properties["style.fontSize"],34);
     await menu("PSD 同步");
     await dialog.getByText("文字与结构已一致").waitFor().catch(async e=>{throw new Error((await dialog.innerText())+" / "+e.message);});
     assert.deepEqual(await box(),resized);

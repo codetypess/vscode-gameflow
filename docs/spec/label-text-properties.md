@@ -13,7 +13,7 @@ Scope: UILabel 的行距、字距、自动换行、五种溢出模式及 HTML / 
 
 - 属性可编辑、锁定禁用、撤销/重做、保存/重载、引用实例覆盖/还原。
 - leading / letterSpacing 接受有限正负数，默认 0。
-- overflow 支持 visible、hidden、scroll、shrink、ellipsis；原有缺省 wordWrap=true / overflow=hidden 保留，避免改变旧原型。
+- overflow 支持 visible、hidden、scroll、shrink、ellipsis。UILabel 缺省 wordWrap=true、overflow=visible，已有控件显式选择的模式优先。
 - 语法顺序与源码一致：CRLF 归一化 → templateVars → UBB 转 HTML → HTML 文本段；开启 UBB 即启用 HTML 解析。
 - 模板支持 `{name}`、`{name=default}`、反斜杠转义，面板提供模板开关与 JSON 变量编辑。
 
@@ -26,6 +26,8 @@ Scope: UILabel 的行距、字距、自动换行、五种溢出模式及 HTML / 
 UILabel 组件设置只有换行及两项溢出。未知 widget 字段不能通过文档校验；实例覆盖和 JSON Schema 也有字段白名单。
 
 ## 5. Proposed Behavior
+
+2026-11-27 更新。新建、从 PSD 同步及重新打开的 UILabel 在缺少溢出设置时默认显示框外文字。画布、属性面板与预制体同步共用这一默认值。只有启用内容裁剪的祖先可以限制默认文字的可见区域。验收覆盖 116 × 27 px 文本框中的 34 px 文字、显式裁剪以及父容器的裁剪边界。
 
 2026-11-17 面板对齐补充：文字样式、六项对齐和语法开关统一使用普通属性行的 60px 标签列及 7px 列间距，操作区左边界与文字内容、字号、行距等输入框一致；语法复选框去除原生外边距，窄面板时按组换行。
 
@@ -62,6 +64,7 @@ UILabel 组件设置只有换行及两项溢出。未知 widget 字段不能通�
 
 ## 11. Verification
 
+- 2026-11-27 默认溢出变更通过 416 项共享测试和生产构建。Chrome 单向同步回归确认从 PSD 新增到原型的文字在画布上使用 visible，组件回归覆盖 34 px 字号与 27 px 框高、属性面板的默认选项、显式裁剪及父面板边界。
 - 2026-11-17：`npm test` 277 项通过，其中新增 14 项 UILabel 定向案例覆盖语法顺序、模板转义、嵌套样式、负字距、Unicode/英文换行、五种溢出、测量诊断、字段校验、保存以及真实引用实例组合/还原。
 - `npm run build` 通过（含宿主及 Webview TypeScript 检查）；保留 Vite 既有大包体提示。`git diff --check` 通过。
 - 本地浏览器 `http://127.0.0.1:5191/`：游戏标题开启 UBB/模板，`[b][color=#ff6600]{name=标题}[/color][/b]` 配变量后显示橙色粗体“行距与字距”；行距 8、字距 2，第二行起点为 29.6px。

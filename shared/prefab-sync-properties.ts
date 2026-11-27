@@ -2,7 +2,7 @@ import { defaultStyle } from "./editor-ops";
 import type { GameFlowNode, GameFlowPage, NodeType } from "./model";
 import type { SyncProperties, SyncPropertyValue } from "./page-sync";
 import { canHaveChildren } from "./ui-components";
-import { CONSTRAINTS, type NodeLayout, type WidgetProps } from "./ui-config";
+import { CONSTRAINTS, DEFAULT_LABEL_OVERFLOW, type NodeLayout, type WidgetProps } from "./ui-config";
 import type { NodeTransform } from "./ui-transform";
 
 type RecordNode = Record<string, unknown>;
@@ -66,7 +66,7 @@ function widgetDefaults(type:NodeType,side:"prototype"|"prefab"):Partial<Record<
   if(type==="combo") Object.assign(result,{options:["选项一","选项二","选项三"],selectedIndex:0,textLabelNodeId:null});
   if(type==="radioGroup") Object.assign(result,{optionNodeIds:[],selectedIndex:-1});
   if(type==="image") result.imageFit="fill";
-  if(type==="text") Object.assign(result,{wordWrap:side==="prototype",overflow:"hidden",valign:"top",leading:0,letterSpacing:0,html:false,ubb:false,templateVars:null,scrollX:0,scrollY:0});
+  if(type==="text") Object.assign(result,{wordWrap:side==="prototype",overflow:DEFAULT_LABEL_OVERFLOW,valign:"top",leading:0,letterSpacing:0,html:false,ubb:false,templateVars:null,scrollX:0,scrollY:0});
   return result;
 }
 const cloneValue=<T extends SyncPropertyValue>(value:T):T=>value && typeof value==="object"?structuredClone(value):value;

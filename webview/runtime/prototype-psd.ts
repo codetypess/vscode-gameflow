@@ -1,6 +1,6 @@
 import { initializeCanvas, writePsdUint8Array, type Layer, type LinkedFile } from "ag-psd";
 import { CANVAS_INSTANCE_LAYOUT_KEYS, type GameFlowDocument, type GameFlowNode, type GameFlowPage } from "../../shared/model";
-import { descendants } from "../../shared/editor-ops";
+import { defaultStyle, descendants } from "../../shared/editor-ops";
 import { allocateElementId } from "../../shared/element-id";
 import { prototypeLayerRef } from "../../shared/psd-prototype";
 import { PSD_SLOT_MARKERS } from "../../shared/psd-slot-markers";
@@ -139,8 +139,9 @@ async function renderPrototypePsd(document: GameFlowDocument, page: GameFlowPage
     ctx.textBaseline="middle";
     for(const line of textLayout.lines)for(const piece of line.pieces){if(!("text" in piece.run))continue;const s=piece.run.style,scale=textLayout.scale;measure("",s,scale);ctx.fillStyle=s.color;const x=(g.local.width-line.width)*(style.textAlign==="center"?.5:style.textAlign==="right"?1:0)-line.offsetX+piece.x,y=offsetY+line.y+line.height/2;if(piece.glyphs)for(const glyph of piece.glyphs)ctx.fillText(glyph.text,x+glyph.x,y);else ctx.fillText(piece.run.text,x,y);}
     const hidden=controlHidden(page,node);
+    const fontSize = style.fontSize ?? defaultStyle(node.type).fontSize;
     if(!hidden){compositeContext.save();compositeContext.transform(...g.matrix);compositeContext.globalAlpha=style.opacity??1;compositeContext.drawImage(c,0,0);compositeContext.restore();}
-    return withMeta({name:node.name,left:Math.round(g.matrix[4]),top:Math.round(g.matrix[5]),canvas:c,hidden,text:{text:content.text??"",transform:[...g.matrix.slice(0,4),g.matrix[4],g.matrix[5]+(style.fontSize??14)],style:{font:{name:"MicrosoftYaHei"},fontSize:style.fontSize??14,fillColor:{r:parseInt((style.color??"#333333").slice(1,3),16)||0,g:parseInt((style.color??"#333333").slice(3,5),16)||0,b:parseInt((style.color??"#333333").slice(5,7),16)||0}},paragraphStyle:{justification:style.textAlign??"left"}}},meta(node.id));
+    return withMeta({name:node.name,left:Math.round(g.matrix[4]),top:Math.round(g.matrix[5]),canvas:c,hidden,text:{text:content.text??"",transform:[...g.matrix.slice(0,4),g.matrix[4],g.matrix[5]+fontSize],style:{font:{name:"MicrosoftYaHei"},fontSize,fillColor:{r:parseInt((style.color??"#333333").slice(1,3),16)||0,g:parseInt((style.color??"#333333").slice(3,5),16)||0,b:parseInt((style.color??"#333333").slice(5,7),16)||0}},paragraphStyle:{justification:style.textAlign??"left"}}},meta(node.id));
   };
   const build=async(node:GameFlowNode):Promise<Layer>=>{
     const component = components.get(node.id);

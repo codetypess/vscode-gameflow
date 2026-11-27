@@ -5,7 +5,7 @@ import { parsePsdBinary, patchPsdMetadata } from "../../shared/psd-binary";
 import { type PsdAsset, type PsdEmbeddedLayer, type PsdLayer, type PsdLayerMeta } from "../../shared/psd-meta";
 import { embeddedPsdFiles, psdContentHash } from "../runtime/psd-smart-object";
 import { maskedCellPixels, readableCellMask } from "./list-cell-mask";
-import { needsImportComposite, readPrototypeLayers } from "./prototype-import";
+import { needsImportComposite, psdTextFontSize, readPrototypeLayers } from "./prototype-import";
 
 initializeCanvas(() => { throw new Error("图层需要当前不支持的 Canvas 解码。"); }, (width, height) => new ImageData(width, height));
 const scope = globalThis as unknown as { onmessage: (event: MessageEvent) => void; postMessage: (data: unknown, transfer?: Transferable[]) => void };
@@ -112,7 +112,7 @@ scope.onmessage = async ({ data }: MessageEvent<{ id: number; type: "read" | "re
       const flatUnsupported = inheritedLimitation || !!l.children?.some(unsupportedChild);
       const verifiedBuiltin = !flatUnsupported && !l.children && !l.text && l.imageData
         ? await verifyBuiltinOrigin(structure.layers[i].metadata.builtinOrigin, l.imageData) : undefined;
-      layers.push({ ...structure.layers[i], smartObject: await smartObject(l), verifiedBuiltin, image: await png(l.children ? groupPixels(l, structure.layers[i]) : l.imageData), text: !!l.text, textContent: l.text?.text?.replace(/\r\n?/g,"\n"), limitation: flatUnsupported ? "此层含效果、蒙版、剪贴或特殊混合，单层图仅显示保存的基础像素。" : undefined });
+      layers.push({ ...structure.layers[i], smartObject: await smartObject(l), verifiedBuiltin, image: await png(l.children ? groupPixels(l, structure.layers[i]) : l.imageData), text: !!l.text, textFontSize: l.text && psdTextFontSize(l.text), textContent: l.text?.text?.replace(/\r\n?/g,"\n"), limitation: flatUnsupported ? "此层含效果、蒙版、剪贴或特殊混合，单层图仅显示保存的基础像素。" : undefined });
     }
     const result: PsdAsset = { ...structure, ...importPreview, layers, hasArtboards: ordered.some(({ layer }) => !!layer.artboard), preview: await png(decoded.imageData) };
     scope.postMessage({ id: data.id, result });

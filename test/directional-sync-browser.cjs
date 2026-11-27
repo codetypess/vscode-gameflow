@@ -106,6 +106,8 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
       const {generatePrototypePsd}=await import("/runtime/prototype-psd.ts");
       const doc=window.readPrototype(),screen=doc.pages[0];
       screen.nodes[0].text="美术文案";
+      screen.nodes[0].style={...screen.nodes[0].style,fontSize:34};
+      screen.nodes.push({id:"psdlabel",type:"text",name:"版本号",text:"v1",style:{fontSize:27},frame:{x:80,y:64,width:80,height:32}});
       screen.nodes[1].image={builtin:"button/red"};
       return Array.from(await generatePrototypePsd(doc,screen));
     });
@@ -133,9 +135,10 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
     const copy=await page.evaluate(async bytes=>{
       const {psdTask}=await import("/psd/io.ts");
       const asset=await psdTask("read",Uint8Array.from(bytes).buffer,"copy.psd");
-      return asset.layers.find(l=>l.text).textContent;
+      const title=asset.layers.find(l=>l.text && l.name==="标题");
+      return [title.textContent,title.textFontSize];
     },Array.from(Buffer.concat(chunks)));
-    assert.equal(copy,"使用引擎文案");
+    assert.deepEqual(copy,["使用引擎文案",34]);
     assert.deepEqual(await page.evaluate(()=>window.readPrefab()),beforePull);
 
     await button("更多").click();
@@ -144,15 +147,50 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
     await (await rebind).setFiles({name:"art.psd",mimeType:"image/vnd.adobe.photoshop",buffer:Buffer.from(art)});
     await page.waitForFunction(()=>window.readPrototype().pages[0].artPsd.source==="art.psd");
     const beforeArt=await page.evaluate(()=>window.readPrototype());
+    await run(3);
+    const pull=page.getByRole("dialog",{name:directions[3]});
+    await pull.locator('.layer-name[title="标题"]').click();
+    await pull.getByText("字号",{exact:true}).waitFor();
+    await pull.getByText("34 px",{exact:true}).waitFor();
+    await button("同步后").click();
+    const titlePreview=pull.locator('.sync-preview [data-node-id="text0001"]').first();
+    assert.equal(await titlePreview.evaluate(el=>getComputedStyle(el).fontSize),"34px");
+    await button("关闭同步窗").click();
+    assert.deepEqual(await page.evaluate(()=>window.readPrototype()),beforeArt);
     await run(3);await confirm(3);
     const fromArt=await page.evaluate(()=>window.readPrototype());
     assert.equal(fromArt.pages[0].nodes[0].text,"美术文案");
+    assert.deepEqual(fromArt.pages[0].nodes[0].style,{...beforeArt.pages[0].nodes[0].style,fontSize:34});
+    const addedLabel=fromArt.pages[0].nodes.find(n=>n.name==="版本号");
+    assert.equal(addedLabel.style.fontSize,27);
+    const addedLabelView=page.locator(`.node-body[data-node-id="${addedLabel.id}"]`).first();
+    assert.equal(await addedLabelView.evaluate(el=>getComputedStyle(el).overflow),"visible","PSD text can paint outside its layer bounds");
     assert.deepEqual(fromArt.pages[0].nodes[1].image,beforeArt.pages[0].nodes[1].image,"PSD-to-prototype keeps prototype image resources");
     assert.deepEqual(await page.evaluate(()=>window.readPrefab()),beforePull,"PSD-to-prototype keeps the prefab read-only");
     await run(3);
     await page.getByRole("dialog",{name:directions[3]}).waitFor();
     assert(await button("预演应用").isDisabled(),"a second PSD-to-prototype sync has no pending writes");
     await button("关闭同步窗").click();
+    const resized=await page.evaluate(async()=>{
+      const {generatePrototypePsd}=await import("/runtime/prototype-psd.ts");
+      const doc=window.readPrototype(), screen=doc.pages[0];
+      screen.nodes.find(n=>n.id==="text0001").style.fontSize=48;
+      return Array.from(await generatePrototypePsd(doc,screen));
+    });
+    await button("更多").click();
+    const chooseSize=page.waitForEvent("filechooser");
+    await item("重新绑定 PSD").click();
+    await (await chooseSize).setFiles({name:"resized.psd",mimeType:"image/vnd.adobe.photoshop",buffer:Buffer.from(resized)});
+    await page.waitForFunction(()=>window.readPrototype().pages[0].artPsd.source==="resized.psd");
+    await run(3);
+    await pull.getByText("1 项差异",{exact:false}).waitFor();
+    await pull.getByText("字号",{exact:true}).waitFor();
+    await button("同步后").click();
+    assert.equal(await titlePreview.evaluate(el=>getComputedStyle(el).fontSize),"48px");
+    await confirm(3);
+    const resizedTitle=(await page.evaluate(()=>window.readPrototype())).pages[0].nodes.find(n=>n.id==="text0001");
+    assert.equal(resizedTitle.style.fontSize,48);
+    assert.equal(resizedTitle.text,"美术文案");
     assert.deepEqual(errors,[]);
     console.log("PASS independent sync pins, keyboard toggling, reload, narrow toolbar, both shortcuts and four directed writes");
   } finally {await browser.close();}

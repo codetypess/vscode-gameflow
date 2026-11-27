@@ -12,6 +12,7 @@ import { defaultStyle, inheritedFlag } from "../../shared/editor-ops";
 import { resolvePageLayout, type ResolvedNode } from "../../shared/ui-layout";
 import { intersectPolygons, mapPoint } from "../../shared/ui-transform";
 import { skinOwner } from "../../shared/ui-parts";
+import { DEFAULT_LABEL_OVERFLOW } from "../../shared/ui-config";
 import { LabelView } from "./label-view";
 import { ResourceCanvas, SliceResourcesProvider, useSliceResources } from "../runtime/resource-context";
 
@@ -35,9 +36,10 @@ export function NodeView({ page, node, geometry, hitId, referenceError, cellTrai
   const paintedImage = bitmap && <img alt={node.text ?? node.name} draggable={false} className={node.type === "text" ? "psd-text-pixels" : "psd-layer-pixels"}
     style={{ position: "absolute", left: bitmap.frame.x * bounds.width, top: bitmap.frame.y * bounds.height,
       width: bitmap.frame.width * bounds.width, height: bitmap.frame.height * bounds.height, pointerEvents: "none" }} src={bitmap.image}/>;
-  const clipped = resolved.clipPolygon ? intersectPolygons(resolved.corners, resolved.clipPolygon) : undefined;
-  const clipLocal = clipped && resolved.inverse ? clipped.map(p => mapPoint(resolved.inverse!, p)) : undefined;
   const widget = node.widget ?? {};
+  const showTextOverflow = node.type === "text" && (widget.overflow ?? DEFAULT_LABEL_OVERFLOW) === "visible";
+  const clipped = resolved.clipPolygon && !showTextOverflow ? intersectPolygons(resolved.corners, resolved.clipPolygon) : resolved.clipPolygon;
+  const clipLocal = clipped && resolved.inverse ? clipped.map(p => mapPoint(resolved.inverse!, p)) : undefined;
   const disabledOpacity = (item: GameFlowNode) => item.widget?.disabled && !["checkbox", "radio", "radioGroup", "slider", "button"].includes(item.type) ? .45 : 1;
   const owner = skinOwner(page, node);
   const progress = owner?.type === "progress" ? { ratio: progressRatio(owner), mode: owner.widget?.mode ?? "horizontal" as const, fullWidth: Math.max(0, (resolvePageLayout(page, resources.sizes).nodes.get(owner.id)?.local.width ?? owner.frame.width) - (owner.layout?.paddingLeft ?? 0) - (owner.layout?.paddingRight ?? 0)) } : undefined;
@@ -63,7 +65,7 @@ export function NodeView({ page, node, geometry, hitId, referenceError, cellTrai
     textDecorationLine: [appearance.underline && "underline", appearance.strikethrough && "line-through"].filter(Boolean).join(" ") || "none",
     textAlign: appearance.textAlign, justifyContent: appearance.textAlign === "left" ? "flex-start" : appearance.textAlign === "right" ? "flex-end" : "center",
     opacity: opacity * disabledOpacity(node),
-    overflow: node.type === "list" && listScrollType(node) === 0 || node.type === "text" && widget.overflow === "visible" ? "visible" : "hidden",
+    overflow: showTextOverflow || node.type === "list" && listScrollType(node) === 0 ? "visible" : "hidden",
     alignItems: widget.valign === "top" ? "flex-start" : widget.valign === "bottom" ? "flex-end" : node.type === "text" && !widget.valign ? "flex-start" : "center",
     ...(clipLocal?.length ? { clipPath: `polygon(${clipLocal.map(p => `${p.x}px ${p.y}px`).join(",")})` } : {}),
     ...(!resolved.inverse || (clipped && clipped.length < 3) ? { visibility: "hidden" } : {})
