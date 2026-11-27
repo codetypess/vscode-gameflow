@@ -51,6 +51,7 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 
 - [工作台撤销与重做快捷键](workbench-history-shortcuts.md) — 原型和 PSD 切图每次按键只触发一次历史命令。
 - [保存已从磁盘删除的画布](save-deleted-canvas.md) — 普通保存把打开的画布重新写回原路径。
+- [画布保存时确认覆盖](canvas-save-conflict.md) — 保存草稿与外部文件冲突时可以覆盖或取消。
 
 - [PSD 图层可见性](psd-layer-visibility.md) — 切图工作区逐层与逐组切换画布显示。
 

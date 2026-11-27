@@ -1,0 +1,1974 @@
+{
+  "schemaVersion": 5,
+  "elementIdScheme": "nanoid-8",
+  "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
+  "title": "星海远征 · 竖版登录",
+  "requirements": [
+    {
+      "id": "portrait-login",
+      "text": "按参考界面制作750×1334竖版登录页；按钮自身 normalSkin 提供图片，文字由独立 UILabel 子节点提供。",
+      "status": "confirmed",
+      "source": "用户截图及2026-11-16尺寸要求"
+    }
+  ],
+  "pages": [
+    {
+      "id": "umlxcxo4",
+      "name": "星海远征 · 登录",
+      "kind": "screen",
+      "rootType": "UIStack",
+      "frame": {
+        "x": 0,
+        "y": 0,
+        "width": 750,
+        "height": 1334
+      },
+      "background": "#091120",
+      "nodes": [
+        {
+          "id": "ofnub76o",
+          "name": "背景",
+          "variableName": "background",
+          "type": "container",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 750,
+            "height": 1334
+          },
+          "layout": {
+            "left": 0,
+            "right": 0,
+            "top": 0,
+            "bottom": 0
+          },
+          "style": {
+            "fill": "transparent",
+            "borderColor": "transparent",
+            "borderWidth": 0,
+            "radius": 0,
+            "fontWeight": 400
+          }
+        },
+        {
+          "id": "ptkmcxds",
+          "name": "深空渐变",
+          "variableName": "deepSpace",
+          "type": "image",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 750,
+            "height": 1334
+          },
+          "parentId": "ofnub76o",
+          "layout": {
+            "left": 0,
+            "right": 0,
+            "top": 0,
+            "bottom": 0
+          },
+          "style": {
+            "fill": "transparent",
+            "borderColor": "transparent",
+            "borderWidth": 0,
+            "radius": 0,
+            "fontWeight": 400
+          },
+          "image": {
+            "builtin": "block/fill-gray",
+            "art": {
+              "path": "builtin/block/fill_gray.png",
+              "source": {
+                "documentId": "0ba9bc45-76bc-5eda-a37f-0da4a2653cc6",
+                "layerId": "eg4yrblm"
+              }
+            }
+          },
+          "widget": {
+            "imageFit": "fill"
+          }
+        },
+        {
+          "id": "ct08f7f6",
+          "name": "星点与轨道",
+          "variableName": "stars",
+          "type": "image",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 750,
+            "height": 1334
+          },
+          "parentId": "ofnub76o",
+          "layout": {
+            "left": 0,
+            "right": 0,
+            "top": 0,
+            "bottom": 0
+          },
+          "style": {
+            "fill": "transparent",
+            "borderColor": "transparent",
+            "borderWidth": 0,
+            "radius": 0,
+            "fontWeight": 400
+          },
+          "image": {
+            "builtin": "image/default",
+            "art": {
+              "path": "builtin/image/default.png",
+              "source": {
+                "documentId": "0ba9bc45-76bc-5eda-a37f-0da4a2653cc6",
+                "layerId": "rzzs5kot"
+              }
+            }
+          },
+          "widget": {
+            "imageFit": "fill"
+          }
+        },
+        {
+          "id": "5amcsa7u",
+          "name": "标题区",
+          "variableName": "titleArea",
+          "type": "container",
+          "frame": {
+            "x": 60,
+            "y": 275,
+            "width": 630,
+            "height": 295
+          },
+          "layout": {
+            "centerX": 0,
+            "top": 275
+          },
+          "style": {
+            "fill": "transparent",
+            "borderColor": "transparent",
+            "borderWidth": 0,
+            "radius": 0,
+            "fontWeight": 400
+          }
+        },
+        {
+          "id": "3o30ft4g",
+          "name": "星海徽记",
+          "variableName": "emblem",
+          "type": "image",
+          "frame": {
+            "x": 207,
+            "y": 0,
+            "width": 216,
+            "height": 80
+          },
+          "parentId": "5amcsa7u",
+          "layout": {
+            "centerX": 0,
+            "top": 0
+          },
+          "style": {
+            "fill": "transparent",
+            "borderColor": "transparent",
+            "borderWidth": 0,
+            "radius": 0,
+            "fontWeight": 400
+          },
+          "image": {
+            "builtin": "icon/star",
+            "art": {
+              "path": "builtin/icon/star.png",
+              "source": {
+                "documentId": "0ba9bc45-76bc-5eda-a37f-0da4a2653cc6",
+                "layerId": "qd466q4x"
+              }
+            }
+          },
+          "widget": {
+            "imageFit": "fill"
+          }
+        },
+        {
+          "id": "2uij4u4o",
+          "name": "游戏标题",
+          "variableName": "gameTitle",
+          "type": "text",
+          "frame": {
+            "x": 0,
+            "y": 130,
+            "width": 630,
+            "height": 106
+          },
+          "parentId": "5amcsa7u",
+          "layout": {
+            "left": 0,
+            "right": 0,
+            "top": 130
+          },
+          "style": {
+            "fill": "transparent",
+            "borderColor": "transparent",
+            "borderWidth": 0,
+            "radius": 0,
+            "fontWeight": 400,
+            "color": "#efe1c1",
+            "fontSize": 72,
+            "textAlign": "center"
+          },
+          "text": "星海远征",
+          "widget": {
+            "wordWrap": false,
+            "overflow": "hidden",
+            "valign": "middle"
+          }
+        },
+        {
+          "id": "3y70xjmg",
+          "name": "副标题",
+          "variableName": "subtitle",
+          "type": "text",
+          "frame": {
+            "x": 0,
+            "y": 240,
+            "width": 630,
+            "height": 40
+          },
+          "parentId": "5amcsa7u",
+          "layout": {
+            "left": 0,
+            "right": 0,
+            "top": 240
+          },
+          "style": {
+            "fill": "transparent",
+            "borderColor": "transparent",
+            "borderWidth": 0,
+            "radius": 0,
+            "fontWeight": 400,
+            "color": "#96aec5",
+            "fontSize": 24,
+            "textAlign": "center"
+          },
+          "text": "启航，探索未知星域",
+          "widget": {
+            "wordWrap": false,
+            "overflow": "hidden",
+            "valign": "middle"
+          }
+        },
+        {
+          "id": "k865l2ly",
+          "name": "服务器信息",
+          "variableName": "serverInfo",
+          "type": "container",
+          "frame": {
+            "x": 145,
+            "y": 870,
+            "width": 460,
+            "height": 64
+          },
+          "layout": {
+            "centerX": 0,
+            "bottom": 400
+          },
+          "style": {
+            "fill": "transparent",
+            "borderColor": "transparent",
+            "borderWidth": 0,
+            "radius": 0,
+            "fontWeight": 400
+          }
+        },
+        {
+          "id": "i57rqmsq",
+          "name": "服务器底板",
+          "variableName": "serverBackground",
+          "type": "image",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 460,
+            "height": 64
+          },
+          "parentId": "k865l2ly",
+          "layout": {
+            "left": 0,
+            "right": 0,
+            "top": 0,
+            "bottom": 0
+          },
+          "style": {
+            "fill": "transparent",
+            "borderColor": "transparent",
+            "borderWidth": 0,
+            "radius": 0,
+            "fontWeight": 400
+          },
+          "image": {
+            "builtin": "block/outline-gray",
+            "art": {
+              "path": "builtin/block/outline_gray.png",
+              "source": {
+                "documentId": "0ba9bc45-76bc-5eda-a37f-0da4a2653cc6",
+                "layerId": "1xdur618"
+              }
+            }
+          },
+          "widget": {
+            "imageFit": "fill"
+          }
+        },
+        {
+          "id": "3zt548wx",
+          "name": "连接状态灯",
+          "variableName": "connectionStatus",
+          "type": "image",
+          "frame": {
+            "x": 32,
+            "y": 27,
+            "width": 10,
+            "height": 10
+          },
+          "parentId": "k865l2ly",
+          "layout": {
+            "left": 32,
+            "centerY": 0
+          },
+          "style": {
+            "fill": "transparent",
+            "borderColor": "transparent",
+            "borderWidth": 0,
+            "radius": 0,
+            "fontWeight": 400
+          },
+          "image": {
+            "builtin": "circle/fill-green",
+            "art": {
+              "path": "builtin/circle/fill_green.png",
+              "source": {
+                "documentId": "0ba9bc45-76bc-5eda-a37f-0da4a2653cc6",
+                "layerId": "7wsmwjh1"
+              }
+            }
+          },
+          "widget": {
+            "imageFit": "fill"
+          }
+        },
+        {
+          "id": "wy3s8pwe",
+          "name": "服务器名称",
+          "variableName": "serverLabel",
+          "type": "text",
+          "frame": {
+            "x": 58,
+            "y": 12,
+            "width": 378,
+            "height": 40
+          },
+          "parentId": "k865l2ly",
+          "layout": {
+            "left": 58,
+            "right": 24,
+            "centerY": 0
+          },
+          "style": {
+            "fill": "transparent",
+            "borderColor": "transparent",
+            "borderWidth": 0,
+            "radius": 0,
+            "fontWeight": 400,
+            "color": "#b2c2d0",
+            "fontSize": 21,
+            "textAlign": "center"
+          },
+          "text": "星港一区   ·   连接正常",
+          "widget": {
+            "wordWrap": false,
+            "overflow": "hidden",
+            "valign": "middle"
+          }
+        },
+        {
+          "id": "fud92jz0",
+          "name": "开始远征",
+          "variableName": "startButton",
+          "type": "button",
+          "frame": {
+            "x": 130,
+            "y": 978,
+            "width": 490,
+            "height": 94
+          },
+          "layout": {
+            "centerX": 0,
+            "bottom": 262
+          },
+          "style": {
+            "fill": "transparent",
+            "borderColor": "transparent",
+            "borderWidth": 0,
+            "radius": 0,
+            "fontWeight": 400
+          },
+          "normalSkin": {
+            "builtin": "button/yellow",
+            "art": {
+              "path": "builtin/button/yellow.png",
+              "source": {
+                "documentId": "0ba9bc45-76bc-5eda-a37f-0da4a2653cc6",
+                "layerId": "ph9letqb"
+              }
+            }
+          }
+        },
+        {
+          "id": "92i5vexr",
+          "name": "按钮文案",
+          "variableName": "startLabel",
+          "type": "text",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 490,
+            "height": 94
+          },
+          "parentId": "fud92jz0",
+          "layout": {
+            "left": 0,
+            "right": 0,
+            "top": 0,
+            "bottom": 0
+          },
+          "style": {
+            "fill": "transparent",
+            "borderColor": "transparent",
+            "borderWidth": 0,
+            "radius": 0,
+            "fontWeight": 400,
+            "color": "#25262a",
+            "fontSize": 33,
+            "textAlign": "center"
+          },
+          "text": "开始远征",
+          "widget": {
+            "wordWrap": false,
+            "overflow": "hidden",
+            "valign": "middle"
+          }
+        },
+        {
+          "id": "bz0nfn04",
+          "name": "底部提示",
+          "variableName": "footer",
+          "type": "text",
+          "frame": {
+            "x": 60,
+            "y": 1220,
+            "width": 630,
+            "height": 30
+          },
+          "layout": {
+            "centerX": 0,
+            "bottom": 84
+          },
+          "style": {
+            "fill": "transparent",
+            "borderColor": "transparent",
+            "borderWidth": 0,
+            "radius": 0,
+            "fontWeight": 400,
+            "color": "#74899f",
+            "fontSize": 18,
+            "textAlign": "center"
+          },
+          "text": "适度游戏，探索更多精彩",
+          "widget": {
+            "wordWrap": false,
+            "overflow": "hidden",
+            "valign": "middle"
+          }
+        },
+        {
+          "id": "85559x9k",
+          "type": "list",
+          "name": "列表",
+          "frame": {
+            "x": 148,
+            "y": 576,
+            "width": 460,
+            "height": 282
+          },
+          "style": {
+            "fill": "transparent",
+            "color": "#263244",
+            "borderColor": "#cbd5e1",
+            "borderWidth": 0,
+            "radius": 0,
+            "fontSize": 14,
+            "fontWeight": 400,
+            "italic": false,
+            "underline": false,
+            "strikethrough": false,
+            "textAlign": "center",
+            "opacity": 1
+          },
+          "layout": {
+            "scrollType": 2,
+            "wrapCount": 1,
+            "left": null,
+            "top": null,
+            "bottom": null,
+            "right": null,
+            "centerX": null,
+            "centerY": null,
+            "widthMode": "explicit",
+            "heightMode": "explicit"
+          },
+          "variableName": "loginList",
+          "cellPrefab": {
+            "source": "",
+            "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
+            "pageId": "qs1b6zrv"
+          }
+        },
+        {
+          "id": "t46xrozm",
+          "name": "服务器列表项",
+          "type": "container",
+          "frame": {
+            "x": 148,
+            "y": 197,
+            "width": 378,
+            "height": 40
+          },
+          "prefab": {
+            "source": "",
+            "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
+            "pageId": "qs1b6zrv"
+          },
+          "variableName": "serverList"
+        }
+      ],
+      "artPsd": {
+        "source": "星海远征 · 登录.psd",
+        "documentId": "0ba9bc45-76bc-5eda-a37f-0da4a2653cc6"
+      },
+      "psdSync": {
+        "version": 1,
+        "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
+        "pageId": "umlxcxo4",
+        "psdId": "0ba9bc45-76bc-5eda-a37f-0da4a2653cc6",
+        "nodes": [
+          {
+            "id": "ofnub76o",
+            "name": "背景",
+            "type": "container",
+            "parent": "",
+            "text": "",
+            "frame": {
+              "x": 0,
+              "y": 0,
+              "width": 750,
+              "height": 1334
+            },
+            "variable": "background",
+            "layer": "zbfe8vim"
+          },
+          {
+            "id": "ptkmcxds",
+            "name": "深空渐变",
+            "type": "image",
+            "parent": "ofnub76o",
+            "text": "",
+            "frame": {
+              "x": 0,
+              "y": 0,
+              "width": 750,
+              "height": 1334
+            },
+            "variable": "deepSpace",
+            "layer": "eg4yrblm"
+          },
+          {
+            "id": "ct08f7f6",
+            "name": "星点与轨道",
+            "type": "image",
+            "parent": "ofnub76o",
+            "text": "",
+            "frame": {
+              "x": 0,
+              "y": 0,
+              "width": 750,
+              "height": 1334
+            },
+            "variable": "stars",
+            "layer": "rzzs5kot"
+          },
+          {
+            "id": "5amcsa7u",
+            "name": "标题区",
+            "type": "container",
+            "parent": "",
+            "text": "",
+            "frame": {
+              "x": 60,
+              "y": 275,
+              "width": 630,
+              "height": 295
+            },
+            "variable": "titleArea",
+            "layer": "98ps2h28"
+          },
+          {
+            "id": "3o30ft4g",
+            "name": "星海徽记",
+            "type": "image",
+            "parent": "5amcsa7u",
+            "text": "",
+            "frame": {
+              "x": 267,
+              "y": 275,
+              "width": 216,
+              "height": 80
+            },
+            "variable": "emblem",
+            "layer": "qd466q4x"
+          },
+          {
+            "id": "2uij4u4o",
+            "name": "游戏标题",
+            "type": "text",
+            "parent": "5amcsa7u",
+            "text": "星海远征",
+            "frame": {
+              "x": 60,
+              "y": 405,
+              "width": 630,
+              "height": 106
+            },
+            "variable": "gameTitle",
+            "layer": "lx99gbzq"
+          },
+          {
+            "id": "3y70xjmg",
+            "name": "副标题",
+            "type": "text",
+            "parent": "5amcsa7u",
+            "text": "启航，探索未知星域",
+            "frame": {
+              "x": 60,
+              "y": 515,
+              "width": 630,
+              "height": 40
+            },
+            "variable": "subtitle",
+            "layer": "fymtfa98"
+          },
+          {
+            "id": "k865l2ly",
+            "name": "服务器信息",
+            "type": "container",
+            "parent": "",
+            "text": "",
+            "frame": {
+              "x": 145,
+              "y": 870,
+              "width": 460,
+              "height": 64
+            },
+            "variable": "serverInfo",
+            "layer": "wn2eu9gf"
+          },
+          {
+            "id": "i57rqmsq",
+            "name": "服务器底板",
+            "type": "image",
+            "parent": "k865l2ly",
+            "text": "",
+            "frame": {
+              "x": 145,
+              "y": 870,
+              "width": 460,
+              "height": 64
+            },
+            "variable": "serverBackground",
+            "layer": "1xdur618"
+          },
+          {
+            "id": "3zt548wx",
+            "name": "连接状态灯",
+            "type": "image",
+            "parent": "k865l2ly",
+            "text": "",
+            "frame": {
+              "x": 177,
+              "y": 897,
+              "width": 10,
+              "height": 10
+            },
+            "variable": "connectionStatus",
+            "layer": "7wsmwjh1"
+          },
+          {
+            "id": "wy3s8pwe",
+            "name": "服务器名称",
+            "type": "text",
+            "parent": "k865l2ly",
+            "text": "星港一区   ·   连接正常",
+            "frame": {
+              "x": 203,
+              "y": 882,
+              "width": 378,
+              "height": 40
+            },
+            "variable": "serverLabel",
+            "layer": "hevamp16"
+          },
+          {
+            "id": "fud92jz0",
+            "name": "开始远征",
+            "type": "button",
+            "parent": "",
+            "text": "",
+            "frame": {
+              "x": 130,
+              "y": 978,
+              "width": 490,
+              "height": 94
+            },
+            "variable": "startButton",
+            "layer": "4vu2akna"
+          },
+          {
+            "id": "92i5vexr",
+            "name": "按钮文案",
+            "type": "text",
+            "parent": "fud92jz0",
+            "text": "开始远征",
+            "frame": {
+              "x": 130,
+              "y": 978,
+              "width": 490,
+              "height": 94
+            },
+            "variable": "startLabel",
+            "layer": "8u7hp4a0"
+          },
+          {
+            "id": "bz0nfn04",
+            "name": "底部提示",
+            "type": "text",
+            "parent": "",
+            "text": "适度游戏，探索更多精彩",
+            "frame": {
+              "x": 60,
+              "y": 1220,
+              "width": 630,
+              "height": 30
+            },
+            "variable": "footer",
+            "layer": "9373p48r"
+          },
+          {
+            "id": "85559x9k",
+            "name": "列表",
+            "type": "list",
+            "parent": "",
+            "text": "",
+            "frame": {
+              "x": 148,
+              "y": 576,
+              "width": 460,
+              "height": 282
+            },
+            "variable": "loginList",
+            "layer": "2xvqxj22"
+          },
+          {
+            "id": "t46xrozm",
+            "name": "服务器列表项",
+            "type": "container",
+            "parent": "",
+            "text": "",
+            "frame": {
+              "x": 148,
+              "y": 197,
+              "width": 378,
+              "height": 40
+            },
+            "variable": "serverList",
+            "layer": "t6od46b5"
+          }
+        ]
+      },
+      "prefabSync": {
+        "version": 1,
+        "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
+        "pageId": "umlxcxo4",
+        "target": "login/UILogin.lh",
+        "nodes": [
+          {
+            "id": "umlxcxo4",
+            "name": "星海远征 · 登录",
+            "type": "container",
+            "parent": "",
+            "text": "",
+            "frame": {
+              "x": 0,
+              "y": 0,
+              "width": 750,
+              "height": 1334
+            },
+            "root": true,
+            "layer": "umlxcxo4",
+            "properties": {
+              "page.width": 750,
+              "page.height": 1334,
+              "page.exportName": "UILogin",
+              "layout.layoutUnit": "absolute",
+              "layout.left": null,
+              "layout.right": null,
+              "layout.centerX": null,
+              "layout.top": null,
+              "layout.bottom": null,
+              "layout.centerY": null
+            }
+          },
+          {
+            "id": "ofnub76o",
+            "name": "背景",
+            "type": "container",
+            "parent": "",
+            "text": "",
+            "frame": {
+              "x": 0,
+              "y": 0,
+              "width": 750,
+              "height": 1334
+            },
+            "variable": "background",
+            "properties": {
+              "variableName": "background",
+              "hidden": false,
+              "transform.anchorX": 0,
+              "transform.anchorY": 0,
+              "transform.scaleX": 1,
+              "transform.scaleY": 1,
+              "transform.skewX": 0,
+              "transform.skewY": 0,
+              "transform.rotation": 0,
+              "style.opacity": 1,
+              "layout.left": 0,
+              "layout.right": 0,
+              "layout.centerX": null,
+              "layout.top": 0,
+              "layout.bottom": 0,
+              "layout.centerY": null,
+              "layout.layoutUnit": "absolute",
+              "layout.widthMode": "explicit",
+              "layout.heightMode": "explicit",
+              "layout.crossAxisMode": "aligned",
+              "layout.positionOffsetX": 0,
+              "layout.positionOffsetY": 0,
+              "layout.paddingLeft": 0,
+              "layout.paddingRight": 0,
+              "layout.paddingTop": 0,
+              "layout.paddingBottom": 0,
+              "layout.gap": 0,
+              "layout.gapX": 0,
+              "layout.gapY": 0,
+              "layout.align": "left",
+              "layout.valign": "top",
+              "layout.direction": "horizontal",
+              "layout.wrapCount": 2,
+              "layout.clipContent": false,
+              "layout.scrollX": 0,
+              "layout.scrollY": 0
+            },
+            "layer": "ofnub76o"
+          },
+          {
+            "id": "ptkmcxds",
+            "name": "深空渐变",
+            "type": "image",
+            "parent": "ofnub76o",
+            "text": "",
+            "frame": {
+              "x": 0,
+              "y": 0,
+              "width": 750,
+              "height": 1334
+            },
+            "variable": "deepSpace",
+            "properties": {
+              "variableName": "deepSpace",
+              "hidden": false,
+              "transform.anchorX": 0,
+              "transform.anchorY": 0,
+              "transform.scaleX": 1,
+              "transform.scaleY": 1,
+              "transform.skewX": 0,
+              "transform.skewY": 0,
+              "transform.rotation": 0,
+              "style.opacity": 1,
+              "layout.left": 0,
+              "layout.right": 0,
+              "layout.centerX": null,
+              "layout.top": 0,
+              "layout.bottom": 0,
+              "layout.centerY": null,
+              "layout.layoutUnit": "absolute",
+              "layout.widthMode": "explicit",
+              "layout.heightMode": "explicit",
+              "layout.crossAxisMode": "aligned",
+              "layout.positionOffsetX": 0,
+              "layout.positionOffsetY": 0,
+              "widget.imageFit": "fill"
+            },
+            "layer": "ptkmcxds"
+          },
+          {
+            "id": "ct08f7f6",
+            "name": "星点与轨道",
+            "type": "image",
+            "parent": "ofnub76o",
+            "text": "",
+            "frame": {
+              "x": 0,
+              "y": 0,
+              "width": 750,
+              "height": 1334
+            },
+            "variable": "stars",
+            "properties": {
+              "variableName": "stars",
+              "hidden": false,
+              "transform.anchorX": 0,
+              "transform.anchorY": 0,
+              "transform.scaleX": 1,
+              "transform.scaleY": 1,
+              "transform.skewX": 0,
+              "transform.skewY": 0,
+              "transform.rotation": 0,
+              "style.opacity": 1,
+              "layout.left": 0,
+              "layout.right": 0,
+              "layout.centerX": null,
+              "layout.top": 0,
+              "layout.bottom": 0,
+              "layout.centerY": null,
+              "layout.layoutUnit": "absolute",
+              "layout.widthMode": "explicit",
+              "layout.heightMode": "explicit",
+              "layout.crossAxisMode": "aligned",
+              "layout.positionOffsetX": 0,
+              "layout.positionOffsetY": 0,
+              "widget.imageFit": "fill"
+            },
+            "layer": "ct08f7f6"
+          },
+          {
+            "id": "5amcsa7u",
+            "name": "标题区",
+            "type": "container",
+            "parent": "",
+            "text": "",
+            "frame": {
+              "x": 60,
+              "y": 275,
+              "width": 630,
+              "height": 295
+            },
+            "variable": "titleArea",
+            "properties": {
+              "variableName": "titleArea",
+              "hidden": false,
+              "transform.anchorX": 0,
+              "transform.anchorY": 0,
+              "transform.scaleX": 1,
+              "transform.scaleY": 1,
+              "transform.skewX": 0,
+              "transform.skewY": 0,
+              "transform.rotation": 0,
+              "style.opacity": 1,
+              "layout.left": null,
+              "layout.right": null,
+              "layout.centerX": 0,
+              "layout.top": 275,
+              "layout.bottom": null,
+              "layout.centerY": null,
+              "layout.layoutUnit": "absolute",
+              "layout.widthMode": "explicit",
+              "layout.heightMode": "explicit",
+              "layout.crossAxisMode": "aligned",
+              "layout.positionOffsetX": 0,
+              "layout.positionOffsetY": 0,
+              "layout.paddingLeft": 0,
+              "layout.paddingRight": 0,
+              "layout.paddingTop": 0,
+              "layout.paddingBottom": 0,
+              "layout.gap": 0,
+              "layout.gapX": 0,
+              "layout.gapY": 0,
+              "layout.align": "left",
+              "layout.valign": "top",
+              "layout.direction": "horizontal",
+              "layout.wrapCount": 2,
+              "layout.clipContent": false,
+              "layout.scrollX": 0,
+              "layout.scrollY": 0
+            },
+            "layer": "5amcsa7u"
+          },
+          {
+            "id": "3o30ft4g",
+            "name": "星海徽记",
+            "type": "image",
+            "parent": "5amcsa7u",
+            "text": "",
+            "frame": {
+              "x": 267,
+              "y": 275,
+              "width": 216,
+              "height": 80
+            },
+            "variable": "emblem",
+            "properties": {
+              "variableName": "emblem",
+              "hidden": false,
+              "transform.anchorX": 0,
+              "transform.anchorY": 0,
+              "transform.scaleX": 1,
+              "transform.scaleY": 1,
+              "transform.skewX": 0,
+              "transform.skewY": 0,
+              "transform.rotation": 0,
+              "style.opacity": 1,
+              "layout.left": null,
+              "layout.right": null,
+              "layout.centerX": 0,
+              "layout.top": 0,
+              "layout.bottom": null,
+              "layout.centerY": null,
+              "layout.layoutUnit": "absolute",
+              "layout.widthMode": "explicit",
+              "layout.heightMode": "explicit",
+              "layout.crossAxisMode": "aligned",
+              "layout.positionOffsetX": 0,
+              "layout.positionOffsetY": 0,
+              "widget.imageFit": "fill"
+            },
+            "layer": "3o30ft4g"
+          },
+          {
+            "id": "2uij4u4o",
+            "name": "游戏标题",
+            "type": "text",
+            "parent": "5amcsa7u",
+            "text": "星海远征",
+            "frame": {
+              "x": 60,
+              "y": 405,
+              "width": 630,
+              "height": 106
+            },
+            "variable": "gameTitle",
+            "properties": {
+              "variableName": "gameTitle",
+              "hidden": false,
+              "transform.anchorX": 0,
+              "transform.anchorY": 0,
+              "transform.scaleX": 1,
+              "transform.scaleY": 1,
+              "transform.skewX": 0,
+              "transform.skewY": 0,
+              "transform.rotation": 0,
+              "style.opacity": 1,
+              "style.fontSize": 72,
+              "style.color": "#efe1c1",
+              "style.italic": false,
+              "style.underline": false,
+              "style.strikethrough": false,
+              "style.textAlign": "center",
+              "style.fontWeight": 400,
+              "layout.left": 0,
+              "layout.right": 0,
+              "layout.centerX": null,
+              "layout.top": 130,
+              "layout.bottom": null,
+              "layout.centerY": null,
+              "layout.layoutUnit": "absolute",
+              "layout.widthMode": "explicit",
+              "layout.heightMode": "explicit",
+              "layout.crossAxisMode": "aligned",
+              "layout.positionOffsetX": 0,
+              "layout.positionOffsetY": 0,
+              "widget.wordWrap": false,
+              "widget.overflow": "hidden",
+              "widget.valign": "middle",
+              "widget.leading": 0,
+              "widget.letterSpacing": 0,
+              "widget.html": false,
+              "widget.ubb": false,
+              "widget.templateVars": null,
+              "widget.scrollX": 0,
+              "widget.scrollY": 0
+            },
+            "layer": "2uij4u4o"
+          },
+          {
+            "id": "3y70xjmg",
+            "name": "副标题",
+            "type": "text",
+            "parent": "5amcsa7u",
+            "text": "启航，探索未知星域",
+            "frame": {
+              "x": 60,
+              "y": 515,
+              "width": 630,
+              "height": 40
+            },
+            "variable": "subtitle",
+            "properties": {
+              "variableName": "subtitle",
+              "hidden": false,
+              "transform.anchorX": 0,
+              "transform.anchorY": 0,
+              "transform.scaleX": 1,
+              "transform.scaleY": 1,
+              "transform.skewX": 0,
+              "transform.skewY": 0,
+              "transform.rotation": 0,
+              "style.opacity": 1,
+              "style.fontSize": 24,
+              "style.color": "#96aec5",
+              "style.italic": false,
+              "style.underline": false,
+              "style.strikethrough": false,
+              "style.textAlign": "center",
+              "style.fontWeight": 400,
+              "layout.left": 0,
+              "layout.right": 0,
+              "layout.centerX": null,
+              "layout.top": 240,
+              "layout.bottom": null,
+              "layout.centerY": null,
+              "layout.layoutUnit": "absolute",
+              "layout.widthMode": "explicit",
+              "layout.heightMode": "explicit",
+              "layout.crossAxisMode": "aligned",
+              "layout.positionOffsetX": 0,
+              "layout.positionOffsetY": 0,
+              "widget.wordWrap": false,
+              "widget.overflow": "hidden",
+              "widget.valign": "middle",
+              "widget.leading": 0,
+              "widget.letterSpacing": 0,
+              "widget.html": false,
+              "widget.ubb": false,
+              "widget.templateVars": null,
+              "widget.scrollX": 0,
+              "widget.scrollY": 0
+            },
+            "layer": "3y70xjmg"
+          },
+          {
+            "id": "k865l2ly",
+            "name": "服务器信息",
+            "type": "container",
+            "parent": "",
+            "text": "",
+            "frame": {
+              "x": 145,
+              "y": 870,
+              "width": 460,
+              "height": 64
+            },
+            "variable": "serverInfo",
+            "properties": {
+              "variableName": "serverInfo",
+              "hidden": false,
+              "transform.anchorX": 0,
+              "transform.anchorY": 0,
+              "transform.scaleX": 1,
+              "transform.scaleY": 1,
+              "transform.skewX": 0,
+              "transform.skewY": 0,
+              "transform.rotation": 0,
+              "style.opacity": 1,
+              "layout.left": null,
+              "layout.right": null,
+              "layout.centerX": 0,
+              "layout.top": null,
+              "layout.bottom": 400,
+              "layout.centerY": null,
+              "layout.layoutUnit": "absolute",
+              "layout.widthMode": "explicit",
+              "layout.heightMode": "explicit",
+              "layout.crossAxisMode": "aligned",
+              "layout.positionOffsetX": 0,
+              "layout.positionOffsetY": 0,
+              "layout.paddingLeft": 0,
+              "layout.paddingRight": 0,
+              "layout.paddingTop": 0,
+              "layout.paddingBottom": 0,
+              "layout.gap": 0,
+              "layout.gapX": 0,
+              "layout.gapY": 0,
+              "layout.align": "left",
+              "layout.valign": "top",
+              "layout.direction": "horizontal",
+              "layout.wrapCount": 2,
+              "layout.clipContent": false,
+              "layout.scrollX": 0,
+              "layout.scrollY": 0
+            },
+            "layer": "k865l2ly"
+          },
+          {
+            "id": "i57rqmsq",
+            "name": "服务器底板",
+            "type": "image",
+            "parent": "k865l2ly",
+            "text": "",
+            "frame": {
+              "x": 145,
+              "y": 870,
+              "width": 460,
+              "height": 64
+            },
+            "variable": "serverBackground",
+            "properties": {
+              "variableName": "serverBackground",
+              "hidden": false,
+              "transform.anchorX": 0,
+              "transform.anchorY": 0,
+              "transform.scaleX": 1,
+              "transform.scaleY": 1,
+              "transform.skewX": 0,
+              "transform.skewY": 0,
+              "transform.rotation": 0,
+              "style.opacity": 1,
+              "layout.left": 0,
+              "layout.right": 0,
+              "layout.centerX": null,
+              "layout.top": 0,
+              "layout.bottom": 0,
+              "layout.centerY": null,
+              "layout.layoutUnit": "absolute",
+              "layout.widthMode": "explicit",
+              "layout.heightMode": "explicit",
+              "layout.crossAxisMode": "aligned",
+              "layout.positionOffsetX": 0,
+              "layout.positionOffsetY": 0,
+              "widget.imageFit": "fill"
+            },
+            "layer": "i57rqmsq"
+          },
+          {
+            "id": "3zt548wx",
+            "name": "连接状态灯",
+            "type": "image",
+            "parent": "k865l2ly",
+            "text": "",
+            "frame": {
+              "x": 177,
+              "y": 897,
+              "width": 10,
+              "height": 10
+            },
+            "variable": "connectionStatus",
+            "properties": {
+              "variableName": "connectionStatus",
+              "hidden": false,
+              "transform.anchorX": 0,
+              "transform.anchorY": 0,
+              "transform.scaleX": 1,
+              "transform.scaleY": 1,
+              "transform.skewX": 0,
+              "transform.skewY": 0,
+              "transform.rotation": 0,
+              "style.opacity": 1,
+              "layout.left": 32,
+              "layout.right": null,
+              "layout.centerX": null,
+              "layout.top": null,
+              "layout.bottom": null,
+              "layout.centerY": 0,
+              "layout.layoutUnit": "absolute",
+              "layout.widthMode": "explicit",
+              "layout.heightMode": "explicit",
+              "layout.crossAxisMode": "aligned",
+              "layout.positionOffsetX": 0,
+              "layout.positionOffsetY": 0,
+              "widget.imageFit": "fill"
+            },
+            "layer": "3zt548wx"
+          },
+          {
+            "id": "wy3s8pwe",
+            "name": "服务器名称",
+            "type": "text",
+            "parent": "k865l2ly",
+            "text": "星港一区   ·   连接正常",
+            "frame": {
+              "x": 203,
+              "y": 882,
+              "width": 378,
+              "height": 40
+            },
+            "variable": "serverLabel",
+            "properties": {
+              "variableName": "serverLabel",
+              "hidden": false,
+              "transform.anchorX": 0,
+              "transform.anchorY": 0,
+              "transform.scaleX": 1,
+              "transform.scaleY": 1,
+              "transform.skewX": 0,
+              "transform.skewY": 0,
+              "transform.rotation": 0,
+              "style.opacity": 1,
+              "style.fontSize": 21,
+              "style.color": "#b2c2d0",
+              "style.italic": false,
+              "style.underline": false,
+              "style.strikethrough": false,
+              "style.textAlign": "center",
+              "style.fontWeight": 400,
+              "layout.left": 58,
+              "layout.right": 24,
+              "layout.centerX": null,
+              "layout.top": null,
+              "layout.bottom": null,
+              "layout.centerY": 0,
+              "layout.layoutUnit": "absolute",
+              "layout.widthMode": "explicit",
+              "layout.heightMode": "explicit",
+              "layout.crossAxisMode": "aligned",
+              "layout.positionOffsetX": 0,
+              "layout.positionOffsetY": 0,
+              "widget.wordWrap": false,
+              "widget.overflow": "hidden",
+              "widget.valign": "middle",
+              "widget.leading": 0,
+              "widget.letterSpacing": 0,
+              "widget.html": false,
+              "widget.ubb": false,
+              "widget.templateVars": null,
+              "widget.scrollX": 0,
+              "widget.scrollY": 0
+            },
+            "layer": "wy3s8pwe"
+          },
+          {
+            "id": "fud92jz0",
+            "name": "开始远征",
+            "type": "button",
+            "parent": "",
+            "text": "",
+            "frame": {
+              "x": 130,
+              "y": 978,
+              "width": 490,
+              "height": 94
+            },
+            "variable": "startButton",
+            "properties": {
+              "variableName": "startButton",
+              "hidden": false,
+              "transform.anchorX": 0,
+              "transform.anchorY": 0,
+              "transform.scaleX": 1,
+              "transform.scaleY": 1,
+              "transform.skewX": 0,
+              "transform.skewY": 0,
+              "transform.rotation": 0,
+              "style.opacity": 1,
+              "layout.left": null,
+              "layout.right": null,
+              "layout.centerX": 0,
+              "layout.top": null,
+              "layout.bottom": 262,
+              "layout.centerY": null,
+              "layout.layoutUnit": "absolute",
+              "layout.widthMode": "explicit",
+              "layout.heightMode": "explicit",
+              "layout.crossAxisMode": "aligned",
+              "layout.positionOffsetX": 0,
+              "layout.positionOffsetY": 0,
+              "layout.paddingLeft": 0,
+              "layout.paddingRight": 0,
+              "layout.paddingTop": 0,
+              "layout.paddingBottom": 0,
+              "layout.gap": 0,
+              "layout.gapX": 0,
+              "layout.gapY": 0,
+              "layout.align": "left",
+              "layout.valign": "top",
+              "layout.direction": "horizontal",
+              "layout.wrapCount": 2,
+              "layout.clipContent": false,
+              "layout.scrollX": 0,
+              "layout.scrollY": 0,
+              "widget.selected": false,
+              "widget.disabled": false
+            },
+            "layer": "fud92jz0"
+          },
+          {
+            "id": "92i5vexr",
+            "name": "按钮文案",
+            "type": "text",
+            "parent": "fud92jz0",
+            "text": "开始远征",
+            "frame": {
+              "x": 130,
+              "y": 978,
+              "width": 490,
+              "height": 94
+            },
+            "variable": "startLabel",
+            "properties": {
+              "variableName": "startLabel",
+              "hidden": false,
+              "transform.anchorX": 0,
+              "transform.anchorY": 0,
+              "transform.scaleX": 1,
+              "transform.scaleY": 1,
+              "transform.skewX": 0,
+              "transform.skewY": 0,
+              "transform.rotation": 0,
+              "style.opacity": 1,
+              "style.fontSize": 33,
+              "style.color": "#25262a",
+              "style.italic": false,
+              "style.underline": false,
+              "style.strikethrough": false,
+              "style.textAlign": "center",
+              "style.fontWeight": 400,
+              "layout.left": 0,
+              "layout.right": 0,
+              "layout.centerX": null,
+              "layout.top": 0,
+              "layout.bottom": 0,
+              "layout.centerY": null,
+              "layout.layoutUnit": "absolute",
+              "layout.widthMode": "explicit",
+              "layout.heightMode": "explicit",
+              "layout.crossAxisMode": "aligned",
+              "layout.positionOffsetX": 0,
+              "layout.positionOffsetY": 0,
+              "widget.wordWrap": false,
+              "widget.overflow": "hidden",
+              "widget.valign": "middle",
+              "widget.leading": 0,
+              "widget.letterSpacing": 0,
+              "widget.html": false,
+              "widget.ubb": false,
+              "widget.templateVars": null,
+              "widget.scrollX": 0,
+              "widget.scrollY": 0
+            },
+            "layer": "92i5vexr"
+          },
+          {
+            "id": "bz0nfn04",
+            "name": "底部提示",
+            "type": "text",
+            "parent": "",
+            "text": "适度游戏，探索更多精彩",
+            "frame": {
+              "x": 60,
+              "y": 1220,
+              "width": 630,
+              "height": 30
+            },
+            "variable": "footer",
+            "properties": {
+              "variableName": "footer",
+              "hidden": false,
+              "transform.anchorX": 0,
+              "transform.anchorY": 0,
+              "transform.scaleX": 1,
+              "transform.scaleY": 1,
+              "transform.skewX": 0,
+              "transform.skewY": 0,
+              "transform.rotation": 0,
+              "style.opacity": 1,
+              "style.fontSize": 18,
+              "style.color": "#74899f",
+              "style.italic": false,
+              "style.underline": false,
+              "style.strikethrough": false,
+              "style.textAlign": "center",
+              "style.fontWeight": 400,
+              "layout.left": null,
+              "layout.right": null,
+              "layout.centerX": 0,
+              "layout.top": null,
+              "layout.bottom": 84,
+              "layout.centerY": null,
+              "layout.layoutUnit": "absolute",
+              "layout.widthMode": "explicit",
+              "layout.heightMode": "explicit",
+              "layout.crossAxisMode": "aligned",
+              "layout.positionOffsetX": 0,
+              "layout.positionOffsetY": 0,
+              "widget.wordWrap": false,
+              "widget.overflow": "hidden",
+              "widget.valign": "middle",
+              "widget.leading": 0,
+              "widget.letterSpacing": 0,
+              "widget.html": false,
+              "widget.ubb": false,
+              "widget.templateVars": null,
+              "widget.scrollX": 0,
+              "widget.scrollY": 0
+            },
+            "layer": "bz0nfn04"
+          },
+          {
+            "id": "85559x9k",
+            "name": "列表",
+            "type": "list",
+            "parent": "",
+            "text": "",
+            "frame": {
+              "x": 148,
+              "y": 576,
+              "width": 460,
+              "height": 282
+            },
+            "variable": "loginList",
+            "properties": {
+              "variableName": "loginList",
+              "hidden": false,
+              "transform.anchorX": 0,
+              "transform.anchorY": 0,
+              "transform.scaleX": 1,
+              "transform.scaleY": 1,
+              "transform.skewX": 0,
+              "transform.skewY": 0,
+              "transform.rotation": 0,
+              "style.opacity": 1,
+              "layout.left": null,
+              "layout.right": null,
+              "layout.centerX": null,
+              "layout.top": null,
+              "layout.bottom": null,
+              "layout.centerY": null,
+              "layout.layoutUnit": "absolute",
+              "layout.widthMode": "explicit",
+              "layout.heightMode": "explicit",
+              "layout.crossAxisMode": "aligned",
+              "layout.positionOffsetX": 0,
+              "layout.positionOffsetY": 0,
+              "layout.paddingLeft": 0,
+              "layout.paddingRight": 0,
+              "layout.paddingTop": 0,
+              "layout.paddingBottom": 0,
+              "layout.gap": 0,
+              "layout.gapX": 0,
+              "layout.gapY": 0,
+              "layout.align": "left",
+              "layout.valign": "top",
+              "layout.direction": "horizontal",
+              "layout.wrapCount": 1,
+              "layout.clipContent": false,
+              "layout.scrollX": 0,
+              "layout.scrollY": 0,
+              "cellPrefab": {
+                "source": "",
+                "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
+                "pageId": "qs1b6zrv"
+              },
+              "layout.scrollType": 2
+            },
+            "x": 148,
+            "y": 576,
+            "width": 460,
+            "height": 282,
+            "layer": "85559x9k"
+          },
+          {
+            "id": "t46xrozm",
+            "name": "服务器列表项",
+            "type": "container",
+            "parent": "",
+            "text": "",
+            "frame": {
+              "x": 148,
+              "y": 197,
+              "width": 378,
+              "height": 40
+            },
+            "variable": "serverList",
+            "properties": {
+              "variableName": "serverList",
+              "hidden": false,
+              "transform.anchorX": 0,
+              "transform.anchorY": 0,
+              "transform.scaleX": 1,
+              "transform.scaleY": 1,
+              "transform.skewX": 0,
+              "transform.skewY": 0,
+              "transform.rotation": 0,
+              "style.opacity": 1,
+              "layout.left": null,
+              "layout.right": null,
+              "layout.centerX": null,
+              "layout.top": null,
+              "layout.bottom": null,
+              "layout.centerY": null,
+              "layout.layoutUnit": "absolute",
+              "layout.widthMode": "explicit",
+              "layout.heightMode": "explicit",
+              "layout.crossAxisMode": "aligned",
+              "layout.positionOffsetX": 0,
+              "layout.positionOffsetY": 0
+            },
+            "x": 148,
+            "y": 197,
+            "width": 378,
+            "height": 40,
+            "layer": "t46xrozm"
+          }
+        ]
+      },
+      "exportName": "UILogin"
+    },
+    {
+      "id": "qs1b6zrv",
+      "name": "服务器列表项",
+      "kind": "screen",
+      "rootType": "UIBox",
+      "componentRootId": "rp12tniu",
+      "background": "transparent",
+      "frame": {
+        "x": 830,
+        "y": 0,
+        "width": 378,
+        "height": 40
+      },
+      "nodes": [
+        {
+          "id": "rp12tniu",
+          "type": "container",
+          "name": "容器",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 378,
+            "height": 40
+          },
+          "style": {
+            "fill": "transparent",
+            "color": "#263244",
+            "borderColor": "#cbd5e1",
+            "borderWidth": 0,
+            "radius": 0,
+            "fontSize": 14,
+            "fontWeight": 400,
+            "italic": false,
+            "underline": false,
+            "strikethrough": false,
+            "textAlign": "center",
+            "opacity": 1
+          },
+          "layout": {
+            "gap": 8,
+            "gapX": 8,
+            "gapY": 8,
+            "wrapCount": 2,
+            "paddingLeft": 0,
+            "paddingRight": 0,
+            "paddingTop": 0,
+            "paddingBottom": 0,
+            "clipContent": false,
+            "widthMode": "explicit",
+            "heightMode": "explicit",
+            "left": null,
+            "right": null,
+            "centerX": null,
+            "top": null,
+            "bottom": null,
+            "centerY": null
+          }
+        },
+        {
+          "id": "ia5bsi5b",
+          "type": "image",
+          "name": "图片",
+          "frame": {
+            "x": 131,
+            "y": -13,
+            "width": 140,
+            "height": 90
+          },
+          "style": {
+            "fill": "transparent",
+            "color": "#263244",
+            "borderColor": "#cbd5e1",
+            "borderWidth": 0,
+            "radius": 0,
+            "fontSize": 14,
+            "fontWeight": 400,
+            "italic": false,
+            "underline": false,
+            "strikethrough": false,
+            "textAlign": "center",
+            "opacity": 1
+          },
+          "image": {
+            "builtin": "image/default"
+          },
+          "parentId": "rp12tniu",
+          "layout": {
+            "left": 0,
+            "top": 0,
+            "bottom": 0,
+            "right": 0
+          }
+        },
+        {
+          "id": "d9jimlmp",
+          "name": "服务器名称",
+          "variableName": "serverLabel2",
+          "type": "text",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 378,
+            "height": 40
+          },
+          "layout": {
+            "left": null,
+            "right": null,
+            "centerY": null,
+            "centerX": null,
+            "top": null,
+            "bottom": null,
+            "widthMode": "explicit",
+            "heightMode": "explicit"
+          },
+          "style": {
+            "fill": "transparent",
+            "borderColor": "transparent",
+            "borderWidth": 0,
+            "radius": 0,
+            "fontWeight": 400,
+            "color": "#b2c2d0",
+            "fontSize": 21,
+            "textAlign": "center"
+          },
+          "text": "星港一区   ·   连接正常",
+          "widget": {
+            "wordWrap": false,
+            "overflow": "hidden",
+            "valign": "middle"
+          },
+          "parentId": "rp12tniu"
+        }
+      ],
+      "exportName": "LoginServerListItem",
+      "artPsd": {
+        "documentId": "cf7dc25c-7664-5a53-ade9-e655b6ba9c17",
+        "source": "服务器列表项.psd"
+      },
+      "prefabSync": {
+        "version": 1,
+        "documentId": "b7350d9a-6015-4f0a-9508-4567406ed8f7",
+        "pageId": "qs1b6zrv",
+        "target": "login/LoginServerListItem.lh",
+        "nodes": [
+          {
+            "id": "qs1b6zrv",
+            "name": "服务器列表项",
+            "type": "container",
+            "parent": "",
+            "text": "",
+            "frame": {
+              "x": 830,
+              "y": 0,
+              "width": 378,
+              "height": 40
+            },
+            "root": true,
+            "layer": "qs1b6zrv",
+            "properties": {
+              "page.width": 378,
+              "page.height": 40,
+              "page.exportName": "LoginServerListItem",
+              "layout.layoutUnit": "absolute",
+              "layout.left": null,
+              "layout.right": null,
+              "layout.centerX": null,
+              "layout.top": null,
+              "layout.bottom": null,
+              "layout.centerY": null
+            }
+          },
+          {
+            "id": "rp12tniu",
+            "name": "容器",
+            "type": "container",
+            "parent": "",
+            "text": "",
+            "frame": {
+              "x": 0,
+              "y": 0,
+              "width": 378,
+              "height": 40
+            },
+            "properties": {
+              "variableName": "",
+              "hidden": false,
+              "transform.anchorX": 0,
+              "transform.anchorY": 0,
+              "transform.scaleX": 1,
+              "transform.scaleY": 1,
+              "transform.skewX": 0,
+              "transform.skewY": 0,
+              "transform.rotation": 0,
+              "style.opacity": 1,
+              "layout.left": null,
+              "layout.right": null,
+              "layout.centerX": null,
+              "layout.top": null,
+              "layout.bottom": null,
+              "layout.centerY": null,
+              "layout.layoutUnit": "absolute",
+              "layout.widthMode": "explicit",
+              "layout.heightMode": "explicit",
+              "layout.crossAxisMode": "aligned",
+              "layout.positionOffsetX": 0,
+              "layout.positionOffsetY": 0,
+              "layout.paddingLeft": 0,
+              "layout.paddingRight": 0,
+              "layout.paddingTop": 0,
+              "layout.paddingBottom": 0,
+              "layout.gap": 8,
+              "layout.gapX": 8,
+              "layout.gapY": 8,
+              "layout.align": "left",
+              "layout.valign": "top",
+              "layout.direction": "horizontal",
+              "layout.wrapCount": 2,
+              "layout.clipContent": false,
+              "layout.scrollX": 0,
+              "layout.scrollY": 0
+            },
+            "x": 0,
+            "y": 0,
+            "width": 378,
+            "height": 40,
+            "layer": "qs1b6zrv"
+          },
+          {
+            "id": "ia5bsi5b",
+            "name": "图片",
+            "type": "image",
+            "parent": "rp12tniu",
+            "text": "",
+            "frame": {
+              "x": 0,
+              "y": 0,
+              "width": 378,
+              "height": 40
+            },
+            "properties": {
+              "variableName": "",
+              "hidden": false,
+              "transform.anchorX": 0,
+              "transform.anchorY": 0,
+              "transform.scaleX": 1,
+              "transform.scaleY": 1,
+              "transform.skewX": 0,
+              "transform.skewY": 0,
+              "transform.rotation": 0,
+              "style.opacity": 1,
+              "layout.left": 0,
+              "layout.right": 0,
+              "layout.centerX": null,
+              "layout.top": 0,
+              "layout.bottom": 0,
+              "layout.centerY": null,
+              "layout.layoutUnit": "absolute",
+              "layout.widthMode": "explicit",
+              "layout.heightMode": "explicit",
+              "layout.crossAxisMode": "aligned",
+              "layout.positionOffsetX": 0,
+              "layout.positionOffsetY": 0,
+              "widget.imageFit": "fill"
+            },
+            "layer": "ia5bsi5b"
+          },
+          {
+            "id": "d9jimlmp",
+            "name": "服务器名称",
+            "type": "text",
+            "parent": "rp12tniu",
+            "text": "星港一区   ·   连接正常",
+            "frame": {
+              "x": 0,
+              "y": 0,
+              "width": 378,
+              "height": 40
+            },
+            "variable": "serverLabel2",
+            "properties": {
+              "variableName": "serverLabel2",
+              "hidden": false,
+              "transform.anchorX": 0,
+              "transform.anchorY": 0,
+              "transform.scaleX": 1,
+              "transform.scaleY": 1,
+              "transform.skewX": 0,
+              "transform.skewY": 0,
+              "transform.rotation": 0,
+              "style.opacity": 1,
+              "style.fontSize": 21,
+              "style.color": "#b2c2d0",
+              "style.italic": false,
+              "style.underline": false,
+              "style.strikethrough": false,
+              "style.textAlign": "center",
+              "style.fontWeight": 400,
+              "layout.left": null,
+              "layout.right": null,
+              "layout.centerX": null,
+              "layout.top": null,
+              "layout.bottom": null,
+              "layout.centerY": null,
+              "layout.layoutUnit": "absolute",
+              "layout.widthMode": "explicit",
+              "layout.heightMode": "explicit",
+              "layout.crossAxisMode": "aligned",
+              "layout.positionOffsetX": 0,
+              "layout.positionOffsetY": 0,
+              "widget.wordWrap": false,
+              "widget.overflow": "hidden",
+              "widget.valign": "middle",
+              "widget.leading": 0,
+              "widget.letterSpacing": 0,
+              "widget.html": false,
+              "widget.ubb": false,
+              "widget.templateVars": null,
+              "widget.scrollX": 0,
+              "widget.scrollY": 0
+            },
+            "x": 0,
+            "y": 0,
+            "width": 378,
+            "height": 40,
+            "layer": "d9jimlmp"
+          }
+        ]
+      }
+    }
+  ],
+  "interactions": [],
+  "exportDirectory": "login"
+}

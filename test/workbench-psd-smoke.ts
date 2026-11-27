@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import assert from "node:assert/strict";
+import { mock } from "node:test";
 import { readFileSync, writeFileSync, existsSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 import type { GameFlowEditorProvider } from "../src/gameflow-editor-provider";
@@ -75,17 +76,65 @@ export async function workbenchChecks(api: { workbench: GameFlowEditorProvider; 
   const restored = doc.getText();
   assert.equal(readFileSync(file, "utf8"), restored);
   assert.equal(doc.dirty, false);
-  const edited = serializeGameFlowDocument({ ...parseGameFlowDocument(restored), title: "再次保存" });
+  checks.push("native save recreates the deleted canvas and updates its baseline");
+  const edited = serializeGameFlowDocument({ ...parseGameFlowDocument(restored), title: "覆盖外部修改" });
   await api.workbench.apply(doc, [{ document: doc, version: doc.version, text: edited }]);
+  const previousMeta = readFileSync(meta, "utf8");
+  const pendingPsd = makePsdDraft(psd.model.asset);
+  pendingPsd.layers[0].config.shared = !pendingPsd.layers[0].config.shared;
+  await api.psd.edit(psd, pendingPsd, psd.model.version);
   writeFileSync(file, canvasText);
-  await assert.rejects(api.workbench.saveCustomDocument(doc, cancellation.token), /外部修改/);
-  assert.equal(readFileSync(file, "utf8"), canvasText);
-  assert.equal(doc.getText(), edited);
-  assert.equal(doc.canvasDirty, true);
-  writeFileSync(file, restored);
-  await vscode.commands.executeCommand("workbench.action.files.save");
-  await until(() => !tab()?.isDirty && readFileSync(file, "utf8") === edited, "save after recreating canvas");
-  checks.push("native save recreates the deleted canvas, updates its baseline and protects external edits");
+  let answer: () => string | undefined = () => undefined;
+  const prompt = mock.method(vscode.window, "showWarningMessage", async (message: string, options: vscode.MessageOptions, overwrite: string) => {
+    assert.ok(message.includes("工作台.gameflow.json"));
+    assert.equal(options.modal, true);
+    assert.equal(overwrite, "覆盖保存");
+    return answer();
+  });
+  try {
+    await assert.rejects(api.workbench.saveCustomDocument(doc, cancellation.token), vscode.CancellationError);
+    assert.equal(prompt.mock.callCount(), 1);
+    assert.equal(readFileSync(file, "utf8"), canvasText);
+    assert.equal(readFileSync(meta, "utf8"), previousMeta);
+    assert.equal(psd.model.dirty, true);
+    assert.equal(JSON.parse(readFileSync(doc.cache.fsPath, "utf8")).text, edited);
+    assert.equal(doc.getText(), edited);
+    assert.equal(doc.canvasDirty, true);
+    assert.equal(tab()?.isDirty, true);
+    checks.push("cancelling canvas overwrite retains disk, recoverable draft and dirty tab");
+
+    const newer = canvasText + "\n";
+    answer = () => {
+      writeFileSync(file, newer);
+      answer = () => undefined;
+      return "覆盖保存";
+    };
+    await assert.rejects(api.workbench.saveCustomDocument(doc, cancellation.token), vscode.CancellationError);
+    assert.equal(prompt.mock.callCount(), 3);
+    assert.equal(readFileSync(file, "utf8"), newer);
+    checks.push("another external edit while the overwrite prompt is open requires a new decision");
+
+    answer = () => "覆盖保存";
+    await vscode.commands.executeCommand("workbench.action.files.save");
+    await until(() => !tab()?.isDirty && readFileSync(file, "utf8") === edited, "confirmed overwrite");
+    assert.equal(doc.dirty, false);
+    assert.equal(existsSync(doc.cache.fsPath), false);
+    const subsequent = serializeGameFlowDocument({ ...parseGameFlowDocument(edited), title: "继续编辑" });
+    await api.workbench.apply(doc, [{ document: doc, version: doc.version, text: subsequent }]);
+    await vscode.commands.executeCommand("workbench.action.files.save");
+    await until(() => !tab()?.isDirty && readFileSync(file, "utf8") === subsequent, "ordinary save after overwrite");
+    assert.equal(prompt.mock.callCount(), 4);
+    checks.push("confirmed native overwrite clears dirty and subsequent edits save without prompting");
+
+    const matching = serializeGameFlowDocument({ ...parseGameFlowDocument(subsequent), title: "再次保存" });
+    await api.workbench.apply(doc, [{ document: doc, version: doc.version, text: matching }]);
+    writeFileSync(file, matching);
+    await vscode.commands.executeCommand("workbench.action.files.save");
+    await until(() => !tab()?.isDirty && !doc.dirty, "matching external save");
+    assert.equal(readFileSync(file, "utf8"), matching);
+    assert.equal(prompt.mock.callCount(), 4);
+    checks.push("matching disk and canvas edits finish saving without an overwrite prompt");
+  } finally { prompt.mock.restore(); }
   const next = makePsdDraft(psd.model.asset); next.layers[0].config.exportName = "recover_embedded";
   await api.psd.edit(psd, next, psd.model.version);
   const backup = await api.workbench.backupCustomDocument(doc, { destination: vscode.Uri.file(join(directory, "workbench-backup.json")) }, cancellation.token);

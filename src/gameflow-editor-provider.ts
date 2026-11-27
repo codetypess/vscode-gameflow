@@ -32,6 +32,22 @@ async function write(uri: vscode.Uri, text: string) {
   try { await vscode.workspace.fs.writeFile(temp, new TextEncoder().encode(text)); await vscode.workspace.fs.rename(temp, uri, { overwrite: true }); }
   finally { await remove(temp); }
 }
+async function reviewCanvasSave(doc: WorkbenchDocument, draft: string, diskText: string | undefined, token: vscode.CancellationToken, approvedText?: string) {
+  for (;;) {
+    if (token.isCancellationRequested || doc.disposed) throw new vscode.CancellationError();
+    if (doc.getText() !== draft) throw new Error("保存期间出现了新修改，请再次保存。");
+    if (vscode.workspace.textDocuments.some(text => text.uri.toString() === doc.uri.toString() && text.isDirty)) throw new Error("原型在文本编辑器中有未保存修改，请先处理后重试。");
+    if (diskText === undefined || diskText === draft || diskText === approvedText || bytesHash(new TextEncoder().encode(diskText)) === doc.diskHash) return diskText;
+
+    const overwrite = "覆盖保存";
+    const choice = await vscode.window.showWarningMessage(
+      `「${doc.uri.path.split("/").pop()}」已被外部修改。要用当前画布覆盖磁盘上的文件吗？`,
+      { modal: true }, overwrite);
+    if (choice !== overwrite || token.isCancellationRequested) throw new vscode.CancellationError();
+    approvedText = diskText;
+    diskText = await optional(doc.uri);
+  }
+}
 async function writeCanvas(uri: vscode.Uri, text: string, create: boolean) {
   // workspace.fs.rename emits a workbench file-move operation. Replacing the
   // active custom resource that way disposes/recreates it from a stale backup.
@@ -326,16 +342,17 @@ export class GameFlowEditorProvider implements vscode.CustomEditorProvider<Workb
     await this.flush(doc);
     await doc.enqueue(async () => {
       if (cancellation.isCancellationRequested) throw new vscode.CancellationError();
-      const diskText = await optional(doc.uri);
+      let diskText = await optional(doc.uri);
       const saved = doc.canvasDirty || diskText === undefined ? doc.getText() : undefined;
       if (saved !== undefined) {
         parseGameFlowDocument(saved);
-        if (vscode.workspace.textDocuments.some(text => text.uri.toString() === doc.uri.toString() && text.isDirty)) throw new Error("原型在文本编辑器中有未保存修改，请先处理后重试。");
-        if (diskText !== undefined && bytesHash(new TextEncoder().encode(diskText)) !== doc.diskHash) throw new Error("原型文件已被外部修改，未覆盖外部内容，工作台草稿已保留。");
+        diskText = await reviewCanvasSave(doc, saved, diskText, cancellation);
       }
-      for (const psd of doc.psds.values()) if (psd.model.dirty) await this.psd.saveCustomDocument(psd, cancellation);
+      const dirtyPsds = [...doc.psds.values()].filter(psd => psd.model.dirty);
+      for (const psd of dirtyPsds) await this.psd.saveCustomDocument(psd, cancellation);
       if (saved !== undefined) {
-        await writeCanvas(doc.uri, saved, diskText === undefined);
+        if (dirtyPsds.length) diskText = await reviewCanvasSave(doc, saved, await optional(doc.uri), cancellation, diskText);
+        if (diskText !== saved) await writeCanvas(doc.uri, saved, diskText === undefined);
         doc.baseline = saved;
         doc.diskHash = bytesHash(new TextEncoder().encode(saved));
       }

@@ -211,8 +211,7 @@
           "fontSize": 33,
           "color": "#25262a",
           "align": "center",
-          "valign": "middle",
-          "overflow": "hidden"
+          "valign": "middle"
         }
       ]
     },
@@ -253,14 +252,14 @@
     {
       "_$id": "t46xrozm",
       "_$prefab": "cd679f8f-a10f-569e-a761-09c4d6a56f4a",
+      "_$var": true,
       "name": "serverList",
       "active": true,
       "x": 148,
       "y": 197,
       "width": 378,
       "height": 40,
-      "visible": true,
-      "_$var": true
+      "visible": true
     }
   ]
 }
