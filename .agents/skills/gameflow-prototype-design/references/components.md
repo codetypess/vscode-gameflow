@@ -11,7 +11,7 @@
 | `grid` | UIGrid | 静态、数量明确的矩阵。用 `direction/wrapCount/gapX/gapY` 描述顺序及间距。数据驱动的物品阵列选 UIList 并设置每行列数。 |
 | `panel` | UIPanel | 裁剪视口或滚动的一组异构内容。默认裁剪，可用 `layout.clipContent/scrollX/scrollY` 描述设计状态。旧 `rectangle` 也映射到 UIPanel，新建时选表意明确的 panel 或容器加图片。 |
 | `text` | UILabel | 叶节点。`name` 是层级名称，`text` 是可见内容。字号、颜色和水平对齐在 `style`，换行、溢出和垂直对齐在 `widget`。 |
-| `image` | UIImage | 叶节点。例：`image: {"builtin": "icon/chest"}`。图片填充用 `widget.imageFit` 的 `fill/contain/cover`。占位可选 `image/default`，色块可选 `block/fill-gray`。用现有槽位对应的资源；自带图片可用 `imageData` 的 PNG/JPEG/WebP/GIF data URI（最多 5 MB），该写法省略优先绘制的 `image` 槽。 |
+| `image` | UIImage | 叶节点。例：`image: {"builtin": "icon/chest"}`。图片填充用 `widget.imageFit` 的 `fill/contain/cover`。按下方内置资源目录选择占位图，直接写入 `image.builtin`。 |
 | `button` | UIButton | 根持有 `normalSkin`，如 `{"builtin":"button/blue"}`。可选 `selectedSkin/disabledSkin`，未设时回退普通态。文字按钮在根下建 `text` 子节点；纯图标按钮可省文案。状态用 `widget.selected/disabled`。 |
 | `input` | UITextInput | 独立叶节点。用 `widget.placeholder/password/maxChars` 表达输入，`text` 为示例输入值。需要底板、标题时，作为同一区域的兄弟节点。 |
 | `list` | UIList | 数据重复项一律通过 `cellPrefab` 引用 UIBox 条目画板，列表上设置视口。详见[画板与引用](boards.md#列表项与普通组件引用)。 |

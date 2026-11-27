@@ -45,6 +45,7 @@
 ## 复核生成结果
 
 1. 重新解析生成文件，用支持 JSON Schema Draft 2020-12 的工具加载[本技能的格式定义](gameflow.schema.json)。PowerShell 7.4+ 可离线运行 `Test-Json -LiteralPath "原型.gameflow.json" -SchemaFile "技能目录/references/gameflow.schema.json"`；其他环境可用 `check-jsonschema --schemafile "技能目录/references/gameflow.schema.json" "原型.gameflow.json"`。该定义取自 GameFlow 的 `schemas/gameflow.schema.json`。
-2. 逐页索引 ID。检查父链可终止于本页根、父节点支持子项、跳转两端存在。解析每个画板引用，核对目标文档身份、根类型、尺寸及循环。根据组件表核对直接部件引用、组成员和选中索引。确认图片内置 ID 存在，引用列表没有手工重复行。
+2. 逐页索引 ID。检查父链可终止于本页根、父节点支持子项、跳转两端存在。解析每个画板引用，核对目标文档身份、根类型、尺寸及循环。根据组件表核对直接部件引用、组成员和选中索引。确认引用列表没有手工重复行。
+   对本次生成或替换的占位图，逐一核对页面、模板及实例编辑（含新增节点和属性覆盖）。图片槽和各状态皮肤槽只引用有效的 `builtin` ID。发现用于占位的 `imageData`、`art` 或 `sliceResource` 时，替换为对应内置资源并清除该占位原有的图片数据和外部引用。
 3. 有 GameFlow 源码时可调用 `shared/model.ts` 的 `validateGameFlowDocument`、`shared/ui-layout.ts` 的 `resolvePageLayout`（检查 `issues`），并用 `composeCanvasPage`、`resolveCellPage` 核对实例和条目模板。在独立策划项目中也能依据前两步和设计尺寸检查层级、引用与几何。
 4. 从主入口走到每个目的地并返回。换一个选中项或滑块／进度示例值，核对改变的是正确部件。核对主窗口为 750 × 1334、弹窗能容纳实际内容，再检查相对约束是否确有作用，检查按钮文案、空态和裁剪区域。只将实际执行的检查写成交付记录。
