@@ -123,8 +123,12 @@ button svg { flex-shrink: 0; }
 .page-selected { outline: 2px solid var(--selection); }
 .page-editing { cursor: default; }
 .page-caption { position: absolute; bottom: calc(100% + 10px); left: 0; right: 0; display: flex; align-items: center; gap: 6px; color: var(--foreground); font-size: 1.08em; white-space: nowrap; }
-.page-caption span { overflow: hidden; text-overflow: ellipsis; }
-.page-caption small { margin-left: auto; color: var(--muted-foreground); }
+.page-caption-name { overflow: hidden; text-overflow: ellipsis; }
+.page-caption > svg, .page-caption small { flex: none; }
+.page-caption small { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; color: #fff; }
+.page-status-icon { width: 18px; height: 18px; background-color: var(--foreground); mask: var(--page-status-image) center / contain no-repeat; }
+.page-status-icon.psd-bound { --page-status-image: url("./assets/icons/psd-bound.svg"); }
+.page-status-icon.prefab-synced { --page-status-image: url("./assets/icons/prefab-synced.svg"); }
 .page-surface { position: absolute; inset: 0; overflow: hidden; }
 .page-surface[data-psd-components] { isolation: isolate; }
 .psd-paint-group { position: absolute; inset: 0; pointer-events: none; }

@@ -34,6 +34,8 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 
 ## Active Work Items
 
+- [画板标题状态图标](page-caption-status-icons.md) — 在尺寸左侧显示 PSD 绑定和预制体同步记录。
+
 - [新建原型画布](create-prototype-canvas.md) — 从命令面板创建并打开空白原型文档。
 
 - [画板 PNG 快照](page-png-snapshot.md) — 右键画板，按设计尺寸将当前原型画面另存为 PNG。

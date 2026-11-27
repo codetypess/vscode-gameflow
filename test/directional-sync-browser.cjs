@@ -24,6 +24,7 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
     });
     await page.goto(process.env.GAMEFLOW_TEST_URL || "http://127.0.0.1:5197");
     const button=name=>page.getByRole("button",{name,exact:true});
+    const captionIcons=page.locator('[data-page-id="page0001"] .page-caption').getByRole("img");
     const item=name=>page.getByRole("menuitem",{name,exact:true});
     const pin=name=>page.getByRole("menuitemcheckbox",{name:"固定"+name,exact:true});
     const directions=["原型 → 预制体","预制体 → 原型","原型 → PSD","PSD → 原型"];
@@ -76,8 +77,10 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
     await run(1);
     await page.getByRole("status").filter({hasText:"找不到来源预制体"}).waitFor();
     assert.deepEqual(await page.evaluate(async()=>Array.fromAsync((await window.prefabFolder()).keys())),[]);
+    assert.equal(await captionIcons.count(),0);
     await run(0);
     await page.waitForFunction(()=>window.readPrototype().pages[0].prefabSync);
+    assert.deepEqual(await captionIcons.evaluateAll(icons=>icons.map(icon=>icon.title)),["已同步预制体 · 登录.lh"]);
     await button("预制体同步").click();
     await page.getByRole("dialog",{name:"预制体同步",exact:true}).waitFor();
     await button("关闭同步窗").click();
@@ -116,6 +119,7 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
     await item("绑定 PSD").click();
     await (await choose).setFiles({name:"art.psd",mimeType:"image/vnd.adobe.photoshop",buffer:Buffer.from(art)});
     await page.waitForFunction(()=>window.readPrototype().pages[0].artPsd);
+    assert.deepEqual(await captionIcons.evaluateAll(icons=>icons.map(icon=>icon.title)),["已绑定 PSD · art.psd","已同步预制体 · 登录.lh"]);
     await button("PSD 同步").click();
     await page.getByRole("dialog",{name:"PSD 同步",exact:true}).waitFor();
     await button("关闭同步窗").click();

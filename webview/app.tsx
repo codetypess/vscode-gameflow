@@ -841,7 +841,14 @@ export function App() {
             const backgroundNodes = nodes.filter(node => !activeNodes?.has(node.id));
             const foregroundNodes = activeNodes ? nodes.filter(node => activeNodes.has(node.id)) : [];
             return <article key={item.id} className={cn("page-group", !editingId && selectedPageId === item.id && "page-selected", editingId && "page-editing")} data-page-id={item.id} style={{ left: editingId ? 0 : frame.x, top: editingId ? 0 : frame.y, width: frame.width, height: frame.height }}>
-              <div className="page-caption"><LayoutPanelTop size={14} /><span>{item.name}</span><small>{Math.round(frame.width)} × {Math.round(frame.height)}</small></div>
+              <div className="page-caption">
+                <LayoutPanelTop size={14} aria-hidden="true" /><span className="page-caption-name">{item.name}</span>
+                <small>
+                  {item.artPsd && <span className="page-status-icon psd-bound" role="img" aria-label="已绑定 PSD" title={`已绑定 PSD · ${item.artPsd.source}`} />}
+                  {item.prefabSync && <span className="page-status-icon prefab-synced" role="img" aria-label="已同步预制体" title={`已同步预制体 · ${item.prefabSync.target}`} />}
+                  {Math.round(frame.width)} × {Math.round(frame.height)}
+                </small>
+              </div>
               <SliceResourcesProvider value={{...(runtimeResources.forPage?.(visualPage) ?? runtimeResources),forPage:runtimeResources.forPage}}><ImportedPageSurface page={visualPage} mode={resourceMode} source={loadedPsds.assets[item.id]} blocked={artBlocked}>
                 <PaintedNodes nodes={paintedScope ? nodes : backgroundNodes} usesArt={resourceMode === "art"} draw={node => <NodeView key={node.id} page={visualPage} node={node} referenceError={(projection ?? composition)?.errors.get(node.id)} geometry={geometry.nodes.get(node.id)} />} />
                 {showContainerOutlines ? <ContainerOutlines page={visualPage} nodes={backgroundNodes} geometry={geometry} /> : null}

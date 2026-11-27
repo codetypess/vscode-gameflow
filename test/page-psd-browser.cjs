@@ -61,8 +61,8 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
     assert.equal(await page.evaluate(() => localStorage.getItem("gameflow.prototype.v1")), beforeViewing);
     await checkMore(false);
     await openBoardMenu("pagea001");
-    assert.deepEqual((await boardMenu.getByRole("menuitem").allTextContents()).slice(1, 7),
-      ["重命名画板", "PSD 切图", "生成 PSD", "绑定 PSD", "PSD 同步", "预制体同步"]);
+    assert.deepEqual((await boardMenu.getByRole("menuitem").allTextContents()).slice(1, 8),
+      ["重命名画板", "另存为 PNG 快照…", "PSD 切图", "生成 PSD", "绑定 PSD", "PSD 同步", "预制体同步"]);
     assert(await boardAction("PSD 切图").isDisabled());
     assert(await boardAction("PSD 同步").isDisabled());
     assert(await boardAction("生成 PSD").isEnabled());
@@ -190,9 +190,12 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
     }
     await page.getByRole("button", { name: "撤销 (Ctrl+Z)", exact: true }).click();
     await page.locator('[data-page-id="pageb001"] [data-art-state="unbound"]').waitFor();
+    const captionIcons = page.locator(".page-caption").getByRole("img");
+    assert.deepEqual(await captionIcons.evaluateAll(icons => icons.map(icon => icon.title)), ["已绑定 PSD · pagea001.psd"]);
     assert.equal(await page.locator('[data-page-id="pagea001"] canvas[data-resource-path="unclassified/login_qran_normal.png"]').count(), 1);
     await page.getByRole("button", { name: "重做 (Ctrl+Shift+Z)", exact: true }).click();
     await page.locator('[data-page-id="pageb001"] canvas[data-resource-path="unclassified/login_qran_normal.png"]').waitFor();
+    assert.deepEqual(await captionIcons.evaluateAll(icons => icons.map(icon => icon.title)), ["已绑定 PSD · pagea001.psd", "已绑定 PSD · pageb001.psd"]);
     const pixels = await page.locator('.page-surface canvas[data-resource-path="unclassified/login_qran_normal.png"]').evaluateAll(canvases => canvases.map(canvas => Array.from(canvas.getContext("2d").getImageData(canvas.width / 2, canvas.height / 2, 1, 1).data)));
     assert.equal(pixels.length, 2); assert.notDeepEqual(pixels[0], pixels[1], "same output names retain each page's own art pixels");
     const saved = await page.evaluate(() => JSON.parse(localStorage.getItem("gameflow.prototype.v1")));
