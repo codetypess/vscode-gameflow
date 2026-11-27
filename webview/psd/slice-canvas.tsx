@@ -5,16 +5,20 @@ import { isCompositeGroup, sliceLayers, sliceRegion } from "../../shared/psd-met
 import { Button } from "../components/ui/button";
 import { Separator } from "../components/ui/separator";
 import { CanvasDots } from "../components/canvas-dots";
+import { usePanelWidths } from "../components/canvas-panel-resize";
 import { fitPsdCamera, placePsdPanels, zoomPsdCamera, type CanvasSize, type PsdCamera } from "./canvas-layout";
+import type { PanelWidths } from "../../shared/panel-width";
 import { isCanvasDrag, pickPsdLayer, psdHitLayer, psdPoint, psdScopePath } from "./layer-hit-test";
 import { useLayerVisibility } from "./use-layer-visibility";
 import { createPixelHitCache } from "./pixel-hit-cache";
 
 const isPanel = (target: EventTarget | null) => target instanceof Element && !!target.closest(".psd-follow-panel, .psd-canvas-controls");
 
-export function PsdSliceCanvas({ asset: source, selected: selection, onSelect, onNavigateScope, active, directSelection, showContainerOutlines, scopeKey, tree, properties, toolbar }: {
+export function PsdSliceCanvas({ asset: source, selected: selection, onSelect, onNavigateScope, active, directSelection, showContainerOutlines, scopeKey, tree, properties, toolbar, savedWidths }: {
+  savedWidths?: PanelWidths;
   asset: PsdAsset; selected: PsdLayer | null; onSelect: (key: number | null) => void; onNavigateScope: (key: number | null, selectedKey?: number | null) => void; active: boolean; directSelection: boolean; showContainerOutlines: boolean; scopeKey: number | null; tree: (preview: PsdAsset, toggleVisibility: (key: number) => void) => ReactNode; properties: ReactNode; toolbar?: ReactNode;
 }) {
+  const panelWidths = usePanelWidths("slice", savedWidths);
   const visibility = useLayerVisibility(source, active);
   const asset = visibility.preview;
   const treeAsset = useMemo(() => ({ ...asset, layers: sliceLayers(asset.layers).map(layer =>
@@ -37,7 +41,7 @@ export function PsdSliceCanvas({ asset: source, selected: selection, onSelect, o
       setView(old => {
         if (old.ready && old.size.width === width && old.size.height === height) return old;
         const size = { width, height };
-        const camera = old.ready ? { ...old.camera, x: old.camera.x + (width - old.size.width) / 2, y: old.camera.y + (height - old.size.height) / 2 } : fitPsdCamera(size, asset);
+        const camera = old.ready ? { ...old.camera, x: old.camera.x + (width - old.size.width) / 2, y: old.camera.y + (height - old.size.height) / 2 } : fitPsdCamera(size, asset, panelWidths.preferences);
         return { size, camera, ready: true };
       });
       const left = leftPanel.current?.getBoundingClientRect().height ?? 0, right = rightPanel.current?.getBoundingClientRect().height ?? 0;
@@ -125,7 +129,7 @@ export function PsdSliceCanvas({ asset: source, selected: selection, onSelect, o
     });
   };
   const zoom = (factor: number | "actual") => { selectionRequest.current++; setView(old => ({ ...old, camera: zoomPsdCamera(old.camera, { x: old.size.width / 2, y: old.size.height / 2 }, factor === "actual" ? 1 : old.camera.zoom * factor) })); };
-  const panels = placePsdPanels(view.size, asset, view.camera, heights), camera = view.camera;
+  const panels = placePsdPanels(view.size, asset, view.camera, heights, panelWidths.preferences), camera = view.camera;
   const region = selected?.config.region ? sliceRegion(selected) : null;
   const scopePath = psdScopePath(asset, scopeKey);
 
@@ -152,8 +156,8 @@ export function PsdSliceCanvas({ asset: source, selected: selection, onSelect, o
       </div>
     </div>
     {selected && region ? <div className="psd-export-outline" aria-label="自定义导出区域" style={{ left: camera.x + (selected.left + region.x) * camera.zoom, top: camera.y + (selected.top + region.y) * camera.zoom, width: region.width * camera.zoom, height: region.height * camera.zoom, visibility: view.ready ? "visible" : "hidden" }} /> : null}
-    <aside ref={leftPanel} aria-label="PSD 图层面板" className="psd-tree-panel psd-follow-panel floating-panel" style={{ ...panels.left, visibility: view.ready ? "visible" : "hidden" }}>{tree(treeAsset, visibility.toggle)}</aside>
-    <aside ref={rightPanel} aria-label="PSD 切图属性面板" className="psd-properties psd-follow-panel floating-panel" style={{ ...panels.right, visibility: view.ready ? "visible" : "hidden" }}>{properties}</aside>
+    <aside ref={leftPanel} aria-label="PSD 图层面板" className="psd-tree-panel psd-follow-panel floating-panel" style={{ ...panels.left, visibility: view.ready ? "visible" : "hidden" }}>{tree(treeAsset, visibility.toggle)}{panelWidths.handles(panels, "left")}</aside>
+    <aside ref={rightPanel} aria-label="PSD 切图属性面板" className="psd-properties psd-follow-panel floating-panel" style={{ ...panels.right, visibility: view.ready ? "visible" : "hidden" }}>{properties}{panelWidths.handles(panels, "right")}</aside>
     {(visibility.error || visibility.loading || visibility.approximate) && <div className="psd-status psd-canvas-controls" role="status">
       {visibility.error ? <>当前显示基础像素。{visibility.error}<button type="button" onClick={visibility.retry}>重试</button></>
         : visibility.loading ? "正在合成图层预览…" : "当前显示基础像素，桌面版可预览完整图层效果。"}
@@ -165,7 +169,7 @@ export function PsdSliceCanvas({ asset: source, selected: selection, onSelect, o
         <Button className="psd-zoom-percentage" size="icon" variant="ghost" aria-label="PSD 实际大小" title="恢复 100%" onClick={() => zoom("actual")}>{Math.round(camera.zoom * 100)}%</Button>
         <Button className="toolbar-button" size="icon" variant="ghost" aria-label="PSD 放大" title="放大" onClick={() => zoom(1.2)}><Plus size={14} /></Button>
         <Separator orientation="vertical" />
-        <Button className="toolbar-button" size="icon" variant="ghost" aria-label="PSD 适应窗口" title="适应窗口" onClick={() => { selectionRequest.current++; setView(old => ({ ...old, camera: fitPsdCamera(old.size, asset) })); }}><Focus size={16} /></Button>
+        <Button className="toolbar-button" size="icon" variant="ghost" aria-label="PSD 适应窗口" title="适应窗口" onClick={() => { selectionRequest.current++; setView(old => ({ ...old, camera: fitPsdCamera(old.size, asset, panelWidths.preferences) })); }}><Focus size={16} /></Button>
       </div>
       <nav className="canvas-scope-nav floating-panel" aria-label="PSD 图层级导航">
         <button type="button" title={`返回文档层：${asset.name}`} aria-current={scopeKey === null ? "location" : undefined} onClick={() => onNavigateScope(null)}><FileImage size={14} /><span>{asset.name}</span></button>

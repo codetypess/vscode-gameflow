@@ -21,12 +21,13 @@ export const webviewHtmlTests = [{
         asWebviewUri: () => new URL("https://gameflow.vscode-cdn.net/assets")
       };
       configureGameFlowWebview(webview as unknown as vscode.Webview,
-        new Uri(root.replaceAll("\\", "/")) as unknown as vscode.Uri, "GameFlow");
+        new Uri(root.replaceAll("\\", "/")) as unknown as vscode.Uri, "GameFlow", "prototype", "9.8.7");
 
       const nonce = webview.html.match(/script-src 'nonce-([^']+)'/)?.[1];
       assert.ok(nonce, "the script policy authorizes a nonce");
       assert.ok(webview.html.includes(`<script nonce="${nonce}" type="module"`), "the packaged entry carries the nonce");
       assert.ok(webview.html.includes(`<meta property="csp-nonce" nonce="${nonce}">`), "Vite can apply the same nonce to its preload links");
+      assert.ok(webview.html.includes('<meta name="gameflow-extension-version" content="9.8.7">'), "the Webview receives the version of its running extension host");
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

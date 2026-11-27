@@ -1,6 +1,6 @@
 import { ImageSlotField } from "./image-slot-field";
 import { allocateElementId } from "../../shared/element-id";
-import { useState, type CSSProperties } from "react";
+import { useState, type CSSProperties, type ReactNode } from "react";
 import { ChevronDown, ChevronUp, ImagePlus, LockKeyhole, X } from "lucide-react";
 import type { Frame, GameFlowNode, GameFlowPage, NodeStyle, PageRootType } from "../../shared/model";
 import { addBackgroundImage, defaultStyle, inheritedFlag, NODE_LABELS } from "../../shared/editor-ops";
@@ -22,12 +22,12 @@ import { ReferenceBar } from "./reference-bar";
 import type { CanvasOverrideManager } from "./override-panel";
 import { useSliceResources } from "../runtime/resource-context";
 
-export function Inspector({ makeId, page, variablePage = page, node, selectedNodes = [], editingPage, onNode, onPage, onColorPreview, onClose, onEnter, onImport, onCreateParts, panelRef, panelStyle, referenceError, referenceName, overrideManager, onOpenSource, referenceMeta, overrideActions }: {
+export function Inspector({ makeId, page, variablePage = page, node, selectedNodes = [], editingPage, onNode, onPage, onColorPreview, onClose, onEnter, onImport, onCreateParts, panelRef, panelStyle, resizeHandles, referenceError, referenceName, overrideManager, onOpenSource, referenceMeta, overrideActions }: {
   makeId?: () => string;
   variablePage?: GameFlowPage;
   page: GameFlowPage; node: GameFlowNode | null; editingPage: boolean;
   selectedNodes?: GameFlowNode[];
-  panelRef?: (element: HTMLElement | null) => void; panelStyle?: CSSProperties;
+  panelRef?: (element: HTMLElement | null) => void; panelStyle?: CSSProperties; resizeHandles?: ReactNode;
   onNode: (id: string, patch: Partial<GameFlowNode>) => void;
   onPage: (transform: (page: GameFlowPage) => GameFlowPage) => void;
   onColorPreview: (preview: ColorPreview | null) => void;
@@ -117,5 +117,6 @@ export function Inspector({ makeId, page, variablePage = page, node, selectedNod
       </>}
     </div>}
     </ScrollArea> : null}
+    {resizeHandles}
   </aside></CanvasPropertyProvider>;
 }

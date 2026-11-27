@@ -170,8 +170,8 @@ function activateSelfUpdate(context, namespace) {
       if (event.focused && waitingForFocus) return check({ silent: true });
     })
   );
-  const startup = setTimeout(() => check({ silent: true }), 30000);
-  const polling = setInterval(() => check({ silent: true }), 6 * 60 * 60 * 1000);
+  const startup = setTimeout(() => check({ silent: true }), 15000);
+  const polling = setInterval(() => check({ silent: true }), 5 * 60 * 1000);
   context.subscriptions.push({ dispose() { clearTimeout(startup); clearInterval(polling); listeners.clear(); } });
   log(`自身更新元信息：${endpoint.href}`);
   if (local) {

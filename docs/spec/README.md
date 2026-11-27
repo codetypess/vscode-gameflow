@@ -34,6 +34,8 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 
 ## Active Work Items
 
+- [workbench-version-label.md](workbench-version-label.md) — Done：原型与 PSD 工作台右上角显示当前插件版本；421 项共享测试、33 项分发测试、生产构建及浏览器回归通过。已发布 0.1.16，签名与公开下载校验通过。
+
 - [画板标题状态图标](page-caption-status-icons.md) — 在尺寸左侧显示 PSD 绑定和预制体同步记录。
 
 - [新建原型画布](create-prototype-canvas.md) — 从命令面板创建并打开空白原型文档。

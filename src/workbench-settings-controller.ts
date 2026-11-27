@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { isPanelWidthMessage, panelMinimum, panelWidthKey, type PanelMode, type PanelSide } from "../shared/panel-width";
 import { EXPORT_SETTINGS_KEY, LEGACY_RESOURCE_DIRECTORY_KEY, isWorkbenchSettingsRequest, readExportSettings, type ExportDirectoryKind, type WorkbenchSettings, type WorkbenchSettingsResult } from "../shared/workbench-settings";
 
 /** Local workspace memento; paths never enter shared project documents. */
@@ -6,7 +7,7 @@ export class WorkbenchSettingsController implements vscode.Disposable {
   private readonly changes = new vscode.EventEmitter<WorkbenchSettings>();
   private operations: Promise<unknown> = Promise.resolve();
   constructor(
-    private readonly context: Pick<vscode.ExtensionContext, "workspaceState">,
+    private readonly context: Pick<vscode.ExtensionContext, "workspaceState" | "globalState">,
     private readonly pickDirectory: typeof vscode.window.showOpenDialog = options => vscode.window.showOpenDialog(options),
     private readonly revealDirectory: (uri: vscode.Uri) => Thenable<unknown> = uri => vscode.commands.executeCommand("revealFileInOS", uri)
   ) {}
@@ -18,7 +19,16 @@ export class WorkbenchSettingsController implements vscode.Disposable {
     if (!uri.scheme || !uri.path || uri.query || uri.fragment) throw new Error("工作台导出目录路径无效，请重新选择目录。");
     return uri;
   }
-  snapshot(): WorkbenchSettings { return { resourceDirectory: this.directory("resources")?.fsPath, prefabDirectory: this.directory("prefabs")?.fsPath }; }
+  snapshot(): WorkbenchSettings {
+    const width = (mode: PanelMode, side: PanelSide) => {
+      const value = this.context.globalState.get<number>(panelWidthKey(mode, side));
+      return typeof value === "number" && Number.isSafeInteger(value) && value >= panelMinimum[mode] ? value : panelMinimum[mode];
+    };
+    return {
+      resourceDirectory: this.directory("resources")?.fsPath, prefabDirectory: this.directory("prefabs")?.fsPath,
+      panelWidths: { prototype: { left: width("prototype", "left"), right: width("prototype", "right") }, slice: { left: width("slice", "left"), right: width("slice", "right") } }
+    };
+  }
   async set(kind: ExportDirectoryKind, uri?: vscode.Uri) {
     const operation = this.operations.then(async () => {
       if (uri && !((await vscode.workspace.fs.stat(uri)).type & vscode.FileType.Directory)) throw new Error("请选择一个文件夹作为导出目录。");
@@ -50,8 +60,13 @@ export class WorkbenchSettingsController implements vscode.Disposable {
   attach(panel: vscode.WebviewPanel, source: vscode.Uri): vscode.Disposable {
     const changes = this.changes.event(settings => { void panel.webview.postMessage({ type: "workbenchSettingsResult", settings } satisfies WorkbenchSettingsResult); });
     const requests = panel.webview.onDidReceiveMessage(async (raw: unknown) => {
-      if (!isWorkbenchSettingsRequest(raw)) return;
+      if (!isWorkbenchSettingsRequest(raw) && !isPanelWidthMessage(raw)) return;
       try {
+        if (raw.type === "panelWidth") {
+          await this.context.globalState.update(panelWidthKey(raw.mode, raw.side), raw.width);
+          this.changes.fire(this.snapshot());
+          return;
+        }
         let cancelled = false;
         if (raw.action === "choose") cancelled = !await this.choose(raw.directory, source);
         else if (raw.action === "clear") await this.set(raw.directory);
@@ -59,7 +74,7 @@ export class WorkbenchSettingsController implements vscode.Disposable {
         await panel.webview.postMessage({ type: "workbenchSettingsResult", requestId: raw.requestId, settings: this.snapshot(), cancelled } satisfies WorkbenchSettingsResult);
       } catch (error) {
         let settings: WorkbenchSettings = {}; try { settings = this.snapshot(); } catch { /* Preserve the original settings diagnostic. */ }
-        await panel.webview.postMessage({ type: "workbenchSettingsResult", requestId: raw.requestId, settings, error: error instanceof Error ? error.message : String(error) } satisfies WorkbenchSettingsResult);
+        await panel.webview.postMessage({ type: "workbenchSettingsResult", requestId: raw.type === "workbenchSettings" ? raw.requestId : undefined, settings, error: error instanceof Error ? error.message : String(error) } satisfies WorkbenchSettingsResult);
       }
     });
     return vscode.Disposable.from(changes, requests);

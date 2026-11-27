@@ -15,7 +15,8 @@ export function configureGameFlowWebview(
   webview: vscode.Webview,
   extensionUri: vscode.Uri,
   title: string,
-  editor: "prototype" | "psd" = "prototype"
+  editor: "prototype" | "psd" = "prototype",
+  version?: string
 ): void {
   const webviewRoot = vscode.Uri.joinPath(extensionUri, "dist", "webview");
   webview.options = {
@@ -47,6 +48,7 @@ export function configureGameFlowWebview(
       "<head>",
       `<head>
     <meta name="gameflow-editor" content="${editor}">
+    ${version ? `<meta name="gameflow-extension-version" content="${escapeHtml(version)}">` : ""}
     <meta name="gameflow-page-psd-slice" content="1">
     <meta name="gameflow-page-psd-sync" content="1">
     <meta name="gameflow-component-psd" content="1">

@@ -25,6 +25,10 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
   const url = process.env.GAMEFLOW_TEST_URL || "http://127.0.0.1:5197";
   const page = await context.newPage();
   page.on("pageerror", error => errors.push(error.message));
+  await page.route(url + "/", async route => {
+    const response = await route.fetch();
+    await route.fulfill({ response, body: (await response.text()).replace("<head>", '<head><meta name="gameflow-extension-version" content="9.8.7">') });
+  });
   const send = state => page.evaluate(state => { window.__updateState = state; window.dispatchEvent(new MessageEvent("message", { data: { type: "extensionUpdateState", state } })); }, state);
   const button = page.getByRole("button", { name: "更新插件", exact: true });
   const trigger = page.getByRole("button", { name: /^工作台模式：/ });
@@ -33,7 +37,10 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
   try {
     await page.goto(url);
     await page.locator(".page-group").waitFor();
-    await mode("PSD 合并"); await mode("原型");
+    const version = page.getByLabel("插件版本 9.8.7", { exact: true });
+    assert.equal(await version.textContent(), "v9.8.7", "the running host version takes precedence over the build version");
+    await mode("PSD 合并"); assert.equal(await version.isVisible(), true);
+    await mode("原型"); assert.equal(await version.isVisible(), true);
     await trigger.click();
     await page.getByRole("menuitem", { name: "PSD 合并", exact: true }).waitFor();
     // The menu is still mounted when the state arrives; its old callback must read the latest gate.
@@ -87,18 +94,27 @@ const { chromium } = require(process.env.GAMEFLOW_PLAYWRIGHT_MODULE || "playwrig
       await page.setViewportSize({ width, height: 800 });
       const rect = await button.boundingBox();
       assert.ok(rect && rect.x >= 0 && rect.x + rect.width <= width);
+      const versionRect = await version.boundingBox();
+      assert.ok(versionRect && versionRect.x > rect.x + rect.width && versionRect.x + versionRect.width <= width);
       await page.screenshot({ path: path.join(output, `slice-update-${width}.png`) });
     }
     const standalone = await context.newPage();
     standalone.on("pageerror", error => errors.push(error.message));
     await standalone.route(url + "/", async route => {
       const response = await route.fetch();
-      await route.fulfill({ response, body: (await response.text()).replace("<head>", '<head><meta name="gameflow-editor" content="psd">') });
+      await route.fulfill({ response, body: (await response.text()).replace("<head>", '<head><meta name="gameflow-editor" content="psd"><meta name="gameflow-extension-version" content="9.8.7">') });
     });
     await standalone.goto(url);
     await standalone.getByText("正在读取 PSD 和配置…").waitFor();
+    assert.equal(await standalone.getByLabel("插件版本 9.8.7", { exact: true }).textContent(), "v9.8.7");
     await standalone.evaluate(() => window.dispatchEvent(new MessageEvent("message", { data: { type: "extensionUpdateState", state: { status: "pending", version: "0.2.0" } } })));
     await standalone.getByRole("button", { name: "更新插件", exact: true }).waitFor();
+    const preview = await browser.newPage({ viewport: { width: 1200, height: 800 } });
+    preview.on("pageerror", error => errors.push(error.message));
+    await preview.goto(url + "?sample=star-sea-login");
+    const buildVersion = require("../package.json").version;
+    await preview.getByLabel("插件版本 " + buildVersion, { exact: true }).waitFor();
+    await preview.locator(".topbar").screenshot({ path: path.join(output, "version-topbar.png") });
     assert.deepEqual(errors, []);
     console.log("PASS workbench update: green button, switch guards, save, click deduplication, retry, pending, retained focus/pageshow/visibility recovery, narrow viewport and standalone PSD");
     console.log("Screenshots: " + output);

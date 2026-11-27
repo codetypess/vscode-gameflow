@@ -51,6 +51,7 @@ import { ImportedPageSurface } from "./editor/imported-page-surface";
 import { importPsdPrototype, saveOutput } from "./psd/io";
 import { useWorkbenchSettings, WorkbenchSettingsButton, WorkbenchSettingsPanel } from "./workbench-settings";
 import { PROTOTYPE_PANELS, useFollowingPanels } from "./editor/use-following-panels";
+import { usePanelWidths } from "./components/canvas-panel-resize";
 import { canvasPanelMetrics } from "./lib/canvas-panels";
 import { canvasContextTarget, canvasHitNode, canvasPasteTarget, canvasScopePath, insertCanvasComponent, placeCanvasComponent, reconcileCanvasScope } from "./lib/canvas-scope";
 import { pickSelection, reconcileSelection, singleSelection, type NodeSelection, type SelectionIntent } from "./lib/node-selection";
@@ -69,6 +70,7 @@ import { PageSyncDialog, type SyncSession } from "./editor/page-sync-dialog";
 import { componentPsdTargets } from "./runtime/component-psd";
 import { PageArtState, pagePreviewBlocked } from "./editor/page-art-state";
 import { ExtensionUpdateButton, useExtensionUpdate } from "./extension-update";
+import { WorkbenchVersion } from "./components/workbench-version";
 
 type Tool = "select" | "hand";
 type Camera = { x: number; y: number; zoom: number };
@@ -120,6 +122,7 @@ export function App() {
   const [spaceHand, setSpaceHand] = useState(false);
   const [preview, setPreview] = useState<Gesture | null>(null);
   const [colorPreview, setColorPreview] = useState<ColorPreview | null>(null);
+  const panelWidths = usePanelWidths("prototype", settings.settings.panelWidths?.prototype);
   const [inspectorOpen, setInspectorOpen] = useState(true);
   const [insertOpen, setInsertOpen] = useState(false);
   const [canvasMenu, setCanvasMenu] = useState<CanvasMenuState | null>(null);
@@ -254,7 +257,7 @@ export function App() {
   const fit = (pages: GameFlowPage[], internal: boolean) => {
     const bounds = viewport.current?.getBoundingClientRect();
     if (!bounds || !pages.length) { setCamera({ x: 80, y: 80, zoom: 0.6 }); return; }
-    const panels = canvasPanelMetrics(bounds, PROTOTYPE_PANELS);
+    const panels = canvasPanelMetrics(bounds, { ...PROTOTYPE_PANELS, ...panelWidths.preferences });
     const left = internal ? panels.margin + panels.leftWidth + panels.gap : 40;
     const right = internal ? panels.margin + panels.rightWidth + panels.gap : 40;
     const minX = internal ? 0 : Math.min(...pages.map((item) => item.frame.x));
@@ -635,7 +638,7 @@ export function App() {
     x: visibleCamera.x + (editingId ? 0 : panelPageFrame.x * visibleCamera.zoom),
     y: visibleCamera.y + (editingId ? 0 : panelPageFrame.y * visibleCamera.zoom),
     width: panelPageFrame.width * visibleCamera.zoom
-  } : null, !!editingId, inspectorOpen, 48);
+  } : null, !!editingId, inspectorOpen, panelWidths.preferences, 48);
   let renderPage = page;
   if (preview?.nodeIds && preview.sourcePage) renderPage = translateSelection(preview.sourcePage, preview.nodeIds, preview.next.x, preview.next.y, "move", runtimeResources.sizes);
   if (renderPage && preview?.nodeId && preview.pageId === renderPage.id) renderPage = editNodeFrame(renderPage, preview.nodeId, preview.next, preview.kind === "resize" ? "resize" : "move", runtimeResources.sizes);
@@ -810,6 +813,7 @@ export function App() {
           </DropdownMenu.Portal>
         </DropdownMenu.Root>
       </> : <span className="document-title">{mode === "prototype" ? canvasDocument?.title ?? "正在打开画布" : "美术工作区"}</span>}
+      <WorkbenchVersion />
     </header>
     <WorkbenchSettingsPanel settings={settings} file={canvasDocument ? { directory: canvasDocument.exportDirectory, name: resourceName || canvasDocument.title, change: exportDirectory => edit(document => ({ ...document, exportDirectory })) } : undefined} />
     <div ref={viewport} tabIndex={-1} hidden={mode !== "prototype"} className={cn("canvas-viewport", (tool === "hand" || spaceHand) && "hand-tool", preview?.kind === "pan" && "is-panning", (preview?.kind === "node" || preview?.kind === "page") && "is-moving")} aria-label={editingId ? "页面编辑画布" : "页面总览画布"}
@@ -878,9 +882,9 @@ export function App() {
           <span className="selection-size">{Math.round(selectedGeometry.local.width)} × {Math.round(selectedGeometry.local.height)}</span>
         </div> : null}
         {selectedGeometry?.inverse && selectionAnchor ? <span className="selection-anchor" aria-hidden="true" style={{ left: visibleCamera.x+selectionAnchor.x*visibleCamera.zoom, top: visibleCamera.y+selectionAnchor.y*visibleCamera.zoom }} /> : null}
-        {editingId && page ? <LayerTree composition={composition ?? undefined} onRepair={repairOrphan} onCopyOrphan={copyOrphan} key={page.id} panelRef={panels.leftRef} panelStyle={panels.leftStyle} page={page} scopeId={scopeId} selectedIds={selectedNodeIds} selectedId={selectedNode?.id ?? null} reveal={canvasSelection} onSelect={selectNode} onPatch={patchNode} onBack={back} onAdd={addLayer} onDelete={deleteLayer} onMove={moveLayer}
+        {editingId && page ? <LayerTree composition={composition ?? undefined} onRepair={repairOrphan} onCopyOrphan={copyOrphan} key={page.id} panelRef={panels.leftRef} resizeHandles={panelWidths.handles(panels.positions, "left")} panelStyle={panels.leftStyle} page={page} scopeId={scopeId} selectedIds={selectedNodeIds} selectedId={selectedNode?.id ?? null} reveal={canvasSelection} onSelect={selectNode} onPatch={patchNode} onBack={back} onAdd={addLayer} onDelete={deleteLayer} onMove={moveLayer}
           hasClipboard={!!clipboard} onCopy={copyLayer} onPaste={pasteLayer} onDuplicate={duplicateLayer} onConvert={convertLayer} onSaveToCanvas={saveToCanvas} onOpenSource={openSource} onUnbind={unbindPrefab} /> : null}
-        {page && inspectorOpen ? <Inspector makeId={newIds()} variablePage={{...page,nodes:page.nodes.filter(node=>composition?.info.get(node.id)?.scope===selectedMeta?.scope)}} referenceMeta={selectedMeta} referenceName={referenceName} overrideManager={overrideManager} overrideActions={overrideActions} onOpenSource={() => { if (selectedNode) openSource(selectedNode.id); }} referenceError={selectedMeta?.ownerId ? composition?.errors.get(selectedMeta.ownerId) : undefined} onColorPreview={setColorPreview} selectedNodes={selectionBlocked ? [] : page.nodes.filter(node => selectedNodeIds.includes(node.id))} onCreateParts={() => { if (editingId && selectedNodeId) { const makeId = newIds(); updatePage(editingId, item => createControlParts(item, selectedNodeId, makeId)); } }} panelRef={panels.rightRef} panelStyle={panels.rightStyle} page={page} node={selectionBlocked ? null : selectedNode} editingPage={!!editingId} onNode={patchNode} onPage={(transform) => updatePage(page.id, transform)} onClose={() => setInspectorOpen(false)} onEnter={() => enter(page)} onImport={requestImport} /> : null}
+        {page && inspectorOpen ? <Inspector makeId={newIds()} variablePage={{...page,nodes:page.nodes.filter(node=>composition?.info.get(node.id)?.scope===selectedMeta?.scope)}} referenceMeta={selectedMeta} referenceName={referenceName} overrideManager={overrideManager} overrideActions={overrideActions} onOpenSource={() => { if (selectedNode) openSource(selectedNode.id); }} referenceError={selectedMeta?.ownerId ? composition?.errors.get(selectedMeta.ownerId) : undefined} onColorPreview={setColorPreview} selectedNodes={selectionBlocked ? [] : page.nodes.filter(node => selectedNodeIds.includes(node.id))} onCreateParts={() => { if (editingId && selectedNodeId) { const makeId = newIds(); updatePage(editingId, item => createControlParts(item, selectedNodeId, makeId)); } }} panelRef={panels.rightRef} resizeHandles={panelWidths.handles(panels.positions, "right")} panelStyle={panels.rightStyle} page={page} node={selectionBlocked ? null : selectedNode} editingPage={!!editingId} onNode={patchNode} onPage={(transform) => updatePage(page.id, transform)} onClose={() => setInspectorOpen(false)} onEnter={() => enter(page)} onImport={requestImport} /> : null}
         {canvasDocument.pages.length === 0 ? <div className="empty-canvas"><LayoutPanelTop size={32} /><strong>从第一个页面开始</strong><p>用底部 + 添加游戏界面</p><Button onClick={() => addPage()}><Plus size={15} />添加页面</Button></div> : null}
         <div className="canvas-toolbar floating-panel" onPointerDown={(event) => event.stopPropagation()}>
           <IconTool label="直选模式" active={directSelection} onClick={() => setDirectSelection(!directSelection)}><MousePointerClick size={19} /></IconTool>

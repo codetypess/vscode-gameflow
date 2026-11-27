@@ -1,6 +1,6 @@
 import type { CanvasComposition, CanvasOrphan } from "../../shared/canvas-instances";
 import { skinOwner } from "../../shared/ui-parts";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent, type PointerEvent as ReactPointerEvent } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode, type MouseEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { Eye, EyeOff, LockKeyhole, UnlockKeyhole, Package, Plus, Search, X } from "lucide-react";
 import type { GameFlowNode, GameFlowPage } from "../../shared/model";
 import { inheritedFlag, type InsertType, type LayerDrop } from "../../shared/editor-ops";
@@ -23,12 +23,12 @@ export function componentLayerRoot(page: GameFlowPage) {
 
 interface TreeDrag { id: string; pointerId: number; x: number; y: number; active: boolean; drop: LayerDrop | null }
 
-export function LayerTree({ page, scopeId, selectedId, selectedIds, reveal, onSelect, onPatch, onBack, onAdd, onDelete, onMove, panelRef, panelStyle, hasClipboard, onCopy, onPaste, onDuplicate, onConvert, onSaveToCanvas, onOpenSource, onUnbind, composition, onRepair, onCopyOrphan }: {
+export function LayerTree({ page, scopeId, selectedId, selectedIds, reveal, onSelect, onPatch, onBack, onAdd, onDelete, onMove, panelRef, panelStyle, resizeHandles, hasClipboard, onCopy, onPaste, onDuplicate, onConvert, onSaveToCanvas, onOpenSource, onUnbind, composition, onRepair, onCopyOrphan }: {
   onUnbind?: (id: string, recursive: boolean) => void;
   composition?: CanvasComposition; onRepair?: (orphan: CanvasOrphan, parentId?: string) => void; onCopyOrphan?: (orphan: CanvasOrphan) => void;
   page: GameFlowPage; selectedId: string | null; selectedIds: string[]; reveal: number; onSelect: (id: string | null, intent?: SelectionIntent) => void;
   scopeId: string | null;
-  panelRef?: (element: HTMLElement | null) => void; panelStyle?: CSSProperties;
+  panelRef?: (element: HTMLElement | null) => void; panelStyle?: CSSProperties; resizeHandles?: ReactNode;
   onPatch: (id: string, patch: Partial<GameFlowNode>) => void; onBack: () => void;
   onAdd: (type: InsertType, parentId?: string, afterId?: string) => void;
   onDelete: (id: string) => void; onMove: (id: string, drop: LayerDrop) => void;
@@ -227,5 +227,6 @@ export function LayerTree({ page, scopeId, selectedId, selectedIds, reveal, onSe
     <LayerMenu onUnbind={onUnbind} composition={composition} page={page} selectedIds={selectedIds} target={menu} onClose={() => setMenu(null)} onAdd={(type, parentId, afterId) => { expand(parentId); onAdd(type, parentId, afterId); }} onDelete={onDelete}
       hasClipboard={hasClipboard} onCopy={onCopy} onPaste={(parentId, afterId) => { expand(parentId); onPaste(parentId, afterId); }} onRename={beginRename} onDuplicate={onDuplicate} onConvert={onConvert} onSaveToCanvas={onSaveToCanvas} onOpenSource={onOpenSource}
       onRestoreFocus={() => { if (renameInput.current) { renameInput.current.focus(); renameInput.current.select(); } else if (returnFocus.current?.isConnected) returnFocus.current.focus(); else panel.current?.focus(); }} />
+    {resizeHandles}
   </aside>;
 }

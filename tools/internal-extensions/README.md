@@ -4,7 +4,7 @@
 
 ## 用户安装
 
-只安装业务插件的 VSIX。原型工作台启动约 30 秒后、之后每六小时读取：
+只安装业务插件的 VSIX。原型工作台启动约 15 秒后、之后每五分钟读取：
 
 ```text
 http://vsix.bitserver.wang/vscode-gameflow/metadata.json

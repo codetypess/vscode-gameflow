@@ -8,7 +8,7 @@ Scope: 一个 VSIX 内置自身更新检查；每个插件通过自己的 metada
 
 用户明确要求最简单的使用与接入模式：服务器提供 `http://vsix.bitserver.wang/vscode-gameflow/metadata.json`，插件自己检查。当前独立更新器增加了安装、托管与理解成本，本工作项取代该用户流程。
 
-原型工作台内置共享检查模块，启动约 30 秒后和每六小时读取自身 metadata，发现新版提示，确认后下载校验并调用 VS Code 安装。不需要其他插件，不需要加入。其他插件复用同一模块和 `<package.name>/metadata.json` 目录规则即可。
+原型工作台内置共享检查模块，启动约 15 秒后和每五分钟读取自身 metadata，发现新版提示，确认后下载校验并调用 VS Code 安装。不需要其他插件，不需要加入。其他插件复用同一模块和 `<package.name>/metadata.json` 目录规则即可。
 
 ## 2. Protocol and Publication
 

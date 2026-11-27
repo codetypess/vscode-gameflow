@@ -2,7 +2,7 @@
   "name": "vscode-gameflow",
   "displayName": "原型工作台",
   "description": "在 VS Code 中分析策划需求并组织游戏 UI 页面画布。",
-  "version": "0.1.4",
+  "version": "0.1.16",
   "publisher": "codetypess",
   "license": "MIT",
   "engines": {
@@ -36,7 +36,7 @@
           "type": "boolean",
           "default": true,
           "scope": "application",
-          "description": "启动后及每六小时检查新版，确认后下载安装。"
+          "description": "启动约 15 秒后及每五分钟检查新版，确认后下载安装。"
         },
         "gameflow.photoCraftCliPath": {
           "type": "string",

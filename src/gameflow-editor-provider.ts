@@ -208,7 +208,7 @@ export class GameFlowEditorProvider implements vscode.CustomEditorProvider<Workb
     await this.context.workspaceState.update(this.stateKey(doc.uri), source); this.checkpoint(doc);
   }
   async resolveCustomEditor(doc: WorkbenchDocument, panel: vscode.WebviewPanel): Promise<void> {
-    configureGameFlowWebview(panel.webview, this.context.extensionUri, doc.uri.fsPath);
+    configureGameFlowWebview(panel.webview, this.context.extensionUri, doc.uri.fsPath, "prototype", this.context.extension.packageJSON.version);
     this.psd.attachRenderer(panel, hash => this.pagePsds.renderSource(doc, hash));
     doc.panels.add(panel);
     const settings = this.psd.settings.attach(panel, doc.uri);

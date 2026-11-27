@@ -155,7 +155,7 @@ export class PsdEditorProvider implements vscode.CustomEditorProvider<PsdDocumen
     if (doc.model.update(draft, baseVersion)) { this.editEvent(doc, before, makePsdDraft(doc.model.asset)); this.backupSoon(doc); }
   }
   async resolveCustomEditor(doc: PsdDocument, panel: vscode.WebviewPanel): Promise<void> {
-    configureGameFlowWebview(panel.webview, this.context.extensionUri, `${nameOf(doc.uri)} · 切图配置`, "psd");
+    configureGameFlowWebview(panel.webview, this.context.extensionUri, `${nameOf(doc.uri)} · 切图配置`, "psd", this.context.extension.packageJSON.version);
     const attachment = this.attach(doc, panel, () => this.open());
     this.attachRenderer(panel, hash => hash === doc.model.asset.sourceHash ? doc.bytes : undefined);
     const settings = this.settings.attach(panel, doc.uri);

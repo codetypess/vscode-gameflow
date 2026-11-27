@@ -62,6 +62,7 @@ button svg { flex-shrink: 0; }
 .topbar-actions { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
 .breadcrumb { color: var(--muted-foreground); }
 .document-title { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; flex: 1; }
+.workbench-version { margin-left: auto; flex-shrink: 0; white-space: nowrap; color: var(--muted-foreground); font-size: 11px; font-variant-numeric: tabular-nums; }
 .sync-status { display: flex; align-items: center; gap: 5px; white-space: nowrap; color: var(--muted-foreground); }
 .canvas-viewport { position: relative; flex: 1; min-height: 0; overflow: clip; background: var(--canvas-bg); touch-action: none; user-select: none; cursor: default; }
 .canvas-viewport:focus { outline: none; }
@@ -164,6 +165,10 @@ button svg { flex-shrink: 0; }
 .is-panning, .is-panning .page-group, .is-panning .node-body, .is-moving, .is-moving .page-group, .is-moving .node-body { cursor: grabbing; }
 .selection-box { position: absolute; z-index: 5; outline: 1px solid var(--selection); pointer-events: none; }
 .layer-panel:focus { outline: none; }
+.panel-resize-edge { position: absolute; z-index: 3; top: 0; bottom: 0; width: 5px; cursor: ew-resize; touch-action: none; user-select: none; }
+.panel-resize-edge[data-edge=left] { left: 0; }
+.panel-resize-edge[data-edge=right] { right: 0; }
+.panel-resize-edge:is(:hover, :focus-visible, :active) { background: var(--vscode-sash-hoverBorder, var(--selection)); }
 .multiselection-summary ul { list-style: none; padding: 0; margin: 8px 0; }
 .multiselection-summary li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 5px 0; }
 .multiselection-summary li span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

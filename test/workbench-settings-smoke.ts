@@ -149,11 +149,20 @@ export async function settingsChecks(api: { psd: PsdEditorProvider }, root: stri
     assert.equal(existsSync(join(directory, "outside")), false);
     checks.push("PSD independent atlas directory is rooted directly and uses the root ledger", "host atlas policy overrides stale client directories", "shared output takes precedence over independent atlas and transfers provenance", "PSD atlas and directory switches and root changes update destinations", "reserved atlas names and unsafe independent folders reject before writes");
     const values = new Map<string, unknown>([[LEGACY_RESOURCE_DIRECTORY_KEY, first.toString()]]);
-    const context = { workspaceState: { keys: () => [...values.keys()], get: (key: string, fallback?: unknown) => values.has(key) ? values.get(key) : fallback, update: async (key: string, value: unknown) => { values.set(key, value); } } } as Pick<vscode.ExtensionContext, "workspaceState">;
+    const globalValues = new Map<string, number>();
+    const context = {
+      workspaceState: { keys: () => [...values.keys()], get: (key: string, fallback?: unknown) => values.has(key) ? values.get(key) : fallback, update: async (key: string, value: unknown) => { values.set(key, value); } },
+      globalState: { keys: () => [...globalValues.keys()], setKeysForSync: () => {}, get: (key: string) => globalValues.get(key), update: async (key: string, value: number) => { globalValues.set(key, value); } }
+    } as Pick<vscode.ExtensionContext, "workspaceState" | "globalState">;
     const revealed: string[] = [];
     const controller = new WorkbenchSettingsController(context, async () => undefined, async uri => { revealed.push(uri.toString()); });
     const received: unknown[] = [];
-    const listener = controller.attach({ webview: { postMessage: async (value: unknown) => { received.push(value); return true; }, onDidReceiveMessage: () => new vscode.Disposable(() => {}) } } as unknown as vscode.WebviewPanel, source);
+    let send: (message: unknown) => Promise<void>;
+    const listener = controller.attach({ webview: { postMessage: async (value: unknown) => { received.push(value); return true; }, onDidReceiveMessage: (handle: typeof send) => { send = handle; return new vscode.Disposable(() => {}); } } } as unknown as vscode.WebviewPanel, source);
+    await send!({ type: "panelWidth", mode: "prototype", side: "left", width: 388 });
+    await send!({ type: "panelWidth", mode: "slice", side: "right", width: 410 });
+    await send!({ type: "panelWidth", mode: "slice", side: "right", width: 277 });
+    assert.deepEqual(controller.snapshot().panelWidths, { prototype: { left: 388, right: 280 }, slice: { left: 278, right: 410 } });
     assert.equal(controller.directory("resources")?.toString(), first.toString());
     await controller.reveal("resources");
     assert.deepEqual(revealed, [first.toString()]);
@@ -162,6 +171,8 @@ export async function settingsChecks(api: { psd: PsdEditorProvider }, root: stri
     await controller.set("prefabs", prefab);
     assert.ok(received.some((value: any) => value.settings.prefabDirectory === prefab.fsPath));
     const reopened = new WorkbenchSettingsController(context);
+    assert.deepEqual(reopened.snapshot().panelWidths, controller.snapshot().panelWidths);
+    checks.push("prototype and slice widths restore independently from profile settings");
     assert.equal(reopened.directory("resources")?.toString(), first.toString());
     assert.equal(reopened.directory("prefabs")?.toString(), prefab.toString());
     await reopened.set("resources");

@@ -80,10 +80,10 @@ function boot(t, directory, source, publicKey, options = {}) {
   };
   const file = path.resolve(__dirname, "self-update.cjs");
   const module = { exports: {} };
-  vm.runInNewContext(fs.readFileSync(file, "utf8"), { module, exports: module.exports, require: (id) => id === "vscode" ? vscode : createRequire(file)(id), __UPDATER_TRUST__: { serverUrl: source, publicKey }, Buffer, URL, process, setTimeout: (handler, delay) => { const timer = { handler, delay }; timers.push(timer); return timer; }, setInterval: () => ({}), clearTimeout() {}, clearInterval() {} });
+  vm.runInNewContext(fs.readFileSync(file, "utf8"), { module, exports: module.exports, require: (id) => id === "vscode" ? vscode : createRequire(file)(id), __UPDATER_TRUST__: { serverUrl: source, publicKey }, Buffer, URL, process, setTimeout: (handler, delay) => { const timer = { handler, delay }; timers.push(timer); return timer; }, setInterval: (handler, delay) => { const timer = { handler, delay, repeating: true }; timers.push(timer); return timer; }, clearTimeout() {}, clearInterval() {} });
   const api = module.exports.activateSelfUpdate({ extension: { id: "codetypes.probe", packageJSON: { name: "probe", displayName: "测试插件", version: options.version || "1.0.0" } }, globalStorageUri: { fsPath: storage }, extensionUri: { scheme: options.scheme || "file" }, extensionMode: options.mode || 1, subscriptions }, "probe");
   t.after(() => { for (const subscription of subscriptions) subscription.dispose(); });
-  return { api, prompts, installs, errors, control, storage, commands, startup: () => timers.find((timer) => timer.delay === 30000).handler(), focus: async (focused) => { windowState.focused = focused; await Promise.all(focusListeners.map((listener) => listener({ focused }))); } };
+  return { api, prompts, installs, errors, control, storage, commands, startup: () => timers.find((timer) => timer.delay === 15000).handler(), polling: timers.find(timer => timer.repeating), focus: async (focused) => { windowState.focused = focused; await Promise.all(focusListeners.map((listener) => listener({ focused }))); } };
 }
 
 test("per-plugin metadata is readable, signed, identity-scoped and rejects unsafe or replayed releases", () => {
@@ -408,4 +408,27 @@ test("pending clears for the running upgraded version even before an offline met
   control.signed = "offline-invalid";
   await newHost.startup();
   assert.equal(newHost.api.getState().status, "current");
+});
+
+test("five-minute polling discovers a release published after startup without installing until confirmed", async (t) => {
+  const directory = temporary(t);
+  const oldBytes = fs.readFileSync(await packageFile(directory, "probe", "1.0.0"));
+  const bytes = fs.readFileSync(await packageFile(directory));
+  const pair = crypto.generateKeyPairSync("ed25519");
+  const control = { bytes, signed: lib.signMetadata(metadata(oldBytes, { version: "1.0.0", url: "1.0.0.vsix" }), pair.privateKey) };
+  const server = await serve(t, control);
+  const app = boot(t, directory, server.source, pair.publicKey);
+  await app.startup();
+  assert.equal(app.api.getState().status, "current");
+  assert.equal(app.prompts.length, 0);
+  assert.equal(app.polling.delay, 5 * 60 * 1000);
+  control.signed = lib.signMetadata(metadata(bytes, { revision: 4 }), pair.privateKey);
+  await app.polling.handler();
+  assert.equal(app.api.getState().status, "available");
+  assert.equal(app.prompts.length, 1);
+  assert.equal(server.requests.length, 2);
+  await app.polling.handler();
+  assert.equal(server.requests.length, 3, "polling continues after its first check");
+  assert.ok(server.requests.every(url => url === "/probe/metadata.json"));
+  assert.equal(app.installs.length, 0);
 });

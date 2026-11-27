@@ -14,12 +14,14 @@ import { isSliceResourcePath, type ExportedSliceResult } from "./slice-resources
 
 import { isPrefabExportBatch, validPrefabTarget, type ImageMetaTarget, type PrefabExportBatch, type PrefabTarget, type PrefabSnapshot, type PrefabWriteGuard } from "./prefab-export";
 import { validGrid } from "./psd-meta";
+import { isPanelWidthMessage, type PanelWidthMessage } from "./panel-width";
 import { isExtensionUpdateRequest, type ExtensionUpdateRequest, type ExtensionUpdateMessage } from "./extension-update";
 
 export type OutputKind = "psd" | "meta" | "png";
 export const MAX_OUTPUT_BASE64_LENGTH = 48 * 1024 * 1024;
 
 export type WebviewToHostMessage =
+  | PanelWidthMessage
   | ExtensionUpdateRequest
   | { type: "psdRenderSlice" | "psdRenderVisibility"; requestId: string; sourceHash: string; keys: number[]; base64?: string }
   | { type: "psdImportSource"; requestId: string; pageId: string }
@@ -102,6 +104,7 @@ export function isWebviewToHostMessage(
     value.keys.every(key => Number.isInteger(key) && key >= 0 && key < 256) && new Set(value.keys).size === value.keys.length;
   if (value.type === "pagePsd") return typeof value.requestId === "string" && value.requestId.length > 0 && value.requestId.length <= 80 && typeof value.pageId === "string" && value.pageId.length > 0 && value.pageId.length <= 128 && (value.expected === undefined || isPagePsdBinding(value.expected)) && (value.action === "choose" || (value.action === "load" || value.action === "slice" || value.action === "review") && isPagePsdBinding(value.expected) || (value.action === "generate" || value.action === "syncCopy" && isPagePsdBinding(value.expected) && typeof value.reviewStamp === "string" && /^[a-f0-9]{64}$/.test(value.reviewStamp) && typeof value.sourceHash === "string" && /^[a-f0-9]{64}$/.test(value.sourceHash)) && validPsdFilename(value.name) && validPsdBase64(value.base64)) && validComponentPsdFields(value);
   if (value.type === "workbenchSettings") return isWorkbenchSettingsRequest(value);
+  if (value.type === "panelWidth") return isPanelWidthMessage(value);
   if (value.type === "sliceResources") return typeof value.requestId === "string" && value.requestId.length > 0 && value.requestId.length <= 80 &&
     Array.isArray(value.paths) && value.paths.length <= 128 && value.paths.every(isSliceResourcePath) && new Set(value.paths).size === value.paths.length;
   if (value.type === "prefabExport") return typeof value.requestId === "string" && value.requestId.length > 0 && value.requestId.length <= 80 && isPrefabExportBatch(value.batch);

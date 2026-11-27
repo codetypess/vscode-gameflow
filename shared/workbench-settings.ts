@@ -1,5 +1,7 @@
+import type { PanelMode, PanelWidths } from "./panel-width";
+
 export type ExportDirectoryKind = "resources" | "prefabs";
-export interface WorkbenchSettings { resourceDirectory?: string; prefabDirectory?: string }
+export interface WorkbenchSettings { resourceDirectory?: string; prefabDirectory?: string; panelWidths?: Record<PanelMode, PanelWidths> }
 export interface StoredExportSettings { version: 1; resources?: string; prefabs?: string }
 export const EXPORT_SETTINGS_KEY = "gameflow.workbenchExportSettings";
 export const LEGACY_RESOURCE_DIRECTORY_KEY = "gameflow.psdExportDirectory";

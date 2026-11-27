@@ -261,6 +261,18 @@ test("top-following panels stop at 400 available pixels and resume when content 
   assert.equal(short.right.top, 12); assert.equal(short.right.maxHeight, 236);
   assert.equal(short.left.width, short.right.width);
 });
+test("screen space goes to the existing panel minima before preferred extra width", () => {
+  const options = { leftWidth: 280, rightWidth: 280, footer: 0, preferredWidths: { left: 520, right: 360 } };
+  const widths = (width: number, leftWidth = 280) => {
+    const m = canvasPanelMetrics({ width, height: 800 }, { ...options, leftWidth });
+    return [m.leftWidth, m.rightWidth];
+  };
+  assert.deepEqual(widths(1400), [520, 360]);
+  assert.deepEqual(widths(760), [400, 320]);
+  assert.deepEqual(widths(440), [200, 200]);
+  assert.deepEqual(widths(440, 0), [0, 360]);
+});
+
 test("prototype panels stay in view and clear the toolbar with one or both panels present", () => {
   for (const viewport of [{ width: 1800, height: 1000 }, { width: 720, height: 480 }, { width: 320, height: 240 }]) {
     for (const leftWidth of [0, 280]) for (const rightWidth of [0, 280]) {
