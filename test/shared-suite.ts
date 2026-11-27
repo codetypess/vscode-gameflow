@@ -42,6 +42,7 @@ import { resourceModesTests } from "./resource-modes-suite";
 import { runtimePreviewTests } from "./runtime-preview-suite";
 import { webviewHtmlTests } from "./webview-html-suite";
 import { extensionUpdateTests } from "./extension-update-suite";
+import { createDocumentTests } from "./create-document-suite";
 
 type TestCase = { name: string; run: () => void | Promise<void> };
 const tests: TestCase[] = [];
@@ -654,6 +655,7 @@ tests.push(...canvasReferenceTests, ...canvasInstanceTests);
 tests.push(...canvasReferenceHostTests);
 tests.push(...webviewHtmlTests);
 tests.push(...extensionUpdateTests);
+tests.push(...createDocumentTests);
 tests.push(...uiLayoutTests);
 tests.push(...nodeVariableTests);
 tests.push(...uiTransformTests);

@@ -24,7 +24,8 @@
     "onCustomEditor:gameflow.psdEditor",
     "onCommand:gameflow.openPsd",
     "onCustomEditor:gameflow.canvasEditor",
-    "onCommand:gameflow.createCanvas"
+    "onCommand:gameflow.createCanvas",
+    "onCommand:gameflow.createPrototypeCanvas"
   ],
   "main": "./dist/extension.js",
   "contributes": {
@@ -65,6 +66,12 @@
       {
         "command": "gameflow.createCanvas",
         "title": "新建策划画布",
+        "category": "原型工作台",
+        "icon": "$(new-file)"
+      },
+      {
+        "command": "gameflow.createPrototypeCanvas",
+        "title": "新建原型画布",
         "category": "原型工作台",
         "icon": "$(new-file)"
       }

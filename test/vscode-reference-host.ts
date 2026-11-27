@@ -8,6 +8,7 @@ export class Uri {
   scheme = "file"; authority = "";
   constructor(public path: string) {}
   get fsPath() { return this.path; }
+  with(change: { path: string }) { return new Uri(change.path); }
   static joinPath(uri: Uri, ...parts: string[]) { return new Uri(posix.join(uri.path, ...parts)); }
   toString() { return `file://${this.path}`; }
 }
@@ -47,7 +48,7 @@ export class TestTextDocument {
 const change = new Event();
 export const referenceHost = {
   files: new Map<string, string | Uint8Array>(), watchers: [] as Watcher[], picked: undefined as Uri | undefined,
-  reads: [] as string[], commands: [] as { command: string; uri: Uri }[],
+  reads: [] as string[], commands: [] as { command: string; uri: Uri; viewType?: string }[],
   readOnly: new Set<string>(), rejectApply: false, edits: [] as WorkspaceEdit[],
   readOverride: undefined as undefined | ((uri: Uri) => Promise<Uint8Array>),
   beforeRename: undefined as undefined | ((target: Uri) => void),
@@ -98,4 +99,4 @@ export const window = {
   async showOpenDialog() { return referenceHost.picked ? [referenceHost.picked] : undefined; },
   async showWarningMessage(message: string) { referenceHost.warnings.push(message); return referenceHost.warningResponse; }
 };
-export const commands = { async executeCommand(command: string, uri: Uri) { referenceHost.commands.push({ command, uri }); } };
+export const commands = { async executeCommand(command: string, uri: Uri, viewType?: string) { referenceHost.commands.push({ command, uri, viewType }); } };

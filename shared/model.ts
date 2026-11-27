@@ -657,6 +657,18 @@ export function serializeGameFlowDocument(document: GameFlowDocument): string {
   return `${JSON.stringify(document, null, 2)}\n`;
 }
 
+export function createEmptyGameFlowDocument(documentId: string, title: string): GameFlowDocument {
+  return {
+    schemaVersion: GAMEFLOW_SCHEMA_VERSION,
+    elementIdScheme: ELEMENT_ID_SCHEME,
+    documentId,
+    title,
+    requirements: [],
+    pages: [],
+    interactions: []
+  };
+}
+
 export function createDefaultGameFlowDocument(
   documentId = "gameflow-backpack"
 ): GameFlowDocument {

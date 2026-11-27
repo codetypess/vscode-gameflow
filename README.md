@@ -9,7 +9,7 @@
 当前版本提供：
 
 - `*.gameflow.json` 自定义编辑器。
-- `原型工作台: 新建策划画布` 命令。
+- 在命令面板运行 `原型工作台: 新建原型画布`，选择保存位置后即可在空白画布上点击「添加页面」。`原型工作台: 新建策划画布` 提供背包示例。
 - React + shadcn/ui Webview 工作台。
 - 页面总览、页面组拖动、滚轮定点缩放、空白画布抓手平移、双击进入页面内部视图；总览没有固定侧栏。
 - 页面内部显示可折叠层级树和 VS Code 风格悬浮属性面板；添加菜单提供容器、横排/竖排/网格、面板、文字/图片/按钮、输入框/列表、复选框/单选框、进度条/滑块/下拉框等 15 种节点，兼容旧矩形节点。
@@ -50,7 +50,7 @@ npm test
 npm run build
 ```
 
-在 VS Code 中打开本仓库后按 `F5`，会先执行开发构建并启动 Extension Host。随后运行 `原型工作台: 新建策划画布`，或打开 [sample/backpack.gameflow.json](sample/backpack.gameflow.json)。
+在 VS Code 中打开本仓库后按 `F5`，会先执行开发构建并启动 Extension Host。随后运行 `原型工作台: 新建原型画布`，或打开 [sample/backpack.gameflow.json](sample/backpack.gameflow.json)。
 
 只调试 Webview 布局时可运行 `npm run dev:webview`。浏览器预览使用示例文档模拟同一套消息协议，编辑内容保存在浏览器本地存储；图片和 Prefab 导出写入用户明确选择的目录。
 

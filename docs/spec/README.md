@@ -34,6 +34,8 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 
 ## Active Work Items
 
+- [新建原型画布](create-prototype-canvas.md) — 从命令面板创建并打开空白原型文档。
+
 - [画板 PNG 快照](page-png-snapshot.md) — 右键画板，按设计尺寸将当前原型画面另存为 PNG。
 
 - [重启扩展后的更新状态](update-state-after-reload.md) — Done。0.1.13 升级到 0.1.15 后，经 VS Code 扩展详情页重启，返回原画布可恢复模式菜单。418 项共享测试和 33 项分发测试通过。

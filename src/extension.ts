@@ -27,7 +27,10 @@ export function activate(context: vscode.ExtensionContext) {
       }
     ),
     vscode.commands.registerCommand("gameflow.createCanvas", () =>
-      createGameFlowDocument()
+      createGameFlowDocument("planning")
+    ),
+    vscode.commands.registerCommand("gameflow.createPrototypeCanvas", () =>
+      createGameFlowDocument("prototype")
     )
   );
   context.subscriptions.push(restoreRetainedEditors({
