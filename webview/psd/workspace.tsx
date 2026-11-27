@@ -2,7 +2,7 @@ import { DialogHeading } from "../components/dialog-heading";
 import { useEffect, useImperativeHandle, useMemo, useRef, useState, type ReactNode, type Ref } from "react";
 import { createPortal } from "react-dom";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { AlertTriangle, Box, Check, ChevronDown, ChevronRight, Crop, Download, Ellipsis, Eye, EyeOff, FileImage, FolderOpen, Grid3X3, ImageIcon, Layers3, MousePointerClick, Redo2, Save, Scissors, Share2, SquareDashed, Type, Undo2, X } from "lucide-react";
+import { AlertTriangle, Box, Check, ChevronDown, ChevronRight, Crop, Download, Ellipsis, Eye, EyeOff, FileImage, FolderOpen, Grid3X3, ImageIcon, Images, Layers3, MousePointerClick, Redo2, Save, Scissors, Share2, SquareDashed, Type, Undo2, X } from "lucide-react";
 import { compositeOwners, enabledSliceLayers, identityProblems, isCompositeGroup, makeSidecar, newLayerIdentity, selectedMergeTree, sidecarName, sliceRegion, validConfig, type PsdAsset, type PsdEmbeddedLayer, type PsdLayer, type PsdLayerMeta, type SliceConfig, type SliceRegion, type NineGrid } from "../../shared/psd-meta";
 import { WorkbenchSettingsButton, type WorkbenchSettingsUI } from "../workbench-settings";
 import { Button } from "../components/ui/button";
@@ -62,7 +62,7 @@ function EmbeddedLayerRow({ layer, depth, bottomFirst }: { layer: PsdEmbeddedLay
   </div>;
 }
 
-function Tree({ asset, selected, onSelect, checked, toggle, toggleVisibility, individual = false, bottomFirst = false, reveal = 0, issues = [] }: { toggleVisibility?: (key: number) => void; individual?: boolean; bottomFirst?: boolean; asset: PsdAsset; selected: number | null; onSelect: (key: number) => void; checked?: (layer: PsdLayer) => boolean; toggle?: (layer: PsdLayer, value: boolean) => void; reveal?: number; issues?: ExportIssue[] }) {
+function Tree({ asset, selected, onSelect, checked, toggle, toggleVisibility, owners, individual = false, bottomFirst = false, reveal = 0, issues = [] }: { owners?: ReadonlyMap<number, PsdLayer>; toggleVisibility?: (key: number) => void; individual?: boolean; bottomFirst?: boolean; asset: PsdAsset; selected: number | null; onSelect: (key: number) => void; checked?: (layer: PsdLayer) => boolean; toggle?: (layer: PsdLayer, value: boolean) => void; reveal?: number; issues?: ExportIssue[] }) {
   const [collapsed, setCollapsed] = useState(new Set<number>());
   const container = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -98,6 +98,9 @@ function Tree({ asset, selected, onSelect, checked, toggle, toggleVisibility, in
       {expandable ? <button className="psd-tree-expander" aria-label={(expanded ? "折叠" : "展开") + l.name} onClick={() => setCollapsed(old => { const next = new Set(old); if (next.has(l.key)) next.delete(l.key); else next.add(l.key); return next; })}>{expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}</button> : <span className="psd-tree-spacer" />}
       {toggle && checked ? <input type="checkbox" aria-label={`选择${l.name}（${l.nativeId ?? l.key}）`} checked={children.length > 0 && count === children.length} ref={el => { if (el) el.indeterminate = mixed; }} disabled={!children.length || warning || (!l.group && (individual ? !l.image && !needsPhotoCraft(l, true) : !!l.limitation || !l.image))} onChange={e => toggle(l, e.target.checked)} /> : null}
       <button className="psd-tree-label" onClick={() => onSelect(l.key)} title={`${l.name} · ${l.metadata.layerId}${warning ? " · ID 重复" : ""}${conflictText ? `\n${conflictText}` : ""}`}><Icon size={13} aria-hidden="true" /><span>{l.name}</span>{!l.group && l.config.enabled && l.config.shared ? <span className="psd-shared-marker" role="img" aria-label={`${l.name}：共享导出`} title="共享导出"><Share2 size={12} aria-hidden="true" /></span> : null}{conflicts.length ? <span className="psd-conflict-marker" role="img" aria-label={`${l.name}：导出冲突`} title={conflictText}><AlertTriangle size={13} aria-hidden="true" /></span> : warning ? <AlertTriangle size={12} className="psd-warning" /> : l.config.nineGrid ? <Grid3X3 size={12} /> : null}</button>
+      {owners?.get(l.key)?.key === l.key && (
+        <span className="psd-composite-marker" role="img" aria-label="合成图片" title="合成图片"><Images size={13} aria-hidden="true" /></span>
+      )}
       {toggleVisibility && <button type="button" className="psd-visibility-toggle" aria-label={`图层可见性：${l.name}（${l.nativeId ?? l.key}）`}
         aria-pressed={!l.hidden} title={parentHidden ? "父组已隐藏" : l.hidden ? "在画布上显示" : "在画布上隐藏"}
         disabled={parentHidden} onClick={() => toggleVisibility(l.key)}>
@@ -333,7 +336,7 @@ export function PsdWorkspace({ mode, active, binding, documentActions, settings,
           <button type="button" className="psd-tree-label psd-document-row" aria-pressed={!selected && scopeKey === null} title={asset.name} onClick={() => navigateScope(null)}>
             <FileImage size={13} /><span>{asset.name}</span>
           </button>
-          <div className="psd-hint">勾选需要切图的图层{allExportIssues.length ? <span className="psd-warning" role="status"> · {allExportIssues.length} 项导出冲突</span> : null}</div><Tree bottomFirst individual={nativeSlices} asset={preview} toggleVisibility={toggleVisibility} selected={selectedKey} reveal={canvasSelection} issues={allExportIssues} onSelect={selectTreeLayer} checked={l => l.config.enabled} toggle={(layer, enabled) => { if (nativeSlices) { patchConfig(layer.key, { enabled }); return; } const keys = new Set(getChildren(preview, layer.key).filter(l => !l.group && l.image && !l.limitation && !duplicates.includes(l.metadata.layerId)).map(l => l.key)); change({ ...asset, layers: asset.layers.map(l => keys.has(l.key) ? { ...l, config: { ...l.config, enabled } } : l) }); }} /></>}
+          <div className="psd-hint">勾选需要切图的图层{allExportIssues.length ? <span className="psd-warning" role="status"> · {allExportIssues.length} 项导出冲突</span> : null}</div><Tree bottomFirst individual={nativeSlices} asset={preview} owners={owners} toggleVisibility={toggleVisibility} selected={selectedKey} reveal={canvasSelection} issues={allExportIssues} onSelect={selectTreeLayer} checked={l => l.config.enabled} toggle={(layer, enabled) => { if (nativeSlices) { patchConfig(layer.key, { enabled }); return; } const keys = new Set(getChildren(preview, layer.key).filter(l => !l.group && l.image && !l.limitation && !duplicates.includes(l.metadata.layerId)).map(l => l.key)); change({ ...asset, layers: asset.layers.map(l => keys.has(l.key) ? { ...l, config: { ...l.config, enabled } } : l) }); }} /></>}
         properties={<><div className="floating-heading"><Scissors size={14} /><strong>{selected ? "切图属性" : "文档配置"}</strong></div><ScrollArea className="psd-properties-scroll" label="切图属性内容"><div className="psd-properties-content">
           <section className="psd-property-section" aria-label="文档配置" hidden={!!selected}>
           <label className="psd-property"><span>图集名</span><AtlasNameInput key={asset.sourceHash + asset.documentId} name={asset.name} value={asset.atlasName} disabled={busy} onErrorChange={setAtlasInputError} onChange={atlasName => change({ ...asset, atlasName })} /></label>

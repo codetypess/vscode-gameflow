@@ -36,22 +36,32 @@ async function main() {
     await open();
     const row = name => page.getByRole("tree").getByRole("button", { name, exact: true });
     const composite = page.getByRole("checkbox", { name: "合成图片", exact: true });
+    const marker = page.getByRole("tree").getByRole("img", { name: "合成图片", exact: true });
     const marked = page.getByRole("checkbox", { name: "标记为切图", exact: true });
     await row("高光").click();
     await marked.check();
     assert.equal(await composite.count(), 0);
     await row("@normal").click();
     await marked.uncheck();
+    assert.equal(await marker.count(), 0);
     await composite.check();
     await row("高光").waitFor({ state: "detached" });
     assert.equal(await row("描边").count(), 0);
     assert.equal(await row("按钮文案").count(), 1);
     assert.equal(await marked.isChecked(), true);
     assert.equal(await row("@normal").locator("..").getAttribute("aria-expanded"), null);
+    assert.equal(await marker.getAttribute("title"), "合成图片");
+    const eye = row("@normal").locator("..").getByRole("button", { name: /^图层可见性/ });
+    const [iconBox, eyeBox] = await Promise.all([marker.boundingBox(), eye.boundingBox()]);
+    assert.ok(iconBox && eyeBox && iconBox.x + iconBox.width <= eyeBox.x);
     await page.getByRole("button", { name: /^撤销/ }).click();
     await row("高光").waitFor();
+    assert.equal(await marker.count(), 0);
     await page.getByRole("button", { name: /^重做/ }).click();
     await row("高光").waitFor({ state: "detached" });
+    await marked.uncheck();
+    assert.equal(await marker.isVisible(), true);
+    await marked.check();
 
     await row("按钮文案").click();
     const direct = page.getByRole("button", { name: "直选模式", exact: true });
@@ -86,8 +96,10 @@ async function main() {
     await open();
     await row("@normal").click();
     assert.equal(await composite.isChecked(), true);
+    assert.equal(await marker.isVisible(), true);
     await composite.uncheck();
     await row("高光").click();
+    assert.equal(await marker.count(), 0);
     assert.equal(await marked.isChecked(), true);
     console.log("PASS composite image tree, selection, undo/redo, saved settings and exported state pixels");
   } finally {

@@ -40,6 +40,7 @@
 .psd-tree-row input, .psd-check input, .repeat-toggle input { accent-color: var(--primary); width: 13px; height: 13px; flex-shrink: 0; align-self: center; cursor: pointer; }
 .psd-tree-label { display: flex; align-items: center; text-align: left; gap: 6px; min-width: 0; padding: 4px 0; flex: 1; color: inherit; border: 0; background: none; }
 .psd-tree-label > svg { flex-shrink: 0; }
+.psd-composite-marker { display: inline-flex; align-self: center; flex: none; }
 .psd-visibility-toggle { display: grid; place-items: center; flex: 0 0 24px; height: 24px; align-self: center; border: 0; border-radius: 3px; color: var(--muted-foreground); background: transparent; cursor: pointer; }
 .psd-visibility-toggle:hover, .psd-visibility-toggle:focus-visible { background: var(--vscode-toolbar-hoverBackground, #ffffff18); color: var(--foreground); }
 .psd-visibility-toggle:focus-visible { outline: 1px solid var(--vscode-focusBorder, var(--selection)); }
