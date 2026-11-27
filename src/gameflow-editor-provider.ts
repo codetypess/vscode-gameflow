@@ -11,6 +11,7 @@ import { PsdEditorProvider, type PsdDocument } from "./psd-editor-provider";
 import { bytesHash } from "./psd-document-model";
 import { WorkbenchDocument } from "./workbench-document";
 import { readWorkbenchSlices } from "./slice-resource-controller";
+import { saveWorkbenchOutput } from "./psd-file-io";
 
 import { PagePsdController, PagePsdWatcher, rebasePagePsds } from "./page-psd-controller";
 import { exportPrefab, inspectPrefabFile } from "./prefab-export-controller";
@@ -249,9 +250,8 @@ export class GameFlowEditorProvider implements vscode.CustomEditorProvider<Workb
           await panel.webview.postMessage(result);
         } else if (raw.type === "psdOutput") {
           try {
-            const uri = await vscode.window.showSaveDialog({ defaultUri: vscode.Uri.joinPath(doc.uri, "..", raw.name), filters: raw.kind === "psd" ? { Photoshop: ["psd"] } : { JSON: ["json"] } });
-            if (uri) { if ([...doc.psds.values()].some(psd=>psd.uri.toString()===uri.toString()&&psd.model.dirty)) throw new Error("目标 PSD 有未保存修改。"); if (vscode.workspace.textDocuments.some(d=>d.uri.toString()===uri.toString() && d.isDirty)) throw new Error("目标文件有未保存修改。"); await vscode.workspace.fs.writeFile(uri,Buffer.from(raw.base64,"base64")); }
-            await panel.webview.postMessage({ type:"psdOutputResult",requestId:raw.requestId,saved:!!uri } satisfies HostToWebviewMessage);
+            const saved = await saveWorkbenchOutput(doc, raw);
+            await panel.webview.postMessage({ type:"psdOutputResult",requestId:raw.requestId,saved } satisfies HostToWebviewMessage);
           } catch (error) { await panel.webview.postMessage({ type:"psdOutputResult",requestId:raw.requestId,saved:false,error:explain(error) } satisfies HostToWebviewMessage); }
         } else if(raw.type==="prefabInspect") {
           try {

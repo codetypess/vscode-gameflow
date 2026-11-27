@@ -34,6 +34,8 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 
 ## Active Work Items
 
+- [画板 PNG 快照](page-png-snapshot.md) — 右键画板，按设计尺寸将当前原型画面另存为 PNG。
+
 - [update-state-after-reload.md](update-state-after-reload.md) — Verifying：宿主恢复立即推送更新状态，保留界面恢复时再次握手；406 项共享测试、32 项分发测试、类型检查、生产构建及浏览器恢复回归通过。已发布新 ID 的 0.1.11 / 0.1.12，stable revision 20，待用户通过扩展页重载实测。
 
 - [publisher-identity-correction.md](publisher-identity-correction.md) — Done：新包和签名 metadata 均为 codetypess.vscode-gameflow，已发布 0.1.9 / 0.1.10，stable revision 18；31 项分发测试、生产构建与公开下载摘要验证通过。旧 ID 包仅保留历史。

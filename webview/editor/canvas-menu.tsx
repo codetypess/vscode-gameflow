@@ -1,6 +1,6 @@
 import * as Menu from "@radix-ui/react-dropdown-menu";
 import type { ReactNode } from "react";
-import { ArrowLeft, ChevronRight, CopyPlus, Focus, LayoutDashboard, LayoutPanelTop, Pencil, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Camera, ChevronRight, CopyPlus, Focus, LayoutDashboard, LayoutPanelTop, Pencil, Plus, Trash2 } from "lucide-react";
 import type { GameFlowPage, PageRootType } from "../../shared/model";
 import { PAGE_ROOTS, PAGE_ROOT_TYPES } from "../../shared/ui-components";
 
@@ -11,10 +11,11 @@ export function CanvasViewItems({ onFit, onBack, backLabel = "返回总览" }: {
   </>;
 }
 
-export function CanvasOverviewMenu({ target, page, importPsdItem, pageActions, onClose, onRestoreFocus, onEnter, onRename, onDuplicate, onDelete, onAddPage, onFit }: {
+export function CanvasOverviewMenu({ target, page, importPsdItem, pageActions, onClose, onRestoreFocus, onEnter, onRename, onSnapshot, savingSnapshot, onDuplicate, onDelete, onAddPage, onFit }: {
   target: { x: number; y: number } | null; page?: GameFlowPage;
   importPsdItem: ReactNode; pageActions: ReactNode;
   onClose: () => void; onRestoreFocus: () => void; onEnter: () => void; onRename: () => void;
+  onSnapshot: (page: GameFlowPage) => void; savingSnapshot: boolean;
   onDuplicate: () => void; onDelete: () => void; onAddPage: (type: PageRootType) => void; onFit: () => void;
 }) {
   const action = (run: () => void) => () => { onClose(); run(); };
@@ -27,6 +28,7 @@ export function CanvasOverviewMenu({ target, page, importPsdItem, pageActions, o
       {page ? <>
         <Menu.Item onSelect={action(onEnter)}><LayoutPanelTop size={14}/><span>进入画板编辑</span></Menu.Item>
         <Menu.Item onSelect={action(onRename)}><Pencil size={14}/><span>重命名画板</span></Menu.Item>
+        <Menu.Item disabled={savingSnapshot} onSelect={action(() => onSnapshot(page))}><Camera size={14}/><span>另存为 PNG 快照…</span></Menu.Item>
         <Menu.Separator className="layer-menu-separator" />
         {pageActions}
         <Menu.Separator className="layer-menu-separator" />

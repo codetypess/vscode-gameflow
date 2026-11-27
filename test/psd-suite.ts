@@ -5,6 +5,10 @@ import { readPsd } from "ag-psd";
 import { parsePsdBinary, patchPsdMetadata } from "../shared/psd-binary";
 import { applySidecar, EMPTY_GRID, identityProblems, inheritLayerVisibility, makeSidecar, newLayerIdentity, selectedMergeTree, setGridEdge, sliceLayers, validConfig, validGrid, type PsdAsset, type PsdLayerMeta } from "../shared/psd-meta";
 import { isWebviewToHostMessage } from "../shared/protocol";
+import { pageImageFileName } from "../shared/page-psd";
+import { saveWorkbenchOutput } from "../src/psd-file-io";
+import { referenceHost, Uri } from "./vscode-reference-host";
+import type * as vscode from "vscode";
 import { fitPsdCamera, placePsdPanels, zoomPsdCamera } from "../webview/psd/canvas-layout";
 import { isCanvasDrag, makePixelMask, maskContains, pickPsdLayer, psdHitLayer, psdPoint, psdScopePath } from "../webview/psd/layer-hit-test";
 import { droppedPsd, hasFileDrag } from "../webview/psd/file-drop-input";
@@ -265,5 +269,27 @@ export const psdTests: { name: string; run: () => void | Promise<void> }[] = [
     assert.equal(isWebviewToHostMessage(request), true);
     for (const name of ["../login.meta.json", "C:\\login.meta.json", "CON.meta.json", "login.txt"]) assert.equal(isWebviewToHostMessage({ ...request, name }), false);
     assert.equal(isWebviewToHostMessage({ ...request, base64: "???" }), false);
+  } },
+  { name: "PNG snapshot saves the chosen file, preserves existing data on cancel or failure and allows retry", async run() {
+    referenceHost.reset();
+    const bytes = readFileSync("assets/builtin/button/gray.png");
+    const name = pageImageFileName("登录/快照.png", "png");
+    assert.equal(name, "登录_快照.png");
+    const request = { type: "psdOutput" as const, kind: "png" as const, name, base64: bytes.toString("base64"), requestId: "snapshot" };
+    assert.ok(isWebviewToHostMessage(request));
+    for (const invalid of [{ name: "../login.png" }, { name: "login.psd" }, { base64: "e30=" }])
+      assert.equal(isWebviewToHostMessage({ ...request, ...invalid }), false);
+    const source = new Uri("/project/demo.gameflow.json"), target = new Uri("/output/login.png");
+    const doc = { uri: source as unknown as vscode.Uri, psds: new Map() };
+    referenceHost.files.set(target.path, "previous image");
+    referenceHost.saveSelections = [undefined, source, target, target];
+    assert.equal(await saveWorkbenchOutput(doc, request), false);
+    await assert.rejects(saveWorkbenchOutput(doc, request), /\.png/);
+    referenceHost.beforeRename = () => { throw new Error("写入失败"); };
+    await assert.rejects(saveWorkbenchOutput(doc, request), /写入失败/);
+    assert.deepEqual([...referenceHost.files], [[target.path, "previous image"]]);
+    referenceHost.beforeRename = undefined;
+    assert.equal(await saveWorkbenchOutput(doc, request), true);
+    assert.deepEqual([...referenceHost.files], [[target.path, bytes]]);
   } },
 ];

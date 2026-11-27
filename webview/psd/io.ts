@@ -6,6 +6,7 @@ import { hasPhotoCraftHost, requestRender, trimSlice } from "./photocraft";
 import { isImageData } from "../../shared/model";
 import { stringFingerprint } from "../../shared/string-fingerprint";
 import { paintContent } from "./import-signature";
+import { MAX_OUTPUT_BASE64_LENGTH, type OutputKind } from "../../shared/protocol";
 
 export function psdTask<T>(type: "read" | "readPage" | "patch" | "importPrototype", bytes: ArrayBuffer, name: string, updates?: [number, PsdLayerMeta][]): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -49,11 +50,13 @@ export async function openPsd(file: File, type: "read" | "readPage" = "read"): P
   const bytes = await file.arrayBuffer();
   return { asset: await psdTask<PsdAsset>(type, bytes, file.name), bytes };
 }
-export async function saveOutput(name: string, kind: "psd" | "meta", bytes: Uint8Array): Promise<boolean> {
+export async function saveOutput(name: string, kind: OutputKind, bytes: Uint8Array): Promise<boolean> {
   if (isBrowserPreview) {
-    const url = URL.createObjectURL(new Blob([new Uint8Array(bytes)], { type: kind === "psd" ? "image/vnd.adobe.photoshop" : "application/json" }));
+    const mime = { psd: "image/vnd.adobe.photoshop", meta: "application/json", png: "image/png" };
+    const url = URL.createObjectURL(new Blob([new Uint8Array(bytes)], { type: mime[kind] }));
     const a = document.createElement("a"); a.href = url; a.download = name; a.click(); window.setTimeout(() => URL.revokeObjectURL(url), 30000); return true;
   }
+  if (Math.ceil(bytes.length / 3) * 4 > MAX_OUTPUT_BASE64_LENGTH) throw new Error("文件超过工作台单次输出的 36 MB 上限。");
   let payload = ""; for (let i = 0; i < bytes.length; i += 8192) payload += String.fromCharCode(...bytes.subarray(i, i + 8192));
   const requestId = crypto.randomUUID();
   return new Promise((resolve, reject) => {

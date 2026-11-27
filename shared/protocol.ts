@@ -16,6 +16,9 @@ import { isPrefabExportBatch, validPrefabTarget, type ImageMetaTarget, type Pref
 import { validGrid } from "./psd-meta";
 import { isExtensionUpdateRequest, type ExtensionUpdateRequest, type ExtensionUpdateMessage } from "./extension-update";
 
+export type OutputKind = "psd" | "meta" | "png";
+export const MAX_OUTPUT_BASE64_LENGTH = 48 * 1024 * 1024;
+
 export type WebviewToHostMessage =
   | ExtensionUpdateRequest
   | { type: "psdRenderSlice" | "psdRenderVisibility"; requestId: string; sourceHash: string; keys: number[]; base64?: string }
@@ -35,7 +38,7 @@ export type WebviewToHostMessage =
   | { type: "applyCanvasOverrides"; requestId: string; baseVersion: number; request: CanvasApplyRequest; expectedSources: Record<string, string> }
   | { type: "chooseCanvasSource" }
   | { type: "openCanvasSource"; source: string }
-  | { type: "psdOutput"; requestId: string; name: string; kind: "psd" | "meta"; base64: string }
+  | { type: "psdOutput"; requestId: string; name: string; kind: OutputKind; base64: string }
   | {
       type: "replaceDocument";
       baseVersion: number;
@@ -124,7 +127,15 @@ export function isWebviewToHostMessage(
   if (value.type === "chooseCanvasSource") return true;
   if (value.type === "openCanvasSource") return isCanvasReferenceSource(value.source) && value.source !== "";
   if (value.type === "psdOutput") {
-    return typeof value.requestId === "string" && value.requestId.length <= 80 && typeof value.name === "string" && value.name.length > 0 && value.name.length <= 160 && !/[\\/:*?"<>|\x00-\x1f]/.test(value.name) && !value.name.includes("..") && !/^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(value.name) && (value.kind === "psd" ? /\.psd$/i.test(value.name) : value.kind === "meta" && /\.meta\.json$/i.test(value.name)) && typeof value.base64 === "string" && value.base64.length > 0 && value.base64.length <= 48 * 1024 * 1024 && value.base64.length % 4 === 0 && /^[A-Za-z0-9+/]*={0,2}$/.test(value.base64);
+    if (typeof value.name !== "string" || !value.name || value.name.length > 160 ||
+        /[\\/:*?"<>|\x00-\x1f]/.test(value.name) || value.name.includes("..") ||
+        /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(value.name)) return false;
+    const suffix = value.kind === "psd" ? ".psd" : value.kind === "meta" ? ".meta.json" : value.kind === "png" ? ".png" : undefined;
+    return !!suffix && value.name.toLowerCase().endsWith(suffix) &&
+      typeof value.requestId === "string" && value.requestId.length <= 80 &&
+      typeof value.base64 === "string" && value.base64.length > 0 && value.base64.length <= MAX_OUTPUT_BASE64_LENGTH &&
+      value.base64.length % 4 === 0 && /^[A-Za-z0-9+/]*={0,2}$/.test(value.base64) &&
+      (value.kind !== "png" || value.base64.startsWith("iVBORw0KGgoAAAANSUhEU"));
   }
   if (value.type === "history") return value.action === "undo" || value.action === "redo";
   if (value.type === "replaceDocument") {

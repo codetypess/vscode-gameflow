@@ -33,6 +33,7 @@ import { CanvasReferencePicker } from "./editor/canvas-reference-picker";
 import { LayerTree, NodeIcon } from "./editor/layer-tree";
 import { LayerMenu, type LayerMenuTarget } from "./editor/layer-menu";
 import { CanvasOverviewMenu, CanvasViewItems } from "./editor/canvas-menu";
+import { renderPageSnapshot } from "./editor/page-snapshot";
 import { excludedPrefabNodeIds } from "../shared/prefab-node-export";
 import { RenameDialog } from "./editor/rename-dialog";
 import { NodeView, orderedNodes } from "./editor/node-view";
@@ -47,7 +48,7 @@ import { usePsdEditor } from "./psd/use-psd-editor";
 import { importedNodes } from "./psd/import-signature";
 import { PaintedNodes } from "./editor/psd-paint";
 import { ImportedPageSurface } from "./editor/imported-page-surface";
-import { importPsdPrototype } from "./psd/io";
+import { importPsdPrototype, saveOutput } from "./psd/io";
 import { useWorkbenchSettings, WorkbenchSettingsButton, WorkbenchSettingsPanel } from "./workbench-settings";
 import { PROTOTYPE_PANELS, useFollowingPanels } from "./editor/use-following-panels";
 import { canvasPanelMetrics } from "./lib/canvas-panels";
@@ -62,7 +63,7 @@ import { sliceGenerationStamp } from "./psd/slice-render";
 import { useRuntimeResources } from "./runtime/resources";
 import { SliceResourcesProvider } from "./runtime/resource-context";
 import { bindPrototypePsd } from "../shared/psd-prototype";
-import { pagePsdKey } from "../shared/page-psd";
+import { pageImageFileName, pagePsdKey } from "../shared/page-psd";
 import { requestPsd, sourceBytes, usePagePsds } from "./runtime/page-psd";
 import { PageSyncDialog, type SyncSession } from "./editor/page-sync-dialog";
 import { componentPsdTargets } from "./runtime/component-psd";
@@ -122,6 +123,7 @@ export function App() {
   const [inspectorOpen, setInspectorOpen] = useState(true);
   const [insertOpen, setInsertOpen] = useState(false);
   const [canvasMenu, setCanvasMenu] = useState<CanvasMenuState | null>(null);
+  const [savingSnapshot, setSavingSnapshot] = useState(false);
   const [renameTarget, setRenameTarget] = useState<{ pageId: string; nodeId?: string; name: string } | null>(null);
   const [notice, setNotice] = useState("");
   const [applyReview, setApplyReview] = useState<{request:CanvasApplyRequest; expected:Record<string,string>;source:string;fields:{target:string;field:string;value:unknown}[]}|null>(null);
@@ -723,6 +725,20 @@ export function App() {
   } : undefined;
 
   const pageActionBusy = importingPsd || openingSlice || pending || pagePsds.busy.size > 0;
+  async function savePageSnapshot(target: GameFlowPage) {
+    if (savingSnapshot) return;
+    setSavingSnapshot(true);
+    setNotice("");
+    try {
+      const surface = viewport.current?.querySelector<HTMLElement>(`[data-page-id="${CSS.escape(target.id)}"] > .page-surface`);
+      if (!surface) throw new Error("未找到画板。");
+      const bytes = await renderPageSnapshot(surface, target.frame);
+      const name = pageImageFileName(target.name, "png");
+      if (await saveOutput(name, "png", bytes)) setNotice(`已导出「${target.name}」的 PNG 快照。`);
+    } catch (error) {
+      setNotice("无法保存画板快照。" + (error instanceof Error ? error.message : String(error)));
+    } finally { setSavingSnapshot(false); }
+  }
   const importPsdItem = <DropdownMenu.Item disabled={pageActionBusy} onSelect={() => psdImportInput.current?.click()}>
     <FileInput size={15} /><span>{importingPsd ? "正在导入 PSD…" : "从 PSD 导入原型…"}</span>
   </DropdownMenu.Item>;
@@ -917,6 +933,7 @@ export function App() {
                 if (target) enter(target);
               }}
               onRename={() => beginCanvasRename()} onDuplicate={duplicate} onDelete={remove} onAddPage={addPage}
+              onSnapshot={savePageSnapshot} savingSnapshot={savingSnapshot}
               importPsdItem={importPsdItem} pageActions={pageActions} onFit={() => fit(canvasDocument.pages, false)}
             />} />
         </div>

@@ -107,6 +107,8 @@ Schema v4 introduced `page.componentRootId` and `node.prefab: { source, document
 
 新协议 prefabExport / prefabExportResult 带有有界且逐项校验的相对输出路径，Host 仅向本机配置根目录写入，拒绝目录穿越、大小写冲突、损坏 PNG、来源冲突和未保存的目标文档。原生 PSD 与 Prefab 图片导出共用根目录锁。psdOutput / psdOutputResult 通过保存对话框输出生成 PSD，并检查打开的目标 PSD 草稿。源项目 xq-client 只作只读契约依据。
 
+画板 PNG 快照沿用 `psdOutput` 的文件名校验、请求标识和保存结果。Webview 按画板尺寸生成 PNG，宿主使用系统保存对话框选择目标，写入成功后替换目标图片。[画板 PNG 快照](page-png-snapshot.md)
+
 ## PSD 工作区导航（2026-11-19）
 
 GameFlow 打开或恢复时初始显示原型。psdEditorInit 只恢复数据，不触发工作区切换；psdEditorReveal 仅由明确打开切图的操作发送并即时导航，异步解码完成不得覆盖用户随后选择的工作区。同一 PSD 再次打开仅聚焦，不重新初始化或清除未同步修改。切图会话的 currentPsd 与页面 artPsd 独立；打开/恢复切图不写页面绑定或 GameFlow 文件。详见 [PSD 工作区启动修复](psd-workspace-startup-regression.md)。
