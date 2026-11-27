@@ -3,8 +3,46 @@ import type * as vscode from "vscode";
 import { attachExtensionUpdates, type SelfUpdateClient } from "../src/extension-updates";
 import { isWebviewToHostMessage } from "../shared/protocol";
 import type { ExtensionUpdateState } from "../shared/extension-update";
+import { restoreRetainedEditors } from "../src/retained-editors";
+import { referenceHost, TabInputCustom, Uri } from "./vscode-reference-host";
 
 export const extensionUpdateTests = [{
+  name: "restart restores only selected orphaned custom editors and keeps dirty tabs open",
+  async run() {
+    const untilSettled = () => new Promise<void>(resolve => setImmediate(resolve));
+    const type = "gameflow.canvasEditor";
+    const uri = new Uri("/sample.gameflow.json");
+    for (const scenario of ["orphan", "cold", "dirty", "hidden"]) {
+      referenceHost.reset();
+      const panels = new Set<vscode.WebviewPanel>();
+      const input = new TabInputCustom(uri, type);
+      const group = { viewColumn: 1, get tabs() { return [tab]; }, get activeTab() { return tab.isActive ? tab : undefined; } };
+      const tab = { input, group, label: "sample.gameflow.json", isActive: scenario !== "hidden", isDirty: scenario === "dirty" };
+      let closes = 0;
+      let change: ((event: { closed: unknown[] }) => void) | undefined;
+      const groups = { all: [group], async close(target: unknown) { assert.equal(target, tab); closes++; return true; },
+        onDidChangeTabs(listener: typeof change) { change = listener; return { dispose() { change = undefined; } }; } };
+      const recovery = restoreRetainedEditors({ [type]: new Map([[uri.toString(), { panels }]]) }, groups as unknown as vscode.TabGroups);
+      try {
+        if (scenario === "cold") panels.add({ viewType: type, viewColumn: 1 } as vscode.WebviewPanel);
+        if (scenario === "hidden") {
+          await untilSettled();
+          assert.equal(referenceHost.commands.length, 0, "background tabs must not take focus");
+          tab.isActive = true;
+          change?.({ closed: [] });
+        }
+        await untilSettled();
+        const orphan = scenario === "orphan" || scenario === "hidden";
+        assert.equal(closes, orphan ? 1 : 0, scenario);
+        assert.deepEqual(referenceHost.commands.map(item => item.command), orphan ? ["vscode.openWith", "vscode.openWith"] : ["vscode.openWith"]);
+        assert.equal(referenceHost.warnings.length, scenario === "dirty" ? 1 : 0);
+        change?.({ closed: [] });
+        await untilSettled();
+        assert.equal(closes, orphan ? 1 : 0, "each retained tab is recovered once");
+      } finally { recovery.dispose(); referenceHost.reset(); }
+    }
+  }
+}, {
   name: "retained pending workbench receives current state immediately when a new host attaches",
   async run() {
     let displayed: ExtensionUpdateState = { status: "pending", version: "1.2.3" };

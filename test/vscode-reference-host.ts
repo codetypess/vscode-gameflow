@@ -16,6 +16,9 @@ export class Disposable {
   dispose() { this.run(); }
   static from(...items: { dispose: () => void }[]) { return new Disposable(() => items.forEach(item => item.dispose())); }
 }
+export class TabInputCustom {
+  constructor(readonly uri: Uri, readonly viewType: string) {}
+}
 export class CancellationTokenSource { token = { isCancellationRequested: false }; dispose() {} }
 export class RelativePattern { constructor(public base: Uri, public pattern: string) {} }
 export class Range { constructor(public start: unknown, public end: unknown) {} }

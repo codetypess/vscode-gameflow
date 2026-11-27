@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import type { SelfUpdateClient } from "./extension-updates";
 import { createGameFlowDocument } from "./create-document";
+import { restoreRetainedEditors } from "./retained-editors";
 import { PsdEditorProvider, PSD_EDITOR_VIEW_TYPE } from "./psd-editor-provider";
 import {
   GAMEFLOW_EDITOR_VIEW_TYPE,
@@ -29,6 +30,10 @@ export function activate(context: vscode.ExtensionContext) {
       createGameFlowDocument()
     )
   );
+  context.subscriptions.push(restoreRetainedEditors({
+    [GAMEFLOW_EDITOR_VIEW_TYPE]: workbench.documents,
+    [PSD_EDITOR_VIEW_TYPE]: psd.documents
+  }));
   return { psd, workbench, updates };
 }
 

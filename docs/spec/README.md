@@ -36,7 +36,7 @@ When the first non-trivial work item establishes a lasting rule, create the smal
 
 - [画板 PNG 快照](page-png-snapshot.md) — 右键画板，按设计尺寸将当前原型画面另存为 PNG。
 
-- [update-state-after-reload.md](update-state-after-reload.md) — Verifying：宿主恢复立即推送更新状态，保留界面恢复时再次握手；406 项共享测试、32 项分发测试、类型检查、生产构建及浏览器恢复回归通过。已发布新 ID 的 0.1.11 / 0.1.12，stable revision 20，待用户通过扩展页重载实测。
+- [重启扩展后的更新状态](update-state-after-reload.md) — Done。0.1.13 升级到 0.1.15 后，经 VS Code 扩展详情页重启，返回原画布可恢复模式菜单。418 项共享测试和 33 项分发测试通过。
 
 - [publisher-identity-correction.md](publisher-identity-correction.md) — Done：新包和签名 metadata 均为 codetypess.vscode-gameflow，已发布 0.1.9 / 0.1.10，stable revision 18；31 项分发测试、生产构建与公开下载摘要验证通过。旧 ID 包仅保留历史。
 - [workbench-plugin-update.md](workbench-plugin-update.md) — Done：新版以绿色「更新插件」替换模式入口，生效前禁止工作区切换；405 项共享测试、浏览器交互与生产构建通过。原测试包身份错误，已改用新 publisher，见 publisher-identity-correction。
